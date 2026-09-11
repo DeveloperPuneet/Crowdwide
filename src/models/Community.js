@@ -5,6 +5,7 @@ const communitySchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
   description: { type: String, required: true, trim: true, maxlength: 280 },
   membersCount: { type: Number, default: 0 },
+  members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   coverImage: String
 }, { timestamps: true });
 

@@ -2,6 +2,12 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
 
+const dashboardFallbackCommunities = [
+	{ name: 'Independent makers', slug: 'independent-makers', description: 'A home for people building with their hands and minds.', membersCount: 0 },
+	{ name: 'Late-night learners', slug: 'late-night-learners', description: 'Curiosity does not keep office hours.', membersCount: 0 },
+	{ name: 'Small joys', slug: 'small-joys', description: 'The ordinary things that make a day feel full.', membersCount: 0 }
+];
+
 const fallbackCommunities = [
 	{ name: 'Independent makers', members: 0, description: 'A home for people building with their hands and minds.' },
 	{ name: 'Late-night learners', members: 0, description: 'Curiosity does not keep office hours.' },
@@ -55,7 +61,92 @@ exports.home = async (req, res) => {
 	}
 };
 
-exports.dashboard = (req, res) => res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true });
+async function populatePosts(posts) {
+	return Post.populate(posts, [
+		{ path: 'author', select: 'name createdAt' },
+		{ path: 'community', select: 'name slug membersCount' }
+	]);
+}
+
+async function buildFeed(user, mode) {
+	const joinedIds = user.joinedCommunities || [];
+	const personalizedFilter = joinedIds.length ? { community: { $in: joinedIds } } : { _id: { $in: [] } };
+	if (mode === 'personalized') {
+		return { posts: await populatePosts(await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean()), label: 'Personalized feed', note: joinedIds.length ? 'Posts and articles from communities you joined.' : 'Join a community to shape this feed.' };
+	}
+
+	const recentCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+	const [newPosts, largeCommunities, viralPosts, recentPosts] = await Promise.all([
+		Post.find({ $or: [{ createdAt: { $gte: recentCutoff } }, { community: { $exists: false } }] }).sort({ createdAt: -1 }).limit(20).lean(),
+		Community.find().sort({ membersCount: -1 }).limit(20).select('_id').lean(),
+		Post.aggregate([{ $addFields: { likesTotal: { $size: { $ifNull: ['$likes', []] } } } }, { $sort: { likesTotal: -1, createdAt: -1 } }, { $limit: 20 }]),
+		Post.find().sort({ createdAt: -1 }).limit(30).lean()
+	]);
+	const largeIds = largeCommunities.map((community) => community._id);
+	const largePosts = await Post.find({ community: { $in: largeIds } }).sort({ createdAt: -1 }).limit(30).lean();
+	const slots = [
+		...newPosts.slice(0, 8).map((post) => ({ ...post, feedSource: 'New voices & communities' })),
+		...largePosts.slice(0, 11).map((post) => ({ ...post, feedSource: 'Large communities' })),
+		...viralPosts.slice(0, 1).map((post) => ({ ...post, feedSource: 'Viral right now' }))
+	];
+	const used = new Set(slots.map((post) => String(post._id)));
+	recentPosts.forEach((post) => { if (slots.length < 20 && !used.has(String(post._id))) slots.push({ ...post, feedSource: 'Fresh from Crowdwide' }); });
+	return { posts: await populatePosts(slots), label: 'Normal feed', note: '40% new voices, 55% large communities, 5% viral content.' };
+}
+
+exports.dashboard = async (req, res) => {
+	try {
+		const user = await User.findById(req.session.user.id).lean();
+		const mode = req.query.feed === 'personalized' ? 'personalized' : 'normal';
+		const [feed, communities, people] = await Promise.all([
+			buildFeed(user, mode),
+			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
+			User.find({ _id: { $ne: user._id }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name').lean()
+		]);
+		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed, communities: communities.length ? communities : dashboardFallbackCommunities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: (user.following || []).map(String) });
+	} catch (error) {
+		console.error('Unable to load dashboard:', error.message);
+		res.status(500).render('pages/not-found', { title: 'Dashboard unavailable', noIndex: true });
+	}
+};
+
+exports.createPost = async (req, res) => {
+	const body = req.body.body?.trim();
+	if (!body) return res.redirect('/dashboard');
+	await Post.create({ author: req.session.user.id, body, type: req.body.type === 'article' ? 'article' : 'post', community: req.body.community || undefined });
+	res.redirect('/dashboard');
+};
+
+exports.createCommunity = async (req, res) => {
+	const name = req.body.name?.trim();
+	if (name) {
+		const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+		await Community.create({ name, slug, description: req.body.description?.trim() || `A new Crowdwide community for ${name}.`, members: [req.session.user.id], membersCount: 1 });
+	}
+	res.redirect('/dashboard');
+};
+
+exports.joinCommunity = async (req, res) => {
+	const community = await Community.findById(req.params.id);
+	const user = await User.findById(req.session.user.id);
+	const joinedCommunities = user?.joinedCommunities || [];
+	if (community && user && !joinedCommunities.some((id) => String(id) === String(community._id))) {
+		user.joinedCommunities.push(community._id);
+		community.members.push(user._id);
+		community.membersCount = community.members.length;
+		await Promise.all([user.save(), community.save()]);
+	}
+	res.redirect('/dashboard');
+};
+
+exports.followUser = async (req, res) => {
+	const user = await User.findById(req.session.user.id);
+	if (user && req.params.id !== String(user._id) && !user.following.some((id) => String(id) === req.params.id)) {
+		user.following.push(req.params.id);
+		await user.save();
+	}
+	res.redirect('/dashboard');
+};
 
 exports.infoPage = (req, res) => {
 	const pages = {

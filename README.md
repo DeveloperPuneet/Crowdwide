@@ -32,6 +32,10 @@ The site includes `/about`, `/about/developer`, `/privacy`, `/terms`, `/communit
 
 Homepage member, post, and community totals are queried from MongoDB on each request. Top communities are ordered by member count. If MongoDB is empty or unavailable, the homepage shows an honest starter state rather than invented activity.
 
+## Dashboard feed
+
+The authenticated dashboard has two feed modes. The normal feed builds a 20-post window with an intended 40% new voices and newer community posts, 55% posts from the largest communities, and 5% viral content ranked by likes. The personalized feed only returns posts and articles attached to communities the signed-in user has joined. The dashboard also supports publishing posts or articles, assigning them to a community, creating communities, joining communities, and following verified users.
+
 ## Auth flow
 
 New accounts receive a six-digit verification code and cannot access `/dashboard` until verified. An unverified login generates a fresh code and redirects to verification. Password reset tokens are stored with an expiry on the user document.

@@ -25,5 +25,6 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/extra.css">
+  <% if (locals.bodyClass === 'dashboard-page') { %><link rel="stylesheet" href="/css/dashboard.css"><% } %>
 </head>
 <body class="<%= locals.bodyClass || '' %>">
