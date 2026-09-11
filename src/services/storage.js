@@ -1,4 +1,3 @@
-const path = require('path');
 const { Storage } = require('@google-cloud/storage');
 const sharp = require('sharp');
 
@@ -18,10 +17,8 @@ async function createSignedUpload({ userId, kind, contentType }) {
   return { configured: true, url, key, publicUrl: cdnUrl(key), expiresIn: 900 };
 }
 
-async function createImageThumbnail(filePath, key) {
-  const thumbnailPath = `${filePath}.thumb.webp`;
-  await sharp(filePath).resize(640, 640, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 }).toFile(thumbnailPath);
-  return { path: thumbnailPath, url: key ? cdnUrl(`thumbnails/${path.basename(key, path.extname(key))}.webp`) : `/uploads/${path.basename(thumbnailPath)}` };
+async function createImageThumbnail(buffer) {
+  return sharp(buffer).resize(640, 640, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
 }
 
 module.exports = { createSignedUpload, createImageThumbnail, cdnUrl, isConfigured: () => Boolean(bucket) };

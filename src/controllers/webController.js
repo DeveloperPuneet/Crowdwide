@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
 const { createSignedUpload, createImageThumbnail } = require('../services/storage');
+const { uploadBuffer, streamFile } = require('../services/gridfs');
 const Comment = require('../models/Comment');
 
 const dashboardFallbackCommunities = [
@@ -138,10 +139,12 @@ exports.createPost = async (req, res) => {
 	}
 	const media = [];
 	for (const file of req.files || []) {
-		const item = { url: `/uploads/${file.filename}`, kind: file.mediaKind, alt: req.body.mediaAlt?.trim() || '' };
+		const stored = await uploadBuffer(file.buffer, file.originalname, file.mimetype, { kind: file.mediaKind, owner: req.session.user.id });
+		const item = { url: `/media/${stored.id}`, storageKey: stored.id, kind: file.mediaKind, alt: req.body.mediaAlt?.trim() || '' };
 		if (file.mediaKind === 'image') {
-			const thumbnail = await createImageThumbnail(file.path, file.filename);
-			item.thumbnailUrl = thumbnail.url;
+			const thumbnail = await createImageThumbnail(file.buffer);
+			const thumbnailFile = await uploadBuffer(thumbnail, `${file.originalname}.thumb.webp`, 'image/webp', { kind: 'thumbnail', parent: stored.id, owner: req.session.user.id });
+			item.thumbnailUrl = `/media/${thumbnailFile.id}`;
 		}
 		media.push(item);
 	}
@@ -160,6 +163,8 @@ exports.signedUpload = async (req, res) => {
 };
 
 exports.health = (req, res) => res.json({ status: 'ok', service: 'crowdwide', timestamp: new Date().toISOString() });
+
+exports.media = (req, res) => streamFile(req.params.id, res);
 
 exports.createCommunity = async (req, res) => {
 	const name = req.body.name?.trim();

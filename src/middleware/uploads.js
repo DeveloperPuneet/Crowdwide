@@ -1,14 +1,5 @@
-const fs = require('fs');
-const path = require('path');
 const multer = require('multer');
-
-const uploadDirectory = path.join(__dirname, '../../public/uploads');
-fs.mkdirSync(uploadDirectory, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: uploadDirectory,
-  filename: (req, file, callback) => callback(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname).toLowerCase()}`)
-});
+const storage = multer.memoryStorage();
 
 const mediaLimits = {
   image: 1.5 * 1024 * 1024,
@@ -40,7 +31,6 @@ function validatePostUpload(req, res, next) {
   for (const file of req.files) {
     const kind = classify(file);
     if (file.size >= mediaLimits[kind]) {
-      req.files.forEach((uploadedFile) => fs.rm(uploadedFile.path, () => {}));
       req.session.flash = { type: 'error', message: `${kind} files must be smaller than ${kind === 'image' ? '1.5MB' : kind === 'video' ? '4MB' : '2MB'}.` };
       return res.redirect('/dashboard');
     }
@@ -51,7 +41,6 @@ function validatePostUpload(req, res, next) {
 
 function validateProfileUpload(req, res, next) {
   if (req.file && req.file.size >= mediaLimits.image) {
-    fs.rm(req.file.path, () => {});
     req.session.flash = { type: 'error', message: 'Profile pictures must be smaller than 1.5MB.' };
     return res.redirect('/settings/profile');
   }

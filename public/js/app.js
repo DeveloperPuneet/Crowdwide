@@ -94,6 +94,13 @@ document.querySelectorAll('.post-card video, .post-card audio').forEach((media) 
 
 const sidebarToggle = document.querySelector('.sidebar-toggle');
 const appLayout = document.querySelector('.app-layout');
+const appNavigation = document.querySelector('.app-nav nav');
+if (appNavigation && !appNavigation.querySelector('a[href="/settings/profile"]')) {
+  const settingsLink = document.createElement('a');
+  settingsLink.href = '/settings/profile';
+  settingsLink.textContent = 'Settings';
+  appNavigation.appendChild(settingsLink);
+}
 if (sidebarToggle && appLayout) {
   const collapsed = localStorage.getItem('crowdwide-sidebar-collapsed') === 'true';
   appLayout.classList.toggle('sidebar-collapsed', collapsed);
