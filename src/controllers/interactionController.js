@@ -62,6 +62,11 @@ exports.postDetail = async (req, res) => {
   res.render('pages/post-detail', { title: `${post.author?.name || 'Crowdwide'} post`, pagePath: `/posts/${post._id}`, noIndex: false, post, comments });
 };
 
+exports.commentThread = async (req, res) => {
+  const comments = await Comment.find({ post: req.params.id }).sort({ createdAt: 1 }).populate('author', 'name').lean();
+  res.json({ comments });
+};
+
 exports.notifications = async (req, res) => {
   const [notifications, unread] = await Promise.all([
     Notification.find({ recipient: req.session.user.id }).sort({ createdAt: -1 }).limit(50).populate('actor', 'name').lean(),

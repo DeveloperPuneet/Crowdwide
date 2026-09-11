@@ -16,6 +16,7 @@ router.get('/media/:id', controller.media);
 router.get('/notifications', requireAuth, requireVerified, interactionController.notifications);
 router.get('/notifications/unread', requireAuth, requireVerified, interactionController.unreadCount);
 router.get('/posts/:id', interactionController.postDetail);
+router.get('/posts/:id/comments', interactionController.commentThread);
 router.post('/notifications/read', requireAuth, requireVerified, interactionController.readNotifications);
 router.post('/posts/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleLike);
 router.post('/posts/:id/comments', requireAuth, requireVerified, interactionLimiter, interactionController.comment);

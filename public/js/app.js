@@ -88,6 +88,54 @@ document.querySelectorAll('.post-card img').forEach((image) => {
   image.loading = 'lazy';
   image.decoding = 'async';
 });
+
+document.querySelectorAll('.feed-column .post-card').forEach((postCard) => {
+  const postId = postCard.id.replace('post-', '');
+  if (!postId) return;
+  const openLink = document.createElement('a');
+  openLink.className = 'post-open-link';
+  openLink.href = `/posts/${postId}`;
+  openLink.textContent = 'Open post and comments →';
+  const actions = postCard.querySelector('.post-actions');
+  if (actions) actions.before(openLink);
+  postCard.addEventListener('click', (event) => {
+    if (event.target.closest('form,button,a,input,select,textarea,video,audio')) return;
+    window.location.href = openLink.href;
+  });
+});
+
+const publicPost = document.querySelector('.public-post');
+if (window.axios && publicPost) {
+  const postId = window.location.pathname.split('/').pop();
+  const thread = document.querySelector('.community-posts');
+  const renderThread = (comments) => {
+    if (!thread) return;
+    const heading = thread.querySelector('.panel-heading');
+    thread.replaceChildren(heading || document.createElement('div'));
+    if (heading) heading.querySelector('span').textContent = `${comments.length} replies`;
+    const byParent = comments.reduce((map, comment) => {
+      const key = comment.parent ? String(comment.parent) : 'root';
+      (map[key] ||= []).push(comment);
+      return map;
+    }, {});
+    const append = (items, depth = 0) => items.forEach((comment) => {
+      const node = document.createElement('article');
+      node.className = 'thread-comment';
+      node.dataset.depth = Math.min(depth, 2);
+      const author = document.createElement('strong');
+      author.textContent = comment.author?.name || 'Member';
+      const body = document.createElement('p');
+      body.textContent = comment.body;
+      const date = document.createElement('time');
+      date.textContent = new Date(comment.createdAt).toLocaleString();
+      node.append(author, body, date);
+      thread.append(node);
+      append(byParent[String(comment._id)] || [], depth + 1);
+    });
+    append(byParent.root || []);
+  };
+  window.axios.get(`/posts/${postId}/comments`).then(({ data }) => renderThread(data.comments)).catch(() => {});
+}
 document.querySelectorAll('.post-card video, .post-card audio').forEach((media) => {
   media.preload = 'none';
 });

@@ -34,6 +34,7 @@
   <link rel="stylesheet" href="/css/scrollbar.css">
   <% if (locals.bodyClass === 'dashboard-page') { %><link rel="stylesheet" href="/css/dashboard.css"><% } %>
   <% if (locals.bodyClass === 'dashboard-page' || locals.pagePath === '/notifications') { %><link rel="stylesheet" href="/css/social.css"><% } %>
+  <% if (locals.bodyClass === 'dashboard-page' || locals.pagePath?.startsWith('/posts/')) { %><link rel="stylesheet" href="/css/feed-thread.css"><% } %>
   <% if (locals.pagePath === '/explore' || locals.pagePath?.startsWith('/communities/') || locals.pagePath?.startsWith('/posts/') || locals.pagePath === '/notifications') { %><link rel="stylesheet" href="/css/community.css"><% } %>
   <% if (locals.bodyClass === 'dashboard-page' && (locals.pagePath === '/settings' || locals.pagePath?.startsWith('/settings') || locals.pagePath?.startsWith('/communities/'))) { %><link rel="stylesheet" href="/css/settings.css"><% } %>
 </head>
