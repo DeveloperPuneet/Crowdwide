@@ -14,6 +14,7 @@ router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
 router.get('/media/signed-upload', requireAuth, requireVerified, controller.signedUpload);
 router.get('/media/:id', controller.media);
 router.get('/notifications', requireAuth, requireVerified, interactionController.notifications);
+router.get('/notifications/unread', requireAuth, requireVerified, interactionController.unreadCount);
 router.get('/posts/:id', interactionController.postDetail);
 router.post('/notifications/read', requireAuth, requireVerified, interactionController.readNotifications);
 router.post('/posts/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleLike);

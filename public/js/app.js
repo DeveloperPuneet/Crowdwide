@@ -122,6 +122,59 @@ if (window.axios) {
   window.setInterval(heartbeat, 13 * 60 * 1000);
 }
 
+document.querySelectorAll('.post-actions form, .comment-form').forEach((form) => {
+  form.addEventListener('submit', async (event) => {
+    if (!window.axios) return;
+    event.preventDefault();
+    const button = form.querySelector('button');
+    if (button) button.disabled = true;
+    try {
+      const response = await window.axios.post(form.action, new URLSearchParams(new FormData(form)), { headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content, 'X-Requested-With': 'XMLHttpRequest' } });
+      if (response.data.liked !== undefined) {
+        button.innerHTML = `${response.data.liked ? '♥' : '♡'} ${response.data.likes}`;
+      }
+      if (response.data.bookmarked !== undefined) button.textContent = response.data.bookmarked ? '▣ Saved' : '▱ Save';
+      if (response.data.shares !== undefined) button.textContent = `↗ Share ${response.data.shares}`;
+      if (response.data.comment) {
+        const thread = form.closest('.post-card')?.querySelector('.comment-thread') || (() => {
+          const created = document.createElement('div');
+          created.className = 'comment-thread';
+          form.before(created);
+          return created;
+        })();
+        const comment = document.createElement('div');
+        comment.className = 'comment';
+        comment.innerHTML = `<strong>You</strong><span></span>`;
+        comment.querySelector('span').textContent = response.data.comment.body;
+        thread.append(comment);
+        form.reset();
+      }
+    } catch (error) {
+      const message = document.createElement('span');
+      message.className = 'interaction-error';
+      message.textContent = 'Could not update right now.';
+      form.after(message);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+});
+
+const notificationBadge = document.querySelector('.notification-badge');
+if (window.axios && notificationBadge) {
+  const refreshNotifications = async () => {
+    try {
+      const { data } = await window.axios.get('/notifications/unread');
+      notificationBadge.textContent = data.unread > 99 ? '99+' : data.unread;
+      notificationBadge.hidden = !data.unread;
+    } catch (error) {
+      notificationBadge.hidden = true;
+    }
+  };
+  refreshNotifications();
+  window.setInterval(refreshNotifications, 60 * 1000);
+}
+
 document.querySelectorAll('form').forEach((form) => {
   if (form.method.toLowerCase() === 'post' && !form.querySelector('input[name="_csrf"]')) {
     const token = document.querySelector('meta[name="csrf-token"]')?.content;

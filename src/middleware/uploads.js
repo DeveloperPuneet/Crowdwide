@@ -22,7 +22,7 @@ const postUpload = multer({
 
 const profileUpload = multer({
   storage,
-  limits: { fileSize: mediaLimits.image + 1, files: 1 },
+  limits: { fileSize: 2 * 1024 * 1024 + 1, files: 1 },
   fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
 }).single('profilePicture');
 
@@ -40,8 +40,8 @@ function validatePostUpload(req, res, next) {
 }
 
 function validateProfileUpload(req, res, next) {
-  if (req.file && req.file.size >= mediaLimits.image) {
-    req.session.flash = { type: 'error', message: 'Profile pictures must be smaller than 1.5MB.' };
+  if (req.file && req.file.size >= 2 * 1024 * 1024) {
+    req.session.flash = { type: 'error', message: 'Profile pictures must be smaller than 2MB.' };
     return res.redirect('/settings/profile');
   }
   next();
