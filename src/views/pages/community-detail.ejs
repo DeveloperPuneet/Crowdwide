@@ -1,3 +1,39 @@
-<%- include('../partials/head', { title, bodyClass: 'dashboard-page' }) %>
-<header class="app-nav"><a class="brand" href="/"><img src="/images/Crowdwide_logo.png" alt=""><span>Crowdwide</span></a><nav><a href="/dashboard">Home</a><a class="app-nav-active" href="/explore">Explore</a></nav><div class="app-nav-actions"><a class="button button-small button-ghost" href="/settings/profile">Settings</a></div></header>
-<main class="community-detail"><section class="community-detail-hero"><a class="back-link" href="/explore">← All communities</a><p class="eyebrow"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p><h1><%= community.name %></h1><p><%= community.description %></p><div class="community-detail-meta"><span><strong><%= community.membersCount %></strong> members</span><span>Owner: <%= community.owner?.name || 'Crowdwide' %></span><% if (isOwner) { %><a class="button button-small button-ghost" href="/communities/<%= community._id %>/manage">Manage community</a><% } else if (joined) { %><span class="joined-mark">Joined</span><% } else if (requested) { %><span class="joined-mark">Request pending</span><% } else { %><form method="post" action="/communities/<%= community._id %>/join"><button class="button button-primary button-small" type="submit"><%= community.isPrivate ? 'Request to join' : 'Join community' %> <span>↗</span></button></form><% } %></div></section><section class="community-posts"><div class="panel-heading"><h2>Community posts</h2><span><%= posts.length %> recent</span></div><% if (!posts.length) { %><div class="empty-feed"><h2>This community is just beginning.</h2><p>Be the first person to start the conversation.</p></div><% } %><% posts.forEach((post) => { %><article class="post-card"><div class="post-meta"><div class="profile-avatar small"><%= post.author?.name?.charAt(0).toUpperCase() || '?' %></div><div><strong><%= post.author?.name || 'Member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %></span></div></div><p class="post-body"><%= post.body %></p></article><% }) %></section></main><%- include('../partials/foot') %>
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="community-detail">
+	<section class="community-detail-hero">
+		<a class="back-link" href="/explore">← All communities</a>
+		<p class="eyebrow"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p>
+		<h1><%= community.name %></h1>
+		<p><%= community.description %></p>
+		<div class="community-detail-meta">
+			<span><strong><%= community.membersCount %></strong> members</span>
+			<span>Owner: <a class="name-link" href="/u/<%= community.owner?._id %>"><%= community.owner?.name || 'Crowdwide' %></a></span>
+			<% if (isOwner) { %><a class="button button-small button-ghost" href="/communities/<%= community._id %>/manage">Manage community</a>
+			<% } else if (joined) { %><span class="joined-mark">Joined</span>
+			<% } else if (requested) { %><span class="joined-mark">Request pending</span>
+			<% } else { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%= community.isPrivate ? 'Request to join' : 'Join community' %> <span>↗</span></button></form><% } %>
+		</div>
+	</section>
+	<section class="community-posts">
+		<div class="panel-heading"><h2>Community posts</h2><span><%= posts.length %> recent</span></div>
+		<% if (!posts.length) { %>
+		<div class="empty-feed"><h2>This community is just beginning.</h2><p>Be the first person to start the conversation.</p></div>
+		<% } %>
+		<% posts.forEach((post) => { %>
+		<a class="post-open-link" href="/posts/<%= post._id %>" style="display:block;text-decoration:none;">
+		<article class="post-card">
+			<div class="post-meta">
+				<%- include('../partials/avatar', { person: post.author, size: 'small', link: false }) %>
+				<div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %></span></div>
+			</div>
+			<p class="post-body"><%= post.body %></p>
+			<% if ((post.media || [])[0]) { %><div class="post-media count-1"><div class="post-media-frame"><% if (post.media[0].kind === 'image') { %><img src="<%= post.media[0].thumbnailUrl || post.media[0].url %>" alt="" loading="lazy"><% } %></div></div><% } %>
+		</article>
+		</a>
+		<% }) %>
+	</section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

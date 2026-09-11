@@ -140,28 +140,16 @@ document.querySelectorAll('.post-card video, .post-card audio').forEach((media) 
   media.preload = 'none';
 });
 
-const sidebarToggle = document.querySelector('.sidebar-toggle');
-const appLayout = document.querySelector('.app-layout');
-const appNavigation = document.querySelector('.app-nav nav');
-if (appNavigation && !appNavigation.querySelector('a[href="/settings/profile"]')) {
-  const settingsLink = document.createElement('a');
-  settingsLink.href = '/settings/profile';
-  settingsLink.textContent = 'Settings';
-  appNavigation.appendChild(settingsLink);
-}
-if (sidebarToggle && appLayout) {
-  const collapsed = localStorage.getItem('crowdwide-sidebar-collapsed') === 'true';
-  appLayout.classList.toggle('sidebar-collapsed', collapsed);
-  sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-  sidebarToggle.textContent = collapsed ? '›' : '‹';
-  sidebarToggle.addEventListener('click', () => {
-    const next = !appLayout.classList.contains('sidebar-collapsed');
-    appLayout.classList.toggle('sidebar-collapsed', next);
-    localStorage.setItem('crowdwide-sidebar-collapsed', String(next));
-    sidebarToggle.setAttribute('aria-expanded', String(!next));
-    sidebarToggle.textContent = next ? '›' : '‹';
-  });
-}
+document.querySelectorAll('[data-drawer-open]').forEach((toggle) => {
+  const header = toggle.closest('header');
+  const drawer = (header?.nextElementSibling?.classList.contains('nav-drawer') ? header.nextElementSibling : null) || document.querySelector('.nav-drawer');
+  if (!drawer) return;
+  const open = () => { drawer.classList.add('is-open'); toggle.setAttribute('aria-expanded', 'true'); document.body.style.overflow = 'hidden'; };
+  const close = () => { drawer.classList.remove('is-open'); toggle.setAttribute('aria-expanded', 'false'); document.body.style.overflow = ''; };
+  toggle.addEventListener('click', open);
+  drawer.querySelectorAll('[data-drawer-close]').forEach((el) => el.addEventListener('click', close));
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
+});
 
 if (window.axios) {
   const appUrl = document.querySelector('meta[name="app-url"]')?.content || window.location.origin;
@@ -170,7 +158,7 @@ if (window.axios) {
   window.setInterval(heartbeat, 13 * 60 * 1000);
 }
 
-document.querySelectorAll('.post-actions form, .comment-form').forEach((form) => {
+document.querySelectorAll('.post-actions form, .comment-form, .follow-form').forEach((form) => {
   form.addEventListener('submit', async (event) => {
     if (!window.axios) return;
     event.preventDefault();
@@ -183,6 +171,11 @@ document.querySelectorAll('.post-actions form, .comment-form').forEach((form) =>
       }
       if (response.data.bookmarked !== undefined) button.textContent = response.data.bookmarked ? '▣ Saved' : '▱ Save';
       if (response.data.shares !== undefined) button.textContent = `↗ Share ${response.data.shares}`;
+      if (response.data.following !== undefined) {
+        button.classList.toggle('is-following', response.data.following);
+        button.textContent = response.data.following ? 'Following' : 'Follow';
+        document.querySelectorAll(`.follower-count[data-user="${form.dataset.user}"]`).forEach((el) => { el.textContent = response.data.followersCount; });
+      }
       if (response.data.comment) {
         const thread = form.closest('.post-card')?.querySelector('.comment-thread') || (() => {
           const created = document.createElement('div');

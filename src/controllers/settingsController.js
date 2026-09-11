@@ -3,7 +3,7 @@ const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
-const { uploadBuffer } = require('../services/gridfs');
+const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -26,7 +26,7 @@ exports.updateProfile = async (req, res) => {
   user.privacy = ['public', 'followers'].includes(req.body.privacy) ? req.body.privacy : user.privacy;
   if (req.file) {
     const stored = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, { kind: 'profile-picture', owner: user._id.toString() });
-    user.profilePicture = `/media/${stored.id}`;
+    user.profilePicture = mediaUrl(stored);
   }
   await user.save();
   req.session.user.name = user.name;

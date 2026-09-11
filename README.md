@@ -48,13 +48,21 @@ Authenticated users can browse `/explore`, search by name or description, filter
 
 Likes, bookmarks, comments, nested replies, share counters, and notifications are stored in MongoDB. Shared posts resolve at `/posts/:id`. Helmet security headers, CSRF tokens, authentication rate limits, interaction rate limits, five-attempt login lockouts, 75-day device records, and new-device email alerts are enabled. Users can configure TOTP two-factor authentication at `/settings/security/2fa`.
 
-## Google Cloud media
+## Extended media storage (multi-cluster MongoDB)
 
-Uploaded post media, generated image thumbnails, and profile pictures are stored in MongoDB GridFS and served through `/media/:id`; text and media metadata remain on the related MongoDB documents. Set `GCS_PROJECT_ID`, `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`, and optionally `MEDIA_CDN_URL` to enable `/media/signed-upload` for direct-to-cloud uploads. The endpoint returns a V4 signed upload URL that expires after 15 minutes. A production deployment should use a private bucket, a CDN or signed delivery policy, lifecycle rules, and a service account limited to the media bucket.
+Uploaded post media, generated image thumbnails, and profile pictures are stored in MongoDB GridFS and served through `/media/:cluster/:id`. By default everything lives on the primary `MONGODB_URI` cluster ("cluster 0"), so no extra setup is required.
+
+To scale storage horizontally, add any number of extra MongoDB clusters as `MONGO_DB_URL_0`, `MONGO_DB_URL_1`, `MONGO_DB_URL_2`, ... in `.env` (see `.env.example`). Every configured cluster gets its own GridFS bucket, and new uploads are distributed across all of them in round-robin order via `src/services/storageCluster.js`. Adding more storage capacity later is just "add one more `MONGO_DB_URL_<n>` and restart" - no code or schema changes needed. `GET /media/status` (authenticated) reports which clusters are currently connected.
+
+Set `GCS_PROJECT_ID`, `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`, and optionally `MEDIA_CDN_URL` to enable `/media/signed-upload` for direct-to-cloud uploads as an alternative/addition to MongoDB GridFS storage. The endpoint returns a V4 signed upload URL that expires after 15 minutes. A production deployment should use a private bucket, a CDN or signed delivery policy, lifecycle rules, and a service account limited to the media bucket.
 
 The server-side processor generates image thumbnails immediately before storing them in GridFS. For GCS direct uploads, connect the signed-upload completion event to a Cloud Run or Cloud Functions worker for video transcoding and video thumbnail generation; the returned object key and CDN URL are designed for that handoff.
 
-Post creation accepts up to two media files in one submission. The browser lazily loads feed images and defers audio/video loading until playback. The authenticated dashboard sidebar can be collapsed and remembers the choice in local storage. The browser sends an Axios request to `/health` immediately and every 13 minutes using `APP_URL`, which helps keep deployments with inactivity sleep warm while they are being used.
+Post creation accepts up to two media files in one submission. The browser lazily loads feed images and defers audio/video loading until playback. The browser sends an Axios request to `/health` immediately and every 13 minutes using `APP_URL`, which helps keep deployments with inactivity sleep warm while they are being used.
+
+## Profiles, following, and search
+
+Every author name and avatar across the app links to a public profile at `/u/:id`, showing bio, join date, post count, followers/following counts, and that user's posts. Users can follow or unfollow each other from a profile page or the "People to follow" panel; following is reflected immediately (AJAX) and factored into the home feed, which reserves slots for posts from people you follow alongside new voices and larger communities - so growing accounts and new communities are not permanently buried under popularity. `/search?q=` searches people, communities, and post text in one place and is wired to the header search box and the mobile menu on every page.
 
 ## Auth flow
 
@@ -80,3 +88,9 @@ The mailer uses Gmail OAuth2 through Nodemailer, so no Gmail password or less-se
 - `/auth/forgot-password` password reset request
 - `/auth/reset?token=...` password reset
 - `/dashboard` protected app entry
+- `/explore` community directory with search + category filter
+- `/communities/:slug` community detail; `/communities/:id/manage` owner controls
+- `/u/:id` public profile with follow/unfollow
+- `/search?q=` search across people, communities, and posts
+- `/posts/:id` post detail (public preview when logged out, full interactions when logged in)
+- `/notifications`, `/settings/:section`

@@ -1,3 +1,23 @@
-<%- include('../partials/head', { title, bodyClass: 'dashboard-page' }) %>
-<header class="app-nav"><a class="brand" href="/"><img src="/images/Crowdwide_logo.png" alt=""><span>Crowdwide</span></a><nav><a href="/dashboard">Home</a><a class="app-nav-active" href="/notifications">Notifications</a></nav><div class="app-nav-actions"><a class="button button-small button-ghost" href="/dashboard">Back to app</a></div></header>
-<main class="notifications-page"><div class="notifications-heading"><div><p class="eyebrow">Stay in the loop</p><h1>Notifications <em><%= unread ? unread : '' %></em></h1></div><form method="post" action="/notifications/read"><button class="button button-small button-ghost" type="submit">Mark all read</button></form></div><section class="notification-list"><% if (!notifications.length) { %><div class="empty-feed"><h2>All quiet for now.</h2><p>Your interactions and community updates will appear here.</p></div><% } %><% notifications.forEach((notification) => { %><article class="notification-item <%= notification.readAt ? '' : 'notification-unread' %>"><div class="profile-avatar tiny"><%= notification.actor?.name?.charAt(0).toUpperCase() || '✦' %></div><div><strong><%= notification.actor?.name || 'Crowdwide' %></strong><span><%= notification.message %></span><small><%= new Date(notification.createdAt).toLocaleString() %></small></div></article><% }) %></section></main><%- include('../partials/foot') %>
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/notifications', noIndex: true }) %>
+<%- include('../partials/app-nav', { active: 'notifications', currentUser }) %>
+<main class="notifications-page">
+	<div class="notifications-heading">
+		<div><p class="eyebrow">Stay in the loop</p><h1>Notifications <em><%= unread ? unread : '' %></em></h1></div>
+		<form method="post" action="/notifications/read"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit">Mark all read</button></form>
+	</div>
+	<section class="notification-list">
+		<% if (!notifications.length) { %>
+		<div class="empty-feed"><h2>All quiet for now.</h2><p>Your interactions and community updates will appear here.</p></div>
+		<% } %>
+		<% notifications.forEach((notification) => {
+			const target = notification.post ? `/posts/${notification.post}` : notification.actor ? `/u/${notification.actor._id}` : null;
+		%>
+		<a class="notification-item <%= notification.readAt ? '' : 'notification-unread' %>" href="<%= target || '#' %>" style="<%= target ? '' : 'pointer-events:none;' %>text-decoration:none;color:inherit;">
+			<%- include('../partials/avatar', { person: notification.actor || {}, size: 'tiny', link: false }) %>
+			<div><strong><%= notification.actor?.name || 'Crowdwide' %></strong><span><%= notification.message %></span><small><%= new Date(notification.createdAt).toLocaleString() %></small></div>
+		</a>
+		<% }) %>
+	</section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

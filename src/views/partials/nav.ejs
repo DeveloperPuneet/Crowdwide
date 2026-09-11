@@ -16,5 +16,24 @@
       <a class="button button-small button-ghost" href="/auth/login">Sign in</a>
       <a class="button button-small button-primary" href="/auth/register">Join Crowdwide <span>↗</span></a>
     <% } %>
+    <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false">☰</button>
   </div>
 </header>
+
+<div class="nav-drawer" id="marketing-nav-drawer">
+  <div class="nav-drawer-backdrop" data-drawer-close></div>
+  <nav class="nav-drawer-panel">
+    <button class="nav-drawer-close" type="button" data-drawer-close aria-label="Close menu">×</button>
+    <a href="#why">Why Crowdwide</a>
+    <a href="#communities">Communities</a>
+    <a href="/about">About</a>
+    <hr class="nav-drawer-hr">
+    <% if (currentUser) { %>
+      <a href="/dashboard">Open app</a>
+      <a href="/notifications">Notifications</a>
+    <% } else { %>
+      <a href="/auth/login">Sign in</a>
+      <a href="/auth/register">Join Crowdwide</a>
+    <% } %>
+  </nav>
+</div>

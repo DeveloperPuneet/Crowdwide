@@ -1,2 +1,51 @@
-<%- include('../partials/head', { title, description: post.body, pagePath }) %>
-<div class="info-page"><header class="site-nav container"><a class="brand" href="/"><img src="/images/Crowdwide_logo.png" alt=""><span>Crowdwide</span></a><a class="button button-small button-ghost" href="/auth/register">Join Crowdwide <span>↗</span></a></header><main class="community-detail"><a class="back-link" href="/">← Crowdwide</a><article class="post-card public-post"><div class="post-meta"><div class="profile-avatar small"><%= post.author?.name?.charAt(0).toUpperCase() || '?' %></div><div><strong><%= post.author?.name || 'Crowdwide member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %></span></div></div><p class="post-body"><%= post.body %></p><div class="public-post-cta"><p>Thoughtful conversations live on Crowdwide.</p><a class="button button-primary button-small" href="/auth/register">Join the conversation <span>↗</span></a></div></article><section class="community-posts"><div class="panel-heading"><h2>Replies</h2><span><%= comments.length %></span></div><% comments.forEach((comment) => { %><div class="comment"><strong><%= comment.author?.name || 'Member' %></strong><span><%= comment.body %></span></div><% }) %></section></main></div><%- include('../partials/foot') %>
+<%- include('../partials/head', { title, description: post.body?.slice(0, 160), pagePath, bodyClass: currentUser ? 'dashboard-page' : 'info-page' }) %>
+<% if (currentUser) { %>
+<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% } else { %>
+<header class="site-nav container">
+	<a class="brand" href="/"><img src="/images/Crowdwide_logo.png" alt=""><span>Crowdwide</span></a>
+	<a class="button button-small button-ghost" href="/auth/register">Join Crowdwide <span>↗</span></a>
+</header>
+<% } %>
+<main class="community-detail">
+	<a class="back-link" href="<%= currentUser ? '/dashboard' : '/' %>">← <%= currentUser ? 'Back to feed' : 'Crowdwide' %></a>
+	<article class="post-card public-post">
+		<div class="post-meta">
+			<%- include('../partials/avatar', { person: post.author, size: 'small', link: !!currentUser }) %>
+			<div><strong><%= post.author?.name || 'Crowdwide member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %></span></div>
+		</div>
+		<p class="post-body" style="-webkit-line-clamp:unset;max-height:none;"><%= post.body %></p>
+		<% if ((post.media || []).length) { %>
+		<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
+			<% post.media.forEach((media) => { %>
+			<div class="post-media-frame">
+				<% if (media.kind === 'image') { %><img src="<%= media.thumbnailUrl || media.url %>" alt="<%= media.alt || 'Post image' %>" loading="lazy">
+				<% } else if (media.kind === 'video') { %><video controls preload="none" src="<%= media.url %>"></video>
+				<% } else if (media.kind === 'audio') { %><audio controls preload="none" src="<%= media.url %>"></audio><% } %>
+			</div>
+			<% }) %>
+		</div>
+		<% } %>
+		<% if (currentUser) { %>
+		<div class="post-actions">
+			<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.liked ? '♥' : '♡' %> <%= post.likes?.length || 0 %></button></form>
+			<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.bookmarked ? '▣ Saved' : '▱ Save' %></button></form>
+			<form method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">↗ Share <%= post.sharesCount || 0 %></button></form>
+			<span>◌ <%= post.commentsCount || 0 %></span>
+		</div>
+		<form class="comment-form" method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
+		<% } else { %>
+		<div class="public-post-cta">
+			<p>Thoughtful conversations live on Crowdwide.</p>
+			<a class="button button-primary button-small" href="/auth/register">Join the conversation <span>↗</span></a>
+		</div>
+		<% } %>
+	</article>
+	<section class="community-posts">
+		<div class="panel-heading"><h2>Replies</h2><span><%= comments.length %></span></div>
+		<% if (!comments.length) { %><p style="color:#777a91;font-size:12px;">No replies yet.</p><% } %>
+		<% comments.forEach((comment) => { %><div class="comment"><strong><%= comment.author?.name || 'Member' %></strong><span><%= comment.body %></span></div><% }) %>
+	</section>
+</main>
+<%- include('../partials/site-footer') %>
+<%- include('../partials/foot') %>

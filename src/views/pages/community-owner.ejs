@@ -1,3 +1,54 @@
-<%- include('../partials/head', { title, bodyClass: 'dashboard-page' }) %>
-<header class="app-nav"><a class="brand" href="/"><img src="/images/Crowdwide_logo.png" alt=""><span>Crowdwide</span></a><nav><a href="/dashboard">Home</a><a class="app-nav-active" href="/communities/<%= community._id %>/manage">Community controls</a></nav><div class="app-nav-actions"><a class="button button-small button-ghost" href="/dashboard">Back to app</a></div></header>
-<main class="owner-layout"><section class="owner-hero"><p class="eyebrow">Community owner dashboard</p><h1><%= community.name %></h1><p><%= community.description %></p><span class="owner-stat"><strong><%= community.membersCount %></strong> members</span></section><section class="owner-grid"><form class="settings-block" method="post" action="/communities/<%= community._id %>/manage"><h2>Community details</h2><label>Name<input name="name" value="<%= community.name %>" required></label><label>Description<textarea name="description" maxlength="280" required><%= community.description %></textarea></label><label>Category<input name="category" value="<%= community.category || 'general' %>" required></label><label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community</label><label>Banned words<input name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>" placeholder="word, phrase"></label><button class="button button-primary button-small" type="submit">Save controls <span>↗</span></button></form><section class="settings-block"><h2>Join requests</h2><% if (!requests.length) { %><p>No pending requests.</p><% } %><% requests.forEach((request) => { %><% const requestUser = request; %><div class="device-row"><div class="profile-avatar tiny"><%= requestUser.name.charAt(0).toUpperCase() %></div><div><strong><%= requestUser.name %></strong><span><%= requestUser.email %></span></div><form method="post" action="/communities/<%= community._id %>/requests/<%= requestUser._id %>"><button class="button button-small button-primary" name="decision" value="approve" type="submit">Approve</button><button class="round-action" name="decision" value="reject" type="submit">×</button></form></div><% }) %></section><section class="settings-block"><h2>Members & roles</h2><% members.forEach((member) => { %><div class="device-row"><div class="profile-avatar tiny"><%= member.name.charAt(0).toUpperCase() %></div><div><strong><%= member.name %></strong><span><%= member.email %></span></div><% if (String(member._id) !== String(community.owner)) { %><form method="post" action="/communities/<%= community._id %>/members/<%= member._id %>/role"><button class="role-button" name="role" value="<%= community.moderators.some((id) => String(id) === String(member._id)) ? 'member' : 'moderator' %>" type="submit"><%= community.moderators.some((id) => String(id) === String(member._id)) ? 'Remove mod' : 'Make mod' %></button></form><form method="post" action="/communities/<%= community._id %>/members/<%= member._id %>/remove"><button class="round-action" aria-label="Remove member">×</button></form><% } else { %><em>Owner</em><% } %></div><% }) %></section><section class="settings-block owner-posts"><h2>Recent posts</h2><% posts.forEach((post) => { %><article><strong><%= post.author?.name || 'Member' %></strong><p><%= post.body %></p></article><% }) %></section></section></main><%- include('../partials/foot') %>
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="owner-layout">
+	<section class="owner-hero">
+		<p class="eyebrow">Community owner dashboard</p>
+		<h1><%= community.name %></h1>
+		<p><%= community.description %></p>
+		<span class="owner-stat"><strong><%= community.membersCount %></strong> members</span>
+	</section>
+	<section class="owner-grid">
+		<form class="settings-block" method="post" action="/communities/<%= community._id %>/manage">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<h2>Community details</h2>
+			<label>Name<input name="name" value="<%= community.name %>" required></label>
+			<label>Description<textarea name="description" maxlength="280" required><%= community.description %></textarea></label>
+			<label>Category<input name="category" value="<%= community.category || 'general' %>" required></label>
+			<label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community</label>
+			<label>Banned words<input name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>" placeholder="word, phrase"></label>
+			<button class="button button-primary button-small" type="submit">Save controls <span>↗</span></button>
+		</form>
+		<section class="settings-block">
+			<h2>Join requests</h2>
+			<% if (!requests.length) { %><p>No pending requests.</p><% } %>
+			<% requests.forEach((requestUser) => { %>
+			<div class="device-row">
+				<%- include('../partials/avatar', { person: requestUser, size: 'tiny', link: false }) %>
+				<div><strong><%= requestUser.name %></strong><span><%= requestUser.email %></span></div>
+				<form method="post" action="/communities/<%= community._id %>/requests/<%= requestUser._id %>"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" name="decision" value="approve" type="submit">Approve</button><button class="round-action" name="decision" value="reject" type="submit">×</button></form>
+			</div>
+			<% }) %>
+		</section>
+		<section class="settings-block">
+			<h2>Members & roles</h2>
+			<% members.forEach((member) => { %>
+			<div class="device-row">
+				<%- include('../partials/avatar', { person: member, size: 'tiny' }) %>
+				<div><strong><a class="name-link" href="/u/<%= member._id %>"><%= member.name %></a></strong><span><%= member.email %></span></div>
+				<% if (String(member._id) !== String(community.owner)) { %>
+				<form method="post" action="/communities/<%= community._id %>/members/<%= member._id %>/role"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="role-button" name="role" value="<%= community.moderators.some((id) => String(id) === String(member._id)) ? 'member' : 'moderator' %>" type="submit"><%= community.moderators.some((id) => String(id) === String(member._id)) ? 'Remove mod' : 'Make mod' %></button></form>
+				<form method="post" action="/communities/<%= community._id %>/members/<%= member._id %>/remove"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Remove member">×</button></form>
+				<% } else { %><em>Owner</em><% } %>
+			</div>
+			<% }) %>
+		</section>
+		<section class="settings-block owner-posts">
+			<h2>Recent posts</h2>
+			<% if (!posts.length) { %><p>No posts in this community yet.</p><% } %>
+			<% posts.forEach((post) => { %><article><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Member' %></a></strong><p><%= post.body %></p></article><% }) %>
+		</section>
+	</section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

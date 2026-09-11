@@ -1,0 +1,62 @@
+<%- include('../partials/head', { title, description: profileUser.bio, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="community-detail">
+	<a class="back-link" href="/dashboard">← Back to feed</a>
+	<section class="profile-hero">
+		<div class="profile-hero-top">
+			<div class="profile-identity">
+				<%- include('../partials/avatar', { person: profileUser, size: 'large', link: false }) %>
+				<div>
+					<h1><%= profileUser.name %><% if (profileUser.isVerified) { %><span class="verified-tick" title="Verified">✔</span><% } %></h1>
+					<p class="profile-handle">@<%= profileUser.email.split('@')[0] %></p>
+				</div>
+			</div>
+			<% if (isSelf) { %>
+			<a class="button button-ghost button-small" href="/settings/profile">Edit profile</a>
+			<% } else { %>
+			<form class="follow-form" data-user="<%= profileUser._id %>" method="post" action="/users/<%= profileUser._id %>/follow">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<button class="follow-button <%= isFollowing ? 'is-following' : '' %>" type="submit"><%= isFollowing ? 'Following' : 'Follow' %></button>
+			</form>
+			<% } %>
+		</div>
+		<% if (profileUser.bio) { %><p class="profile-bio"><%= profileUser.bio %></p><% } %>
+		<div class="profile-stats">
+			<span><strong><%= postCount %></strong> posts</span>
+			<span><strong class="follower-count" data-user="<%= profileUser._id %>"><%= followersCount %></strong> followers</span>
+			<span><strong><%= followingCount %></strong> following</span>
+		</div>
+		<p class="profile-joined">Joined <%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) %></p>
+	</section>
+	<section class="community-posts">
+		<div class="panel-heading"><h2><%= isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= posts.length %></span></div>
+		<% if (!posts.length) { %>
+		<div class="empty-feed"><h2>No posts yet.</h2><p><%= isSelf ? 'Share something from your feed to see it here.' : 'This person has not posted yet.' %></p></div>
+		<% } %>
+		<% posts.forEach((post) => { %>
+		<article class="post-card" id="post-<%= post._id %>">
+			<div class="post-meta"><div><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %></span></div></div>
+			<p class="post-body"><%= post.body %></p>
+			<% if ((post.media || []).length) { %>
+			<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
+				<% post.media.forEach((media) => { %>
+				<div class="post-media-frame">
+					<% if (media.kind === 'image') { %><img src="<%= media.thumbnailUrl || media.url %>" alt="<%= media.alt || 'Post image' %>" loading="lazy">
+					<% } else if (media.kind === 'video') { %><video controls preload="none" src="<%= media.url %>"></video>
+					<% } else if (media.kind === 'audio') { %><audio controls preload="none" src="<%= media.url %>"></audio><% } %>
+				</div>
+				<% }) %>
+			</div>
+			<% } %>
+			<div class="post-actions">
+				<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.liked ? '♥' : '♡' %> <%= post.likes?.length || 0 %></button></form>
+				<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.bookmarked ? '▣ Saved' : '▱ Save' %></button></form>
+				<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;">◌ <%= post.commentsCount || 0 %></a>
+			</div>
+		</article>
+		<% }) %>
+	</section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

@@ -1,0 +1,60 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: '', currentUser, searchQuery: query }) %>
+<main class="explore-page" style="max-width:820px;">
+	<p class="eyebrow">Search Crowdwide</p>
+	<h1>Find people, communities, and posts.</h1>
+	<form class="search-form" method="get" action="/search">
+		<input type="search" name="q" value="<%= query %>" placeholder="Search Crowdwide" autofocus>
+		<button class="button button-primary" type="submit">Search <span>⌕</span></button>
+	</form>
+
+	<% if (!query) { %>
+	<div class="empty-feed"><h2>Search for anything on Crowdwide.</h2><p>Try a name, a community, or a phrase from a post.</p></div>
+	<% } else if (!users.length && !communities.length && !posts.length) { %>
+	<div class="empty-feed"><h2>No results for “<%= query %>”.</h2><p>Try a different search term.</p></div>
+	<% } else { %>
+
+	<% if (users.length) { %>
+	<section class="search-section">
+		<h2>People</h2>
+		<% users.forEach((person) => { %>
+		<a class="search-user-row" href="/u/<%= person._id %>" style="text-decoration:none;color:inherit;">
+			<%- include('../partials/avatar', { person, size: 'small', link: false }) %>
+			<div><strong><%= person.name %></strong><span><%= person.bio || 'Crowdwide member' %></span></div>
+		</a>
+		<% }) %>
+	</section>
+	<% } %>
+
+	<% if (communities.length) { %>
+	<section class="search-section">
+		<h2>Communities</h2>
+		<% communities.forEach((community) => { %>
+		<a class="search-community-row" href="/communities/<%= community.slug %>" style="text-decoration:none;color:inherit;">
+			<span class="community-glyph">✦</span>
+			<div><strong><%= community.name %></strong><span><%= (community.membersCount || 0).toLocaleString() %> members · <%= community.description %></span></div>
+		</a>
+		<% }) %>
+	</section>
+	<% } %>
+
+	<% if (posts.length) { %>
+	<section class="search-section">
+		<h2>Posts</h2>
+		<% posts.forEach((post) => { %>
+		<article class="post-card" style="margin-bottom:12px;">
+			<div class="post-meta">
+				<%- include('../partials/avatar', { person: post.author, size: 'small' }) %>
+				<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.community?.name || 'Open Crowdwide' %></span></div>
+			</div>
+			<p class="post-body" style="-webkit-line-clamp:3;max-height:5em;"><%= post.body %></p>
+			<a class="post-open-link" href="/posts/<%= post._id %>">Open post →</a>
+		</article>
+		<% }) %>
+	</section>
+	<% } %>
+
+	<% } %>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

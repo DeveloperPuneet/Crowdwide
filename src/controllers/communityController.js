@@ -41,9 +41,9 @@ exports.explore = async (req, res) => {
 };
 
 exports.detail = async (req, res) => {
-  const community = await Community.findOne({ slug: req.params.slug }).populate('owner', 'name').lean();
+  const community = await Community.findOne({ slug: req.params.slug }).populate('owner', 'name profilePicture').lean();
   if (!community) return res.status(404).render('pages/not-found', { title: 'Community not found' });
-  const posts = await Post.find({ community: community._id }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
+  const posts = await Post.find({ community: community._id }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean();
   const joined = community.members.some((id) => String(id) === String(req.session.user.id));
   const requested = community.joinRequests?.some((request) => String(request.user) === String(req.session.user.id));
   res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, joined, requested, isOwner: community.owner && String(community.owner._id) === String(req.session.user.id) });
@@ -51,7 +51,7 @@ exports.detail = async (req, res) => {
 exports.manage = async (req, res) => {
   const [members, posts, requests, moderators] = await Promise.all([
     User.find({ _id: { $in: req.community.members } }).select('name email profilePicture').lean(),
-    Post.find({ community: req.community._id }).sort({ createdAt: -1 }).limit(20).populate('author', 'name').lean(),
+    Post.find({ community: req.community._id }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').lean(),
     User.find({ _id: { $in: req.community.joinRequests.map((request) => request.user) } }).select('name email').lean(),
     User.find({ _id: { $in: req.community.moderators } }).select('name email').lean()
   ]);

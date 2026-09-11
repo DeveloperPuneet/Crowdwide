@@ -1,0 +1,6 @@
+<%
+  const person = locals.person || {};
+  const sizeClass = locals.size ? ' ' + locals.size : '';
+  const initial = (person.name || '?').trim().charAt(0).toUpperCase() || '?';
+  const targetId = locals.link === false ? null : (person._id || person.id || null);
+%><% if (targetId) { %><a class="avatar-link" href="/u/<%= targetId %>" aria-label="<%= person.name || 'View profile' %>"><% } %><span class="avatar<%= sizeClass %>"><% if (person.profilePicture) { %><img src="<%= person.profilePicture %>" alt="<%= person.name || '' %>" loading="lazy"><% } else { %><%= initial %><% } %></span><% if (targetId) { %></a><% } %>

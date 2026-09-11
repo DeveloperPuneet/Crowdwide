@@ -2,24 +2,12 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
 const { createSignedUpload, createImageThumbnail } = require('../services/storage');
-const { uploadBuffer, streamFile } = require('../services/gridfs');
+const { uploadBuffer, streamFile, mediaUrl, clusterStatus } = require('../services/storageCluster');
 const Comment = require('../models/Comment');
-
-const dashboardFallbackCommunities = [
-	{ name: 'Independent makers', slug: 'independent-makers', description: 'A home for people building with their hands and minds.', membersCount: 0 },
-	{ name: 'Late-night learners', slug: 'late-night-learners', description: 'Curiosity does not keep office hours.', membersCount: 0 },
-	{ name: 'Small joys', slug: 'small-joys', description: 'The ordinary things that make a day feel full.', membersCount: 0 }
-];
-
-const fallbackCommunities = [
-	{ name: 'Independent makers', members: 0, description: 'A home for people building with their hands and minds.' },
-	{ name: 'Late-night learners', members: 0, description: 'Curiosity does not keep office hours.' },
-	{ name: 'Small joys', members: 0, description: 'The ordinary things that make a day feel full.' }
-];
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
-		return { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: fallbackCommunities };
+		return { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] };
 	}
 
 	const [members, posts, communities, topCommunities] = await Promise.all([
@@ -34,11 +22,12 @@ async function getLiveStats() {
 		posts,
 		communities,
 		communitiesAreLive: communities > 0,
-		topCommunities: topCommunities.length ? topCommunities.map((community) => ({
+		topCommunities: topCommunities.map((community) => ({
 			name: community.name,
+			slug: community.slug,
 			members: community.membersCount || 0,
 			description: community.description
-		})) : fallbackCommunities
+		}))
 	};
 }
 
@@ -60,13 +49,13 @@ exports.home = async (req, res) => {
 		});
 	} catch (error) {
 		console.error('Unable to load live homepage stats:', error.message);
-		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: fallbackCommunities } });
+		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] } });
 	}
 };
 
 async function populatePosts(posts) {
 	const populated = await Post.populate(posts, [
-		{ path: 'author', select: 'name createdAt' },
+		{ path: 'author', select: 'name createdAt profilePicture' },
 		{ path: 'community', select: 'name slug membersCount' }
 	]);
 	const comments = await Comment.find({ post: { $in: posts.map((post) => post._id) } }).sort({ createdAt: 1 }).limit(200).populate('author', 'name').lean();
@@ -75,13 +64,15 @@ async function populatePosts(posts) {
 
 async function buildFeed(user, mode) {
 	const joinedIds = user.joinedCommunities || [];
-	const personalizedFilter = joinedIds.length ? { community: { $in: joinedIds } } : { _id: { $in: [] } };
+	const followingIds = user.following || [];
 	if (mode === 'personalized') {
+		const personalizedFilter = joinedIds.length ? { community: { $in: joinedIds } } : { _id: { $in: [] } };
 		return { posts: await populatePosts(await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean()), label: 'Personalized feed', note: joinedIds.length ? 'Posts and articles from communities you joined.' : 'Join a community to shape this feed.' };
 	}
 
 	const recentCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-	const [newPosts, largeCommunities, viralPosts, recentPosts] = await Promise.all([
+	const [followedPosts, newPosts, largeCommunities, viralPosts, recentPosts] = await Promise.all([
+		followingIds.length ? Post.find({ author: { $in: followingIds } }).sort({ createdAt: -1 }).limit(10).lean() : Promise.resolve([]),
 		Post.find({ $or: [{ createdAt: { $gte: recentCutoff } }, { community: { $exists: false } }] }).sort({ createdAt: -1 }).limit(20).lean(),
 		Community.find().sort({ membersCount: -1 }).limit(20).select('_id').lean(),
 		Post.aggregate([{ $addFields: { likesTotal: { $size: { $ifNull: ['$likes', []] } } } }, { $sort: { likesTotal: -1, createdAt: -1 } }, { $limit: 20 }]),
@@ -89,28 +80,33 @@ async function buildFeed(user, mode) {
 	]);
 	const largeIds = largeCommunities.map((community) => community._id);
 	const largePosts = await Post.find({ community: { $in: largeIds } }).sort({ createdAt: -1 }).limit(30).lean();
+	// Growth-minded ranking: everyone's feed reserves real room for new voices
+	// alongside the reach of larger communities, so posts from small/new
+	// accounts and communities are not permanently buried under popularity.
 	const slots = [
-		...newPosts.slice(0, 8).map((post) => ({ ...post, feedSource: 'New voices & communities' })),
-		...largePosts.slice(0, 11).map((post) => ({ ...post, feedSource: 'Large communities' })),
+		...followedPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'From people you follow' })),
+		...newPosts.slice(0, 7).map((post) => ({ ...post, feedSource: 'New voices & communities' })),
+		...largePosts.slice(0, 10).map((post) => ({ ...post, feedSource: 'Large communities' })),
 		...viralPosts.slice(0, 1).map((post) => ({ ...post, feedSource: 'Viral right now' }))
 	];
 	const used = new Set(slots.map((post) => String(post._id)));
-	recentPosts.forEach((post) => { if (slots.length < 20 && !used.has(String(post._id))) slots.push({ ...post, feedSource: 'Fresh from Crowdwide' }); });
-	return { posts: await populatePosts(slots), label: 'Normal feed', note: '40% new voices, 55% large communities, 5% viral content.' };
+	recentPosts.forEach((post) => { if (slots.length < 24 && !used.has(String(post._id))) slots.push({ ...post, feedSource: 'Fresh from Crowdwide' }); });
+	return { posts: await populatePosts(slots), label: 'Normal feed', note: 'A mix of people you follow, new voices, and larger communities - so growing accounts still get seen.' };
 }
 
 exports.dashboard = async (req, res) => {
 	try {
 		const user = await User.findById(req.session.user.id).lean();
 		const mode = req.query.feed === 'personalized' ? 'personalized' : 'normal';
+		const followingIds = (user.following || []).map(String);
 		const [feed, communities, people] = await Promise.all([
 			buildFeed(user, mode),
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
-			User.find({ _id: { $ne: user._id }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name').lean()
+			User.find({ _id: { $ne: user._id, $nin: user.following || [] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean()
 		]);
 		const bookmarked = (user.bookmarks || []).map(String);
 		feed.posts = feed.posts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
-		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed, communities: communities.length ? communities : dashboardFallbackCommunities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: (user.following || []).map(String) });
+		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed, communities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: followingIds });
 	} catch (error) {
 		console.error('Unable to load dashboard:', error.message);
 		res.status(500).render('pages/not-found', { title: 'Dashboard unavailable', noIndex: true });
@@ -140,11 +136,11 @@ exports.createPost = async (req, res) => {
 	const media = [];
 	for (const file of req.files || []) {
 		const stored = await uploadBuffer(file.buffer, file.originalname, file.mimetype, { kind: file.mediaKind, owner: req.session.user.id });
-		const item = { url: `/media/${stored.id}`, storageKey: stored.id, kind: file.mediaKind, alt: req.body.mediaAlt?.trim() || '' };
+		const item = { url: mediaUrl(stored), storageKey: stored.id, kind: file.mediaKind, alt: req.body.mediaAlt?.trim() || '' };
 		if (file.mediaKind === 'image') {
 			const thumbnail = await createImageThumbnail(file.buffer);
 			const thumbnailFile = await uploadBuffer(thumbnail, `${file.originalname}.thumb.webp`, 'image/webp', { kind: 'thumbnail', parent: stored.id, owner: req.session.user.id });
-			item.thumbnailUrl = `/media/${thumbnailFile.id}`;
+			item.thumbnailUrl = mediaUrl(thumbnailFile);
 		}
 		media.push(item);
 	}
@@ -164,7 +160,9 @@ exports.signedUpload = async (req, res) => {
 
 exports.health = (req, res) => res.json({ status: 'ok', service: 'crowdwide', timestamp: new Date().toISOString() });
 
-exports.media = (req, res) => streamFile(req.params.id, res);
+exports.media = (req, res) => streamFile(Number(req.params.cluster), req.params.id, res);
+
+exports.mediaStatus = async (req, res) => res.json({ clusters: await clusterStatus() });
 
 exports.createCommunity = async (req, res) => {
 	const name = req.body.name?.trim();
@@ -188,13 +186,45 @@ exports.joinCommunity = async (req, res) => {
 	res.redirect('/dashboard');
 };
 
-exports.followUser = async (req, res) => {
-	const user = await User.findById(req.session.user.id);
-	if (user && req.params.id !== String(user._id) && !user.following.some((id) => String(id) === req.params.id)) {
-		user.following.push(req.params.id);
-		await user.save();
-	}
-	res.redirect('/dashboard');
+exports.profile = async (req, res) => {
+	const profileUser = await User.findById(req.params.id).select('name email bio profilePicture privacy createdAt isVerified following').lean();
+	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
+	const viewerId = req.session.user.id;
+	const isSelf = String(profileUser._id) === String(viewerId);
+	const [posts, followersCount, viewer, postCount] = await Promise.all([
+		Post.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
+		User.countDocuments({ following: profileUser._id }),
+		User.findById(viewerId).select('following bookmarks').lean(),
+		Post.countDocuments({ author: profileUser._id })
+	]);
+	const populatedPosts = (await Post.populate(posts, { path: 'author', select: 'name profilePicture' }));
+	const bookmarked = (viewer?.bookmarks || []).map(String);
+	const posts_ = populatedPosts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) }));
+	res.render('pages/profile', {
+		title: `${profileUser.name} on Crowdwide`,
+		pagePath: `/u/${profileUser._id}`,
+		noIndex: profileUser.privacy !== 'public',
+		profileUser,
+		posts: posts_,
+		postCount,
+		followersCount,
+		followingCount: (profileUser.following || []).length,
+		isSelf,
+		isFollowing: !isSelf && (viewer?.following || []).some((id) => String(id) === String(profileUser._id))
+	});
+};
+
+exports.search = async (req, res) => {
+	const q = (req.query.q || '').trim();
+	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [] });
+	const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const regex = new RegExp(safe, 'i');
+	const [users, communities, posts] = await Promise.all([
+		User.find({ name: regex, isVerified: true }).limit(10).select('name bio profilePicture').lean(),
+		Community.find({ $or: [{ name: regex }, { description: regex }, { category: regex }] }).limit(10).lean(),
+		Post.find({ body: regex }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+	]);
+	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts });
 };
 
 exports.infoPage = (req, res) => {

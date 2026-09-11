@@ -56,20 +56,26 @@ exports.share = async (req, res) => {
 };
 
 exports.postDetail = async (req, res) => {
-  const post = await Post.findById(req.params.id).populate('author', 'name').populate('community', 'name slug').lean();
+  const post = await Post.findById(req.params.id).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
-  const comments = await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name').lean();
+  const comments = await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean();
+  const viewerId = req.session.user?.id;
+  if (viewerId) {
+    const viewer = await User.findById(viewerId).select('bookmarks').lean();
+    post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
+    post.bookmarked = (viewer?.bookmarks || []).some((id) => String(id) === String(post._id));
+  }
   res.render('pages/post-detail', { title: `${post.author?.name || 'Crowdwide'} post`, pagePath: `/posts/${post._id}`, noIndex: false, post, comments });
 };
 
 exports.commentThread = async (req, res) => {
-  const comments = await Comment.find({ post: req.params.id }).sort({ createdAt: 1 }).populate('author', 'name').lean();
+  const comments = await Comment.find({ post: req.params.id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean();
   res.json({ comments });
 };
 
 exports.notifications = async (req, res) => {
   const [notifications, unread] = await Promise.all([
-    Notification.find({ recipient: req.session.user.id }).sort({ createdAt: -1 }).limit(50).populate('actor', 'name').lean(),
+    Notification.find({ recipient: req.session.user.id }).sort({ createdAt: -1 }).limit(50).populate('actor', 'name profilePicture').lean(),
     Notification.countDocuments({ recipient: req.session.user.id, readAt: null })
   ]);
   res.render('pages/notifications', { title: 'Notifications', pagePath: '/notifications', noIndex: true, notifications, unread });
@@ -83,4 +89,24 @@ exports.unreadCount = async (req, res) => {
 exports.readNotifications = async (req, res) => {
   await Notification.updateMany({ recipient: req.session.user.id, readAt: null }, { readAt: new Date() });
   res.redirect('/notifications');
+};
+
+exports.toggleFollow = async (req, res) => {
+  const targetId = req.params.id;
+  if (targetId === String(req.session.user.id)) return redirectBack(req, res, { ok: false });
+  const [user, target] = await Promise.all([
+    User.findById(req.session.user.id),
+    User.findById(targetId).select('_id')
+  ]);
+  if (!user || !target) return redirectBack(req, res, { ok: false });
+  const alreadyFollowing = user.following.some((id) => String(id) === targetId);
+  if (alreadyFollowing) {
+    user.following.pull(targetId);
+  } else {
+    user.following.addToSet(targetId);
+    await notify(target._id, user._id, 'follow', 'started following you.');
+  }
+  await user.save();
+  const followersCount = await User.countDocuments({ following: targetId });
+  redirectBack(req, res, { following: !alreadyFollowing, followersCount });
 };
