@@ -18,14 +18,18 @@
   <meta name="twitter:description" content="<%= locals.description || 'A fair chance at discovery.' %>">
   <meta name="twitter:image" content="/images/Crowdwide_cover.png">
   <meta name="csrf-token" content="<%= csrfToken || '' %>">
+    <meta name="app-url" content="<%= locals.appUrl || 'http://localhost:3000' %>">
   <link rel="icon" type="image/png" href="/images/Crowdwide_logo.png">
   <link rel="apple-touch-icon" href="/images/Crowdwide_logo.png">
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js" defer></script>
   <% if (locals.structuredData) { %><script type="application/ld+json"><%- JSON.stringify(locals.structuredData) %></script><% } %>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/extra.css">
+  <link rel="stylesheet" href="/css/responsive-media.css">
+  <link rel="stylesheet" href="/css/upload.css">
   <% if (locals.bodyClass === 'dashboard-page') { %><link rel="stylesheet" href="/css/dashboard.css"><% } %>
   <% if (locals.bodyClass === 'dashboard-page' || locals.pagePath === '/notifications') { %><link rel="stylesheet" href="/css/social.css"><% } %>
   <% if (locals.pagePath === '/explore' || locals.pagePath?.startsWith('/communities/') || locals.pagePath?.startsWith('/posts/') || locals.pagePath === '/notifications') { %><link rel="stylesheet" href="/css/community.css"><% } %>

@@ -19,7 +19,14 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'src/views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      scriptSrc: ["'self'", 'https://cdn.jsdelivr.net']
+    }
+  }
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(morgan('dev'));
 app.use(session({
@@ -38,6 +45,7 @@ app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null;
   res.locals.flash = req.session.flash || null;
   res.locals.csrfToken = generateToken(req);
+  res.locals.appUrl = process.env.APP_URL || `http://localhost:${port}`;
   delete req.session.flash;
   next();
 });

@@ -25,9 +25,9 @@ function classify(file) {
 
 const postUpload = multer({
   storage,
-  limits: { fileSize: 4 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 4 * 1024 * 1024, files: 2 },
   fileFilter: (req, file, callback) => callback(null, Boolean(classify(file)))
-}).single('media');
+}).array('media', 2);
 
 const profileUpload = multer({
   storage,
@@ -36,14 +36,16 @@ const profileUpload = multer({
 }).single('profilePicture');
 
 function validatePostUpload(req, res, next) {
-  if (!req.file) return next();
-  const kind = classify(req.file);
-  if (req.file.size >= mediaLimits[kind]) {
-    fs.rm(req.file.path, () => {});
-    req.session.flash = { type: 'error', message: `${kind} files must be smaller than ${kind === 'image' ? '1.5MB' : kind === 'video' ? '4MB' : '2MB'}.` };
-    return res.redirect('/dashboard');
+  if (!req.files?.length) return next();
+  for (const file of req.files) {
+    const kind = classify(file);
+    if (file.size >= mediaLimits[kind]) {
+      req.files.forEach((uploadedFile) => fs.rm(uploadedFile.path, () => {}));
+      req.session.flash = { type: 'error', message: `${kind} files must be smaller than ${kind === 'image' ? '1.5MB' : kind === 'video' ? '4MB' : '2MB'}.` };
+      return res.redirect('/dashboard');
+    }
+    file.mediaKind = kind;
   }
-  req.file.mediaKind = kind;
   next();
 }
 

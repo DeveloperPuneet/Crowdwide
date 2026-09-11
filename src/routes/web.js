@@ -9,6 +9,7 @@ const { interactionLimiter, csrfSynchronisedProtection } = require('../middlewar
 const twoFactorController = require('../controllers/twoFactorController');
 
 router.get('/', controller.home);
+router.get('/health', controller.health);
 router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
 router.get('/media/signed-upload', requireAuth, requireVerified, controller.signedUpload);
 router.get('/notifications', requireAuth, requireVerified, interactionController.notifications);

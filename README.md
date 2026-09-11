@@ -52,6 +52,8 @@ Set `GCS_PROJECT_ID`, `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`, and option
 
 The current server-side processor generates image thumbnails immediately for local uploads. For GCS direct uploads, connect the signed-upload completion event to a Cloud Run or Cloud Functions worker for video transcoding and video thumbnail generation; the returned object key and CDN URL are designed for that handoff.
 
+Post creation accepts up to two media files in one submission. The browser lazily loads feed images and defers audio/video loading until playback. The authenticated dashboard sidebar can be collapsed and remembers the choice in local storage. The browser sends an Axios request to `/health` immediately and every 13 minutes using `APP_URL`, which helps keep deployments with inactivity sleep warm while they are being used.
+
 ## Auth flow
 
 New accounts receive a six-digit verification code and cannot access `/dashboard` until verified. An unverified login generates a fresh code and redirects to verification. Password reset tokens are stored with an expiry on the user document.

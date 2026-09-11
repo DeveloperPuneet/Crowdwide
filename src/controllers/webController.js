@@ -136,15 +136,16 @@ exports.createPost = async (req, res) => {
 			return res.redirect('/dashboard');
 		}
 	}
-	let media;
-	if (req.file) {
-		media = { url: `/uploads/${req.file.filename}`, kind: req.file.mediaKind, alt: req.body.mediaAlt?.trim() || '' };
-		if (req.file.mediaKind === 'image') {
-			const thumbnail = await createImageThumbnail(req.file.path, req.file.filename);
-			media.thumbnailUrl = thumbnail.url;
+	const media = [];
+	for (const file of req.files || []) {
+		const item = { url: `/uploads/${file.filename}`, kind: file.mediaKind, alt: req.body.mediaAlt?.trim() || '' };
+		if (file.mediaKind === 'image') {
+			const thumbnail = await createImageThumbnail(file.path, file.filename);
+			item.thumbnailUrl = thumbnail.url;
 		}
+		media.push(item);
 	}
-	await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media: media ? [media] : [] });
+	await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media });
 	res.redirect('/dashboard');
 };
 
@@ -157,6 +158,8 @@ exports.signedUpload = async (req, res) => {
 	if (!result.configured) return res.status(503).json({ error: 'Google Cloud Storage is not configured.' });
 	res.json(result);
 };
+
+exports.health = (req, res) => res.json({ status: 'ok', service: 'crowdwide', timestamp: new Date().toISOString() });
 
 exports.createCommunity = async (req, res) => {
 	const name = req.body.name?.trim();
