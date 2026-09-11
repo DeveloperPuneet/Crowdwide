@@ -1,0 +1,3 @@
+<%- include('../partials/head', { title, description, pagePath }) %>
+<div class="info-page"><%- include('../partials/nav') %><main class="info-main container"><p class="eyebrow">Crowdwide / <%= title %></p><h1><%= heading %></h1><p class="info-intro"><%= intro %></p><div class="info-sections"><% sections.forEach((section, index) => { %><article><span class="principle-number">0<%= index + 1 %></span><h2><%= section[0] %></h2><p><%= section[1] %></p></article><% }) %></div></main><%- include('../partials/site-footer') %></div>
+<%- include('../partials/foot') %>

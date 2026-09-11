@@ -11,6 +11,7 @@ const authRoutes = require('./src/routes/auth');
 
 const app = express();
 const port = process.env.PORT || 3000;
+const sessionDurationMs = 1000 * 60 * 60 * 24 * 75;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'src/views'));
@@ -22,8 +23,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'crowdwide-development-secret',
   resave: false,
   saveUninitialized: false,
-  store: process.env.MONGODB_URI ? connectMongo.create({ mongoUrl: process.env.MONGODB_URI }) : undefined,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7, httpOnly: true, sameSite: 'lax' }
+  store: process.env.MONGODB_URI ? connectMongo.create({
+    mongoUrl: process.env.MONGODB_URI,
+    ttl: Math.floor(sessionDurationMs / 1000)
+  }) : undefined,
+  cookie: { maxAge: sessionDurationMs, httpOnly: true, sameSite: 'lax' }
 }));
 
 app.use((req, res, next) => {

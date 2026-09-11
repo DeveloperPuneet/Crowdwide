@@ -4,9 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %> · Crowdwide</title>
+  <meta name="description" content="<%= locals.description || 'Crowdwide is a calmer social network for real discovery, thoughtful communities, and voices worth finding.' %>">
+  <meta name="robots" content="<%= locals.noIndex ? 'noindex,nofollow' : 'index,follow' %>">
+  <link rel="canonical" href="<%= locals.canonicalUrl || 'http://localhost:3000' + (locals.pagePath || '/') %>">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Crowdwide">
+  <meta property="og:title" content="<%= title %> · Crowdwide">
+  <meta property="og:description" content="<%= locals.description || 'A fair chance at discovery.' %>">
+  <meta property="og:url" content="<%= locals.canonicalUrl || 'http://localhost:3000' + (locals.pagePath || '/') %>">
+  <meta property="og:image" content="/images/Crowdwide_cover.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<%= title %> · Crowdwide">
+  <meta name="twitter:description" content="<%= locals.description || 'A fair chance at discovery.' %>">
+  <meta name="twitter:image" content="/images/Crowdwide_cover.png">
+  <link rel="icon" type="image/png" href="/images/Crowdwide_logo.png">
+  <link rel="apple-touch-icon" href="/images/Crowdwide_logo.png">
+  <% if (locals.structuredData) { %><script type="application/ld+json"><%- JSON.stringify(locals.structuredData) %></script><% } %>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/extra.css">
 </head>
-<body class="<%= bodyClass || '' %>">
+<body class="<%= locals.bodyClass || '' %>">
