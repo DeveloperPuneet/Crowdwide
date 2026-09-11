@@ -14,6 +14,8 @@ Authenticated sessions are stored in MongoDB and expire after 75 days. The signe
 6. Start development mode: `npm run dev`
 7. Open `http://localhost:3000`
 
+For Render, set `NODE_ENV=production` and `TRUST_PROXY_HOPS=1`. Crowdwide trusts one reverse-proxy hop so Express and `express-rate-limit` can safely use Render's `X-Forwarded-For` client address. Do not set the Express trust proxy value to `true` unless the deployment topology is fully controlled.
+
 ## Structure
 
 - `server.js` - application entry point and middleware

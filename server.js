@@ -14,6 +14,10 @@ const { csrfProtection, generateToken } = require('./src/middleware/security');
 const app = express();
 const port = process.env.PORT || 3000;
 const sessionDurationMs = 1000 * 60 * 60 * 24 * 75;
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? (process.env.NODE_ENV === 'production' ? 1 : 0));
+
+// Render places one trusted reverse proxy in front of the application.
+app.set('trust proxy', trustProxyHops);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'src/views'));
