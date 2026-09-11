@@ -36,6 +36,12 @@ Homepage member, post, and community totals are queried from MongoDB on each req
 
 The authenticated dashboard has two feed modes. The normal feed builds a 20-post window with an intended 40% new voices and newer community posts, 55% posts from the largest communities, and 5% viral content ranked by likes. The personalized feed only returns posts and articles attached to communities the signed-in user has joined. The dashboard also supports publishing posts or articles, assigning them to a community, creating communities, joining communities, and following verified users.
 
+Community creators are stored as owners and can edit community details, view recent posts, and remove members from the owner dashboard. Profiles support a 280-character bio, a 1.5MB image avatar, and public/followers-only privacy. Posts are limited to 5,000 characters; articles are limited to 50,000 characters. Post media is limited to images under 1.5MB, videos under 4MB, and audio under 2MB.
+
+## Community discovery and moderation
+
+Authenticated users can browse `/explore`, search by name or description, filter by category, and open `/communities/:slug` detail pages. Communities can be open or private. Open communities accept members immediately; private communities create a request for the owner or moderator to approve. Owners can edit category and privacy, maintain a banned-word list, approve or reject requests, assign moderators, remove members, and review recent posts. Posts addressed to a community require membership and are checked against that community's banned words.
+
 ## Auth flow
 
 New accounts receive a six-digit verification code and cannot access `/dashboard` until verified. An unverified login generates a fresh code and redirects to verification. Password reset tokens are stored with an expiry on the user document.

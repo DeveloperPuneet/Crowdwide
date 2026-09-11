@@ -1,9 +1,23 @@
+const LoginSession = require('../models/LoginSession');
+const User = require('../models/User');
+
 function requireAuth(req, res, next) {
   if (!req.session.user) {
     req.session.flash = { type: 'error', message: 'Please sign in to continue.' };
     return res.redirect('/auth/login');
   }
-  next();
+  Promise.all([
+    User.findById(req.session.user.id).select('inactivityLogoutDays'),
+    LoginSession.findOne({ sessionId: req.sessionID, user: req.session.user.id })
+  ]).then(([user, loginSession]) => {
+    const timeoutDays = user?.inactivityLogoutDays || 0;
+    const inactive = timeoutDays > 0 && loginSession && Date.now() - loginSession.lastSeenAt.getTime() > timeoutDays * 24 * 60 * 60 * 1000;
+    if (inactive) {
+      return LoginSession.deleteOne({ _id: loginSession._id }).then(() => req.session.destroy(() => res.redirect('/auth/login')));
+    }
+    if (!loginSession) return LoginSession.create({ user: req.session.user.id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') }).then(() => next());
+    return LoginSession.findOneAndUpdate({ sessionId: req.sessionID, user: req.session.user.id }, { lastSeenAt: new Date() }).then(() => next());
+  }).catch(next);
 }
 
 function requireVerified(req, res, next) {

@@ -112,8 +112,26 @@ exports.dashboard = async (req, res) => {
 
 exports.createPost = async (req, res) => {
 	const body = req.body.body?.trim();
-	if (!body) return res.redirect('/dashboard');
-	await Post.create({ author: req.session.user.id, body, type: req.body.type === 'article' ? 'article' : 'post', community: req.body.community || undefined });
+	const type = req.body.type === 'article' ? 'article' : 'post';
+	const limit = type === 'article' ? 50000 : 5000;
+	if (!body || body.length > limit) {
+		req.session.flash = { type: 'error', message: `${type === 'article' ? 'Articles' : 'Posts'} are limited to ${limit.toLocaleString()} characters.` };
+		return res.redirect('/dashboard');
+	}
+	if (req.body.community) {
+		const community = await Community.findById(req.body.community).select('members bannedWords');
+		if (!community || !community.members.some((id) => String(id) === String(req.session.user.id))) {
+			req.session.flash = { type: 'error', message: 'Join that community before posting there.' };
+			return res.redirect('/dashboard');
+		}
+		const bodyLower = body.toLowerCase();
+		if ((community.bannedWords || []).some((word) => word && bodyLower.includes(word))) {
+			req.session.flash = { type: 'error', message: 'That post contains a word this community has blocked.' };
+			return res.redirect('/dashboard');
+		}
+	}
+	const media = req.file ? { url: `/uploads/${req.file.filename}`, kind: req.file.mediaKind, alt: req.body.mediaAlt?.trim() || '' } : undefined;
+	await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media: media ? [media] : [] });
 	res.redirect('/dashboard');
 };
 
@@ -121,7 +139,7 @@ exports.createCommunity = async (req, res) => {
 	const name = req.body.name?.trim();
 	if (name) {
 		const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-		await Community.create({ name, slug, description: req.body.description?.trim() || `A new Crowdwide community for ${name}.`, members: [req.session.user.id], membersCount: 1 });
+		await Community.create({ owner: req.session.user.id, name, slug, category: req.body.category?.trim().toLowerCase() || 'general', isPrivate: req.body.isPrivate === 'on', description: req.body.description?.trim() || `A new Crowdwide community for ${name}.`, members: [req.session.user.id], memberRoles: [{ user: req.session.user.id, role: 'member' }], membersCount: 1 });
 	}
 	res.redirect('/dashboard');
 };

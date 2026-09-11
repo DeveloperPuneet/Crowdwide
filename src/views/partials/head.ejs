@@ -26,5 +26,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/extra.css">
   <% if (locals.bodyClass === 'dashboard-page') { %><link rel="stylesheet" href="/css/dashboard.css"><% } %>
+  <% if (locals.pagePath === '/explore' || locals.pagePath?.startsWith('/communities/')) { %><link rel="stylesheet" href="/css/community.css"><% } %>
+  <% if (locals.bodyClass === 'dashboard-page' && (locals.pagePath === '/settings' || locals.pagePath?.startsWith('/settings') || locals.pagePath?.startsWith('/communities/'))) { %><link rel="stylesheet" href="/css/settings.css"><% } %>
 </head>
 <body class="<%= locals.bodyClass || '' %>">

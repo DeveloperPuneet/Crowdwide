@@ -1,11 +1,17 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const LoginSession = require('../models/LoginSession');
 const { sendVerificationCode } = require('../services/mailer');
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
 const setFlash = (req, type, message) => { req.session.flash = { type, message }; };
+
+async function establishSession(req, user) {
+  req.session.user = { id: user.id, name: user.name, email: user.email, isVerified: true, profilePicture: user.profilePicture || '' };
+  await LoginSession.create({ user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') });
+}
 
 exports.loginPage = (req, res) => res.render('pages/login', { title: 'Sign in' });
 exports.registerPage = (req, res) => res.render('pages/register', { title: 'Create your account' });
@@ -57,7 +63,7 @@ exports.login = async (req, res) => {
       setFlash(req, 'error', 'Your email is not verified yet. We sent you a fresh code.');
       return res.redirect(`/auth/verify?email=${encodeURIComponent(user.email)}`);
     }
-    req.session.user = { id: user.id, name: user.name, email: user.email, isVerified: true };
+    await establishSession(req, user);
     res.redirect('/dashboard');
   } catch (error) {
     setFlash(req, 'error', 'Sign in is temporarily unavailable.');
@@ -76,7 +82,7 @@ exports.verify = async (req, res) => {
     user.verificationCode = undefined;
     user.verificationExpires = undefined;
     await user.save();
-    req.session.user = { id: user.id, name: user.name, email: user.email, isVerified: true };
+    await establishSession(req, user);
     res.redirect('/dashboard');
   } catch (error) {
     setFlash(req, 'error', 'We could not verify that code right now.');
@@ -110,4 +116,7 @@ exports.reset = async (req, res) => {
   res.redirect('/auth/login');
 };
 
-exports.logout = (req, res) => req.session.destroy(() => res.redirect('/'));
+exports.logout = async (req, res) => {
+  await LoginSession.deleteOne({ sessionId: req.sessionID });
+  req.session.destroy(() => res.redirect('/'));
+};
