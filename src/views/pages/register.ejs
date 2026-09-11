@@ -1,0 +1,5 @@
+<%- include('../partials/auth-shell-start', { title }) %>
+<p class="eyebrow">Start your journey</p><h1>There’s room<br><em>for your voice.</em></h1><p class="form-note">Create your account and find a more human internet.</p>
+<form class="auth-form" method="post" action="/auth/register"><label>Your name<input type="text" name="name" placeholder="How should we call you?" required></label><label>Email address<input type="email" name="email" placeholder="you@example.com" required></label><label>Password<input type="password" name="password" placeholder="At least 8 characters" minlength="8" required></label><button class="button button-primary button-full" type="submit">Create account <span>↗</span></button></form>
+<p class="terms">By joining, you agree to show up with curiosity and care.</p><p class="switch-auth">Already have an account? <a href="/auth/login">Sign in</a></p>
+<%- include('../partials/auth-shell-end') %>

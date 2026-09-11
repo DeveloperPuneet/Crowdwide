@@ -1,0 +1,18 @@
+<header class="site-nav">
+  <a class="brand" href="/">
+    <img src="/images/Crowdwide_logo.png" alt="Crowdwide logo">
+    <span>Crowdwide</span>
+  </a>
+  <nav class="nav-links">
+    <a href="#why">Why Crowdwide</a>
+    <a href="#principles">Our principles</a>
+  </nav>
+  <div class="nav-actions">
+    <% if (currentUser) { %>
+      <a class="button button-small button-ghost" href="/dashboard">Open app</a>
+    <% } else { %>
+      <a class="button button-small button-ghost" href="/auth/login">Sign in</a>
+      <a class="button button-small button-primary" href="/auth/register">Join Crowdwide <span>↗</span></a>
+    <% } %>
+  </div>
+</header>
