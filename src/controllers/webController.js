@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
+const { createSignedUpload, createImageThumbnail } = require('../services/storage');
+const Comment = require('../models/Comment');
 
 const dashboardFallbackCommunities = [
 	{ name: 'Independent makers', slug: 'independent-makers', description: 'A home for people building with their hands and minds.', membersCount: 0 },
@@ -62,10 +64,12 @@ exports.home = async (req, res) => {
 };
 
 async function populatePosts(posts) {
-	return Post.populate(posts, [
+	const populated = await Post.populate(posts, [
 		{ path: 'author', select: 'name createdAt' },
 		{ path: 'community', select: 'name slug membersCount' }
 	]);
+	const comments = await Comment.find({ post: { $in: posts.map((post) => post._id) } }).sort({ createdAt: 1 }).limit(200).populate('author', 'name').lean();
+	return populated.map((post) => ({ ...post, comments: comments.filter((comment) => String(comment.post) === String(post._id)) }));
 }
 
 async function buildFeed(user, mode) {
@@ -103,6 +107,8 @@ exports.dashboard = async (req, res) => {
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
 			User.find({ _id: { $ne: user._id }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name').lean()
 		]);
+		const bookmarked = (user.bookmarks || []).map(String);
+		feed.posts = feed.posts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
 		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed, communities: communities.length ? communities : dashboardFallbackCommunities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: (user.following || []).map(String) });
 	} catch (error) {
 		console.error('Unable to load dashboard:', error.message);
@@ -130,9 +136,26 @@ exports.createPost = async (req, res) => {
 			return res.redirect('/dashboard');
 		}
 	}
-	const media = req.file ? { url: `/uploads/${req.file.filename}`, kind: req.file.mediaKind, alt: req.body.mediaAlt?.trim() || '' } : undefined;
+	let media;
+	if (req.file) {
+		media = { url: `/uploads/${req.file.filename}`, kind: req.file.mediaKind, alt: req.body.mediaAlt?.trim() || '' };
+		if (req.file.mediaKind === 'image') {
+			const thumbnail = await createImageThumbnail(req.file.path, req.file.filename);
+			media.thumbnailUrl = thumbnail.url;
+		}
+	}
 	await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media: media ? [media] : [] });
 	res.redirect('/dashboard');
+};
+
+exports.signedUpload = async (req, res) => {
+	const allowed = ['image/', 'video/', 'audio/'];
+	const kind = req.query.kind;
+	const contentType = req.query.contentType || '';
+	if (!allowed.some((prefix) => contentType.startsWith(prefix)) || !['image', 'video', 'audio'].includes(kind)) return res.status(400).json({ error: 'Unsupported media type.' });
+	const result = await createSignedUpload({ userId: req.session.user.id, kind, contentType });
+	if (!result.configured) return res.status(503).json({ error: 'Google Cloud Storage is not configured.' });
+	res.json(result);
 };
 
 exports.createCommunity = async (req, res) => {

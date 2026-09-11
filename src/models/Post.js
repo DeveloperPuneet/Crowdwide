@@ -9,10 +9,12 @@ const postSchema = new mongoose.Schema({
     url: { type: String, required: true },
     kind: { type: String, enum: ['image', 'video', 'audio'], default: 'image' },
     alt: String,
-    storageKey: String
+    storageKey: String,
+    thumbnailUrl: String
   }],
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  commentsCount: { type: Number, default: 0 }
+  commentsCount: { type: Number, default: 0 },
+  sharesCount: { type: Number, default: 0 }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Post', postSchema);

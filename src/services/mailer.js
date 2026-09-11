@@ -41,4 +41,20 @@ async function sendVerificationCode(user, code) {
   await transporter.sendMail(message);
 }
 
-module.exports = { sendVerificationCode };
+async function sendNewDeviceAlert(user, details) {
+  const transporter = getTransporter();
+  const message = {
+    from: process.env.MAIL_FROM || process.env.GMAIL_USER || 'Crowdwide <hello@crowdwide.com>',
+    to: user.email,
+    subject: 'New Crowdwide sign-in',
+    text: `A new device signed in to your Crowdwide account from ${details.ipAddress || 'an unknown IP'} using ${details.userAgent || 'an unknown browser'}. If this was not you, change your password immediately.`,
+    html: `<h2>New Crowdwide sign-in</h2><p>A new device signed in from <strong>${details.ipAddress || 'an unknown IP'}</strong>.</p><p>${details.userAgent || 'Unknown browser'}</p><p>If this was not you, change your password immediately.</p>`
+  };
+  if (!transporter) {
+    console.log(`[Crowdwide mail preview] New device for ${user.email}: ${message.text}`);
+    return;
+  }
+  await transporter.sendMail(message);
+}
+
+module.exports = { sendVerificationCode, sendNewDeviceAlert };

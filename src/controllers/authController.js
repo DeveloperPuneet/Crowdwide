@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
-const { sendVerificationCode } = require('../services/mailer');
+const { sendVerificationCode, sendNewDeviceAlert } = require('../services/mailer');
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
@@ -10,7 +10,9 @@ const setFlash = (req, type, message) => { req.session.flash = { type, message }
 
 async function establishSession(req, user) {
   req.session.user = { id: user.id, name: user.name, email: user.email, isVerified: true, profilePicture: user.profilePicture || '' };
+  const existingSession = await LoginSession.exists({ user: user._id });
   await LoginSession.create({ user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') });
+  if (existingSession) await sendNewDeviceAlert(user, { ipAddress: req.ip, userAgent: req.get('user-agent') });
 }
 
 exports.loginPage = (req, res) => res.render('pages/login', { title: 'Sign in' });
@@ -50,10 +52,25 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
+    if (user?.loginLockedUntil && user.loginLockedUntil > Date.now()) {
+      setFlash(req, 'error', 'Too many failed attempts. Try again later.');
+      return res.redirect('/auth/login');
+    }
     if (!user || !(await bcrypt.compare(req.body.password || '', user.password))) {
+      if (user) {
+        user.loginAttempts = (user.loginAttempts || 0) + 1;
+        if (user.loginAttempts >= 5) {
+          user.loginLockedUntil = Date.now() + 15 * 60 * 1000;
+          user.loginAttempts = 0;
+        }
+        await user.save();
+      }
       setFlash(req, 'error', 'That email and password combination is not recognized.');
       return res.redirect('/auth/login');
     }
+    user.loginAttempts = 0;
+    user.loginLockedUntil = undefined;
+    await user.save();
     if (!user.isVerified) {
       const verificationCode = code();
       user.verificationCode = verificationCode;
@@ -62,6 +79,10 @@ exports.login = async (req, res) => {
       await sendVerificationCode(user, verificationCode);
       setFlash(req, 'error', 'Your email is not verified yet. We sent you a fresh code.');
       return res.redirect(`/auth/verify?email=${encodeURIComponent(user.email)}`);
+    }
+    if (user.twoFactorEnabled) {
+      req.session.pendingTwoFactorUser = user.id;
+      return res.redirect('/auth/2fa');
     }
     await establishSession(req, user);
     res.redirect('/dashboard');

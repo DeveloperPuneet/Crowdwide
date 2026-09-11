@@ -42,6 +42,16 @@ Community creators are stored as owners and can edit community details, view rec
 
 Authenticated users can browse `/explore`, search by name or description, filter by category, and open `/communities/:slug` detail pages. Communities can be open or private. Open communities accept members immediately; private communities create a request for the owner or moderator to approve. Owners can edit category and privacy, maintain a banned-word list, approve or reject requests, assign moderators, remove members, and review recent posts. Posts addressed to a community require membership and are checked against that community's banned words.
 
+## Social interactions and security
+
+Likes, bookmarks, comments, nested replies, share counters, and notifications are stored in MongoDB. Shared posts resolve at `/posts/:id`. Helmet security headers, CSRF tokens, authentication rate limits, interaction rate limits, five-attempt login lockouts, 75-day device records, and new-device email alerts are enabled. Users can configure TOTP two-factor authentication at `/settings/security/2fa`.
+
+## Google Cloud media
+
+Set `GCS_PROJECT_ID`, `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`, and optionally `MEDIA_CDN_URL` to enable `/media/signed-upload`. The endpoint returns a V4 signed upload URL that expires after 15 minutes. Local uploads remain available as a development fallback; image uploads receive a generated WebP thumbnail through Sharp. A production deployment should use a private bucket, a CDN or signed delivery policy, lifecycle rules, and a service account limited to the media bucket.
+
+The current server-side processor generates image thumbnails immediately for local uploads. For GCS direct uploads, connect the signed-upload completion event to a Cloud Run or Cloud Functions worker for video transcoding and video thumbnail generation; the returned object key and CDN URL are designed for that handoff.
+
 ## Auth flow
 
 New accounts receive a six-digit verification code and cannot access `/dashboard` until verified. An unverified login generates a fresh code and redirects to verification. Password reset tokens are stored with an expiry on the user document.

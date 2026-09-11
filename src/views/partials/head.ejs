@@ -17,6 +17,7 @@
   <meta name="twitter:title" content="<%= title %> · Crowdwide">
   <meta name="twitter:description" content="<%= locals.description || 'A fair chance at discovery.' %>">
   <meta name="twitter:image" content="/images/Crowdwide_cover.png">
+  <meta name="csrf-token" content="<%= csrfToken || '' %>">
   <link rel="icon" type="image/png" href="/images/Crowdwide_logo.png">
   <link rel="apple-touch-icon" href="/images/Crowdwide_logo.png">
   <% if (locals.structuredData) { %><script type="application/ld+json"><%- JSON.stringify(locals.structuredData) %></script><% } %>
@@ -26,7 +27,8 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/extra.css">
   <% if (locals.bodyClass === 'dashboard-page') { %><link rel="stylesheet" href="/css/dashboard.css"><% } %>
-  <% if (locals.pagePath === '/explore' || locals.pagePath?.startsWith('/communities/')) { %><link rel="stylesheet" href="/css/community.css"><% } %>
+  <% if (locals.bodyClass === 'dashboard-page' || locals.pagePath === '/notifications') { %><link rel="stylesheet" href="/css/social.css"><% } %>
+  <% if (locals.pagePath === '/explore' || locals.pagePath?.startsWith('/communities/') || locals.pagePath?.startsWith('/posts/') || locals.pagePath === '/notifications') { %><link rel="stylesheet" href="/css/community.css"><% } %>
   <% if (locals.bodyClass === 'dashboard-page' && (locals.pagePath === '/settings' || locals.pagePath?.startsWith('/settings') || locals.pagePath?.startsWith('/communities/'))) { %><link rel="stylesheet" href="/css/settings.css"><% } %>
 </head>
 <body class="<%= locals.bodyClass || '' %>">
