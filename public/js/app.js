@@ -4,7 +4,9 @@ const composer = document.querySelector('#composer');
 if (composer) {
   const openComposer = document.querySelector('[data-composer-open]');
   openComposer?.addEventListener('click', () => {
-    composer.classList.remove('composer-hidden');
+    const isOpening = composer.classList.toggle('composer-hidden') === false;
+    openComposer.setAttribute('aria-expanded', String(isOpening));
+    if (!isOpening) return;
     composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
     composer.querySelector('textarea')?.focus();
   });
@@ -285,7 +287,8 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
     loading = true;
     const cursor = feedSentinel.dataset.cursor;
     const mode = feedSentinel.dataset.feedMode;
-    window.axios.get(`/dashboard/feed/more?before=${encodeURIComponent(cursor)}&feed=${mode}`)
+    const view = feedSentinel.dataset.feedView;
+    window.axios.get(`/dashboard/feed/more?before=${encodeURIComponent(cursor)}&feed=${mode}&view=${encodeURIComponent(view || '')}`)
       .then(({ data }) => {
         if (data.html) {
           const wrapper = document.createElement('div');

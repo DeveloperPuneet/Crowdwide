@@ -143,13 +143,20 @@ exports.dashboard = async (req, res) => {
 			.filter((post) => !blockedIds.includes(String(post.author?._id)))
 			.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
 		const viralIds = new Set(viralPosts.map((post) => String(post._id)));
-		const latestPosts = feed.posts.filter((post) => post.type !== 'article' && !viralIds.has(String(post._id)));
-		const latestArticles = feed.posts.filter((post) => post.type === 'article' && !viralIds.has(String(post._id)));
+		const [latestPosts, latestArticles] = await Promise.all(['post', 'article'].map(async (type) => {
+			const posts = await Post.find({ status: 'published', type }).sort({ createdAt: -1 }).limit(30).lean();
+			return populatePosts(posts);
+		}));
+		const decorateTabPosts = (posts) => posts
+			.filter((post) => !blockedIds.includes(String(post.author?._id)))
+			.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
+		const decoratedLatestPosts = decorateTabPosts(latestPosts);
+		const decoratedLatestArticles = decorateTabPosts(latestArticles);
 		const viralPostItems = feed.posts.filter((post) => viralIds.has(String(post._id)));
 		const viralArticleItems = viralPostItems.filter((post) => post.type === 'article');
-		const groups = { 'for-you': feed.posts, 'my-community': feed.posts, 'posts-new': latestPosts, 'posts-viral': viralPostItems.filter((post) => post.type !== 'article'), 'articles-new': latestArticles, 'articles-viral': viralArticleItems };
+		const groups = { 'for-you': feed.posts, 'my-community': feed.posts, 'posts-new': decoratedLatestPosts, 'posts-viral': viralPostItems.filter((post) => post.type !== 'article'), 'articles-new': decoratedLatestArticles, 'articles-viral': viralArticleItems };
 		const activeTab = ['for-you', 'my-community', 'posts-new', 'posts-viral', 'articles-new', 'articles-viral'].includes(req.query.view) ? req.query.view : (mode === 'personalized' ? 'my-community' : 'for-you');
-		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed: { ...feed, latestPosts, latestArticles, viralPosts: viralPostItems, viralArticles: viralArticleItems, activeTab, visiblePosts: groups[activeTab] }, communities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: followingIds });
+		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed: { ...feed, latestPosts: decoratedLatestPosts, latestArticles: decoratedLatestArticles, viralPosts: viralPostItems, viralArticles: viralArticleItems, activeTab, visiblePosts: groups[activeTab] }, communities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: followingIds });
 	} catch (error) {
 		console.error('Unable to load dashboard:', error.message);
 		res.status(500).render('pages/not-found', { title: 'Dashboard unavailable', noIndex: true });
@@ -278,6 +285,7 @@ exports.profile = async (req, res) => {
 		followingCount: (profileUser.following || []).length,
 		isSelf,
 		isFollowing: !isSelf && (viewer?.following || []).some((id) => String(id) === String(profileUser._id)),
+		isFollowingBack: !isSelf && (profileUser.following || []).some((id) => String(id) === String(viewerId)),
 		isBlocked: !isSelf && (viewer?.blockedUsers || []).some((id) => String(id) === String(profileUser._id)),
 		activity,
 		suggestions
@@ -399,6 +407,8 @@ exports.moreFeedPosts = async (req, res) => {
 	// weighted mix used for the first page) - simple, predictable, and cheap
 	// to paginate deep into the feed.
 	const filter = { status: 'published', createdAt: { $lt: cursor } };
+	if (req.query.view === 'posts-new') filter.type = 'post';
+	if (req.query.view === 'articles-new') filter.type = 'article';
 	if (mode === 'personalized') filter.community = { $in: user.joinedCommunities || [] };
 	const posts = await Post.find(filter).sort({ createdAt: -1 }).limit(10).lean();
 	const populated = (await populatePosts(posts)).filter((post) => !blockedIds.includes(String(post.author?._id)));

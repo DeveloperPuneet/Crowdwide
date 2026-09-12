@@ -57,8 +57,8 @@
 		</section>
 		<% } %>
 		<div id="feed-posts"><% feed.visiblePosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div>
-		<% if (feed.posts.length) { %>
-		<div id="feed-sentinel" data-feed-mode="<%= feed.label === 'Personalized feed' ? 'personalized' : 'normal' %>" data-cursor="<%= feed.posts[feed.posts.length - 1].createdAt.toISOString ? feed.posts[feed.posts.length - 1].createdAt.toISOString() : feed.posts[feed.posts.length - 1].createdAt %>"></div>
+		<% if (feed.visiblePosts.length) { %>
+		<div id="feed-sentinel" data-feed-mode="<%= feed.label === 'Personalized feed' ? 'personalized' : 'normal' %>" data-feed-view="<%= feed.activeTab %>" data-cursor="<%= feed.visiblePosts[feed.visiblePosts.length - 1].createdAt.toISOString ? feed.visiblePosts[feed.visiblePosts.length - 1].createdAt.toISOString() : feed.visiblePosts[feed.visiblePosts.length - 1].createdAt %>"></div>
 		<p id="feed-end-note" class="upload-help" style="display:none;text-align:center;padding:18px 0;">You're all caught up.</p>
 		<% } %>
 	</section>

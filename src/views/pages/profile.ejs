@@ -21,7 +21,7 @@
 				<% } else { %>
 				<form class="follow-form" data-user="<%= profileUser._id %>" method="post" action="/users/<%= profileUser._id %>/follow">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-					<button class="follow-button <%= isFollowing ? 'is-following' : '' %>" type="submit"><%= isFollowing ? 'Following' : 'Follow' %></button>
+					<button class="follow-button <%= isFollowing ? 'is-following' : '' %>" type="submit"><%= isFollowing ? 'Following' : isFollowingBack ? 'Follow back' : 'Follow' %></button>
 				</form>
 				<form class="block-form" method="post" action="/users/<%= profileUser._id %>/block">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
