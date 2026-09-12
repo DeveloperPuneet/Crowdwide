@@ -88,6 +88,19 @@ exports.setInactivity = async (req, res) => {
   res.redirect('/settings/privacy');
 };
 
+exports.setNotifications = async (req, res) => {
+  await User.findByIdAndUpdate(req.session.user.id, {
+    notificationPreferences: {
+      likes: req.body.notifyLikes === 'on',
+      comments: req.body.notifyComments === 'on',
+      follows: req.body.notifyFollows === 'on',
+      security: req.body.notifySecurity === 'on'
+    }
+  });
+  flash(req, 'success', 'Notification preferences saved.');
+  res.redirect('/settings/notifications');
+};
+
 exports.downloadData = async (req, res) => {
   const user = await User.findById(req.session.user.id).lean();
   const [posts, communities] = await Promise.all([

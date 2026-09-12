@@ -9,14 +9,19 @@ const redirectBack = (req, res, payload = {}) => {
   return res.redirect(req.get('referer') || '/dashboard');
 };
 
+const canAccessPost = (post, userId) => post && (post.status !== 'draft' || String(post.author) === String(userId));
+
 async function notify(recipient, actor, type, message, post, community) {
   if (!recipient || String(recipient) === String(actor)) return;
+  const recipientUser = await User.findById(recipient).select('notificationPreferences').lean();
+  const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : ['comment', 'reply'].includes(type) ? 'comments' : 'security';
+  if (recipientUser?.notificationPreferences && recipientUser.notificationPreferences[preferenceKey] === false) return;
   await Notification.create({ recipient, actor, type, message, post, community });
 }
 
 exports.toggleLike = async (req, res) => {
   const post = await Post.findById(req.params.id);
-  if (!post) return redirectBack(req, res);
+  if (!canAccessPost(post, req.session.user.id)) return redirectBack(req, res, { ok: false });
   const alreadyLiked = post.likes.some((id) => String(id) === String(req.session.user.id));
   if (alreadyLiked) post.likes.pull(req.session.user.id);
   else {
@@ -28,7 +33,8 @@ exports.toggleLike = async (req, res) => {
 };
 
 exports.reportPost = async (req, res) => {
-  const post = await Post.findById(req.params.id).select('_id').lean();
+  const post = await Post.findById(req.params.id).select('_id author status').lean();
+  if (!canAccessPost(post, req.session.user.id)) return redirectBack(req, res, { reported: false });
   const reason = req.body.reason?.trim();
   if (post && reason) {
     await Report.updateOne(
@@ -40,10 +46,29 @@ exports.reportPost = async (req, res) => {
   return redirectBack(req, res, { reported: Boolean(post && reason) });
 };
 
+exports.editPost = async (req, res) => {
+  const body = req.body.body?.trim();
+  const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id });
+  if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
+  const wordLimit = post.type === 'article' ? 550 : 120;
+  const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
+  if (!body || wordCount > wordLimit) return redirectBack(req, res, { ok: false, error: `${post.type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` });
+  post.body = body;
+  await post.save();
+  return redirectBack(req, res, { edited: true });
+};
+
+exports.deletePost = async (req, res) => {
+  const post = await Post.findOneAndDelete({ _id: req.params.id, author: req.session.user.id });
+  if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
+  await Comment.deleteMany({ post: post._id });
+  return redirectBack(req, res, { deleted: true });
+};
+
 exports.comment = async (req, res) => {
   const body = req.body.body?.trim();
   const post = await Post.findById(req.params.id);
-  if (!post || !body || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Comment must be between 1 and 2,000 characters.' });
+  if (!canAccessPost(post, req.session.user.id) || !body || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Comment must be between 1 and 2,000 characters.' });
   const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent: req.body.parent || null });
   post.commentsCount += 1;
   await post.save();
@@ -52,7 +77,41 @@ exports.comment = async (req, res) => {
   res.redirect(`${req.get('referer') || `/dashboard`}#post-${post._id}`);
 };
 
+exports.editComment = async (req, res) => {
+  const body = req.body.body?.trim();
+  const comment = await Comment.findOne({ _id: req.params.id, author: req.session.user.id });
+  if (!comment) return redirectBack(req, res, { ok: false, error: 'Comment not found or you do not own it.' });
+  if (!body || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Comment must be between 1 and 2,000 characters.' });
+  comment.body = body;
+  await comment.save();
+  return redirectBack(req, res, { edited: true });
+};
+
+exports.deleteComment = async (req, res) => {
+  const comment = await Comment.findOneAndDelete({ _id: req.params.id, author: req.session.user.id });
+  if (!comment) return redirectBack(req, res, { ok: false, error: 'Comment not found or you do not own it.' });
+  const descendants = await Comment.deleteMany({ parent: comment._id });
+  const post = await Post.findById(comment.post);
+  if (post) {
+    post.commentsCount = Math.max(0, (post.commentsCount || 0) - 1 - descendants.deletedCount);
+    await post.save();
+  }
+  return redirectBack(req, res, { deleted: true });
+};
+
+exports.toggleCommentLike = async (req, res) => {
+  const comment = await Comment.findById(req.params.id).populate('post', 'author status');
+  if (!comment || !canAccessPost(comment.post, req.session.user.id)) return redirectBack(req, res, { ok: false });
+  const alreadyLiked = comment.likes.some((id) => String(id) === String(req.session.user.id));
+  if (alreadyLiked) comment.likes.pull(req.session.user.id);
+  else comment.likes.addToSet(req.session.user.id);
+  await comment.save();
+  return redirectBack(req, res, { liked: !alreadyLiked, likes: comment.likes.length });
+};
+
 exports.toggleBookmark = async (req, res) => {
+  const post = await Post.findById(req.params.id).select('author status').lean();
+  if (!canAccessPost(post, req.session.user.id)) return redirectBack(req, res, { ok: false });
   const user = await User.findById(req.session.user.id);
   if (!user) return redirectBack(req, res);
   const exists = user.bookmarks.some((id) => String(id) === req.params.id);
@@ -63,10 +122,20 @@ exports.toggleBookmark = async (req, res) => {
 };
 
 exports.share = async (req, res) => {
-  const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { sharesCount: 1 } }, { new: true });
+  const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $ne: 'draft' } }, { author: req.session.user.id }] }, { $inc: { sharesCount: 1 } }, { new: true });
   if (post) await notify(post.author, req.session.user.id, 'comment', 'shared your post.', post._id, post.community);
   if (req.get('X-Requested-With') !== 'XMLHttpRequest') return redirectBack(req, res);
   res.json({ url: `${process.env.APP_URL || 'http://localhost:3000'}/posts/${req.params.id}`, shares: post?.sharesCount || 0 });
+};
+
+exports.votePoll = async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  const optionIndex = Number(req.body.optionIndex);
+  if (!canAccessPost(post, req.session.user.id) || !post.poll?.options?.[optionIndex]) return redirectBack(req, res, { ok: false, error: 'That poll is unavailable.' });
+  const alreadyVoted = post.poll.options.some((option) => option.votes.some((id) => String(id) === String(req.session.user.id)));
+  if (!alreadyVoted) post.poll.options[optionIndex].votes.addToSet(req.session.user.id);
+  await post.save();
+  return redirectBack(req, res, { voted: !alreadyVoted });
 };
 
 function buildCommentTree(comments) {
@@ -83,12 +152,12 @@ function buildCommentTree(comments) {
 }
 
 exports.postDetail = async (req, res) => {
-  const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } }, { new: true })
+  const viewerId = req.session.user?.id;
+  const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $ne: 'draft' } }, { author: viewerId || null }] }, { $inc: { viewsCount: 1 } }, { new: true })
     .populate('author', 'name profilePicture')
     .populate('community', 'name slug')
     .lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
-  const viewerId = req.session.user?.id;
   let blockedIds = [];
   if (viewerId) {
     const viewer = await User.findById(viewerId).select('bookmarks blockedUsers').lean();
@@ -103,6 +172,8 @@ exports.postDetail = async (req, res) => {
 };
 
 exports.commentThread = async (req, res) => {
+  const post = await Post.findById(req.params.id).select('author status').lean();
+  if (!canAccessPost(post, req.session.user?.id)) return res.status(404).json({ comments: [] });
   const comments = await Comment.find({ post: req.params.id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean();
   res.json({ comments });
 };

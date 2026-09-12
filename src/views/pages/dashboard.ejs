@@ -39,10 +39,12 @@
 			<div class="composer-body">
 				<textarea name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
 				<div class="composer-meta"><span data-word-count>0 / 120 words</span><div class="hashtag-suggestions" data-hashtag-suggestions></div></div>
+				<fieldset class="poll-composer"><legend>Optional poll</legend><input name="pollQuestion" maxlength="200" placeholder="Ask a question"><input name="pollOptions" maxlength="80" placeholder="Option 1"><input name="pollOptions" maxlength="80" placeholder="Option 2"><input name="pollOptions" maxlength="80" placeholder="Option 3"><input name="pollOptions" maxlength="80" placeholder="Option 4"></fieldset>
 				<div class="composer-actions">
 					<select name="type" aria-label="Post type"><option value="post">Post · 120 words</option><option value="article">Article · 550 words</option></select>
 					<select name="community" aria-label="Choose a community"><option value="">Open Crowdwide</option><% communities.forEach((community) => { %><option value="<%= community._id %>"><%= community.name %></option><% }) %></select>
 					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*"></label>
+					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
 					<button class="button button-primary button-small" type="submit">Publish <span>↗</span></button>
 				</div>
 				<small class="upload-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files</small>

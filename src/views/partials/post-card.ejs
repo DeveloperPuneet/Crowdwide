@@ -1,10 +1,13 @@
 <article class="post-card" id="post-<%= post._id %>">
 	<div class="post-meta">
 		<%- include('avatar', { person: post.author, size: 'small' }) %>
-		<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %></span></div>
+		<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %><% if (post.status === 'draft') { %> · Draft<% } %></span></div>
 		<span class="post-source"><%= post.feedSource || 'From your communities' %></span>
 	</div>
 	<p class="post-body"><%= post.body %></p>
+	<% if (post.poll?.question && post.poll.options?.length) { %>
+	<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><form method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% }) %></section>
+	<% } %>
 	<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 	<% if ((post.media || []).length) { %>
 	<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
@@ -24,6 +27,20 @@
 		<span>◉ <%= post.viewsCount || 0 %></span>
 		<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;text-decoration:none;">◌ <%= post.commentsCount || 0 %></a>
 	</div>
+	<% if (currentUser && String(post.author?._id) === String(currentUser.id)) { %>
+	<details class="post-owner-tools">
+		<summary>Edit post</summary>
+		<form method="post" action="/posts/<%= post._id %>/edit">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<textarea name="body" maxlength="4000" required><%= post.body %></textarea>
+			<button type="submit">Save changes</button>
+		</form>
+		<form method="post" action="/posts/<%= post._id %>/delete" onsubmit="return confirm('Delete this post?');">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<button type="submit">Delete post</button>
+		</form>
+	</details>
+	<% } %>
 	<form class="post-report-form" method="post" action="/posts/<%= post._id %>/report"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" maxlength="500" placeholder="Report this post"><button type="submit">Report</button></form>
 	<form class="comment-form" method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
 </article>

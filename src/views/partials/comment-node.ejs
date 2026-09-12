@@ -12,6 +12,24 @@
 	</div>
 	<p><%= node.body %></p>
 	<time><%= new Date(node.createdAt).toLocaleString() %></time>
+	<form class="comment-like-form" method="post" action="/comments/<%= node._id %>/like">
+		<input type="hidden" name="_csrf" value="<%= csrf %>">
+		<button type="submit">♡ <%= node.likes?.length || 0 %></button>
+	</form>
+	<% if (currentUser && String(node.author?._id) === String(currentUser.id)) { %>
+	<details class="comment-owner-tools">
+		<summary>Edit</summary>
+		<form method="post" action="/comments/<%= node._id %>/edit">
+			<input type="hidden" name="_csrf" value="<%= csrf %>">
+			<textarea name="body" maxlength="2000" required><%= node.body %></textarea>
+			<button type="submit">Save</button>
+		</form>
+		<form method="post" action="/comments/<%= node._id %>/delete" onsubmit="return confirm('Delete this comment?');">
+			<input type="hidden" name="_csrf" value="<%= csrf %>">
+			<button type="submit">Delete</button>
+		</form>
+	</details>
+	<% } %>
 	<% if (canReply) { %>
 	<details class="thread-reply">
 		<summary>Reply</summary>

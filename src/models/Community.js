@@ -24,6 +24,7 @@ const communitySchema = new mongoose.Schema({
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   memberRoles: [memberRoleSchema],
   moderators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  pinnedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   joinRequests: [joinRequestSchema],
   bannedWords: [{ type: String, trim: true, lowercase: true }],
   coverImage: String,

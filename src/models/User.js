@@ -21,6 +21,12 @@ const userSchema = new mongoose.Schema({
   bannerImage: { type: String, default: '' },
   privacy: { type: String, enum: ['public', 'followers'], default: 'public' },
   inactivityLogoutDays: { type: Number, enum: [0, 7, 30, 90], default: 0 },
+  notificationPreferences: {
+    likes: { type: Boolean, default: true },
+    comments: { type: Boolean, default: true },
+    follows: { type: Boolean, default: true },
+    security: { type: Boolean, default: true }
+  },
   bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   twoFactorEnabled: { type: Boolean, default: false },

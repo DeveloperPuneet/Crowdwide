@@ -87,7 +87,7 @@
 		<section class="settings-block owner-posts">
 			<h2>Recent posts</h2>
 			<% if (!posts.length) { %><p>No posts in this community yet.</p><% } %>
-			<% posts.forEach((post) => { %><article><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Member' %></a></strong><p><%= post.body %></p></article><% }) %>
+			<% posts.forEach((post) => { %><article><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Member' %></a></strong><% if (community.pinnedPosts?.some((id) => String(id) === String(post._id))) { %> <b style="color:#ff9850;font-size:11px;">Pinned</b><% } %><p><%= post.body %></p><form method="post" action="/communities/<%= community._id %>/posts/<%= post._id %>/pin"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit"><%= community.pinnedPosts?.some((id) => String(id) === String(post._id)) ? 'Unpin post' : 'Pin post' %></button></form></article><% }) %>
 		</section>
 	</section>
 </main>

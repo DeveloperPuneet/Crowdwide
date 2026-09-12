@@ -1,0 +1,166 @@
+CURRENT IMPLEMENTATION STATUS
+
+Completed in this pass:
+- Owner-only post/article editing and deletion.
+- Owner-only comment editing and deletion, including threaded count repair.
+- Private drafts with author feed/profile visibility and draft privacy guards.
+- Per-category notification preferences for likes, comments/replies, follows, and security alerts.
+- Share counts removed from visible post/article actions.
+- Moderator-managed pinned community posts, with a three-post limit and pinned-first display.
+- Database-aware health endpoint returning readiness status and HTTP 503 when MongoDB is unavailable.
+- Node smoke test command with hashtag utility coverage.
+- Polls on posts with one-vote-per-user enforcement.
+- Comment likes with draft privacy protection.
+
+Still to implement or assess:
+- Scheduled publishing requires a background worker.
+- Reactions beyond likes, mentions, quote posts, direct messages, and group conversations.
+- Advanced search filters, notification grouping, push notifications, and RSS/API features.
+- Expanded community workflows, moderation appeals, anti-spam, monitoring, backups, and broader integration tests.
+
+Feed and discovery
+
+Following-only feed
+Chronological feed option
+“For you” recommendations
+Trending posts and hashtags
+Recommended communities and users
+Mute words, hashtags, users, and communities
+Saved-posts page
+Post sorting by newest, popular, or unanswered
+Post creation
+
+Edit posts and articles
+Drafts and scheduled publishing
+Polls
+Link previews
+Multiple image/video uploads
+Alt-text editor and accessibility checks
+Mentions using @username
+Rich article editor with headings, quotes, lists, and code blocks
+Content warnings and spoiler formatting
+Social interaction
+
+Reactions beyond likes
+Nested comment replies
+Comment editing and deletion
+Comment likes
+Pinning posts and comments
+Quote posts and reposts
+Direct messages
+Group conversations
+User presence and typing indicators
+Profiles
+
+Custom username and profile URL
+Bio links
+Profile header image
+Pinned posts
+Post/reply/media tabs
+Followers and following lists
+Account privacy settings
+Verified or trusted profile status
+Export personal data
+Community features
+
+Public, private, and invite-only communities
+Community rules and onboarding questions
+Community roles and permissions
+Moderator application flow
+Banned-word filters
+Community announcements
+Community events
+Community-specific feeds
+Community analytics
+Transfer community ownership
+Trust, safety, and privacy
+
+Report reasons with evidence and appeal workflow
+Moderation queue with priority and assignment
+Temporary mutes, suspensions, and bans
+Rate limits and anti-spam protection
+CAPTCHA or email verification for suspicious activity
+Login history and active-session management
+Device/session revocation
+Security notifications
+Privacy-friendly analytics
+GDPR-style account deletion and data export
+Clear community guidelines and enforcement policy
+Audit logs for every moderator/admin action
+Notifications
+
+Notification preferences by category
+Email and in-app notification controls
+Notification grouping
+Mark all as read
+Mentions, replies, follows, quotes, reposts, and moderation alerts
+Push notifications through a web app/PWA
+Search
+
+Full-text post and article search
+User search
+Community search
+Search filters for date, author, community, media, and type
+Search history
+Hashtag pages
+Better ranking and typo tolerance
+Media and accessibility
+
+Image compression and responsive sizes
+Video processing and thumbnails
+Upload progress indicators
+File size/type validation
+Automatic media removal on deleted posts
+Captions and transcripts for video/audio
+Keyboard navigation
+Screen-reader labels
+Strong color contrast
+Reduced-motion support
+Responsive mobile layout
+Growth and retention
+
+Invite links
+Referral system
+Onboarding interests
+Welcome tour
+Suggested communities after registration
+Weekly digest emails
+Community activity summaries
+Shareable public profiles and articles
+RSS feeds for public communities or profiles
+Import tools from other platforms
+Public API with rate limits
+Business options, if needed later
+
+Creator subscriptions
+Paid communities
+Donations or tipping
+Sponsored posts with clear labeling
+Premium profile customization
+Organization accounts
+Moderation tools for paid communities
+Technical production readiness
+
+Automated tests for authentication, permissions, posting, moderation, and uploads
+End-to-end browser tests for signup and posting
+Centralized error handling
+Structured logging
+Monitoring and alerting
+Database indexes and query profiling
+Background job queue for email, media processing, and notifications
+Backups and restore testing
+Virus scanning for uploads
+CDN/object storage for media
+CSRF, XSS, SSRF, and abuse testing
+API versioning
+CI/CD pipeline
+Feature flags
+Staging environment
+Recommended order
+
+Edit/delete posts, drafts, better comments, and notification preferences.
+Following feed, mute tools, search filters, and improved community permissions.
+Direct messages, polls, mentions, quote posts, and profile customization.
+Strong moderation queue, appeals, rate limits, and account security controls.
+Media processing, accessibility improvements, automated testing, monitoring, and backups.
+Monetization and public API only after the core experience is stable.

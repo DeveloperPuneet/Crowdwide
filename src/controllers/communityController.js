@@ -77,10 +77,17 @@ exports.directory = async (req, res) => {
 exports.detail = async (req, res) => {
   const community = await Community.findOne({ slug: req.params.slug }).populate('owner', 'name profilePicture').lean();
   if (!community) return res.status(404).render('pages/not-found', { title: 'Community not found' });
-  const [posts, members] = await Promise.all([
+  const pinnedIds = (community.pinnedPosts || []).map(String);
+  const [recentPosts, pinnedPosts, members] = await Promise.all([
     Post.find({ community: community._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
+    pinnedIds.length ? Post.find({ _id: { $in: pinnedIds }, community: community._id, status: 'published' }).populate('author', 'name profilePicture').lean() : Promise.resolve([]),
     User.find({ _id: { $in: community.members } }).select('name profilePicture').limit(60).lean()
   ]);
+  const pinnedById = new Map(pinnedPosts.map((post) => [String(post._id), post]));
+  const posts = [
+    ...pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean),
+    ...recentPosts.filter((post) => !pinnedById.has(String(post._id)))
+  ];
   const joined = community.members.some((id) => String(id) === String(req.session.user.id));
   const requested = community.joinRequests?.some((request) => String(request.user) === String(req.session.user.id));
   const moderatorIds = (community.moderators || []).map(String);
@@ -160,6 +167,19 @@ exports.reviewPost = async (req, res) => {
     post.status = req.body.decision === 'approve' ? 'published' : 'rejected';
     await post.save();
   }
+  res.redirect(`/communities/${req.community._id}/manage`);
+};
+
+exports.togglePinPost = async (req, res) => {
+  const post = await Post.findOne({ _id: req.params.postId, community: req.community._id, status: 'published' }).select('_id').lean();
+  if (!post) return res.redirect(`/communities/${req.community._id}/manage`);
+  req.community.pinnedPosts = req.community.pinnedPosts || [];
+  const isPinned = req.community.pinnedPosts.some((id) => String(id) === String(post._id));
+  if (isPinned) req.community.pinnedPosts.pull(post._id);
+  else if (req.community.pinnedPosts.length < 3) req.community.pinnedPosts.addToSet(post._id);
+  else req.session.flash = { type: 'error', message: 'A community can have up to three pinned posts.' };
+  await req.community.save();
+  if (isPinned || req.community.pinnedPosts.some((id) => String(id) === String(post._id))) req.session.flash = { type: 'success', message: isPinned ? 'Post unpinned.' : 'Post pinned.' };
   res.redirect(`/communities/${req.community._id}/manage`);
 };
 

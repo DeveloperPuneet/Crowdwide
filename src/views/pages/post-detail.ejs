@@ -15,6 +15,9 @@
 			<div><strong><%= post.author?.name || 'Crowdwide member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %></span></div>
 		</div>
 		<p class="post-body" style="-webkit-line-clamp:unset;max-height:none;"><%= post.body %></p>
+		<% if (post.poll?.question && post.poll.options?.length) { %>
+		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %></section>
+		<% } %>
 		<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<% if ((post.media || []).length) { %>
 		<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">

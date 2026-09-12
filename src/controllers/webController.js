@@ -73,7 +73,7 @@ async function buildFeed(user, mode) {
 	if (mode === 'personalized') {
 		const likedTags = await Post.find({ likes: user._id, status: 'published' }).distinct('hashtags');
 		const personalizedFilter = { status: 'published', $or: [{ community: { $in: joinedIds } }, { hashtags: { $in: likedTags } }] };
-		const ownPosts = await Post.find({ author: user._id, status: { $in: ['published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean();
+		const ownPosts = await Post.find({ author: user._id, status: { $in: ['draft', 'published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean();
 		const relevantPosts = await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean();
 		const unique = new Map([...ownPosts, ...relevantPosts].map((post) => [String(post._id), post]));
 		return { posts: await populatePosts(Array.from(unique.values())), label: 'Personalized feed', note: joinedIds.length || likedTags.length ? 'Posts from your communities and topics related to what you like.' : 'Like a post or join a community to shape this feed.' };
@@ -92,7 +92,7 @@ async function buildFeed(user, mode) {
 		Community.find().sort({ membersCount: -1 }).limit(20).select('_id').lean(),
 		Post.aggregate([{ $match: { status: 'published' } }, { $addFields: { likesTotal: { $size: { $ifNull: ['$likes', []] } } } }, { $sort: { likesTotal: -1, createdAt: -1 } }, { $limit: 20 }]),
 		Post.find({ status: 'published' }).sort({ createdAt: -1 }).limit(30).lean()
-		, Post.find({ author: user._id, status: { $in: ['published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean()
+		, Post.find({ author: user._id, status: { $in: ['draft', 'published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean()
 	]);
 	const extendedNetworkIds = Array.from(new Set([...followingOfFollowing, ...followersOfFollowers].map(String)))
 		.filter((id) => id !== String(user._id) && !followingIds.includes(id));
@@ -103,7 +103,7 @@ async function buildFeed(user, mode) {
 	// alongside the reach of larger communities, so posts from small/new
 	// accounts and communities are not permanently buried under popularity.
 	const slots = [
-		...ownPosts.map((post) => ({ ...post, feedSource: post.status === 'pending' ? 'Awaiting community review' : 'Your post' })),
+		...ownPosts.map((post) => ({ ...post, feedSource: post.status === 'draft' ? 'Draft' : post.status === 'pending' ? 'Awaiting community review' : 'Your post' })),
 		...followedPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'From people you follow' })),
 		...extendedPosts.slice(0, 4).map((post) => ({ ...post, feedSource: 'Connected to your network' })),
 		...newPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'New voices & communities' })),
@@ -173,6 +173,13 @@ exports.createPost = async (req, res) => {
 		req.session.flash = { type: 'error', message: `${type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` };
 		return res.redirect('/dashboard');
 	}
+	const pollQuestion = req.body.pollQuestion?.trim();
+	const pollOptions = (Array.isArray(req.body.pollOptions) ? req.body.pollOptions : [req.body.pollOptions])
+		.map((option) => option?.trim()).filter(Boolean).filter((option, index, options) => options.indexOf(option) === index).slice(0, 4);
+	if (pollQuestion && (type === 'article' || pollOptions.length < 2)) {
+		req.session.flash = { type: 'error', message: 'Polls are available on posts and need at least two options.' };
+		return res.redirect('/dashboard');
+	}
 	let status = 'published';
 	if (req.body.community) {
 		const community = await Community.findById(req.body.community).select('members bannedWords owner moderators requireApproval');
@@ -199,8 +206,11 @@ exports.createPost = async (req, res) => {
 		}
 		media.push(item);
 	}
-	await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), status });
-	if (status === 'pending') {
+	const isDraft = req.body.saveAsDraft === 'on';
+	await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: pollQuestion ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status });
+	if (isDraft) {
+		req.session.flash = { type: 'success', message: 'Draft saved. It is visible only to you.' };
+	} else if (status === 'pending') {
 		req.session.flash = { type: 'success', message: 'Posted - this community reviews posts before they appear, so a moderator needs to approve it first.' };
 	}
 	res.redirect('/dashboard');
@@ -216,7 +226,15 @@ exports.signedUpload = async (req, res) => {
 	res.json(result);
 };
 
-exports.health = (req, res) => res.json({ status: 'ok', service: 'crowdwide', timestamp: new Date().toISOString() });
+exports.health = (req, res) => {
+	const databaseReady = User.db.readyState === 1;
+	res.status(databaseReady ? 200 : 503).json({
+		status: databaseReady ? 'ok' : 'degraded',
+		service: 'crowdwide',
+		database: databaseReady ? 'ready' : 'unavailable',
+		timestamp: new Date().toISOString()
+	});
+};
 
 exports.media = (req, res) => streamFile(Number(req.params.cluster), req.params.id, res);
 

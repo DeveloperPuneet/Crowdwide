@@ -6,7 +6,7 @@ const postSchema = new mongoose.Schema({
   body: { type: String, trim: true, maxlength: 4000 },
   hashtags: [{ type: String, trim: true, lowercase: true }],
   type: { type: String, enum: ['post', 'article'], default: 'post' },
-  status: { type: String, enum: ['published', 'pending', 'rejected'], default: 'published' },
+  status: { type: String, enum: ['draft', 'published', 'pending', 'rejected'], default: 'published' },
   media: [{
     url: { type: String, required: true },
     kind: { type: String, enum: ['image', 'video', 'audio'], default: 'image' },
@@ -14,6 +14,13 @@ const postSchema = new mongoose.Schema({
     storageKey: String,
     thumbnailUrl: String
   }],
+  poll: {
+    question: { type: String, trim: true, maxlength: 200 },
+    options: [{
+      label: { type: String, trim: true, maxlength: 80 },
+      votes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+    }]
+  },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   commentsCount: { type: Number, default: 0 },
   viewsCount: { type: Number, default: 0 },

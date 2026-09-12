@@ -31,7 +31,7 @@
 		<article class="post-card">
 			<div class="post-meta">
 				<%- include('../partials/avatar', { person: post.author, size: 'small', link: false }) %>
-				<div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %><% if (moderatorIds.includes(String(post.author?._id))) { %> <span style="color:#ff9850;font-size:10px;">MOD</span><% } %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %></span></div>
+				<div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %><% if (moderatorIds.includes(String(post.author?._id))) { %> <span style="color:#ff9850;font-size:10px;">MOD</span><% } %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %><% if (community.pinnedPosts?.some((id) => String(id) === String(post._id))) { %> · Pinned<% } %></span></div>
 			</div>
 			<p class="post-body"><%= post.body %></p>
 			<% if ((post.media || [])[0]) { %><div class="post-media count-1"><div class="post-media-frame"><% if (post.media[0].kind === 'image') { %><img src="<%= post.media[0].thumbnailUrl || post.media[0].url %>" alt="" loading="lazy"><% } %></div></div><% } %>
