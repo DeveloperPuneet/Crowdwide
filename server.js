@@ -60,6 +60,13 @@ app.use((req, res, next) => {
 app.use('/', webRoutes);
 app.use('/auth', authRoutes);
 app.use((req, res) => res.status(404).render('pages/not-found', { title: 'Page not found' }));
+app.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  console.error('Unhandled request error:', error);
+  const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 600 ? error.status : 500;
+  if (req.path.startsWith('/api/')) return res.status(status).json({ error: status === 500 ? 'Internal server error.' : error.message });
+  return res.status(status).render('pages/not-found', { title: status === 404 ? 'Page not found' : 'Crowdwide is having trouble' });
+});
 
 async function start() {
   await connectDatabase();

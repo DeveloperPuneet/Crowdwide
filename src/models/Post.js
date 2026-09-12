@@ -38,4 +38,9 @@ const postSchema = new mongoose.Schema({
   moderationStatus: { type: String, enum: ['unreviewed', 'good', 'needs-review', 'reported'], default: 'unreviewed', index: true }
 }, { timestamps: true });
 
+postSchema.index({ status: 1, createdAt: -1 });
+postSchema.index({ status: 1, community: 1, createdAt: -1 });
+postSchema.index({ status: 1, type: 1, createdAt: -1 });
+postSchema.index({ author: 1, status: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Post', postSchema);

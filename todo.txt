@@ -27,6 +27,7 @@ Completed in this pass:
 - Grouped notifications with aggregate counts and preserved unread state.
 - Public RSS feed for published posts, articles, and polls.
 - Versioned public posts API at `/api/v1/posts` with cursor pagination.
+- Production query indexes and centralized browser/API error handling.
 
 Still to implement or assess:
 - Advanced discovery and broader production hardening remain.
