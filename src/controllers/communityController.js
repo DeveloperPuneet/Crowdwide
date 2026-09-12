@@ -25,6 +25,7 @@ const ownerOnly = async (req, res, next) => {
     return res.redirect('/dashboard');
   }
   req.community = community;
+  req.isOwner = true;
   next();
 };
 
@@ -128,15 +129,22 @@ exports.addModerator = async (req, res) => {
     req.session.flash = { type: 'error', message: 'No Crowdwide member matches that username or email.' };
     return res.redirect(`/communities/${req.community._id}/manage`);
   }
+  if (String(person._id) === String(req.community.owner)) {
+    req.session.flash = { type: 'error', message: 'The community owner already has full moderation access.' };
+    return res.redirect(`/communities/${req.community._id}/manage`);
+  }
+  req.community.members = req.community.members || [];
+  req.community.memberRoles = req.community.memberRoles || [];
+  req.community.moderators = req.community.moderators || [];
   const alreadyMember = req.community.members.some((id) => String(id) === String(person._id));
   if (!alreadyMember) {
     req.community.members.addToSet(person._id);
-    req.community.memberRoles.push({ user: person._id, role: 'moderator' });
     req.community.membersCount = req.community.members.length;
     await User.findByIdAndUpdate(person._id, { $addToSet: { joinedCommunities: req.community._id } });
-  } else {
-    req.community.memberRoles = req.community.memberRoles.map((entry) => (String(entry.user) === String(person._id) ? { user: entry.user, role: 'moderator' } : entry));
   }
+  const role = req.community.memberRoles.find((entry) => String(entry.user) === String(person._id));
+  if (role) role.role = 'moderator';
+  else req.community.memberRoles.push({ user: person._id, role: 'moderator' });
   req.community.moderators.addToSet(person._id);
   await req.community.save();
   req.session.flash = { type: 'success', message: 'Moderator added.' };
@@ -185,12 +193,25 @@ exports.reviewRequest = async (req, res) => {
 };
 
 exports.setModerator = async (req, res) => {
-  if (!req.isOwner || String(req.params.userId) === String(req.community.owner)) return res.redirect(`/communities/${req.community._id}/manage`);
+  if (!req.isOwner || String(req.params.userId) === String(req.community.owner)) {
+    req.session.flash = { type: 'error', message: 'Only the owner can change moderator roles.' };
+    return res.redirect(`/communities/${req.community._id}/manage`);
+  }
+  if (!['member', 'moderator'].includes(req.body.role)) return res.redirect(`/communities/${req.community._id}/manage`);
   const member = req.community.members.some((id) => String(id) === req.params.userId);
-  if (member && req.body.role === 'moderator') req.community.moderators.addToSet(req.params.userId);
-  if (req.body.role !== 'moderator') req.community.moderators.pull(req.params.userId);
-  req.community.memberRoles = req.community.memberRoles.map((entry) => String(entry.user) === req.params.userId ? { user: entry.user, role: req.body.role === 'moderator' ? 'moderator' : 'member' } : entry);
+  if (!member) {
+    req.session.flash = { type: 'error', message: 'Only community members can receive a moderator role.' };
+    return res.redirect(`/communities/${req.community._id}/manage`);
+  }
+  req.community.memberRoles = req.community.memberRoles || [];
+  req.community.moderators = req.community.moderators || [];
+  if (req.body.role === 'moderator') req.community.moderators.addToSet(req.params.userId);
+  else req.community.moderators.pull(req.params.userId);
+  const role = req.community.memberRoles.find((entry) => String(entry.user) === req.params.userId);
+  if (role) role.role = req.body.role;
+  else req.community.memberRoles.push({ user: req.params.userId, role: req.body.role });
   await req.community.save();
+  req.session.flash = { type: 'success', message: req.body.role === 'moderator' ? 'Moderator added.' : 'Moderator removed.' };
   res.redirect(`/communities/${req.community._id}/manage`);
 };
 
