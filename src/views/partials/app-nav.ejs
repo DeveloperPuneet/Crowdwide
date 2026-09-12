@@ -6,6 +6,7 @@
     <a class="<%= active === 'explore' ? 'app-nav-active' : '' %>" href="/explore">Explore</a>
     <a class="<%= active === 'communities' ? 'app-nav-active' : '' %>" href="/communities">Communities</a>
     <a class="<%= active === 'messages' ? 'app-nav-active' : '' %>" href="/messages">Messages</a>
+    <a class="<%= active === 'groups' ? 'app-nav-active' : '' %>" href="/groups">Groups</a>
   </nav>
   <form class="nav-search" method="get" action="/search">
     <span class="nav-search-icon">⌕</span>
@@ -30,6 +31,7 @@
     <a href="/explore">◎ Explore</a>
     <a href="/communities">⌂ Communities</a>
     <a href="/messages">✉ Messages</a>
+    <a href="/groups">◈ Groups</a>
     <a href="/notifications">&#128276; Notifications</a>
     <% if (locals.currentUser) { %>
     <a href="/u/<%= currentUser.id %>">✦ Your profile</a>

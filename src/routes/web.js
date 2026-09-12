@@ -5,6 +5,7 @@ const settingsController = require('../controllers/settingsController');
 const communityController = require('../controllers/communityController');
 const { postUpload, profileUpload, communityUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
+const groupController = require('../controllers/groupController');
 const { interactionLimiter, csrfSynchronisedProtection } = require('../middleware/security');
 const twoFactorController = require('../controllers/twoFactorController');
 const adminController = require('../controllers/adminController');
@@ -22,6 +23,10 @@ router.get('/notifications/unread', requireAuth, requireVerified, interactionCon
 router.get('/messages', requireAuth, requireVerified, interactionController.messages);
 router.get('/messages/:id', requireAuth, requireVerified, interactionController.messageThread);
 router.post('/messages/:id', requireAuth, requireVerified, interactionLimiter, interactionController.sendMessage);
+router.get('/groups', requireAuth, requireVerified, groupController.list);
+router.post('/groups', requireAuth, requireVerified, interactionLimiter, groupController.create);
+router.get('/groups/:id', requireAuth, requireVerified, groupController.thread);
+router.post('/groups/:id', requireAuth, requireVerified, interactionLimiter, groupController.send);
 router.get('/posts/:id', interactionController.postDetail);
 router.post('/posts/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editPost);
 router.post('/posts/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deletePost);

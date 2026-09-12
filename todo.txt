@@ -16,10 +16,12 @@ Completed in this pass:
 - Polls promoted to a first-class post type with improved composer/card styling.
 - Normal browser form submissions redirect correctly instead of returning JSON payloads.
 - Additional post reactions with one active reaction per user.
+- One-to-one group conversations with membership checks and account cleanup.
+- `@handle` mentions in published posts and comments with notification delivery.
 
 Still to implement or assess:
 - Scheduled publishing requires a background worker.
-- Mentions account or embed post, twitter style reply for post and group conversations.
+- Account/embed mention rendering and Twitter-style post replies.
 - Advanced search filters, notification grouping, push notifications, and RSS/API features.
 - Expanded community workflows, moderation appeals, anti-spam, monitoring, backups, and broader integration tests.
 

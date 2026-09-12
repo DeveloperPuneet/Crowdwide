@@ -1,0 +1,21 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
+<main class="community-detail">
+  <a class="back-link" href="/dashboard">← Back to feed</a>
+  <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+  <section class="community-posts">
+    <div class="panel-heading"><h1>Group conversations</h1><span><%= groups.length %></span></div>
+    <% if (!groups.length) { %><div class="empty-feed"><h2>No groups yet.</h2><p>Start a small conversation with people you know.</p></div><% } %>
+    <% groups.forEach((group) => { %>
+    <a class="activity-row" href="/groups/<%= group._id %>" style="text-decoration:none;color:inherit;"><span class="community-glyph">◈</span><div><strong><%= group.name %></strong><p><%= group.members.length %> members · <%= group.members.slice(0, 4).map((member) => member.name).join(', ') %></p></div></a>
+    <% }) %>
+    <form class="settings-form compact" method="post" action="/groups" style="margin-top:20px;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <h2>Start a group</h2>
+      <label>Group name<input name="name" maxlength="80" placeholder="Project circle" required></label>
+      <label>Members<input name="members" placeholder="Email or exact display name, separated by spaces or commas" required></label>
+      <button class="button button-primary button-small" type="submit">Create group <span>+</span></button>
+    </form>
+  </section>
+</main>
+<%- include('../partials/app-footer') %><%- include('../partials/foot') %>
