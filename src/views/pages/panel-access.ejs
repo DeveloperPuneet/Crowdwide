@@ -1,0 +1,12 @@
+<%- include('../partials/auth-shell-start', { title }) %>
+<p class="eyebrow">Restricted area</p>
+<h1>Confirm <em><%= panelLabel %> access.</em></h1>
+<p class="form-note">Enter your Crowdwide password to open this panel, even if you are already signed in.</p>
+<form class="auth-form" method="post" action="/<%= panel %>/access">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input type="hidden" name="returnTo" value="/<%= panel %>">
+  <label>Password<input type="password" name="password" autocomplete="current-password" required autofocus></label>
+  <button class="button button-primary button-full" type="submit">Open panel <span>↗</span></button>
+</form>
+<p class="switch-auth"><a href="/dashboard">Return to Crowdwide</a></p>
+<%- include('../partials/auth-shell-end') %>

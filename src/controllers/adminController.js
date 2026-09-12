@@ -9,6 +9,26 @@ const ModerationAction = require('../models/ModerationAction');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const audit = (req, action, targetType, target, details = {}) => AuditLog.create({ actor: req.roleUser._id, action, targetType, target, details, ipAddress: req.ip, userAgent: req.get('user-agent') });
+const panelRoles = { admin: ['admin'], moderator: ['admin', 'moderator'] };
+
+exports.panelAccessPage = (req, res) => {
+  const panel = req.params.panel;
+  if (!panelRoles[panel]) return res.status(404).render('pages/not-found', { title: 'Page not found' });
+  res.render('pages/panel-access', { title: `${panel === 'admin' ? 'Admin' : 'Moderator'} panel access`, panel, panelLabel: panel === 'admin' ? 'admin' : 'moderator' });
+};
+
+exports.panelAccess = async (req, res) => {
+  const panel = req.params.panel;
+  const user = await User.findById(req.session.user.id).select('password role');
+  if (!user || !panelRoles[panel]?.includes(user.role)) return res.status(403).render('pages/not-found', { title: 'Access denied' });
+  if (!(await bcrypt.compare(req.body.password || '', user.password))) {
+    flash(req, 'error', 'That password is not correct.');
+    return res.redirect(`/${panel}/access`);
+  }
+  req.session.panelAccess = { ...(req.session.panelAccess || {}), [panel]: Date.now() + 15 * 60 * 1000 };
+  const returnTo = req.body.returnTo?.startsWith(`/${panel}`) ? req.body.returnTo : `/${panel}`;
+  res.redirect(returnTo);
+};
 
 exports.admin = async (req, res) => {
   const [users, communities, posts, openReports, pendingActions, moderators, auditLogs] = await Promise.all([

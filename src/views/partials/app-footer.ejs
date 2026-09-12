@@ -34,6 +34,8 @@
         <a href="/accessibility">Accessibility</a>
         <a href="/contact">Contact</a>
         <a href="/about/developer">Developer</a>
+        <% if (currentUser?.role === 'admin') { %><a href="/admin">Admin panel</a><% } %>
+        <% if (['admin', 'moderator'].includes(currentUser?.role)) { %><a href="/moderator">Moderator panel</a><% } %>
       </div>
     </div>
   </div>

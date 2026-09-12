@@ -22,4 +22,11 @@ function requireModerator(req, res, next) {
   });
 }
 
-module.exports = { requireAdmin, requireModerator };
+function requirePanelPassword(panel) {
+  return (req, res, next) => {
+    if (req.session.panelAccess?.[panel] > Date.now()) return next();
+    res.redirect(`/${panel}/access?returnTo=/${panel}`);
+  };
+}
+
+module.exports = { requireAdmin, requireModerator, requirePanelPassword };
