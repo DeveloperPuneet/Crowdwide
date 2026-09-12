@@ -94,6 +94,7 @@ The mailer uses Gmail OAuth2 through Nodemailer, so no Gmail password or less-se
 - `/communities/:slug` community detail; `/communities/:id/manage` owner/moderator controls
 - `/u/:id` public profile with follow/unfollow/block; `/u/:id/followers`, `/u/:id/following`
 - `/search?q=` search across people, communities, hashtags, and posts
+- `/rss.xml` public RSS feed for published posts, articles, and polls; `/api/v1/posts` public read-only JSON feed with `limit`, `before`, `type`, and `community` filters
 - `/posts/:id` post detail with nested threaded comments (public preview when logged out, full interactions when logged in)
 - `/notifications`, `/settings/:section` (`/settings/security/2fa/recovery-codes` shows one-time recovery codes)
 - `/guide` tips for growing a profile, a community, and staying secure

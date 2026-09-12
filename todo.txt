@@ -24,10 +24,13 @@ Completed in this pass:
 - Twitter-style post replies linked to the original post.
 - Scheduled publishing with future-time validation and a minute publication worker.
 - Advanced search filters for type, community, media, date range, and sort order.
+- Grouped notifications with aggregate counts and preserved unread state.
+- Public RSS feed for published posts, articles, and polls.
+- Versioned public posts API at `/api/v1/posts` with cursor pagination.
 
 Still to implement or assess:
 - Advanced discovery and broader production hardening remain.
-- Advanced search filters, notification grouping, push notifications, and RSS/API features.
+- Push notifications and broader production hardening.
 - Expanded community workflows, moderation appeals, anti-spam, monitoring, backups, and broader integration tests.
 
 Feed and discovery

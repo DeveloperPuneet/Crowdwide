@@ -38,7 +38,7 @@
 			<%- include('../partials/avatar', { person: currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">
 				<textarea data-mention-input name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
-				<div class="composer-meta"><span data-word-count>0 / 120 words</span><div class="word-limit-meter" role="progressbar" aria-label="Word limit" aria-valuemin="0" aria-valuemax="120" aria-valuenow="0"><span data-word-progress></span></div><div class="hashtag-suggestions" data-hashtag-suggestions></div></div>
+				<div class="composer-meta"><div class="word-limit-status"><span data-word-count>0 / 120 words</span><div class="word-limit-meter" role="progressbar" aria-label="Word limit" aria-valuemin="0" aria-valuemax="120" aria-valuenow="0"><span data-word-progress></span></div></div><div class="hashtag-suggestions" data-hashtag-suggestions></div></div>
 				<fieldset class="poll-composer" hidden><legend>Poll choices</legend><input name="pollQuestion" maxlength="200" placeholder="Ask a question"><div class="poll-option-grid"><input name="pollOptions" maxlength="80" placeholder="Option 1"><input name="pollOptions" maxlength="80" placeholder="Option 2"><input name="pollOptions" maxlength="80" placeholder="Option 3"><input name="pollOptions" maxlength="80" placeholder="Option 4"></div></fieldset>
 				<div class="composer-actions">
 					<select name="type" aria-label="Post type"><option value="post">Post · 120 words</option><option value="article">Article · 550 words</option><option value="poll">Poll · 120 words</option></select>

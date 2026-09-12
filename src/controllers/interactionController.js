@@ -236,7 +236,19 @@ exports.notifications = async (req, res) => {
     Notification.countDocuments({ recipient: req.session.user.id, readAt: null })
   ]);
   const blockedIds = (viewer?.blockedUsers || []).map(String);
-  const notifications = notificationsRaw.filter((notification) => !notification.actor || !blockedIds.includes(String(notification.actor._id)));
+  const visibleNotifications = notificationsRaw.filter((notification) => !notification.actor || !blockedIds.includes(String(notification.actor._id)));
+  const grouped = new Map();
+  visibleNotifications.forEach((notification) => {
+    const key = [notification.type, notification.post || '', notification.community || ''].join(':');
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.count += 1;
+      existing.readAt = existing.readAt && notification.readAt ? existing.readAt : null;
+    } else {
+      grouped.set(key, { ...notification, count: 1 });
+    }
+  });
+  const notifications = Array.from(grouped.values());
   res.render('pages/notifications', { title: 'Notifications', pagePath: '/notifications', noIndex: true, notifications, unread });
 };
 

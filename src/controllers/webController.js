@@ -255,6 +255,28 @@ exports.health = (req, res) => {
 	});
 };
 
+exports.apiPosts = async (req, res) => {
+	const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 50);
+	const filter = { status: 'published' };
+	if (req.query.type && ['post', 'article', 'poll'].includes(req.query.type)) filter.type = req.query.type;
+	if (/^[a-f\d]{24}$/i.test(req.query.community || '')) filter.community = req.query.community;
+	if (req.query.before && !Number.isNaN(new Date(req.query.before).getTime())) filter.createdAt = { $lt: new Date(req.query.before) };
+	const posts = await Post.find(filter).sort({ createdAt: -1 }).limit(limit).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
+	const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+	res.set('Access-Control-Allow-Origin', '*');
+	res.json({ data: posts.map((post) => ({
+		id: post._id,
+		url: `${baseUrl}/posts/${post._id}`,
+		body: post.body,
+		type: post.type,
+		author: post.author,
+		community: post.community,
+		hashtags: post.hashtags || [],
+		media: post.media || [],
+		createdAt: post.createdAt
+	})), nextCursor: posts.length === limit ? posts[posts.length - 1].createdAt : null });
+};
+
 exports.media = (req, res) => streamFile(Number(req.params.cluster), req.params.id, res);
 
 exports.mediaStatus = async (req, res) => res.json({ clusters: await clusterStatus() });
@@ -578,3 +600,11 @@ exports.infoPage = (req, res) => {
 
 exports.robots = (req, res) => { res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /auth/\nSitemap: ${(process.env.APP_URL || 'http://localhost:3000')}/sitemap.xml`); };
 exports.sitemap = (req, res) => { res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact', '/auth/login', '/auth/register'].map((path) => `<url><loc>${(process.env.APP_URL || 'http://localhost:3000')}${path}</loc></url>`).join('')}</urlset>`); };
+
+exports.rss = async (req, res) => {
+	const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+	const escapeXml = (value = '') => String(value).replace(/[<>&'\"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
+	const posts = await Post.find({ status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
+	const items = posts.map((post) => `<item><title>${escapeXml(`${post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post'} by ${post.author?.name || 'Crowdwide member'}`)}</title><link>${baseUrl}/posts/${post._id}</link><guid isPermaLink="true">${baseUrl}/posts/${post._id}</guid><description>${escapeXml(post.body || '')}</description><pubDate>${new Date(post.createdAt).toUTCString()}</pubDate><author>${escapeXml(post.author?.name || 'Crowdwide member')}</author></item>`).join('');
+	res.type('application/rss+xml').send(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Crowdwide</title><link>${baseUrl}</link><description>Published posts and articles from Crowdwide.</description><lastBuildDate>${new Date().toUTCString()}</lastBuildDate>${items}</channel></rss>`);
+};
