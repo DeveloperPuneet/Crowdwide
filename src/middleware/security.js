@@ -21,9 +21,17 @@ const interactionLimiter = rateLimit({
   message: 'You are moving too quickly. Try again shortly.'
 });
 
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many API requests. Try again shortly.' }
+});
+
 function csrfProtection(req, res, next) {
   if (req.is('multipart/form-data')) return next();
   return csrfSynchronisedProtection(req, res, next);
 }
 
-module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, interactionLimiter };
+module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, interactionLimiter, apiLimiter };

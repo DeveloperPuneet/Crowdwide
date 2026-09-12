@@ -1,182 +1,34 @@
-CURRENT IMPLEMENTATION STATUS
+# Crowdwide Roadmap
 
-Completed in this pass:
-- Owner-only post/article editing and deletion.
-- Owner-only comment editing and deletion, including threaded count repair.
-- Private drafts with author feed/profile visibility and draft privacy guards.
-- Per-category notification preferences for likes, comments/replies, follows, and security alerts.
-- Share counts removed from visible post/article actions.
-- Moderator-managed pinned community posts, with a three-post limit and pinned-first display.
-- Database-aware health endpoint returning readiness status and HTTP 503 when MongoDB is unavailable.
-- Node smoke test command with hashtag utility coverage.
-- Polls on posts with one-vote-per-user enforcement.
-- Comment likes with draft privacy protection.
-- One-to-one direct messages with inbox, threads, unread state, and block enforcement.
-- Quote posts with source previews and private-draft protection.
-- Polls promoted to a first-class post type with improved composer/card styling.
-- Normal browser form submissions redirect correctly instead of returning JSON payloads.
-- Additional post reactions with one active reaction per user.
-- One-to-one group conversations with membership checks and account cleanup.
-- `@handle` mentions in published posts and comments with notification delivery.
-- `@handle` autocomplete in composer, comments, replies, and quote forms.
-- AJAX interaction handling for likes, comments, replies, polls, reactions, bookmarks, shares, follows, and blocks without page reloads.
-- Safe account-link rendering for @handles in posts and threaded comments.
-- Twitter-style post replies linked to the original post.
-- Scheduled publishing with future-time validation and a minute publication worker.
-- Advanced search filters for type, community, media, date range, and sort order.
-- Grouped notifications with aggregate counts and preserved unread state.
-- Public RSS feed for published posts, articles, and polls.
-- Versioned public posts API at `/api/v1/posts` with cursor pagination.
-- Production query indexes and centralized browser/API error handling.
+## Completed
 
-Still to implement or assess:
-- Advanced discovery and broader production hardening remain.
-- Push notifications and broader production hardening.
-- Expanded community workflows, moderation appeals, anti-spam, monitoring, backups, and broader integration tests.
+- Posts, articles, polls, drafts, scheduled publishing, media uploads, alt text, hashtags, mentions, quote posts, and linked post replies.
+- Edit/delete controls for owned posts and comments.
+- Likes, comment likes, reactions, bookmarks, sharing, nested replies, and no-reload AJAX interactions.
+- Private/public communities, join requests, roles, moderators, banned words, post approval, pinned posts, guidelines, and community feeds.
+- Profiles with banners, avatars, bios, links, privacy controls, followers/following, saved posts, activity, likes, and comments.
+- Email verification, password reset, login lockouts, TOTP 2FA, recovery codes, session/device management, CSRF, Helmet, and rate limits.
+- Reports, moderation queues, admin approval, audit logs, account suspension, and data export/deletion.
+- Direct messages, group conversations, notification preferences/grouping, mention notifications, and security notifications.
+- Feed discovery, personalized feeds, viral/new tabs, trending hashtags, recommendations, search filters, RSS, and `/api/v1/posts`.
+- Production indexes, centralized error handling, database-aware health checks, and scheduled publication worker.
 
-Feed and discovery
+## Next Priorities
 
-Following-only feed
-Chronological feed option
-“For you” recommendations
-Trending posts and hashtags
-Recommended communities and users
-Mute words, hashtags, users, and communities
-Saved-posts page
-Post sorting by newest, popular, or unanswered
-Post creation
+1. Add browser push notifications with an explicit opt-in and service worker.
+2. Add profile/community mute controls and unanswered-post discovery.
+3. Add content warnings, link previews, richer article editing, and media captions/transcripts.
+4. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
+5. Add automated route/permission/upload tests and end-to-end signup/posting tests.
+6. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
+7. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
+8. Evaluate monetization only after safety, reliability, and accessibility work is complete.
 
-Edit posts and articles
-Drafts and scheduled publishing
-Polls
-Link previews
-Multiple image/video uploads
-Alt-text editor and accessibility checks
-Mentions using @username
-Rich article editor with headings, quotes, lists, and code blocks
-Content warnings and spoiler formatting
-Social interaction
+## Known Gaps
 
-Reactions beyond likes
-Nested comment replies
-Comment editing and deletion
-Comment likes
-Pinning posts and comments
-Quote posts and reposts
-Direct messages
-Group conversations
-User presence and typing indicators
-Profiles
-
-Custom username and profile URL
-Bio links
-Profile header image
-Pinned posts
-Post/reply/media tabs
-Followers and following lists
-Account privacy settings
-Verified or trusted profile status
-Export personal data
-Community features
-
-Public, private, and invite-only communities
-Community rules and onboarding questions
-Community roles and permissions
-Moderator application flow
-Banned-word filters
-Community announcements
-Community events
-Community-specific feeds
-Community analytics
-Transfer community ownership
-Trust, safety, and privacy
-
-Report reasons with evidence and appeal workflow
-Moderation queue with priority and assignment
-Temporary mutes, suspensions, and bans
-Rate limits and anti-spam protection
-CAPTCHA or email verification for suspicious activity
-Login history and active-session management
-Device/session revocation
-Security notifications
-Privacy-friendly analytics
-GDPR-style account deletion and data export
-Clear community guidelines and enforcement policy
-Audit logs for every moderator/admin action
-Notifications
-
-Notification preferences by category
-Email and in-app notification controls
-Notification grouping
-Mark all as read
-Mentions, replies, follows, quotes, reposts, and moderation alerts
-Push notifications through a web app/PWA
-Search
-
-Full-text post and article search
-User search
-Community search
-Search filters for date, author, community, media, and type
-Search history
-Hashtag pages
-Better ranking and typo tolerance
-Media and accessibility
-
-Image compression and responsive sizes
-Video processing and thumbnails
-Upload progress indicators
-File size/type validation
-Automatic media removal on deleted posts
-Captions and transcripts for video/audio
-Keyboard navigation
-Screen-reader labels
-Strong color contrast
-Reduced-motion support
-Responsive mobile layout
-Growth and retention
-
-Invite links
-Referral system
-Onboarding interests
-Welcome tour
-Suggested communities after registration
-Weekly digest emails
-Community activity summaries
-Shareable public profiles and articles
-RSS feeds for public communities or profiles
-Import tools from other platforms
-Public API with rate limits
-Business options, if needed later
-
-Creator subscriptions
-Paid communities
-Donations or tipping
-Sponsored posts with clear labeling
-Premium profile customization
-Organization accounts
-Moderation tools for paid communities
-Technical production readiness
-
-Automated tests for authentication, permissions, posting, moderation, and uploads
-End-to-end browser tests for signup and posting
-Centralized error handling
-Structured logging
-Monitoring and alerting
-Database indexes and query profiling
-Background job queue for email, media processing, and notifications
-Backups and restore testing
-Virus scanning for uploads
-CDN/object storage for media
-CSRF, XSS, SSRF, and abuse testing
-API versioning
-CI/CD pipeline
-Feature flags
-Staging environment
-Recommended order
-
-Edit/delete posts, drafts, better comments, and notification preferences.
-Following feed, mute tools, search filters, and improved community permissions.
-Direct messages, polls, mentions, quote posts, and profile customization.
-Strong moderation queue, appeals, rate limits, and account security controls.
-Media processing, accessibility improvements, automated testing, monitoring, and backups.
-Monetization and public API only after the core experience is stable.
+- Push notifications are not implemented.
+- User/community mute controls are not implemented.
+- Content warnings, link previews, rich article blocks, captions, and transcripts are not implemented.
+- Moderation appeals and evidence attachments are not implemented.
+- Automated integration/end-to-end coverage is still limited to smoke tests.
+- Monitoring, backups, CI/staging, and upload virus scanning require deployment infrastructure.

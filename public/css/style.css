@@ -99,6 +99,7 @@ input, textarea, select {
   padding: 12px 13px; outline: none; width: 100%;
 }
 input:focus, textarea:focus, select:focus { border-color: #687cff; box-shadow: 0 0 0 3px #5369ff22; }
+.button:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #8da0ff; outline-offset: 3px; }
 .flash { font-size: 12px; padding: 11px 13px; border-radius: 8px; margin-bottom: 18px; }
 .flash-error { background: #492339; color: #ffb0bf; border: 1px solid #914d63; }
 .flash-success { background: #163a35; color: #9de8c1; border: 1px solid #347a66; }
@@ -767,4 +768,9 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
   .upload-preview { grid-template-columns: 1fr; }
   .footer-top { grid-template-columns: 1fr; gap: 28px; }
   .footer-bottom { flex-direction: column; align-items: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

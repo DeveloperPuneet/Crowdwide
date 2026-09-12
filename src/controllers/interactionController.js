@@ -127,7 +127,7 @@ exports.toggleBookmark = async (req, res) => {
 };
 
 exports.share = async (req, res) => {
-  const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $ne: 'draft' } }, { author: req.session.user.id }] }, { $inc: { sharesCount: 1 } }, { new: true });
+  const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $nin: ['draft', 'scheduled'] } }, { author: req.session.user.id }] }, { $inc: { sharesCount: 1 } }, { new: true });
   if (post) await notify(post.author, req.session.user.id, 'comment', 'shared your post.', post._id, post.community);
   if (req.get('X-Requested-With') !== 'XMLHttpRequest') return redirectBack(req, res);
   res.json({ url: `${process.env.APP_URL || 'http://localhost:3000'}/posts/${req.params.id}`, shares: post?.sharesCount || 0 });

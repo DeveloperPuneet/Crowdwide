@@ -6,7 +6,7 @@ const communityController = require('../controllers/communityController');
 const { postUpload, profileUpload, communityUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
-const { interactionLimiter, csrfSynchronisedProtection } = require('../middleware/security');
+const { interactionLimiter, apiLimiter, csrfSynchronisedProtection } = require('../middleware/security');
 const twoFactorController = require('../controllers/twoFactorController');
 const adminController = require('../controllers/adminController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
@@ -14,7 +14,7 @@ const { requireAdmin, requireModerator, requirePanelPassword } = require('../mid
 router.get('/', controller.home);
 router.get('/health', controller.health);
 router.get('/rss.xml', controller.rss);
-router.get('/api/v1/posts', controller.apiPosts);
+router.get('/api/v1/posts', apiLimiter, controller.apiPosts);
 router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
 router.get('/dashboard/feed/more', requireAuth, requireVerified, controller.moreFeedPosts);
 router.get('/media/signed-upload', requireAuth, requireVerified, controller.signedUpload);
