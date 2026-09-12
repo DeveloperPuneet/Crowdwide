@@ -3,6 +3,8 @@
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="app-layout">
 	<aside class="app-sidebar">
+		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="true" aria-controls="dashboard-sidebar" aria-label="Close sidebar">×</button>
+		<div id="dashboard-sidebar">
 		<div class="sidebar-profile">
 			<%- include('../partials/avatar', { person: currentUser }) %>
 			<div><strong><%= currentUser.name %></strong><span>@<%= currentUser.email.split('@')[0] %></span></div>
@@ -16,6 +18,7 @@
 			<a href="#people">♧ <span>People to follow</span></a>
 		</nav>
 		<div class="sidebar-note"><span>✦</span><p><strong>Make room for new voices.</strong><br>Every follow shapes your Crowdwide.<br><a href="/guide" style="color:#8da0ff;">Read tips to grow →</a></p></div>
+		</div>
 	</aside>
 	<section class="feed-column">
 		<div class="feed-heading">

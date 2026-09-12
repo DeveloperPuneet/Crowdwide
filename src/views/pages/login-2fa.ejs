@@ -3,6 +3,7 @@
 <h1>Enter your<br><em>security code.</em></h1>
 <p class="form-note" id="twofa-copy">Open your authenticator app and enter the current six-digit code.</p>
 <form class="auth-form" id="twofa-form" method="post" action="/auth/2fa">
+	<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 	<label id="twofa-code-label">Authenticator code<input class="code-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autofocus></label>
 	<label id="twofa-recovery-label" hidden>Recovery code<input class="code-input" name="recoveryCode" placeholder="XXXXX-XXXXX" maxlength="11" style="letter-spacing:2px;font-size:19px;"></label>
 	<button class="button button-primary button-full" type="submit">Continue <span>↗</span></button>

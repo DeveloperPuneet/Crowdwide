@@ -72,7 +72,8 @@ async function buildFeed(user, mode) {
 	const followingIds = (user.following || []).map(String);
 	if (mode === 'personalized') {
 		const personalizedFilter = joinedIds.length ? { community: { $in: joinedIds }, status: 'published' } : { _id: { $in: [] } };
-		return { posts: await populatePosts(await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean()), label: 'Personalized feed', note: joinedIds.length ? 'Posts and articles from communities you joined.' : 'Join a community to shape this feed.' };
+		const ownPosts = await Post.find({ author: user._id, status: { $in: ['published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean();
+		return { posts: await populatePosts([...ownPosts, ...(await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean())]), label: 'Personalized feed', note: joinedIds.length ? 'Posts and articles from communities you joined.' : 'Join a community to shape this feed.' };
 	}
 
 	const recentCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -80,7 +81,7 @@ async function buildFeed(user, mode) {
 	// graph too (people your follows follow, and people who follow your
 	// followers) so the feed can surface likely-relevant strangers, not just
 	// your existing connections.
-	const [followingOfFollowing, followersOfFollowers, followedPosts, newPosts, largeCommunities, viralPosts, recentPosts] = await Promise.all([
+	const [followingOfFollowing, followersOfFollowers, followedPosts, newPosts, largeCommunities, viralPosts, recentPosts, ownPosts] = await Promise.all([
 		followingIds.length ? User.find({ _id: { $in: followingIds } }).distinct('following') : Promise.resolve([]),
 		User.find({ following: user._id }).distinct('_id').then((followers) => (followers.length ? User.find({ following: { $in: followers } }).distinct('_id') : [])),
 		followingIds.length ? Post.find({ author: { $in: followingIds }, status: 'published' }).sort({ createdAt: -1 }).limit(10).lean() : Promise.resolve([]),
@@ -88,6 +89,7 @@ async function buildFeed(user, mode) {
 		Community.find().sort({ membersCount: -1 }).limit(20).select('_id').lean(),
 		Post.aggregate([{ $match: { status: 'published' } }, { $addFields: { likesTotal: { $size: { $ifNull: ['$likes', []] } } } }, { $sort: { likesTotal: -1, createdAt: -1 } }, { $limit: 20 }]),
 		Post.find({ status: 'published' }).sort({ createdAt: -1 }).limit(30).lean()
+		, Post.find({ author: user._id, status: { $in: ['published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean()
 	]);
 	const extendedNetworkIds = Array.from(new Set([...followingOfFollowing, ...followersOfFollowers].map(String)))
 		.filter((id) => id !== String(user._id) && !followingIds.includes(id));
@@ -98,6 +100,7 @@ async function buildFeed(user, mode) {
 	// alongside the reach of larger communities, so posts from small/new
 	// accounts and communities are not permanently buried under popularity.
 	const slots = [
+		...ownPosts.map((post) => ({ ...post, feedSource: post.status === 'pending' ? 'Awaiting community review' : 'Your post' })),
 		...followedPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'From people you follow' })),
 		...extendedPosts.slice(0, 4).map((post) => ({ ...post, feedSource: 'Connected to your network' })),
 		...newPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'New voices & communities' })),
@@ -202,27 +205,36 @@ exports.profile = async (req, res) => {
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
 	const viewerId = req.session.user.id;
 	const isSelf = String(profileUser._id) === String(viewerId);
+	let tab = ['posts', 'activity', 'likes', 'comments', 'saved'].includes(req.query.tab) ? req.query.tab : 'posts';
+	if (!isSelf && tab === 'saved') tab = 'posts';
 	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published' };
-	const [posts, followersCount, viewer, postCount] = await Promise.all([
+	const [posts, followersCount, viewer, postCount, likedPosts, comments] = await Promise.all([
 		Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
 		User.findById(viewerId).select('following bookmarks blockedUsers').lean(),
-		Post.countDocuments({ author: profileUser._id, status: 'published' })
+		Post.countDocuments({ author: profileUser._id, status: 'published' }),
+		Post.find({ likes: profileUser._id, status: 'published' }).sort({ updatedAt: -1 }).limit(30).populate('community', 'name slug').lean(),
+		Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt', populate: { path: 'author', select: 'name' } }).lean()
 	]);
 	const populatedPosts = (await Post.populate(posts, { path: 'author', select: 'name profilePicture' }));
+	const populatedLikes = (await Post.populate(likedPosts, { path: 'author', select: 'name profilePicture' }));
 	const bookmarked = (viewer?.bookmarks || []).map(String);
 	const posts_ = populatedPosts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) }));
+	let savedPosts = [];
+	if (isSelf && bookmarked.length) {
+		savedPosts = await Post.find({ _id: { $in: bookmarked }, status: 'published' }).sort({ createdAt: -1 }).populate('community', 'name slug').lean();
+		savedPosts = await Post.populate(savedPosts, { path: 'author', select: 'name profilePicture' });
+	}
 
 	let activity = [];
 	let suggestions = [];
 	if (isSelf) {
-		const [likedPosts, myComments, followingIds] = await Promise.all([
-			Post.find({ likes: profileUser._id, status: 'published' }).sort({ updatedAt: -1 }).limit(6).populate('author', 'name profilePicture').lean(),
+		const [myComments, followingIds] = await Promise.all([
 			Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(6).populate('post', 'body author').lean(),
 			Promise.resolve((viewer?.following || []).map(String))
 		]);
 		activity = [
-			...likedPosts.map((post) => ({ kind: 'like', post, at: post.updatedAt })),
+			...populatedLikes.slice(0, 6).map((post) => ({ kind: 'like', post, at: post.updatedAt })),
 			...myComments.filter((comment) => comment.post).map((comment) => ({ kind: 'comment', comment, at: comment.createdAt }))
 		].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 6);
 		suggestions = await getPopularPeople(5, [...followingIds, profileUser._id]);
@@ -234,6 +246,10 @@ exports.profile = async (req, res) => {
 		noIndex: profileUser.privacy !== 'public',
 		profileUser,
 		posts: posts_,
+		profileTab: tab,
+		profileLikes: populatedLikes,
+		profileComments: comments,
+		savedPosts,
 		postCount,
 		followersCount,
 		followingCount: (profileUser.following || []).length,

@@ -36,7 +36,7 @@ router.post('/posts', requireAuth, requireVerified, postUpload, csrfSynchronised
 router.post('/communities', requireAuth, requireVerified, controller.createCommunity);
 router.post('/communities/:id/join', requireAuth, requireVerified, communityController.requestJoin);
 router.get('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityController.manage);
-router.post('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityUpload, handleUploadError, validateCommunityUpload, communityController.update);
+router.post('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityUpload, csrfSynchronisedProtection, handleUploadError, validateCommunityUpload, communityController.update);
 router.post('/communities/:id/moderators', requireAuth, requireVerified, communityController.ownerOnly, communityController.addModerator);
 router.post('/communities/:id/posts/:postId/review', requireAuth, requireVerified, communityController.moderationOnly, communityController.reviewPost);
 router.post('/communities/:id/members/:memberId/remove', requireAuth, requireVerified, communityController.ownerOnly, communityController.removeMember);

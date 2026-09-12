@@ -1,5 +1,6 @@
 <%- include('../partials/head', { title, description: profileUser.bio, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% const displayedPosts = profileTab === 'likes' ? profileLikes : profileTab === 'saved' ? savedPosts : posts; %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="<%= isSelf ? 'profile-layout' : 'community-detail' %>">
 	<div>
@@ -42,8 +43,15 @@
 		</div>
 		<p class="profile-joined">Joined <%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) %></p>
 	</section>
+	<nav class="profile-tabs" aria-label="Profile sections">
+		<a class="<%= profileTab === 'posts' ? 'profile-tab-active' : '' %>" href="/u/<%= profileUser._id %>?tab=posts">Posts</a>
+		<a class="<%= profileTab === 'activity' ? 'profile-tab-active' : '' %>" href="/u/<%= profileUser._id %>?tab=activity">Activity</a>
+		<a class="<%= profileTab === 'likes' ? 'profile-tab-active' : '' %>" href="/u/<%= profileUser._id %>?tab=likes">Likes</a>
+		<a class="<%= profileTab === 'comments' ? 'profile-tab-active' : '' %>" href="/u/<%= profileUser._id %>?tab=comments">Comments</a>
+		<% if (isSelf) { %><a class="<%= profileTab === 'saved' ? 'profile-tab-active' : '' %>" href="/u/<%= profileUser._id %>?tab=saved">Saved</a><% } %>
+	</nav>
 
-	<% if (isSelf && activity.length) { %>
+	<% if (isSelf && profileTab === 'activity') { %>
 	<section class="community-posts activity-section">
 		<div class="panel-heading"><h2>Recent activity</h2><span>You</span></div>
 		<% activity.forEach((item) => { %>
@@ -58,13 +66,23 @@
 		<% }) %>
 	</section>
 	<% } %>
+	<% if (profileTab === 'comments') { %>
+	<section class="community-posts activity-section">
+		<div class="panel-heading"><h2><%= isSelf ? 'Your comments' : `${profileUser.name}'s comments` %></h2><span><%= profileComments.length %></span></div>
+		<% if (!profileComments.length) { %><div class="empty-feed"><h2>No comments yet.</h2><p>This profile has not joined a conversation yet.</p></div><% } %>
+		<% profileComments.forEach((comment) => { %>
+		<div class="activity-row"><span class="activity-icon">◌</span><p><%= isSelf ? 'You' : profileUser.name %> commented on <a href="/posts/<%= comment.post?._id %>">a post</a><br><small>"<%= comment.body %>"</small></p></div>
+		<% }) %>
+	</section>
+	<% } %>
 
 	<section class="community-posts">
-		<div class="panel-heading"><h2><%= isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= posts.length %></span></div>
-		<% if (!posts.length) { %>
-		<div class="empty-feed"><h2>No posts yet.</h2><p><%= isSelf ? 'Share something from your feed to see it here.' : 'This person has not posted yet.' %></p></div>
+		<% if (profileTab !== 'activity' && profileTab !== 'comments') { %>
+		<div class="panel-heading"><h2><%= profileTab === 'likes' ? `${profileUser.name}'s likes` : profileTab === 'saved' ? 'Saved posts' : isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= displayedPosts.length %></span></div>
+		<% if (!displayedPosts.length) { %>
+		<div class="empty-feed"><h2><%= profileTab === 'saved' ? 'No saved posts yet.' : 'No posts yet.' %></h2><p><%= isSelf ? 'Posts and conversations you collect will appear here.' : 'This person has not posted yet.' %></p></div>
 		<% } %>
-		<% posts.forEach((post) => { %>
+		<% displayedPosts.forEach((post) => { %>
 		<article class="post-card" id="post-<%= post._id %>">
 			<div class="post-meta"><div><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %><% if (post.status === 'pending') { %> · <b style="color:#ff9850;">Awaiting review</b><% } else if (post.status === 'rejected') { %> · <b style="color:#ff8a9d;">Not approved</b><% } %></span></div></div>
 			<p class="post-body"><%= post.body %></p>
@@ -87,6 +105,7 @@
 			</div>
 		</article>
 		<% }) %>
+		<% } %>
 	</section>
 	</div>
 

@@ -119,6 +119,35 @@ document.querySelectorAll('[data-drawer-open]').forEach((toggle) => {
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
 });
 
+document.querySelectorAll('[data-sidebar-toggle]').forEach((toggle) => {
+  const layout = toggle.closest('.app-layout, .settings-layout');
+  if (!layout) return;
+  toggle.addEventListener('click', () => {
+    const collapsed = layout.classList.toggle('sidebar-collapsed');
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute('aria-label', collapsed ? 'Open sidebar' : 'Close sidebar');
+    toggle.textContent = collapsed ? '›' : '×';
+  });
+});
+
+document.querySelectorAll('.settings-nav').forEach((sidebar) => {
+  const layout = sidebar.closest('.settings-layout');
+  if (!layout) return;
+  const toggle = document.createElement('button');
+  toggle.className = 'sidebar-toggle';
+  toggle.type = 'button';
+  toggle.setAttribute('aria-expanded', 'true');
+  toggle.setAttribute('aria-label', 'Close sidebar');
+  toggle.textContent = '×';
+  sidebar.prepend(toggle);
+  toggle.addEventListener('click', () => {
+    const collapsed = layout.classList.toggle('sidebar-collapsed');
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute('aria-label', collapsed ? 'Open sidebar' : 'Close sidebar');
+    toggle.textContent = collapsed ? '›' : '×';
+  });
+});
+
 if (window.axios) {
   const appUrl = document.querySelector('meta[name="app-url"]')?.content || window.location.origin;
   const heartbeat = () => window.axios.get(`${appUrl.replace(/\/$/, '')}/health`).catch(() => {});
