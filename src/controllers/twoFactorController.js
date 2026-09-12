@@ -1,10 +1,8 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { authenticator } = require('otplib');
+const { generateSecret, generateURI, verify } = require('otplib');
 const QRCode = require('qrcode');
 const User = require('../models/User');
-
-authenticator.options = { window: 1 };
 
 function generateRecoveryCodes(count = 8) {
   const codes = [];
@@ -18,17 +16,18 @@ function generateRecoveryCodes(count = 8) {
 exports.setupPage = async (req, res) => {
   const user = await User.findById(req.session.user.id);
   if (!user.twoFactorSecret) {
-    user.twoFactorSecret = authenticator.generateSecret();
+    user.twoFactorSecret = generateSecret();
     await user.save();
   }
-  const otpauth = authenticator.keyuri(user.email, 'Crowdwide', user.twoFactorSecret);
+  const otpauth = generateURI({ issuer: 'Crowdwide', label: user.email, secret: user.twoFactorSecret });
   const qrCode = await QRCode.toDataURL(otpauth);
   res.render('pages/two-factor', { title: 'Two-factor authentication', pagePath: '/settings/security/2fa', noIndex: true, qrCode, enabled: user.twoFactorEnabled });
 };
 
 exports.enable = async (req, res) => {
   const user = await User.findById(req.session.user.id);
-  if (!user.twoFactorSecret || !authenticator.verify({ token: req.body.code, secret: user.twoFactorSecret })) {
+  const verification = user.twoFactorSecret && await verify({ token: req.body.code, secret: user.twoFactorSecret, epochTolerance: 30 });
+  if (!user.twoFactorSecret || !verification.valid) {
     req.session.flash = { type: 'error', message: 'That authenticator code is not valid.' };
     return res.redirect('/settings/security/2fa');
   }
@@ -100,7 +99,8 @@ exports.verifyLogin = async (req, res) => {
     }
     if (authenticated) await user.save();
   } else {
-    authenticated = authenticator.verify({ token: req.body.code?.replace(/\s+/g, ''), secret: user.twoFactorSecret });
+    const verification = await verify({ token: req.body.code?.replace(/\s+/g, ''), secret: user.twoFactorSecret, epochTolerance: 30 });
+    authenticated = verification.valid;
   }
 
   if (!authenticated) {
