@@ -1,0 +1,24 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'messages', currentUser }) %>
+<main class="community-detail">
+  <a class="back-link" href="/messages">← Inbox</a>
+  <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+  <section class="community-posts">
+    <div class="panel-heading"><h1><%= person.name %></h1><a class="name-link" href="/u/<%= person._id %>">View profile</a></div>
+    <div class="message-thread">
+      <% if (!thread.length) { %><p class="upload-help">Start the conversation.</p><% } %>
+      <% thread.forEach((message) => { %>
+      <article class="activity-row <%= String(message.sender?._id) === String(currentUser.id) ? 'message-own' : '' %>">
+        <%- include('../partials/avatar', { person: message.sender, size: 'tiny', link: false }) %>
+        <div><strong><%= message.sender?.name || 'Member' %></strong><p><%= message.body %></p><small><%= new Date(message.createdAt).toLocaleString() %></small></div>
+      </article>
+      <% }) %>
+    </div>
+    <form class="comment-form" method="post" action="/messages/<%= person._id %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input name="body" maxlength="2000" placeholder="Write a message..." required>
+      <button type="submit">Send</button>
+    </form>
+  </section>
+</main>
+<%- include('../partials/app-footer') %><%- include('../partials/foot') %>

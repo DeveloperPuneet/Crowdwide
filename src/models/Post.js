@@ -5,7 +5,7 @@ const postSchema = new mongoose.Schema({
   community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community' },
   body: { type: String, trim: true, maxlength: 4000 },
   hashtags: [{ type: String, trim: true, lowercase: true }],
-  type: { type: String, enum: ['post', 'article'], default: 'post' },
+  type: { type: String, enum: ['post', 'article', 'poll'], default: 'post' },
   status: { type: String, enum: ['draft', 'published', 'pending', 'rejected'], default: 'published' },
   media: [{
     url: { type: String, required: true },
@@ -20,6 +20,13 @@ const postSchema = new mongoose.Schema({
       label: { type: String, trim: true, maxlength: 80 },
       votes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
     }]
+  },
+  quotedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
+  reactions: {
+    celebrate: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    insightful: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    support: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    funny: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
   },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   commentsCount: { type: Number, default: 0 },

@@ -3,9 +3,12 @@ const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Report = require('../models/Report');
+const Message = require('../models/Message');
+const { extractHashtags } = require('../utils/hashtags');
+const { notifyMentionedUsers } = require('../services/mentions');
 
 const redirectBack = (req, res, payload = {}) => {
-  if (req.get('X-Requested-With') === 'XMLHttpRequest' || req.accepts('json')) return res.json({ ok: true, ...payload });
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, ...payload });
   return res.redirect(req.get('referer') || '/dashboard');
 };
 
@@ -14,7 +17,7 @@ const canAccessPost = (post, userId) => post && (post.status !== 'draft' || Stri
 async function notify(recipient, actor, type, message, post, community) {
   if (!recipient || String(recipient) === String(actor)) return;
   const recipientUser = await User.findById(recipient).select('notificationPreferences').lean();
-  const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : ['comment', 'reply'].includes(type) ? 'comments' : 'security';
+  const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : ['comment', 'reply', 'mention'].includes(type) ? 'comments' : 'security';
   if (recipientUser?.notificationPreferences && recipientUser.notificationPreferences[preferenceKey] === false) return;
   await Notification.create({ recipient, actor, type, message, post, community });
 }
@@ -73,7 +76,8 @@ exports.comment = async (req, res) => {
   post.commentsCount += 1;
   await post.save();
   await notify(post.author, req.session.user.id, req.body.parent ? 'reply' : 'comment', req.body.parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community);
-  if (req.get('X-Requested-With') === 'XMLHttpRequest' || req.accepts('json')) return res.json({ ok: true, comment: { id: comment._id, body: comment.body } });
+  await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, comment: { id: comment._id, body: comment.body } });
   res.redirect(`${req.get('referer') || `/dashboard`}#post-${post._id}`);
 };
 
@@ -138,6 +142,35 @@ exports.votePoll = async (req, res) => {
   return redirectBack(req, res, { voted: !alreadyVoted });
 };
 
+exports.quotePost = async (req, res) => {
+  const source = await Post.findById(req.params.id).select('author status body').lean();
+  const body = req.body.body?.trim();
+  if (!canAccessPost(source, req.session.user.id) || !body || body.length > 4000) {
+    req.session.flash = { type: 'error', message: 'Add commentary before quoting that post.' };
+    return res.redirect(req.get('referer') || '/dashboard');
+  }
+  await Post.create({ author: req.session.user.id, body, type: 'post', quotedPost: source._id, hashtags: extractHashtags(body), status: 'published' });
+  await notify(source.author, req.session.user.id, 'comment', 'quoted your post.', source._id);
+  res.redirect(req.get('referer') || '/dashboard');
+};
+
+exports.toggleReaction = async (req, res) => {
+  const reactionTypes = ['celebrate', 'insightful', 'support', 'funny'];
+  const reaction = req.body.reaction;
+  const post = await Post.findById(req.params.id);
+  if (!canAccessPost(post, req.session.user.id) || !reactionTypes.includes(reaction)) return redirectBack(req, res, { ok: false });
+  const reactions = post.reactions?.toObject ? post.reactions.toObject() : { ...(post.reactions || {}) };
+  reactionTypes.forEach((type) => {
+    const users = Array.isArray(reactions[type]) ? reactions[type].map(String) : [];
+    reactions[type] = users.filter((id) => id !== String(req.session.user.id));
+  });
+  const hadReaction = (post.reactions?.[reaction] || []).some((id) => String(id) === String(req.session.user.id));
+  if (!hadReaction) reactions[reaction].push(req.session.user.id);
+  post.set('reactions', reactions);
+  await post.save();
+  return redirectBack(req, res, { reaction: hadReaction ? null : reaction });
+};
+
 function buildCommentTree(comments) {
   const byId = new Map(comments.map((comment) => [String(comment._id), { ...comment, children: [] }]));
   const roots = [];
@@ -156,6 +189,7 @@ exports.postDetail = async (req, res) => {
   const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $ne: 'draft' } }, { author: viewerId || null }] }, { $inc: { viewsCount: 1 } }, { new: true })
     .populate('author', 'name profilePicture')
     .populate('community', 'name slug')
+    .populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } })
     .lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   let blockedIds = [];
@@ -192,6 +226,51 @@ exports.notifications = async (req, res) => {
 exports.unreadCount = async (req, res) => {
   const unread = await Notification.countDocuments({ recipient: req.session.user.id, readAt: null });
   res.json({ unread });
+};
+
+exports.messages = async (req, res) => {
+  const userId = req.session.user.id;
+  const messages = await Message.find({ $or: [{ sender: userId }, { recipient: userId }] })
+    .sort({ createdAt: -1 }).limit(300)
+    .populate('sender', 'name profilePicture').populate('recipient', 'name profilePicture').lean();
+  const conversations = new Map();
+  messages.forEach((message) => {
+    const other = String(message.sender._id) === String(userId) ? message.recipient : message.sender;
+    const key = String(other._id);
+    if (!conversations.has(key)) conversations.set(key, { person: other, latest: message, unread: 0 });
+    if (String(message.recipient._id) === String(userId) && !message.readAt) conversations.get(key).unread += 1;
+  });
+  res.render('pages/messages', { title: 'Messages', pagePath: '/messages', noIndex: true, conversations: Array.from(conversations.values()) });
+};
+
+exports.messageThread = async (req, res) => {
+  const userId = req.session.user.id;
+  const person = await User.findById(req.params.id).select('name profilePicture blockedUsers').lean();
+  if (!person || String(person._id) === String(userId)) return res.redirect('/messages');
+  const viewer = await User.findById(userId).select('blockedUsers').lean();
+  const blocked = (viewer?.blockedUsers || []).some((id) => String(id) === String(person._id)) || (person.blockedUsers || []).some((id) => String(id) === String(userId));
+  if (blocked) {
+    req.session.flash = { type: 'error', message: 'Messaging is unavailable for this account.' };
+    return res.redirect('/messages');
+  }
+  await Message.updateMany({ sender: person._id, recipient: userId, readAt: null }, { readAt: new Date() });
+  const thread = await Message.find({ $or: [{ sender: userId, recipient: person._id }, { sender: person._id, recipient: userId }] })
+    .sort({ createdAt: 1 }).limit(100).populate('sender', 'name profilePicture').lean();
+  res.render('pages/message-thread', { title: `Messages with ${person.name}`, pagePath: `/messages/${person._id}`, noIndex: true, person, thread });
+};
+
+exports.sendMessage = async (req, res) => {
+  const userId = req.session.user.id;
+  const body = req.body.body?.trim();
+  const recipient = await User.findById(req.params.id).select('_id isVerified blockedUsers').lean();
+  const viewer = await User.findById(userId).select('blockedUsers').lean();
+  const blocked = recipient && ((viewer?.blockedUsers || []).some((id) => String(id) === String(recipient._id)) || (recipient.blockedUsers || []).some((id) => String(id) === String(userId)));
+  if (!recipient || !recipient.isVerified || blocked || !body || body.length > 2000) {
+    req.session.flash = { type: 'error', message: 'That message could not be sent.' };
+    return res.redirect(`/messages/${req.params.id}`);
+  }
+  await Message.create({ sender: userId, recipient: recipient._id, body });
+  res.redirect(`/messages/${recipient._id}`);
 };
 
 exports.readNotifications = async (req, res) => {

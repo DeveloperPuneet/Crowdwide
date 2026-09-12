@@ -349,6 +349,10 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .composer textarea::placeholder { color: #777a91; }
 .composer-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; flex-wrap: wrap; }
 .composer select { background: #171a30; color: #a8aabc; border: 1px solid #2c3050; border-radius: 8px; padding: 8px; font-size: 11px; max-width: 150px; width: auto; }
+.poll-composer { border: 1px solid #2c3050; border-radius: 10px; background: #0d1020; padding: 12px; margin: 12px 0 0; }
+.poll-composer legend { color: #aeb8ff; font-size: 11px; font-weight: 700; padding: 0 5px; }
+.poll-composer input { background: #171a30; font-size: 11px; padding: 9px 10px; }
+.poll-option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .media-picker { font-size: 11px; color: #9ea2bd; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap; }
 .media-picker input { display: none; }
 .upload-help { display: block; color: #777a91; font-size: 10px; margin-top: 8px; line-height: 1.5; }
@@ -373,6 +377,21 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .moderation-actions form { display: flex; gap: 6px; flex: 1 1 180px; }
 .moderation-actions input { min-width: 0; flex: 1; background: transparent; border: 1px solid var(--line); color: #d7d8e2; border-radius: 7px; padding: 7px 9px; font-size: 11px; }
 .post-body { font-size: 15px; line-height: 1.7; color: #dedfe8; margin: 16px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.post-poll { display: grid; gap: 8px; margin: 14px 0; padding: 14px; border: 1px solid #394372; border-radius: 12px; background: linear-gradient(135deg, #141a38, #101226); }
+.post-poll > strong { color: #f6f6fa; font-size: 13px; }
+.post-poll form { margin: 0; }
+.post-poll button { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 1px solid #3c477b; border-radius: 8px; background: #1b2348; color: #dfe3ff; padding: 9px 11px; cursor: pointer; text-align: left; font-size: 12px; }
+.post-poll button:hover { border-color: #7182ff; background: #253267; }
+.post-poll button span, .post-poll > p span { color: #9eaaff; font-size: 11px; }
+.post-poll > p { display: flex; justify-content: space-between; margin: 0; padding: 9px 11px; border: 1px solid #3c477b; border-radius: 8px; color: #dfe3ff; font-size: 12px; }
+.quoted-post { display: block; margin: 12px 0 14px; padding: 12px; border: 1px solid #323d68; border-radius: 10px; background: #0d1020; }
+.quoted-post strong { color: #aeb8ff; font-size: 11px; }
+.quoted-post p { color: #b9bbca; font-size: 12px; line-height: 1.5; margin: 5px 0 0; white-space: pre-wrap; }
+.post-owner-tools { margin-top: 10px; color: #85889e; font-size: 11px; }
+.post-owner-tools summary { cursor: pointer; display: inline-block; padding: 5px 0; }
+.post-owner-tools form { display: grid; gap: 7px; max-width: 460px; margin-top: 8px; }
+.post-owner-tools textarea { min-height: 70px; font-size: 12px; resize: vertical; }
+.post-owner-tools button { justify-self: start; border: 0; border-radius: 7px; padding: 7px 10px; background: #252b58; color: #fff; font-size: 11px; cursor: pointer; }
 .hashtag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 14px; }
 .hashtag-chip { display: inline-block; color: #8da0ff; background: #171a30; border: 1px solid #2c3050; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; }
 .hashtag-chip:hover { background: #232852; color: #fff; }
@@ -390,6 +409,10 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .post-actions form { display: inline-flex; }
 .post-actions button, .post-actions span { background: transparent; border: 0; color: #85889e; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 999px; }
 .post-actions button:hover { color: #fff; background: #171a30; }
+.reaction-bar { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.reaction-bar form { display: inline-flex; }
+.reaction-bar button { border: 1px solid #2c355d; border-radius: 999px; background: #131832; color: #bfc7ff; padding: 5px 8px; cursor: pointer; font-size: 11px; }
+.reaction-bar button:hover { border-color: #7482ff; background: #222b57; color: #fff; }
 .share-form { position: relative; }
 .share-menu { display: none; position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; min-width: 150px; padding: 6px; background: #171a30; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 24px rgba(0,0,0,.3); }
 .share-menu.is-open { display: grid; gap: 2px; }

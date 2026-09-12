@@ -3,6 +3,7 @@ const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
+const Message = require('../models/Message');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
 
@@ -121,7 +122,8 @@ exports.deleteAccount = async (req, res) => {
     User.deleteOne({ _id: userId }),
     LoginSession.deleteMany({ user: userId }),
     Post.deleteMany({ author: userId }),
-    Community.deleteMany({ owner: userId })
+    Community.deleteMany({ owner: userId }),
+    Message.deleteMany({ $or: [{ sender: userId }, { recipient: userId }] })
   ]);
   req.session.destroy(() => res.redirect('/'));
 };

@@ -19,6 +19,9 @@ router.get('/media/status', requireAuth, requireVerified, controller.mediaStatus
 router.get('/media/:cluster/:id', controller.media);
 router.get('/notifications', requireAuth, requireVerified, interactionController.notifications);
 router.get('/notifications/unread', requireAuth, requireVerified, interactionController.unreadCount);
+router.get('/messages', requireAuth, requireVerified, interactionController.messages);
+router.get('/messages/:id', requireAuth, requireVerified, interactionController.messageThread);
+router.post('/messages/:id', requireAuth, requireVerified, interactionLimiter, interactionController.sendMessage);
 router.get('/posts/:id', interactionController.postDetail);
 router.post('/posts/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editPost);
 router.post('/posts/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deletePost);
@@ -34,6 +37,8 @@ router.post('/comments/:id/like', requireAuth, requireVerified, interactionLimit
 router.post('/posts/:id/bookmark', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBookmark);
 router.post('/posts/:id/share', requireAuth, requireVerified, interactionLimiter, interactionController.share);
 router.post('/posts/:id/poll/vote', requireAuth, requireVerified, interactionLimiter, interactionController.votePoll);
+router.post('/posts/:id/quote', requireAuth, requireVerified, interactionLimiter, interactionController.quotePost);
+router.post('/posts/:id/reaction', requireAuth, requireVerified, interactionLimiter, interactionController.toggleReaction);
 router.get('/explore', requireAuth, requireVerified, communityController.explore);
 router.get('/communities', requireAuth, requireVerified, communityController.directory);
 router.get('/search', requireAuth, requireVerified, controller.search);

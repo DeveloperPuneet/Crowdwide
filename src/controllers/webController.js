@@ -6,6 +6,7 @@ const { uploadBuffer, streamFile, mediaUrl, clusterStatus } = require('../servic
 const Comment = require('../models/Comment');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
+const { notifyMentionedUsers } = require('../services/mentions');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -61,7 +62,8 @@ exports.home = async (req, res) => {
 async function populatePosts(posts) {
 	const populated = await Post.populate(posts, [
 		{ path: 'author', select: 'name createdAt profilePicture' },
-		{ path: 'community', select: 'name slug membersCount' }
+		{ path: 'community', select: 'name slug membersCount' },
+		{ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }
 	]);
 	const comments = await Comment.find({ post: { $in: posts.map((post) => post._id) } }).sort({ createdAt: 1 }).limit(200).populate('author', 'name').lean();
 	return populated.map((post) => ({ ...post, comments: comments.filter((comment) => String(comment.post) === String(post._id)) }));
@@ -166,7 +168,7 @@ exports.dashboard = async (req, res) => {
 
 exports.createPost = async (req, res) => {
 	const body = req.body.body?.trim();
-	const type = req.body.type === 'article' ? 'article' : 'post';
+	const type = ['article', 'poll'].includes(req.body.type) ? req.body.type : 'post';
 	const wordLimit = type === 'article' ? 550 : 120;
 	const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
 	if (!body || wordCount > wordLimit) {
@@ -176,7 +178,7 @@ exports.createPost = async (req, res) => {
 	const pollQuestion = req.body.pollQuestion?.trim();
 	const pollOptions = (Array.isArray(req.body.pollOptions) ? req.body.pollOptions : [req.body.pollOptions])
 		.map((option) => option?.trim()).filter(Boolean).filter((option, index, options) => options.indexOf(option) === index).slice(0, 4);
-	if (pollQuestion && (type === 'article' || pollOptions.length < 2)) {
+	if (type === 'poll' && (!pollQuestion || pollOptions.length < 2)) {
 		req.session.flash = { type: 'error', message: 'Polls are available on posts and need at least two options.' };
 		return res.redirect('/dashboard');
 	}
@@ -207,7 +209,8 @@ exports.createPost = async (req, res) => {
 		media.push(item);
 	}
 	const isDraft = req.body.saveAsDraft === 'on';
-	await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: pollQuestion ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status });
+	const createdPost = await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status });
+	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
 	if (isDraft) {
 		req.session.flash = { type: 'success', message: 'Draft saved. It is visible only to you.' };
 	} else if (status === 'pending') {

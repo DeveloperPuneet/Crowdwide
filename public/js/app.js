@@ -14,13 +14,15 @@ if (composer) {
   const typeSelect = composer.querySelector('select[name="type"]');
   const count = composer.querySelector('[data-word-count]');
   const suggestions = composer.querySelector('[data-hashtag-suggestions]');
-  const limits = JSON.parse(composer.dataset.wordLimits || '{"post":120,"article":550}');
+  const pollFields = composer.querySelector('.poll-composer');
+  const limits = JSON.parse(composer.dataset.wordLimits || '{"post":120,"article":550,"poll":120}');
   const words = () => textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
   const updateCount = () => {
     const limit = limits[typeSelect.value] || limits.post;
     const total = words();
     count.textContent = `${total} / ${limit} words`;
     count.classList.toggle('word-limit-warning', total > limit);
+    if (pollFields) pollFields.hidden = typeSelect.value !== 'poll';
   };
   const renderSuggestions = (items) => {
     suggestions.replaceChildren(...items.map(({ tag }) => {
