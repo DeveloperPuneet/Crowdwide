@@ -358,6 +358,20 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .post-meta strong { font-size: 13px; display: block; }
 .post-meta span { color: #777a91; font-size: 11px; display: block; margin-top: 3px; }
 .post-source { margin-left: auto !important; color: #f19855 !important; font-size: 10px !important; text-align: right; }
+.post-report-form { display: flex; gap: 8px; margin-top: 10px; }
+.post-report-form input { flex: 1; min-width: 0; background: transparent; border: 1px solid var(--line); color: #d7d8e2; border-radius: 7px; padding: 7px 9px; font-size: 11px; }
+.post-report-form button { background: transparent; border: 0; color: #85889e; cursor: pointer; font-size: 11px; }
+.admin-stats { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0; }
+.admin-stats span { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; color: #9ea2bd; font-size: 12px; }
+.admin-stats strong { color: #f6f6fa; font-size: 20px; margin-right: 5px; }
+.admin-console .settings-block { margin-top: 18px; }
+.moderation-post { border-top: 1px solid var(--line); padding: 16px 0; }
+.moderation-post > div:first-child { display: flex; justify-content: space-between; gap: 12px; color: #9ea2bd; font-size: 11px; }
+.moderation-post > div:first-child strong { color: #f6f6fa; font-size: 13px; }
+.moderation-post p { color: #d7d8e2; line-height: 1.55; margin: 10px 0; }
+.moderation-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.moderation-actions form { display: flex; gap: 6px; flex: 1 1 180px; }
+.moderation-actions input { min-width: 0; flex: 1; background: transparent; border: 1px solid var(--line); color: #d7d8e2; border-radius: 7px; padding: 7px 9px; font-size: 11px; }
 .post-body { font-size: 15px; line-height: 1.7; color: #dedfe8; margin: 16px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .hashtag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 14px; }
 .hashtag-chip { display: inline-block; color: #8da0ff; background: #171a30; border: 1px solid #2c3050; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; }

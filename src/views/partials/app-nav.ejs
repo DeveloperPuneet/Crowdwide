@@ -32,6 +32,7 @@
     <% if (locals.currentUser) { %>
     <a href="/u/<%= currentUser.id %>">✦ Your profile</a>
     <a href="/settings/profile">⚙ Settings</a>
+    <% if (currentUser.role === 'admin') { %><a href="/admin">▣ Admin console</a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator">▣ Moderator console</a><% } %>
     <% } %>
     <hr class="nav-drawer-hr">
     <% if (locals.currentUser) { %>

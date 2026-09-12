@@ -4,6 +4,8 @@ const { authenticator } = require('otplib');
 const QRCode = require('qrcode');
 const User = require('../models/User');
 
+authenticator.options = { window: 1 };
+
 function generateRecoveryCodes(count = 8) {
   const codes = [];
   for (let i = 0; i < count; i += 1) {
@@ -76,14 +78,18 @@ exports.disable = async (req, res) => {
 
 exports.verifyLogin = async (req, res) => {
   const user = await User.findById(req.session.pendingTwoFactorUser);
-  if (!user || !user.twoFactorSecret) {
+  if (!user || !user.twoFactorSecret || !req.session.pendingTwoFactorExpiresAt || req.session.pendingTwoFactorExpiresAt < Date.now()) {
     req.session.flash = { type: 'error', message: 'That authenticator code is not valid.' };
     return res.redirect('/auth/2fa');
+  }
+  if (user.twoFactorLockedUntil && user.twoFactorLockedUntil > Date.now()) {
+    req.session.flash = { type: 'error', message: 'Too many 2FA attempts. Try again later.' };
+    return res.redirect('/auth/login');
   }
 
   let authenticated = false;
   if (req.body.recoveryCode) {
-    const submitted = req.body.recoveryCode.trim().toUpperCase();
+    const submitted = req.body.recoveryCode.replace(/\s+/g, '').trim().toUpperCase();
     for (const entry of user.recoveryCodes) {
       if (entry.usedAt) continue;
       if (await bcrypt.compare(submitted, entry.codeHash)) {
@@ -94,16 +100,25 @@ exports.verifyLogin = async (req, res) => {
     }
     if (authenticated) await user.save();
   } else {
-    authenticated = authenticator.verify({ token: req.body.code, secret: user.twoFactorSecret });
+    authenticated = authenticator.verify({ token: req.body.code?.replace(/\s+/g, ''), secret: user.twoFactorSecret });
   }
 
   if (!authenticated) {
+    user.twoFactorAttempts = (user.twoFactorAttempts || 0) + 1;
+    if (user.twoFactorAttempts >= 3) {
+      user.twoFactorLockedUntil = Date.now() + 15 * 60 * 1000;
+      user.twoFactorAttempts = 0;
+    }
+    await user.save();
     req.session.flash = { type: 'error', message: req.body.recoveryCode ? 'That recovery code is not valid or was already used.' : 'That authenticator code is not valid.' };
     return res.redirect('/auth/2fa');
   }
 
   delete req.session.pendingTwoFactorUser;
-  req.session.user = { id: user.id, name: user.name, email: user.email, isVerified: true, profilePicture: user.profilePicture || '' };
+  delete req.session.pendingTwoFactorExpiresAt;
+  user.twoFactorAttempts = 0;
+  user.twoFactorLockedUntil = undefined;
+  req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '' };
   const LoginSession = require('../models/LoginSession');
   await LoginSession.create({ user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') });
   if (req.body.recoveryCode) {

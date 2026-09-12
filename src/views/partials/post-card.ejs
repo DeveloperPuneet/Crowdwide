@@ -23,5 +23,6 @@
 		<form method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">↗ Share <%= post.sharesCount || 0 %></button></form>
 		<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;text-decoration:none;">◌ <%= post.commentsCount || 0 %></a>
 	</div>
+	<form class="post-report-form" method="post" action="/posts/<%= post._id %>/report"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" maxlength="500" placeholder="Report this post"><button type="submit">Report</button></form>
 	<form class="comment-form" method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
 </article>

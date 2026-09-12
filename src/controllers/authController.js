@@ -9,7 +9,7 @@ const token = () => crypto.randomBytes(24).toString('hex');
 const setFlash = (req, type, message) => { req.session.flash = { type, message }; };
 
 async function establishSession(req, user) {
-  req.session.user = { id: user.id, name: user.name, email: user.email, isVerified: true, profilePicture: user.profilePicture || '' };
+  req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '' };
   const existingSession = await LoginSession.exists({ user: user._id });
   await LoginSession.create({ user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') });
   if (existingSession) await sendNewDeviceAlert(user, { ipAddress: req.ip, userAgent: req.get('user-agent') });
@@ -68,6 +68,7 @@ exports.login = async (req, res) => {
       setFlash(req, 'error', 'That email and password combination is not recognized.');
       return res.redirect('/auth/login');
     }
+    if (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL.toLowerCase().trim() && user.role !== 'admin') user.role = 'admin';
     user.loginAttempts = 0;
     user.loginLockedUntil = undefined;
     await user.save();
@@ -82,6 +83,7 @@ exports.login = async (req, res) => {
     }
     if (user.twoFactorEnabled) {
       req.session.pendingTwoFactorUser = user.id;
+      req.session.pendingTwoFactorExpiresAt = Date.now() + 10 * 60 * 1000;
       return res.redirect('/auth/2fa');
     }
     await establishSession(req, user);

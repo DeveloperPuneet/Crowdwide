@@ -123,6 +123,7 @@ async function buildFeed(user, mode) {
 			uniqueSlots.push({ ...post, feedSource: 'Fresh from Crowdwide' });
 		}
 	});
+	uniqueSlots.sort((left, right) => (right.moderationScore || 0) - (left.moderationScore || 0));
 	return { posts: await populatePosts(uniqueSlots), label: 'Normal feed', note: 'A mix of people you follow, your extended network, new voices, and larger communities - so growing accounts still get seen.' };
 }
 

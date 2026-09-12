@@ -7,6 +7,8 @@ const { postUpload, profileUpload, communityUpload, validatePostUpload, validate
 const interactionController = require('../controllers/interactionController');
 const { interactionLimiter, csrfSynchronisedProtection } = require('../middleware/security');
 const twoFactorController = require('../controllers/twoFactorController');
+const adminController = require('../controllers/adminController');
+const { requireAdmin, requireModerator } = require('../middleware/roles');
 
 router.get('/', controller.home);
 router.get('/health', controller.health);
@@ -21,6 +23,7 @@ router.get('/posts/:id', interactionController.postDetail);
 router.get('/posts/:id/comments', interactionController.commentThread);
 router.post('/notifications/read', requireAuth, requireVerified, interactionController.readNotifications);
 router.post('/posts/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleLike);
+router.post('/posts/:id/report', requireAuth, requireVerified, interactionLimiter, interactionController.reportPost);
 router.post('/posts/:id/comments', requireAuth, requireVerified, interactionLimiter, interactionController.comment);
 router.post('/posts/:id/bookmark', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBookmark);
 router.post('/posts/:id/share', requireAuth, requireVerified, interactionLimiter, interactionController.share);
@@ -44,6 +47,15 @@ router.post('/communities/:id/posts/:postId/review', requireAuth, requireVerifie
 router.post('/communities/:id/members/:memberId/remove', requireAuth, requireVerified, communityController.ownerOnly, communityController.removeMember);
 router.post('/communities/:id/requests/:userId', requireAuth, requireVerified, communityController.moderationOnly, communityController.reviewRequest);
 router.post('/communities/:id/members/:userId/role', requireAuth, requireVerified, communityController.ownerOnly, communityController.setModerator);
+router.get('/admin', requireAuth, requireVerified, requireAdmin, adminController.admin);
+router.post('/admin/moderators', requireAuth, requireVerified, requireAdmin, adminController.createModerator);
+router.post('/admin/moderators/:id/delete', requireAuth, requireVerified, requireAdmin, adminController.deleteModerator);
+router.post('/admin/reports/:id', requireAuth, requireVerified, requireAdmin, adminController.resolveReport);
+router.post('/admin/moderation/:id/review', requireAuth, requireVerified, requireAdmin, adminController.reviewAction);
+router.post('/admin/posts/:id/delete', requireAuth, requireVerified, requireAdmin, adminController.deletePost);
+router.post('/admin/users/:id/delete', requireAuth, requireVerified, requireAdmin, adminController.deleteUser);
+router.get('/moderator', requireAuth, requireVerified, requireModerator, adminController.moderator);
+router.post('/moderator/actions', requireAuth, requireVerified, requireModerator, adminController.submitAction);
 router.get('/settings/:section?', requireAuth, requireVerified, settingsController.page);
 router.post('/settings/profile', requireAuth, requireVerified, profileUpload, csrfSynchronisedProtection, handleUploadError, validateProfileUpload, settingsController.updateProfile);
 router.post('/settings/security/password', requireAuth, requireVerified, settingsController.changePassword);

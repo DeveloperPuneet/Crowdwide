@@ -2,6 +2,7 @@ const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const Report = require('../models/Report');
 
 const redirectBack = (req, res, payload = {}) => {
   if (req.get('X-Requested-With') === 'XMLHttpRequest' || req.accepts('json')) return res.json({ ok: true, ...payload });
@@ -24,6 +25,19 @@ exports.toggleLike = async (req, res) => {
   }
   await post.save();
   redirectBack(req, res, { liked: !alreadyLiked, likes: post.likes.length });
+};
+
+exports.reportPost = async (req, res) => {
+  const post = await Post.findById(req.params.id).select('_id').lean();
+  const reason = req.body.reason?.trim();
+  if (post && reason) {
+    await Report.updateOne(
+      { reporter: req.session.user.id, targetType: 'post', target: post._id },
+      { $setOnInsert: { reporter: req.session.user.id, targetType: 'post', target: post._id, reason } },
+      { upsert: true }
+    );
+  }
+  return redirectBack(req, res, { reported: Boolean(post && reason) });
 };
 
 exports.comment = async (req, res) => {

@@ -15,8 +15,8 @@ document.getElementById('twofa-toggle').addEventListener('click', function (even
 	var usingRecovery = !document.getElementById('twofa-recovery-label').hidden;
 	document.getElementById('twofa-recovery-label').hidden = usingRecovery;
 	document.getElementById('twofa-code-label').hidden = !usingRecovery;
-	document.getElementById('twofa-copy').textContent = usingRecovery ? 'Open your authenticator app and enter the current six-digit code.' : 'Enter one of the one-time recovery codes you saved when you set up 2FA.';
-	this.textContent = usingRecovery ? 'Use a recovery code instead' : 'Use your authenticator app instead';
+	document.getElementById('twofa-copy').textContent = usingRecovery ? 'Enter one of the one-time recovery codes you saved when you set up 2FA.' : 'Open your authenticator app and enter the current six-digit code.';
+	this.textContent = usingRecovery ? 'Use your authenticator app instead' : 'Use a recovery code instead';
 });
 </script>
 <%- include('../partials/auth-shell-end') %>
