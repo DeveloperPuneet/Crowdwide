@@ -16,6 +16,7 @@ const postSchema = new mongoose.Schema({
   }],
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   commentsCount: { type: Number, default: 0 },
+  viewsCount: { type: Number, default: 0 },
   sharesCount: { type: Number, default: 0 },
   moderationScore: { type: Number, default: 0, index: true },
   moderationStatus: { type: String, enum: ['unreviewed', 'good', 'needs-review', 'reported'], default: 'unreviewed', index: true }

@@ -21,6 +21,7 @@
 		<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.liked ? '♥' : '♡' %> <%= post.likes?.length || 0 %></button></form>
 		<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.bookmarked ? '▣ Saved' : '▱ Save' %></button></form>
 		<form class="share-form" method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">↗ Share <%= post.sharesCount || 0 %></button></form>
+		<span>◉ <%= post.viewsCount || 0 %></span>
 		<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;text-decoration:none;">◌ <%= post.commentsCount || 0 %></a>
 	</div>
 	<form class="post-report-form" method="post" action="/posts/<%= post._id %>/report"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" maxlength="500" placeholder="Report this post"><button type="submit">Report</button></form>

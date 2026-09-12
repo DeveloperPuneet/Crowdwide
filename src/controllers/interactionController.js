@@ -83,7 +83,10 @@ function buildCommentTree(comments) {
 }
 
 exports.postDetail = async (req, res) => {
-  const post = await Post.findById(req.params.id).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
+  const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } }, { new: true })
+    .populate('author', 'name profilePicture')
+    .populate('community', 'name slug')
+    .lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const viewerId = req.session.user?.id;
   let blockedIds = [];
