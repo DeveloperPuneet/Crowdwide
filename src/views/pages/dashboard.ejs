@@ -12,7 +12,7 @@
 		<nav class="side-links">
 			<a class="side-active" href="/dashboard">◉ <span>Home feed</span></a>
 			<a href="/explore">◎ <span>Explore</span></a>
-			<a href="/explore">⌂ <span>Communities</span></a>
+			<a href="/communities">⌂ <span>Communities</span></a>
 			<a href="/u/<%= currentUser.id %>">✦ <span>Your profile</span></a>
 			<a href="/notifications">&#128276; <span>Notifications</span></a>
 			<a href="#people">♧ <span>People to follow</span></a>
@@ -30,12 +30,13 @@
 			<a class="<%= feed.label === 'Personalized feed' ? 'feed-tab-active' : '' %>" href="/dashboard?feed=personalized">My communities</a>
 			<span><%= feed.note %></span>
 		</div>
-		<form class="composer" id="composer" method="post" action="/posts" enctype="multipart/form-data">
+		<form class="composer" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":120,"article":550}'>
 			<%- include('../partials/avatar', { person: currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">
-				<textarea name="body" placeholder="What are you curious about today?" maxlength="50000" required></textarea>
+				<textarea name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
+				<div class="composer-meta"><span data-word-count>0 / 120 words</span><div class="hashtag-suggestions" data-hashtag-suggestions></div></div>
 				<div class="composer-actions">
-					<select name="type" aria-label="Post type"><option value="post">Post · 5,000 chars</option><option value="article">Article · 50,000 chars</option></select>
+					<select name="type" aria-label="Post type"><option value="post">Post · 120 words</option><option value="article">Article · 550 words</option></select>
 					<select name="community" aria-label="Choose a community"><option value="">Open Crowdwide</option><% communities.forEach((community) => { %><option value="<%= community._id %>"><%= community.name %></option><% }) %></select>
 					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*"></label>
 					<button class="button button-primary button-small" type="submit">Publish <span>↗</span></button>
@@ -51,10 +52,11 @@
 			<a class="button button-dark button-small" href="/explore">Explore communities <span>↗</span></a>
 		</section>
 		<% } %>
-		<div id="feed-posts">
-		<% feed.posts.forEach((post) => { %>
-			<%- include('../partials/post-card', { post, csrfToken }) %>
-		<% }) %>
+		<div class="feed-stream-groups">
+			<section class="feed-group"><div class="panel-heading"><h2>Latest posts</h2><span>Fresh voices</span></div><div id="feed-posts"><% feed.latestPosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div></section>
+			<section class="feed-group"><div class="panel-heading"><h2>Viral posts</h2><span>Resonating now</span></div><div><% feed.viralPosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div></section>
+			<section class="feed-group"><div class="panel-heading"><h2>Latest articles</h2><span>Longer reads</span></div><div><% feed.latestArticles.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div></section>
+			<section class="feed-group"><div class="panel-heading"><h2>Viral articles</h2><span>Worth sharing</span></div><div><% feed.viralArticles.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div></section>
 		</div>
 		<% if (feed.posts.length) { %>
 		<div id="feed-sentinel" data-feed-mode="<%= feed.label === 'Personalized feed' ? 'personalized' : 'normal' %>" data-cursor="<%= feed.posts[feed.posts.length - 1].createdAt.toISOString ? feed.posts[feed.posts.length - 1].createdAt.toISOString() : feed.posts[feed.posts.length - 1].createdAt %>"></div>

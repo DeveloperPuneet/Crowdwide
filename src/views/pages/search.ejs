@@ -9,6 +9,10 @@
 	</form>
 
 	<% if (!query) { %>
+	<div class="search-discovery-grid">
+		<section class="search-section"><h2>Viral hashtags</h2><div class="hashtag-row"><% trendingHashtags.forEach(({ tag, posts }) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %> <small><%= posts %></small></a><% }) %></div></section>
+		<section class="search-section"><h2>Popular searches</h2><div class="popular-search-list"><% popularSearches.slice(0, 8).forEach(({ tag, posts }) => { %><a href="/search?q=%23<%= tag %>">#<%= tag %><span><%= posts %> posts</span></a><% }) %></div></section>
+	</div>
 	<div class="empty-feed"><h2>Search for anything on Crowdwide.</h2><p>Try a name, a community, or a phrase from a post.</p></div>
 	<% } else if (!users.length && !communities.length && !posts.length) { %>
 	<div class="empty-feed"><h2>No results for “<%= query %>”.</h2><p>Try a different search term.</p></div>

@@ -1,0 +1,36 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'communities', currentUser }) %>
+<main class="community-directory">
+  <header class="directory-heading">
+    <p class="eyebrow">Rooms for every curiosity</p>
+    <h1>Communities, separate from Explore.</h1>
+    <p>Find established spaces, new beginnings, and communities gaining momentum.</p>
+  </header>
+  <% const groups = [['Larger communities', largerCommunities], ['New communities', newCommunities], ['Growing communities', growingCommunities]]; %>
+  <% groups.forEach(([heading, items]) => { %>
+  <section class="directory-section">
+    <div class="panel-heading"><h2><%= heading %></h2><a href="/explore">Browse all ↗</a></div>
+    <div class="community-directory-grid">
+      <% if (!items.length) { %><p class="directory-empty">No communities in this group yet.</p><% } %>
+      <% items.forEach((community) => { %>
+      <a class="community-card" href="/communities/<%= community.slug %>">
+        <div class="community-card-top"><span class="community-glyph"><%= community.avatarImage ? '' : '✦' %></span><span class="community-category"><%= community.category || 'general' %></span></div>
+        <h2><%= community.name %></h2>
+        <p><%= community.description %></p>
+        <footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span>Open ↗</span></footer>
+      </a>
+      <% }) %>
+    </div>
+  </section>
+  <% }) %>
+  <section class="directory-section">
+    <div class="panel-heading"><h2>Viral posts</h2><span>Resonating now</span></div>
+    <div class="directory-post-grid"><% viralPosts.forEach((post) => { %><a class="viral-card" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p><span class="viral-likes">♥ <%= post.likesTotal || 0 %></span></a><% }) %></div>
+  </section>
+  <section class="directory-section">
+    <div class="panel-heading"><h2>Latest community posts</h2><span>Fresh conversations</span></div>
+    <div class="directory-post-grid"><% newPosts.forEach((post) => { %><a class="community-post-link" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><span><%= post.community?.name || 'Open Crowdwide' %></span><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p></a><% }) %></div>
+  </section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

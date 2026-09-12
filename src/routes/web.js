@@ -25,7 +25,9 @@ router.post('/posts/:id/comments', requireAuth, requireVerified, interactionLimi
 router.post('/posts/:id/bookmark', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBookmark);
 router.post('/posts/:id/share', requireAuth, requireVerified, interactionLimiter, interactionController.share);
 router.get('/explore', requireAuth, requireVerified, communityController.explore);
+router.get('/communities', requireAuth, requireVerified, communityController.directory);
 router.get('/search', requireAuth, requireVerified, controller.search);
+router.get('/hashtags/suggest', requireAuth, requireVerified, controller.hashtagSuggestions);
 router.get('/u/:id', requireAuth, requireVerified, controller.profile);
 router.post('/users/:id/follow', requireAuth, requireVerified, interactionLimiter, interactionController.toggleFollow);
 router.post('/users/:id/block', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBlock);

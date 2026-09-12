@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community' },
-  body: { type: String, trim: true, maxlength: 50000 },
+  body: { type: String, trim: true, maxlength: 4000 },
   hashtags: [{ type: String, trim: true, lowercase: true }],
   type: { type: String, enum: ['post', 'article'], default: 'post' },
   status: { type: String, enum: ['published', 'pending', 'rejected'], default: 'published' },

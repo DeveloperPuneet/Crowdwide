@@ -1,3 +1,41 @@
+window.addEventListener('load', () => document.body.classList.add('page-ready'));
+
+const composer = document.querySelector('#composer');
+if (composer) {
+  const textarea = composer.querySelector('textarea[name="body"]');
+  const typeSelect = composer.querySelector('select[name="type"]');
+  const count = composer.querySelector('[data-word-count]');
+  const suggestions = composer.querySelector('[data-hashtag-suggestions]');
+  const limits = JSON.parse(composer.dataset.wordLimits || '{"post":120,"article":550}');
+  const words = () => textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
+  const updateCount = () => {
+    const limit = limits[typeSelect.value] || limits.post;
+    const total = words();
+    count.textContent = `${total} / ${limit} words`;
+    count.classList.toggle('word-limit-warning', total > limit);
+  };
+  const renderSuggestions = (items) => {
+    suggestions.replaceChildren(...items.map(({ tag }) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = `#${tag}`;
+      button.addEventListener('click', () => { textarea.value += `${textarea.value && !/\s$/.test(textarea.value) ? ' ' : ''}#${tag} `; suggestions.replaceChildren(); updateCount(); textarea.focus(); });
+      return button;
+    }));
+  };
+  let suggestionTimer;
+  textarea.addEventListener('input', () => {
+    updateCount();
+    const match = textarea.value.match(/(?:^|\s)#([a-z0-9_]*)$/i);
+    if (!match) return suggestions.replaceChildren();
+    clearTimeout(suggestionTimer);
+    suggestionTimer = setTimeout(() => fetch(`/hashtags/suggest?q=${encodeURIComponent(match[1])}`).then((response) => response.json()).then(renderSuggestions).catch(() => {}), 120);
+  });
+  typeSelect.addEventListener('change', updateCount);
+  composer.addEventListener('submit', (event) => { if (words() > (limits[typeSelect.value] || limits.post)) { event.preventDefault(); updateCount(); } });
+  updateCount();
+}
+
 document.querySelectorAll('.media-picker input[type="file"]').forEach((input) => {
   input.multiple = true;
   const label = input.closest('.media-picker');
@@ -106,6 +144,8 @@ document.querySelectorAll('.feed-column .post-card').forEach((postCard) => {
 
 document.querySelectorAll('.post-card video, .post-card audio').forEach((media) => {
   media.preload = 'none';
+  media.addEventListener('contextmenu', (event) => event.preventDefault());
+  media.setAttribute('controlsList', 'nodownload');
 });
 
 document.querySelectorAll('[data-drawer-open]').forEach((toggle) => {
@@ -240,7 +280,8 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
         if (data.html) {
           const wrapper = document.createElement('div');
           wrapper.innerHTML = data.html;
-          feedList.append(...wrapper.children);
+          const existing = new Set(Array.from(feedList.querySelectorAll('.post-card')).map((card) => card.id));
+          feedList.append(...Array.from(wrapper.children).filter((card) => !existing.has(card.id)));
           Array.from(wrapper.querySelectorAll('.post-card img')).forEach((img) => { img.loading = 'lazy'; img.decoding = 'async'; });
         }
         if (data.cursor) feedSentinel.dataset.cursor = data.cursor;

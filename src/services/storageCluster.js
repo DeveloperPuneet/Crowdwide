@@ -138,7 +138,7 @@ function streamFile(clusterIndex, id, res) {
     const file = files[0];
     if (!file) return res.status(404).end();
     res.type(file.contentType || 'application/octet-stream');
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Disposition': 'inline', 'X-Content-Type-Options': 'nosniff' });
     bucket.openDownloadStream(file._id).on('error', () => res.status(404).end()).pipe(res);
   }).catch(() => res.status(404).end());
 }

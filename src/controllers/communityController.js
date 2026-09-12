@@ -50,6 +50,26 @@ exports.explore = async (req, res) => {
   res.render('pages/explore', { title: 'Explore', pagePath: '/explore', noIndex: true, communities, categories, query: query || '', category: category || '', newPeople, popularPeople, viralPosts, isBrowsing });
 };
 
+exports.directory = async (req, res) => {
+  const [communities, viralPosts, newPosts] = await Promise.all([
+    Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(60).lean(),
+    getViralPosts(8),
+    Post.find({ status: 'published' }).sort({ createdAt: -1 }).limit(8).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+  ]);
+  const latestCommunityIds = new Set(communities.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8).map((community) => String(community._id)));
+  const growing = communities.filter((community) => !latestCommunityIds.has(String(community._id))).sort((a, b) => (b.membersCount || 0) - (a.membersCount || 0));
+  res.render('pages/communities', {
+    title: 'Communities',
+    pagePath: '/communities',
+    noIndex: true,
+    largerCommunities: communities.slice(0, 8),
+    newCommunities: communities.filter((community) => latestCommunityIds.has(String(community._id))),
+    growingCommunities: growing.slice(0, 8),
+    viralPosts,
+    newPosts
+  });
+};
+
 exports.detail = async (req, res) => {
   const community = await Community.findOne({ slug: req.params.slug }).populate('owner', 'name profilePicture').lean();
   if (!community) return res.status(404).render('pages/not-found', { title: 'Community not found' });

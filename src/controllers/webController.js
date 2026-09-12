@@ -5,7 +5,7 @@ const { createSignedUpload, createImageThumbnail } = require('../services/storag
 const { uploadBuffer, streamFile, mediaUrl, clusterStatus } = require('../services/storageCluster');
 const Comment = require('../models/Comment');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
-const { getViralPosts, getPopularPeople } = require('../services/discovery');
+const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -71,9 +71,12 @@ async function buildFeed(user, mode) {
 	const joinedIds = user.joinedCommunities || [];
 	const followingIds = (user.following || []).map(String);
 	if (mode === 'personalized') {
-		const personalizedFilter = joinedIds.length ? { community: { $in: joinedIds }, status: 'published' } : { _id: { $in: [] } };
+		const likedTags = await Post.find({ likes: user._id, status: 'published' }).distinct('hashtags');
+		const personalizedFilter = { status: 'published', $or: [{ community: { $in: joinedIds } }, { hashtags: { $in: likedTags } }] };
 		const ownPosts = await Post.find({ author: user._id, status: { $in: ['published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean();
-		return { posts: await populatePosts([...ownPosts, ...(await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean())]), label: 'Personalized feed', note: joinedIds.length ? 'Posts and articles from communities you joined.' : 'Join a community to shape this feed.' };
+		const relevantPosts = await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean();
+		const unique = new Map([...ownPosts, ...relevantPosts].map((post) => [String(post._id), post]));
+		return { posts: await populatePosts(Array.from(unique.values())), label: 'Personalized feed', note: joinedIds.length || likedTags.length ? 'Posts from your communities and topics related to what you like.' : 'Like a post or join a community to shape this feed.' };
 	}
 
 	const recentCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -105,11 +108,22 @@ async function buildFeed(user, mode) {
 		...extendedPosts.slice(0, 4).map((post) => ({ ...post, feedSource: 'Connected to your network' })),
 		...newPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'New voices & communities' })),
 		...largePosts.slice(0, 8).map((post) => ({ ...post, feedSource: 'Large communities' })),
-		...viralPosts.slice(0, 1).map((post) => ({ ...post, feedSource: 'Viral right now' }))
+		...viralPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'Viral right now' }))
 	];
-	const used = new Set(slots.map((post) => String(post._id)));
-	recentPosts.forEach((post) => { if (slots.length < 26 && !used.has(String(post._id))) slots.push({ ...post, feedSource: 'Fresh from Crowdwide' }); });
-	return { posts: await populatePosts(slots), label: 'Normal feed', note: 'A mix of people you follow, your extended network, new voices, and larger communities - so growing accounts still get seen.' };
+	const used = new Set();
+	const uniqueSlots = slots.filter((post) => {
+		const id = String(post._id);
+		if (used.has(id)) return false;
+		used.add(id);
+		return true;
+	});
+	recentPosts.forEach((post) => {
+		if (uniqueSlots.length < 26 && !used.has(String(post._id))) {
+			used.add(String(post._id));
+			uniqueSlots.push({ ...post, feedSource: 'Fresh from Crowdwide' });
+		}
+	});
+	return { posts: await populatePosts(uniqueSlots), label: 'Normal feed', note: 'A mix of people you follow, your extended network, new voices, and larger communities - so growing accounts still get seen.' };
 }
 
 exports.dashboard = async (req, res) => {
@@ -118,16 +132,22 @@ exports.dashboard = async (req, res) => {
 		const mode = req.query.feed === 'personalized' ? 'personalized' : 'normal';
 		const followingIds = (user.following || []).map(String);
 		const blockedIds = (user.blockedUsers || []).map(String);
-		const [feed, communities, people] = await Promise.all([
+		const [feed, communities, people, viralPosts] = await Promise.all([
 			buildFeed(user, mode),
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
-			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean()
+			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean(),
+			getViralPosts(20)
 		]);
 		const bookmarked = (user.bookmarks || []).map(String);
 		feed.posts = feed.posts
 			.filter((post) => !blockedIds.includes(String(post.author?._id)))
 			.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
-		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed, communities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: followingIds });
+		const viralIds = new Set(viralPosts.map((post) => String(post._id)));
+		const latestPosts = feed.posts.filter((post) => post.type !== 'article' && !viralIds.has(String(post._id)));
+		const latestArticles = feed.posts.filter((post) => post.type === 'article' && !viralIds.has(String(post._id)));
+		const viralPostItems = feed.posts.filter((post) => viralIds.has(String(post._id)));
+		const viralArticleItems = viralPostItems.filter((post) => post.type === 'article');
+		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed: { ...feed, latestPosts, latestArticles, viralPosts: viralPostItems, viralArticles: viralArticleItems }, communities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: followingIds });
 	} catch (error) {
 		console.error('Unable to load dashboard:', error.message);
 		res.status(500).render('pages/not-found', { title: 'Dashboard unavailable', noIndex: true });
@@ -137,9 +157,10 @@ exports.dashboard = async (req, res) => {
 exports.createPost = async (req, res) => {
 	const body = req.body.body?.trim();
 	const type = req.body.type === 'article' ? 'article' : 'post';
-	const limit = type === 'article' ? 50000 : 5000;
-	if (!body || body.length > limit) {
-		req.session.flash = { type: 'error', message: `${type === 'article' ? 'Articles' : 'Posts'} are limited to ${limit.toLocaleString()} characters.` };
+	const wordLimit = type === 'article' ? 550 : 120;
+	const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
+	if (!body || wordCount > wordLimit) {
+		req.session.flash = { type: 'error', message: `${type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` };
 		return res.redirect('/dashboard');
 	}
 	let status = 'published';
@@ -263,7 +284,8 @@ exports.profile = async (req, res) => {
 
 exports.search = async (req, res) => {
 	const q = (req.query.q || '').trim();
-	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null });
+	const trendingHashtags = await getTrendingHashtags(12);
+	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches: trendingHashtags });
 	const tag = q.startsWith('#') ? q.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
 	const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(safe, 'i');
@@ -273,7 +295,13 @@ exports.search = async (req, res) => {
 		Community.find(tag ? { hashtags: tag } : { $or: [{ name: regex }, { description: regex }, { hashtags: q.toLowerCase() }] }).limit(10).lean(),
 		Post.find({ status: 'published', author: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { body: regex }) }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
 	]);
-	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag });
+	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches: trendingHashtags });
+};
+
+exports.hashtagSuggestions = async (req, res) => {
+	const prefix = (req.query.q || '').replace(/^#/, '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+	const hashtags = await getTrendingHashtags(30);
+	res.json(hashtags.filter(({ tag }) => !prefix || tag.startsWith(prefix)).slice(0, 8));
 };
 
 exports.followersPage = async (req, res) => {

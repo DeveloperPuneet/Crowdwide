@@ -29,4 +29,15 @@ async function getPopularPeople(limit = 5, excludeIds = []) {
   ]);
 }
 
-module.exports = { getViralPosts, getPopularPeople };
+async function getTrendingHashtags(limit = 10) {
+  return Post.aggregate([
+    { $match: { status: 'published', hashtags: { $exists: true, $ne: [] } } },
+    { $unwind: '$hashtags' },
+    { $group: { _id: '$hashtags', posts: { $sum: 1 }, latest: { $max: '$createdAt' } } },
+    { $sort: { posts: -1, latest: -1 } },
+    { $limit: limit },
+    { $project: { _id: 0, tag: '$_id', posts: 1 } }
+  ]);
+}
+
+module.exports = { getViralPosts, getPopularPeople, getTrendingHashtags };

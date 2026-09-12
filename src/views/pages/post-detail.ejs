@@ -7,7 +7,7 @@
 	<a class="button button-small button-ghost" href="/auth/register">Join Crowdwide <span>↗</span></a>
 </header>
 <% } %>
-<main class="community-detail">
+<main class="community-detail post-detail-page">
 	<a class="back-link" href="<%= currentUser ? '/dashboard' : '/' %>">← <%= currentUser ? 'Back to feed' : 'Crowdwide' %></a>
 	<article class="post-card public-post">
 		<div class="post-meta">
@@ -21,8 +21,8 @@
 			<% post.media.forEach((media) => { %>
 			<div class="post-media-frame">
 				<% if (media.kind === 'image') { %><img src="<%= media.thumbnailUrl || media.url %>" alt="<%= media.alt || 'Post image' %>" loading="lazy">
-				<% } else if (media.kind === 'video') { %><video controls preload="none" src="<%= media.url %>"></video>
-				<% } else if (media.kind === 'audio') { %><audio controls preload="none" src="<%= media.url %>"></audio><% } %>
+				<% } else if (media.kind === 'video') { %><video controls controlsList="nodownload" disablePictureInPicture preload="none" src="<%= media.url %>"></video>
+				<% } else if (media.kind === 'audio') { %><audio controls controlsList="nodownload" preload="none" src="<%= media.url %>"></audio><% } %>
 			</div>
 			<% }) %>
 		</div>
