@@ -4,6 +4,7 @@ const LoginSession = require('../models/LoginSession');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
+const { parseHashtagList } = require('../utils/hashtags');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -24,6 +25,7 @@ exports.updateProfile = async (req, res) => {
   const user = await User.findById(req.session.user.id);
   user.name = req.body.name?.trim() || user.name;
   user.bio = req.body.bio?.trim() || '';
+  user.hashtags = parseHashtagList(req.body.hashtags || '');
   user.privacy = ['public', 'followers'].includes(req.body.privacy) ? req.body.privacy : user.privacy;
 
   const links = [];

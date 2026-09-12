@@ -11,7 +11,7 @@ async function getViralPosts(limit = 4) {
     { $limit: limit },
     { $lookup: { from: 'users', localField: 'author', foreignField: '_id', as: 'authorDoc' } },
     { $unwind: '$authorDoc' },
-    { $project: { body: 1, likesTotal: 1, createdAt: 1, hashtags: 1, author: { _id: '$authorDoc._id', name: '$authorDoc.name', profilePicture: '$authorDoc.profilePicture' } } }
+    { $project: { body: 1, type: 1, likesTotal: 1, createdAt: 1, hashtags: 1, author: { _id: '$authorDoc._id', name: '$authorDoc.name', profilePicture: '$authorDoc.profilePicture' } } }
   ]);
 }
 

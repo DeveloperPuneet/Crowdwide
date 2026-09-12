@@ -147,7 +147,9 @@ exports.dashboard = async (req, res) => {
 		const latestArticles = feed.posts.filter((post) => post.type === 'article' && !viralIds.has(String(post._id)));
 		const viralPostItems = feed.posts.filter((post) => viralIds.has(String(post._id)));
 		const viralArticleItems = viralPostItems.filter((post) => post.type === 'article');
-		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed: { ...feed, latestPosts, latestArticles, viralPosts: viralPostItems, viralArticles: viralArticleItems }, communities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: followingIds });
+		const groups = { 'for-you': feed.posts, 'my-community': feed.posts, 'posts-new': latestPosts, 'posts-viral': viralPostItems.filter((post) => post.type !== 'article'), 'articles-new': latestArticles, 'articles-viral': viralArticleItems };
+		const activeTab = ['for-you', 'my-community', 'posts-new', 'posts-viral', 'articles-new', 'articles-viral'].includes(req.query.view) ? req.query.view : (mode === 'personalized' ? 'my-community' : 'for-you');
+		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed: { ...feed, latestPosts, latestArticles, viralPosts: viralPostItems, viralArticles: viralArticleItems, activeTab, visiblePosts: groups[activeTab] }, communities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: followingIds });
 	} catch (error) {
 		console.error('Unable to load dashboard:', error.message);
 		res.status(500).render('pages/not-found', { title: 'Dashboard unavailable', noIndex: true });
@@ -222,7 +224,7 @@ exports.createCommunity = async (req, res) => {
 };
 
 exports.profile = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name email bio links profilePicture bannerImage privacy createdAt isVerified following').lean();
+	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links profilePicture bannerImage privacy createdAt isVerified following').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
 	const viewerId = req.session.user.id;
 	const isSelf = String(profileUser._id) === String(viewerId);
@@ -291,7 +293,7 @@ exports.search = async (req, res) => {
 	const regex = new RegExp(safe, 'i');
 	const viewer = await User.findById(req.session.user.id).select('blockedUsers').lean();
 	const [users, communities, posts] = await Promise.all([
-		tag ? Promise.resolve([]) : User.find({ name: regex, isVerified: true, _id: { $nin: viewer?.blockedUsers || [] } }).limit(10).select('name bio profilePicture').lean(),
+		User.find({ isVerified: true, _id: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { $or: [{ name: regex }, { bio: regex }, { hashtags: q.toLowerCase() }] }) }).limit(10).select('name bio hashtags profilePicture').lean(),
 		Community.find(tag ? { hashtags: tag } : { $or: [{ name: regex }, { description: regex }, { hashtags: q.toLowerCase() }] }).limit(10).lean(),
 		Post.find({ status: 'published', author: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { body: regex }) }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
 	]);

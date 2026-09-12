@@ -31,6 +31,7 @@
 			</div>
 		</div>
 		<% if (profileUser.bio) { %><p class="profile-bio"><%= profileUser.bio %></p><% } %>
+		<% if ((profileUser.hashtags || []).length) { %><div class="hashtag-row profile-hashtags"><% profileUser.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<% if ((profileUser.links || []).length) { %>
 		<div class="profile-links">
 			<% profileUser.links.forEach((link) => { %><a class="profile-link-chip" href="<%= link.url %>" target="_blank" rel="noopener noreferrer nofollow">🔗 <%= link.label %></a><% }) %>

@@ -31,6 +31,18 @@
     <div class="panel-heading"><h2>Latest community posts</h2><span>Fresh conversations</span></div>
     <div class="directory-post-grid"><% newPosts.forEach((post) => { %><a class="community-post-link" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><span><%= post.community?.name || 'Open Crowdwide' %></span><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p></a><% }) %></div>
   </section>
+  <section class="directory-section">
+    <div class="panel-heading"><h2>Latest posts</h2><span>Fresh community conversations</span></div>
+    <div class="directory-post-grid"><% latestPosts.forEach((post) => { %><a class="community-post-link" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><span><%= post.community?.name || 'Community' %></span><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p></a><% }) %></div>
+  </section>
+  <section class="directory-section">
+    <div class="panel-heading"><h2>Viral articles</h2><span>Popular long-form reads</span></div>
+    <div class="directory-post-grid"><% viralArticles.forEach((post) => { %><a class="viral-card" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p><span class="viral-likes">♥ <%= post.likesTotal || 0 %></span></a><% }) %></div>
+  </section>
+  <section class="directory-section">
+    <div class="panel-heading"><h2>Latest articles</h2><span>New long-form reads</span></div>
+    <div class="directory-post-grid"><% latestArticles.forEach((post) => { %><a class="community-post-link" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><span><%= post.community?.name || 'Community' %></span><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p></a><% }) %></div>
+  </section>
 </main>
 <%- include('../partials/app-footer') %>
 <%- include('../partials/foot') %>

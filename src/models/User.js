@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
   bio: { type: String, trim: true, maxlength: 280, default: '' },
+  hashtags: [{ type: String, trim: true, lowercase: true }],
   links: { type: [linkSchema], validate: (value) => value.length <= 4 },
   profilePicture: { type: String, default: '' },
   bannerImage: { type: String, default: '' },

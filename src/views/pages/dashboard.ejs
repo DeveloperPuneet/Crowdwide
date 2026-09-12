@@ -23,14 +23,18 @@
 	<section class="feed-column">
 		<div class="feed-heading">
 			<div><p class="eyebrow">Your corner of Crowdwide</p><h1>Good to see you, <em><%= currentUser.name.split(' ')[0] %>.</em></h1></div>
-			<a class="button button-primary" href="#composer">Share something <span>+</span></a>
+			<button class="button button-primary" type="button" data-composer-open>Share something <span>+</span></button>
 		</div>
 		<div class="feed-tabs">
-			<a class="<%= feed.label === 'Normal feed' ? 'feed-tab-active' : '' %>" href="/dashboard">For you</a>
-			<a class="<%= feed.label === 'Personalized feed' ? 'feed-tab-active' : '' %>" href="/dashboard?feed=personalized">My communities</a>
+			<a class="<%= feed.activeTab === 'for-you' ? 'feed-tab-active' : '' %>" href="/dashboard?view=for-you">For you</a>
+			<a class="<%= feed.activeTab === 'my-community' ? 'feed-tab-active' : '' %>" href="/dashboard?view=my-community&feed=personalized">My community</a>
+			<a class="<%= feed.activeTab === 'posts-new' ? 'feed-tab-active' : '' %>" href="/dashboard?view=posts-new">Posts · New</a>
+			<a class="<%= feed.activeTab === 'posts-viral' ? 'feed-tab-active' : '' %>" href="/dashboard?view=posts-viral">Posts · Viral</a>
+			<a class="<%= feed.activeTab === 'articles-new' ? 'feed-tab-active' : '' %>" href="/dashboard?view=articles-new">Articles · New</a>
+			<a class="<%= feed.activeTab === 'articles-viral' ? 'feed-tab-active' : '' %>" href="/dashboard?view=articles-viral">Articles · Viral</a>
 			<span><%= feed.note %></span>
 		</div>
-		<form class="composer" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":120,"article":550}'>
+		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":120,"article":550}'>
 			<%- include('../partials/avatar', { person: currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">
 				<textarea name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
@@ -44,7 +48,7 @@
 				<small class="upload-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files</small>
 			</div>
 		</form>
-		<% if (!feed.posts.length) { %>
+		<% if (!feed.visiblePosts.length) { %>
 		<section class="empty-feed">
 			<div class="empty-orbit"><img src="/images/Crowdwide_logo.png" alt=""></div>
 			<h2><%= feed.label === 'Personalized feed' ? 'Your community feed is waiting.' : 'Your feed starts with curiosity.' %></h2>
@@ -52,12 +56,7 @@
 			<a class="button button-dark button-small" href="/explore">Explore communities <span>↗</span></a>
 		</section>
 		<% } %>
-		<div class="feed-stream-groups">
-			<section class="feed-group"><div class="panel-heading"><h2>Latest posts</h2><span>Fresh voices</span></div><div id="feed-posts"><% feed.latestPosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div></section>
-			<section class="feed-group"><div class="panel-heading"><h2>Viral posts</h2><span>Resonating now</span></div><div><% feed.viralPosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div></section>
-			<section class="feed-group"><div class="panel-heading"><h2>Latest articles</h2><span>Longer reads</span></div><div><% feed.latestArticles.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div></section>
-			<section class="feed-group"><div class="panel-heading"><h2>Viral articles</h2><span>Worth sharing</span></div><div><% feed.viralArticles.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div></section>
-		</div>
+		<div id="feed-posts"><% feed.visiblePosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div>
 		<% if (feed.posts.length) { %>
 		<div id="feed-sentinel" data-feed-mode="<%= feed.label === 'Personalized feed' ? 'personalized' : 'normal' %>" data-cursor="<%= feed.posts[feed.posts.length - 1].createdAt.toISOString ? feed.posts[feed.posts.length - 1].createdAt.toISOString() : feed.posts[feed.posts.length - 1].createdAt %>"></div>
 		<p id="feed-end-note" class="upload-help" style="display:none;text-align:center;padding:18px 0;">You're all caught up.</p>

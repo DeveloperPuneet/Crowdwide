@@ -2,6 +2,12 @@ window.addEventListener('load', () => document.body.classList.add('page-ready'))
 
 const composer = document.querySelector('#composer');
 if (composer) {
+  const openComposer = document.querySelector('[data-composer-open]');
+  openComposer?.addEventListener('click', () => {
+    composer.classList.remove('composer-hidden');
+    composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    composer.querySelector('textarea')?.focus();
+  });
   const textarea = composer.querySelector('textarea[name="body"]');
   const typeSelect = composer.querySelector('select[name="type"]');
   const count = composer.querySelector('[data-word-count]');
@@ -32,7 +38,10 @@ if (composer) {
     suggestionTimer = setTimeout(() => fetch(`/hashtags/suggest?q=${encodeURIComponent(match[1])}`).then((response) => response.json()).then(renderSuggestions).catch(() => {}), 120);
   });
   typeSelect.addEventListener('change', updateCount);
-  composer.addEventListener('submit', (event) => { if (words() > (limits[typeSelect.value] || limits.post)) { event.preventDefault(); updateCount(); } });
+  composer.addEventListener('submit', (event) => {
+    if (words() > (limits[typeSelect.value] || limits.post)) { event.preventDefault(); updateCount(); return; }
+    composer.classList.add('composer-hidden');
+  });
   updateCount();
 }
 
@@ -233,7 +242,8 @@ if (window.axios && notificationBadge) {
   const refreshNotifications = async () => {
     try {
       const { data } = await window.axios.get('/notifications/unread');
-      notificationBadge.textContent = data.unread > 99 ? '99+' : data.unread;
+      notificationBadge.textContent = '';
+      notificationBadge.classList.toggle('notification-dot-visible', Boolean(data.unread));
       notificationBadge.hidden = !data.unread;
     } catch (error) {
       notificationBadge.hidden = true;

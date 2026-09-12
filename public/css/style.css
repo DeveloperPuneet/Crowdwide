@@ -264,7 +264,8 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .icon-button:hover { border-color: var(--line); color: #fff; }
 .notification-button { position: relative; display: grid; place-items: center; width: 34px; height: 34px; color: #c6c8d4; border: 1px solid #303654; border-radius: 50%; font-size: 18px; }
 .notification-button:hover { color: #fff; border-color: #6574ff; }
-.notification-badge { position: absolute; right: -4px; top: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: #f06b76; color: #fff; font-size: 9px; line-height: 16px; text-align: center; }
+.notification-badge { position: absolute; right: -2px; top: -2px; width: 8px; height: 8px; padding: 0; border-radius: 50%; background: #f06b76; color: #fff; font-size: 0; line-height: 0; box-shadow: 0 0 0 2px var(--bg); }
+.notification-badge[hidden] { display: none; }
 .welcome { font-size: 12px; color: #6f7180; white-space: nowrap; }
 .nav-menu-toggle {
   display: none; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 8px;
@@ -341,6 +342,7 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .feed-tabs span { color: #65687d; font-size: 10px; margin-left: auto; }
 
 .composer, .post-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.composer-hidden { display: none; }
 .composer { padding: 18px; display: flex; gap: 12px; margin-bottom: 18px; }
 .composer-body { flex: 1; min-width: 0; }
 .composer textarea { background: transparent; border: 0; color: #f6f6fa; resize: vertical; min-height: 60px; width: 100%; outline: none; padding: 0; }
