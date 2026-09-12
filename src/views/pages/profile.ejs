@@ -86,7 +86,7 @@
 		<% } %>
 		<% displayedPosts.forEach((post) => { %>
 		<article class="post-card" id="post-<%= post._id %>">
-			<div class="post-meta"><div><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %><% if (post.status === 'pending') { %> · <b style="color:#ff9850;">Awaiting review</b><% } else if (post.status === 'rejected') { %> · <b style="color:#ff8a9d;">Not approved</b><% } %></span></div></div>
+			<div class="post-meta"><div><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %><% if (post.status === 'pending') { %> · <b style="color:#ff9850;">Awaiting review</b><% } else if (post.status === 'scheduled') { %> · <b style="color:#ff9850;">Scheduled</b><% } else if (post.status === 'rejected') { %> · <b style="color:#ff8a9d;">Not approved</b><% } %></span></div></div>
 			<p class="post-body"><%= post.body %></p>
 			<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 			<% if ((post.media || []).length) { %>

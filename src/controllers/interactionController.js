@@ -1,4 +1,5 @@
 const Post = require('../models/Post');
+const Community = require('../models/Community');
 const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
@@ -12,7 +13,7 @@ const redirectBack = (req, res, payload = {}) => {
   return res.redirect(req.get('referer') || '/dashboard');
 };
 
-const canAccessPost = (post, userId) => post && (post.status !== 'draft' || String(post.author) === String(userId));
+const canAccessPost = (post, userId) => post && (!['draft', 'scheduled'].includes(post.status) || String(post.author) === String(userId));
 
 async function notify(recipient, actor, type, message, post, community) {
   if (!recipient || String(recipient) === String(actor)) return;
@@ -171,6 +172,21 @@ exports.toggleReaction = async (req, res) => {
   return redirectBack(req, res, { reaction: hadReaction ? null : reaction });
 };
 
+exports.replyPost = async (req, res) => {
+  const source = await Post.findById(req.params.id).select('author status community body').lean();
+  const body = req.body.body?.trim();
+  if (!canAccessPost(source, req.session.user.id) || !body || body.length > 4000) return redirectBack(req, res, { ok: false, error: 'Replies must include 1 to 4,000 characters.' });
+  if (source.community) {
+    const community = await Community.findById(source.community).select('members bannedWords');
+    if (!community?.members.some((id) => String(id) === String(req.session.user.id))) return redirectBack(req, res, { ok: false, error: 'Join the community before replying to this post.' });
+    const bodyLower = body.toLowerCase();
+    if ((community.bannedWords || []).some((word) => word && bodyLower.includes(word))) return redirectBack(req, res, { ok: false, error: 'That reply contains a word this community has blocked.' });
+  }
+  const reply = await Post.create({ author: req.session.user.id, body, type: 'post', community: source.community, replyTo: source._id, hashtags: extractHashtags(body), status: 'published' });
+  await notify(source.author, req.session.user.id, 'comment', 'replied to your post.', source._id, source.community);
+  return redirectBack(req, res, { reply: { id: reply._id, body: reply.body } });
+};
+
 function buildCommentTree(comments) {
   const byId = new Map(comments.map((comment) => [String(comment._id), { ...comment, children: [] }]));
   const roots = [];
@@ -186,10 +202,11 @@ function buildCommentTree(comments) {
 
 exports.postDetail = async (req, res) => {
   const viewerId = req.session.user?.id;
-  const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $ne: 'draft' } }, { author: viewerId || null }] }, { $inc: { viewsCount: 1 } }, { new: true })
+  const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $nin: ['draft', 'scheduled'] } }, { author: viewerId || null }] }, { $inc: { viewsCount: 1 } }, { new: true })
     .populate('author', 'name profilePicture')
     .populate('community', 'name slug')
     .populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } })
+    .populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } })
     .lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   let blockedIds = [];

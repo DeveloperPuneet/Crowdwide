@@ -63,7 +63,8 @@ async function populatePosts(posts) {
 	const populated = await Post.populate(posts, [
 		{ path: 'author', select: 'name createdAt profilePicture' },
 		{ path: 'community', select: 'name slug membersCount' },
-		{ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }
+		{ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } },
+		{ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }
 	]);
 	const comments = await Comment.find({ post: { $in: posts.map((post) => post._id) } }).sort({ createdAt: 1 }).limit(200).populate('author', 'name').lean();
 	return populated.map((post) => ({ ...post, comments: comments.filter((comment) => String(comment.post) === String(post._id)) }));
@@ -75,7 +76,7 @@ async function buildFeed(user, mode) {
 	if (mode === 'personalized') {
 		const likedTags = await Post.find({ likes: user._id, status: 'published' }).distinct('hashtags');
 		const personalizedFilter = { status: 'published', $or: [{ community: { $in: joinedIds } }, { hashtags: { $in: likedTags } }] };
-		const ownPosts = await Post.find({ author: user._id, status: { $in: ['draft', 'published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean();
+		const ownPosts = await Post.find({ author: user._id, status: { $in: ['draft', 'scheduled', 'published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean();
 		const relevantPosts = await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean();
 		const unique = new Map([...ownPosts, ...relevantPosts].map((post) => [String(post._id), post]));
 		return { posts: await populatePosts(Array.from(unique.values())), label: 'Personalized feed', note: joinedIds.length || likedTags.length ? 'Posts from your communities and topics related to what you like.' : 'Like a post or join a community to shape this feed.' };
@@ -94,7 +95,7 @@ async function buildFeed(user, mode) {
 		Community.find().sort({ membersCount: -1 }).limit(20).select('_id').lean(),
 		Post.aggregate([{ $match: { status: 'published' } }, { $addFields: { likesTotal: { $size: { $ifNull: ['$likes', []] } } } }, { $sort: { likesTotal: -1, createdAt: -1 } }, { $limit: 20 }]),
 		Post.find({ status: 'published' }).sort({ createdAt: -1 }).limit(30).lean()
-		, Post.find({ author: user._id, status: { $in: ['draft', 'published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean()
+		, Post.find({ author: user._id, status: { $in: ['draft', 'scheduled', 'published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean()
 	]);
 	const extendedNetworkIds = Array.from(new Set([...followingOfFollowing, ...followersOfFollowers].map(String)))
 		.filter((id) => id !== String(user._id) && !followingIds.includes(id));
@@ -105,7 +106,7 @@ async function buildFeed(user, mode) {
 	// alongside the reach of larger communities, so posts from small/new
 	// accounts and communities are not permanently buried under popularity.
 	const slots = [
-		...ownPosts.map((post) => ({ ...post, feedSource: post.status === 'draft' ? 'Draft' : post.status === 'pending' ? 'Awaiting community review' : 'Your post' })),
+		...ownPosts.map((post) => ({ ...post, feedSource: post.status === 'draft' ? 'Draft' : post.status === 'scheduled' ? 'Scheduled' : post.status === 'pending' ? 'Awaiting community review' : 'Your post' })),
 		...followedPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'From people you follow' })),
 		...extendedPosts.slice(0, 4).map((post) => ({ ...post, feedSource: 'Connected to your network' })),
 		...newPosts.slice(0, 6).map((post) => ({ ...post, feedSource: 'New voices & communities' })),
@@ -183,6 +184,7 @@ exports.createPost = async (req, res) => {
 		return res.redirect('/dashboard');
 	}
 	let status = 'published';
+	let scheduledAt;
 	if (req.body.community) {
 		const community = await Community.findById(req.body.community).select('members bannedWords owner moderators requireApproval');
 		if (!community || !community.members.some((id) => String(id) === String(req.session.user.id))) {
@@ -197,6 +199,18 @@ exports.createPost = async (req, res) => {
 		const isStaff = String(community.owner) === String(req.session.user.id) || community.moderators.some((id) => String(id) === String(req.session.user.id));
 		if (community.requireApproval && !isStaff) status = 'pending';
 	}
+	if (req.body.scheduledAt && req.body.saveAsDraft !== 'on') {
+		scheduledAt = new Date(req.body.scheduledAt);
+		if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+			req.session.flash = { type: 'error', message: 'Choose a future time to schedule this post.' };
+			return res.redirect('/dashboard');
+		}
+		if (status === 'pending') {
+			req.session.flash = { type: 'error', message: 'Scheduled posts cannot wait for community approval. Publish it after approval instead.' };
+			return res.redirect('/dashboard');
+		}
+		status = 'scheduled';
+	}
 	const media = [];
 	for (const file of req.files || []) {
 		const stored = await uploadBuffer(file.buffer, file.originalname, file.mimetype, { kind: file.mediaKind, owner: req.session.user.id });
@@ -209,10 +223,12 @@ exports.createPost = async (req, res) => {
 		media.push(item);
 	}
 	const isDraft = req.body.saveAsDraft === 'on';
-	const createdPost = await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status });
+	const createdPost = await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
 	if (isDraft) {
 		req.session.flash = { type: 'success', message: 'Draft saved. It is visible only to you.' };
+	} else if (status === 'scheduled') {
+		req.session.flash = { type: 'success', message: `Scheduled for ${scheduledAt.toLocaleString()}.` };
 	} else if (status === 'pending') {
 		req.session.flash = { type: 'success', message: 'Posted - this community reviews posts before they appear, so a moderator needs to approve it first.' };
 	}

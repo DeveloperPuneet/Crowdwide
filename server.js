@@ -11,6 +11,7 @@ const webRoutes = require('./src/routes/web');
 const authRoutes = require('./src/routes/auth');
 const { csrfProtection, generateToken } = require('./src/middleware/security');
 const { renderMentions } = require('./src/services/mentions');
+const { startPublicationWorker } = require('./src/services/publicationWorker');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -62,6 +63,7 @@ app.use((req, res) => res.status(404).render('pages/not-found', { title: 'Page n
 
 async function start() {
   await connectDatabase();
+  startPublicationWorker();
   app.listen(port, () => console.log(`Crowdwide is live at http://localhost:${port}`));
 }
 

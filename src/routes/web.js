@@ -44,6 +44,7 @@ router.post('/posts/:id/share', requireAuth, requireVerified, interactionLimiter
 router.post('/posts/:id/poll/vote', requireAuth, requireVerified, interactionLimiter, interactionController.votePoll);
 router.post('/posts/:id/quote', requireAuth, requireVerified, interactionLimiter, interactionController.quotePost);
 router.post('/posts/:id/reaction', requireAuth, requireVerified, interactionLimiter, interactionController.toggleReaction);
+router.post('/posts/:id/reply', requireAuth, requireVerified, interactionLimiter, interactionController.replyPost);
 router.get('/explore', requireAuth, requireVerified, communityController.explore);
 router.get('/communities', requireAuth, requireVerified, communityController.directory);
 router.get('/search', requireAuth, requireVerified, controller.search);

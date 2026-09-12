@@ -19,6 +19,7 @@
 		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %></section>
 		<% } %>
 		<% if (post.quotedPost) { %><a class="quoted-post" href="/posts/<%= post.quotedPost._id %>"><strong><%= post.quotedPost.author?.name || 'Crowdwide member' %>'s post</strong><p><%= post.quotedPost.body %></p></a><% } %>
+		<% if (post.replyTo) { %><a class="quoted-post reply-source" href="/posts/<%= post.replyTo._id %>"><strong>Replying to <%= post.replyTo.author?.name || 'Crowdwide member' %></strong><p><%= post.replyTo.body %></p></a><% } %>
 		<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<% if ((post.media || []).length) { %>
 		<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
@@ -43,6 +44,7 @@
 			<% [['celebrate', '👏'], ['insightful', '💡'], ['support', '🤝'], ['funny', '😄']].forEach(([reaction, icon]) => { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/reaction"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="reaction" value="<%= reaction %>"><button type="submit" title="<%= reaction %>"><%= icon %> <%= post.reactions?.[reaction]?.length || 0 %></button></form><% }) %>
 		</div>
 		<form class="comment-form" data-async-interaction method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input data-mention-input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
+		<details class="post-owner-tools"><summary>Reply with a post</summary><form class="post-reply-form" data-async-interaction method="post" action="/posts/<%= post._id %>/reply"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><textarea data-mention-input name="body" maxlength="4000" placeholder="Write a public reply..." required></textarea><button type="submit">Publish reply</button></form></details>
 		<details class="post-owner-tools"><summary>Quote</summary><form method="post" action="/posts/<%= post._id %>/quote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><textarea data-mention-input name="body" maxlength="4000" placeholder="Add your commentary..." required></textarea><button type="submit">Publish quote</button></form></details>
 		<% if (['admin', 'moderator'].includes(currentUser?.role) && String(post.author?._id) !== String(currentUser.id)) { %>
 		<section class="post-moderation-tools">

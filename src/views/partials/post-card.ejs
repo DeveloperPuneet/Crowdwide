@@ -1,7 +1,7 @@
 <article class="post-card" id="post-<%= post._id %>">
 	<div class="post-meta">
 		<%- include('avatar', { person: post.author, size: 'small' }) %>
-		<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %><% if (post.status === 'draft') { %> · Draft<% } %></span></div>
+		<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %><% if (post.status === 'draft') { %> · Draft<% } else if (post.status === 'scheduled') { %> · Scheduled<% } %></span></div>
 		<span class="post-source"><%= post.feedSource || 'From your communities' %></span>
 	</div>
 	<p class="post-body"><%- renderMentions(post.body) %></p>
@@ -9,6 +9,7 @@
 	<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% }) %></section>
 	<% } %>
 	<% if (post.quotedPost) { %><a class="quoted-post" href="/posts/<%= post.quotedPost._id %>"><strong><%= post.quotedPost.author?.name || 'Crowdwide member' %>'s post</strong><p><%= (post.quotedPost.body || '').slice(0, 240) %><%= (post.quotedPost.body || '').length > 240 ? '…' : '' %></p></a><% } %>
+	<% if (post.replyTo) { %><a class="quoted-post reply-source" href="/posts/<%= post.replyTo._id %>"><strong>Replying to <%= post.replyTo.author?.name || 'Crowdwide member' %></strong><p><%= (post.replyTo.body || '').slice(0, 240) %><%= (post.replyTo.body || '').length > 240 ? '…' : '' %></p></a><% } %>
 	<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 	<% if ((post.media || []).length) { %>
 	<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
@@ -45,6 +46,14 @@
 		</form>
 	</details>
 	<% } %>
+	<details class="post-owner-tools">
+		<summary>Reply with a post</summary>
+		<form class="post-reply-form" data-async-interaction method="post" action="/posts/<%= post._id %>/reply">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<textarea data-mention-input name="body" maxlength="4000" placeholder="Write a public reply..." required></textarea>
+			<button type="submit">Publish reply</button>
+		</form>
+	</details>
 	<details class="post-owner-tools">
 		<summary>Quote</summary>
 		<form method="post" action="/posts/<%= post._id %>/quote">

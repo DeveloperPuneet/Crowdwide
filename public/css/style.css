@@ -357,6 +357,8 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .poll-option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .media-picker { font-size: 11px; color: #9ea2bd; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap; }
 .media-picker input { display: none; }
+.schedule-picker { display: inline-flex; align-items: center; gap: 6px; color: #9ea2bd; font-size: 11px; white-space: nowrap; }
+.schedule-picker input { width: auto; padding: 7px 8px; color-scheme: dark; font-size: 11px; }
 .upload-help { display: block; color: #777a91; font-size: 10px; margin-top: 8px; line-height: 1.5; }
 
 .post-card { padding: 20px; margin-bottom: 14px; }
@@ -434,6 +436,10 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .feed-group .panel-heading { margin-bottom: 10px; }
 .composer-meta { display: flex; justify-content: space-between; align-items: start; gap: 12px; min-height: 22px; color: #777a91; font-size: 10px; }
 .word-limit-warning { color: #ff8a9d; }
+.word-limit-meter { width: min(180px, 28%); height: 5px; margin-top: 5px; overflow: hidden; border-radius: 999px; background: #292d49; }
+.word-limit-meter span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--cyan); transition: width .16s ease, background .16s ease; }
+.word-limit-meter.is-warning span { background: var(--orange); }
+.word-limit-meter.is-over span { background: #ff5f78; }
 .hashtag-suggestions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .hashtag-suggestions button { border: 1px solid #38416f; background: #171a30; color: #aeb8ff; border-radius: 999px; padding: 4px 8px; font-size: 10px; cursor: pointer; }
 .hashtag-suggestions button:hover { color: #fff; background: #252b58; }

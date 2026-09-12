@@ -13,6 +13,8 @@ if (composer) {
   const textarea = composer.querySelector('textarea[name="body"]');
   const typeSelect = composer.querySelector('select[name="type"]');
   const count = composer.querySelector('[data-word-count]');
+  const progress = composer.querySelector('.word-limit-meter');
+  const progressFill = composer.querySelector('[data-word-progress]');
   const suggestions = composer.querySelector('[data-hashtag-suggestions]');
   const pollFields = composer.querySelector('.poll-composer');
   const limits = JSON.parse(composer.dataset.wordLimits || '{"post":120,"article":550,"poll":120}');
@@ -22,6 +24,13 @@ if (composer) {
     const total = words();
     count.textContent = `${total} / ${limit} words`;
     count.classList.toggle('word-limit-warning', total > limit);
+    if (progress && progressFill) {
+      progress.setAttribute('aria-valuemax', String(limit));
+      progress.setAttribute('aria-valuenow', String(total));
+      progressFill.style.width = `${Math.min(100, (total / limit) * 100)}%`;
+      progress.classList.toggle('is-warning', total >= limit * 0.8 && total <= limit);
+      progress.classList.toggle('is-over', total > limit);
+    }
     if (pollFields) pollFields.hidden = typeSelect.value !== 'poll';
   };
   const renderSuggestions = (items) => {
@@ -356,6 +365,10 @@ document.addEventListener('submit', async (event) => {
       appendComment(form, data.comment.body);
       form.reset();
       showInteractionMessage(form, 'Comment posted.');
+    }
+    if (data.reply) {
+      form.reset();
+      showInteractionMessage(form, 'Reply published.');
     }
   } catch (error) {
     showInteractionMessage(form, 'Could not update right now.', true);

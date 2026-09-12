@@ -6,7 +6,8 @@ const postSchema = new mongoose.Schema({
   body: { type: String, trim: true, maxlength: 4000 },
   hashtags: [{ type: String, trim: true, lowercase: true }],
   type: { type: String, enum: ['post', 'article', 'poll'], default: 'post' },
-  status: { type: String, enum: ['draft', 'published', 'pending', 'rejected'], default: 'published' },
+  status: { type: String, enum: ['draft', 'scheduled', 'published', 'pending', 'rejected'], default: 'published' },
+  scheduledAt: Date,
   media: [{
     url: { type: String, required: true },
     kind: { type: String, enum: ['image', 'video', 'audio'], default: 'image' },
@@ -22,6 +23,7 @@ const postSchema = new mongoose.Schema({
     }]
   },
   quotedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
+  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
   reactions: {
     celebrate: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     insightful: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
