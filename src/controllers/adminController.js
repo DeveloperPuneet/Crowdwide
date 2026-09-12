@@ -10,6 +10,20 @@ const ModerationAction = require('../models/ModerationAction');
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const audit = (req, action, targetType, target, details = {}) => AuditLog.create({ actor: req.roleUser._id, action, targetType, target, details, ipAddress: req.ip, userAgent: req.get('user-agent') });
 const panelRoles = { admin: ['admin'], moderator: ['admin', 'moderator'] };
+const postModerationActions = ['delete-post', 'suspend-user', 'rate-good-post', 'rate-bad-post', 'report-post'];
+
+async function applyPostModerationAction(req, action, post, reason) {
+  if (action === 'delete-post') await Post.deleteOne({ _id: post._id });
+  if (action === 'suspend-user') await User.findByIdAndUpdate(post.author?._id || post.author, { loginLockedUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) });
+  if (['rate-good-post', 'rate-bad-post'].includes(action)) {
+    const scoreChange = action === 'rate-good-post' ? 1 : -1;
+    await Post.findByIdAndUpdate(post._id, { $inc: { moderationScore: scoreChange }, $set: { moderationStatus: scoreChange > 0 ? 'good' : 'needs-review' } });
+  }
+  if (action === 'report-post') {
+    await Report.updateOne({ reporter: req.roleUser._id, targetType: 'post', target: post._id }, { $setOnInsert: { reporter: req.roleUser._id, targetType: 'post', target: post._id, reason } }, { upsert: true });
+    await Post.findByIdAndUpdate(post._id, { $set: { moderationStatus: 'reported' } });
+  }
+}
 
 exports.panelAccessPage = (req, res) => {
   const panel = req.params.panel;
@@ -28,6 +42,27 @@ exports.panelAccess = async (req, res) => {
   req.session.panelAccess = { ...(req.session.panelAccess || {}), [panel]: Date.now() + 15 * 60 * 1000 };
   const returnTo = req.body.returnTo?.startsWith(`/${panel}`) ? req.body.returnTo : `/${panel}`;
   res.redirect(returnTo);
+};
+
+exports.moderatePost = async (req, res) => {
+  const action = req.body.action;
+  const reason = req.body.reason?.trim() || (action === 'rate-good-post' ? 'Meets quality criteria.' : 'Moderation action requested.');
+  const post = await Post.findById(req.params.id).select('author').lean();
+  if (!post || !postModerationActions.includes(action)) return res.redirect(`/posts/${req.params.id}`);
+  if (req.roleUser.role === 'moderator' && String(post.author) === String(req.roleUser._id)) {
+    flash(req, 'error', 'You cannot moderate your own post.');
+    return res.redirect(`/posts/${req.params.id}`);
+  }
+  if (req.roleUser.role === 'admin') {
+    await applyPostModerationAction(req, action, post, reason);
+    await audit(req, action, action === 'suspend-user' ? 'user' : 'post', action === 'suspend-user' ? post.author : post._id, { reason, direct: true });
+    flash(req, 'success', 'Moderation action completed.');
+    return res.redirect(action === 'delete-post' ? '/dashboard' : `/posts/${req.params.id}`);
+  }
+  await ModerationAction.create({ moderator: req.roleUser._id, action, targetType: action === 'suspend-user' ? 'user' : 'post', target: action === 'suspend-user' ? post.author : post._id, reason });
+  await audit(req, 'submit-moderation-action', action === 'suspend-user' ? 'user' : 'post', action === 'suspend-user' ? post.author : post._id, { action, post: post._id });
+  flash(req, 'success', 'The action was sent to the administrator for approval.');
+  res.redirect(`/posts/${req.params.id}`);
 };
 
 exports.admin = async (req, res) => {

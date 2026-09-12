@@ -20,6 +20,7 @@ router.get('/media/:cluster/:id', controller.media);
 router.get('/notifications', requireAuth, requireVerified, interactionController.notifications);
 router.get('/notifications/unread', requireAuth, requireVerified, interactionController.unreadCount);
 router.get('/posts/:id', interactionController.postDetail);
+router.post('/posts/:id/moderate', requireAuth, requireVerified, requireModerator, adminController.moderatePost);
 router.get('/posts/:id/comments', interactionController.commentThread);
 router.post('/notifications/read', requireAuth, requireVerified, interactionController.readNotifications);
 router.post('/posts/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleLike);

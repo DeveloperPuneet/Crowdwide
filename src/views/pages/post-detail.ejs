@@ -35,6 +35,17 @@
 			<span>◌ <%= post.commentsCount || 0 %></span>
 		</div>
 		<form class="comment-form" method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
+		<% if (['admin', 'moderator'].includes(currentUser?.role) && String(post.author?._id) !== String(currentUser.id)) { %>
+		<section class="post-moderation-tools">
+			<strong>Moderation</strong>
+			<form method="post" action="/posts/<%= post._id %>/moderate">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<label>Action<select name="action"><option value="rate-good-post">Mark as good</option><option value="rate-bad-post">Mark for review</option><option value="report-post">Report post</option><option value="suspend-user">Suspend author</option><option value="delete-post">Delete post</option></select></label>
+				<input name="reason" maxlength="1000" placeholder="Reason (optional for ratings)">
+				<button class="button button-small <%= currentUser.role === 'admin' ? 'button-danger' : 'button-ghost' %>" type="submit"><%= currentUser.role === 'admin' ? 'Apply action' : 'Send for approval' %></button>
+			</form>
+		</section>
+		<% } %>
 		<% } else { %>
 		<div class="public-post-cta">
 			<p>Thoughtful conversations live on Crowdwide.</p>
