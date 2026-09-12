@@ -71,14 +71,17 @@ function buildCommentTree(comments) {
 exports.postDetail = async (req, res) => {
   const post = await Post.findById(req.params.id).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
-  const comments = await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean();
-  const commentTree = buildCommentTree(comments);
   const viewerId = req.session.user?.id;
+  let blockedIds = [];
   if (viewerId) {
-    const viewer = await User.findById(viewerId).select('bookmarks').lean();
+    const viewer = await User.findById(viewerId).select('bookmarks blockedUsers').lean();
     post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
     post.bookmarked = (viewer?.bookmarks || []).some((id) => String(id) === String(post._id));
+    blockedIds = (viewer?.blockedUsers || []).map(String);
   }
+  const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean())
+    .filter((comment) => !blockedIds.includes(String(comment.author?._id)));
+  const commentTree = buildCommentTree(comments);
   res.render('pages/post-detail', { title: `${post.author?.name || 'Crowdwide'} post`, pagePath: `/posts/${post._id}`, noIndex: false, post, comments, commentTree });
 };
 
@@ -88,10 +91,13 @@ exports.commentThread = async (req, res) => {
 };
 
 exports.notifications = async (req, res) => {
-  const [notifications, unread] = await Promise.all([
+  const viewer = await User.findById(req.session.user.id).select('blockedUsers').lean();
+  const [notificationsRaw, unread] = await Promise.all([
     Notification.find({ recipient: req.session.user.id }).sort({ createdAt: -1 }).limit(50).populate('actor', 'name profilePicture').lean(),
     Notification.countDocuments({ recipient: req.session.user.id, readAt: null })
   ]);
+  const blockedIds = (viewer?.blockedUsers || []).map(String);
+  const notifications = notificationsRaw.filter((notification) => !notification.actor || !blockedIds.includes(String(notification.actor._id)));
   res.render('pages/notifications', { title: 'Notifications', pagePath: '/notifications', noIndex: true, notifications, unread });
 };
 
@@ -126,9 +132,10 @@ exports.toggleFollow = async (req, res) => {
   if (targetId === String(req.session.user.id)) return redirectBack(req, res, { ok: false });
   const [user, target] = await Promise.all([
     User.findById(req.session.user.id),
-    User.findById(targetId).select('_id')
+    User.findById(targetId).select('_id blockedUsers')
   ]);
   if (!user || !target) return redirectBack(req, res, { ok: false });
+  if (target.blockedUsers.some((id) => String(id) === String(user._id))) return redirectBack(req, res, { ok: false });
   const alreadyFollowing = user.following.some((id) => String(id) === targetId);
   if (alreadyFollowing) {
     user.following.pull(targetId);

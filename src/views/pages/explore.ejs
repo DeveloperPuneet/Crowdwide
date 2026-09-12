@@ -6,27 +6,83 @@
 		<p class="eyebrow">Find your people</p>
 		<h1>There is a community<br><em>for your kind of curious.</em></h1>
 		<form class="explore-search" method="get" action="/explore">
-			<input name="q" value="<%= query %>" placeholder="Search communities">
+			<input name="q" value="<%= query %>" placeholder="Search communities or #hashtags">
 			<select name="category"><option value="">All categories</option><% categories.forEach((item) => { %><option value="<%= item %>" <%= category === item ? 'selected' : '' %>><%= item %></option><% }) %></select>
 			<button class="button button-primary" type="submit">Search <span>⌕</span></button>
 		</form>
 	</section>
-	<section class="explore-grid">
-		<% if (!communities.length) { %>
-		<div class="empty-feed">
-			<h2>No communities found yet.</h2>
-			<p><%= query || category ? 'Try a different search.' : 'Be the first to create a space around your interest.' %></p>
-			<a class="button button-primary button-small" href="/dashboard#communities">Create a community <span>+</span></a>
+
+	<% if (!isBrowsing) { %>
+	<% if (viralPosts.length) { %>
+	<section class="explore-section">
+		<div class="panel-heading"><h2>Viral right now</h2><span>Most liked</span></div>
+		<div class="explore-viral-grid">
+			<% viralPosts.forEach((post) => { %>
+			<a class="viral-card" href="/posts/<%= post._id %>">
+				<div class="post-meta"><%- include('../partials/avatar', { person: post.author, size: 'tiny', link: false }) %><div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %></strong></div></div>
+				<p><%= (post.body || '').slice(0, 140) %><%= (post.body || '').length > 140 ? '…' : '' %></p>
+				<span class="viral-likes">♥ <%= post.likesTotal %></span>
+			</a>
+			<% }) %>
 		</div>
-		<% } %>
-		<% communities.forEach((community) => { %>
-		<a class="community-card" href="/communities/<%= community.slug %>">
-			<div class="community-card-top"><span class="community-glyph">✦</span><span class="community-category"><%= community.category || 'general' %></span></div>
-			<h2><%= community.name %></h2>
-			<p><%= community.description %></p>
-			<footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span><%= community.isPrivate ? 'Request to join' : 'Open to join' %> ↗</span></footer>
-		</a>
-		<% }) %>
+	</section>
+	<% } %>
+
+	<% if (popularPeople.length || newPeople.length) { %>
+	<section class="explore-section">
+		<div class="explore-people-cols">
+			<% if (popularPeople.length) { %>
+			<div class="discover-panel">
+				<div class="panel-heading"><h2>Popular people</h2><span>Most followed</span></div>
+				<% popularPeople.forEach((person) => { %>
+				<div class="discover-row">
+					<%- include('../partials/avatar', { person, size: 'tiny' }) %>
+					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.followers %> follower<%= person.followers === 1 ? '' : 's' %></span></div>
+					<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>">+</button></form>
+				</div>
+				<% }) %>
+			</div>
+			<% } %>
+			<% if (newPeople.length) { %>
+			<div class="discover-panel">
+				<div class="panel-heading"><h2>New on Crowdwide</h2><span>Just joined</span></div>
+				<% newPeople.forEach((person) => { %>
+				<div class="discover-row">
+					<%- include('../partials/avatar', { person, size: 'tiny' }) %>
+					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.bio || 'New voice on Crowdwide' %></span></div>
+					<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>">+</button></form>
+				</div>
+				<% }) %>
+			</div>
+			<% } %>
+		</div>
+	</section>
+	<% } %>
+	<% } %>
+
+	<section class="explore-section">
+		<div class="panel-heading"><h2><%= isBrowsing ? 'Search results' : 'Communities' %></h2><span><%= communities.length %></span></div>
+		<div class="explore-grid">
+			<% if (!communities.length) { %>
+			<div class="empty-feed">
+				<h2>No communities found yet.</h2>
+				<p><%= query || category ? 'Try a different search.' : 'Be the first to create a space around your interest.' %></p>
+				<a class="button button-primary button-small" href="/dashboard#communities">Create a community <span>+</span></a>
+			</div>
+			<% } %>
+			<% communities.forEach((community) => { %>
+			<a class="community-card" href="/communities/<%= community.slug %>">
+				<div class="community-card-top">
+					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph">✦</span><% } %>
+					<span class="community-category"><%= community.category || 'general' %></span>
+				</div>
+				<h2><%= community.name %></h2>
+				<p><%= community.description %></p>
+				<% if ((community.hashtags || []).length) { %><div class="hashtag-row"><% community.hashtags.slice(0, 3).forEach((tag) => { %><span class="hashtag-chip">#<%= tag %></span><% }) %></div><% } %>
+				<footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span><%= community.isPrivate ? 'Request to join' : 'Open to join' %> ↗</span></footer>
+			</a>
+			<% }) %>
+		</div>
 	</section>
 </main>
 <%- include('../partials/app-footer') %>

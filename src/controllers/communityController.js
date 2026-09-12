@@ -181,6 +181,8 @@ exports.removeMember = async (req, res) => {
     return res.redirect(`/communities/${req.community._id}/manage`);
   }
   req.community.members.pull(memberId);
+  req.community.moderators.pull(memberId);
+  req.community.memberRoles = req.community.memberRoles.filter((entry) => String(entry.user) !== String(memberId));
   req.community.membersCount = req.community.members.length;
   await req.community.save();
   await User.findByIdAndUpdate(memberId, { $pull: { joinedCommunities: req.community._id } });

@@ -42,11 +42,13 @@ Community creators are stored as owners and can edit community details, view rec
 
 ## Community discovery and moderation
 
-Authenticated users can browse `/explore`, search by name or description, filter by category, and open `/communities/:slug` detail pages. Communities can be open or private. Open communities accept members immediately; private communities create a request for the owner or moderator to approve. Owners can edit category and privacy, maintain a banned-word list, approve or reject requests, assign moderators, remove members, and review recent posts. Posts addressed to a community require membership and are checked against that community's banned words.
+`/explore` is a discovery hub, not just a community list: alongside the searchable, category- and hashtag-filterable community grid, it surfaces viral posts, popular people, and newly joined members. Communities have their own hashtags, an optional banner (under 2MB) and profile picture (under 1.5MB), and public guidelines shown on their `/communities/:slug` page along with a public member list (owner/moderator/member roles visible to everyone).
+
+Communities can be open or private. Open communities accept members immediately; private communities create a join request that the owner or a moderator must approve - this is the only difference in the join flow. Owners can edit details, hashtags, and guidelines; maintain a banned-word list; toggle "review posts before they appear" (new posts to that community land in a pending queue moderators/owners approve or reject from the manage page); add moderators by username or email (adding them as a member automatically if needed); and remove members. Posts addressed to a community require membership and are checked against that community's banned words.
 
 ## Social interactions and security
 
-Likes, bookmarks, comments, nested replies, share counters, and notifications are stored in MongoDB. Shared posts resolve at `/posts/:id`. Helmet security headers, CSRF tokens, authentication rate limits, interaction rate limits, five-attempt login lockouts, 75-day device records, and new-device email alerts are enabled. Users can configure TOTP two-factor authentication at `/settings/security/2fa`.
+Likes, bookmarks, nested/threaded comments (with reply-to-reply), share counters, hashtags, and notifications are stored in MongoDB. Posts and communities support `#hashtags`, searchable from `/search?q=%23tag` or by typing `#tag` in the search box. Users can follow/unfollow and block/unblock each other; blocking removes any follow relationship and filters the blocked account's posts, comments, and notifications out of your feed and search results. A profile's Followers and Following counts open a dedicated page (`/u/:id/followers`, `/u/:id/following`) with suggestions. Helmet security headers, CSRF tokens, authentication rate limits, interaction rate limits, five-attempt login lockouts, 75-day device records, and new-device email alerts are enabled. Users can configure TOTP two-factor authentication at `/settings/security/2fa`, which issues eight one-time recovery codes (downloadable as a .txt file) for signing in if the authenticator app is unavailable; codes can be regenerated at any time with a password confirmation.
 
 ## Extended media storage (multi-cluster MongoDB)
 
@@ -62,7 +64,7 @@ Post creation accepts up to two media files in one submission. The browser lazil
 
 ## Profiles, following, and search
 
-Every author name and avatar across the app links to a public profile at `/u/:id`, showing bio, join date, post count, followers/following counts, and that user's posts. Users can follow or unfollow each other from a profile page or the "People to follow" panel; following is reflected immediately (AJAX) and factored into the home feed, which reserves slots for posts from people you follow alongside new voices and larger communities - so growing accounts and new communities are not permanently buried under popularity. `/search?q=` searches people, communities, and post text in one place and is wired to the header search box and the mobile menu on every page.
+Every author name and avatar across the app links to a public profile at `/u/:id`, showing a banner image, bio, up to four custom links, join date, post count, followers/following counts, and that user's posts. Viewing your own profile shows an additional "Recent activity" feed (your latest likes and comments) and a "People to follow" panel, Twitter-style. Users can follow, unfollow, or block each other; following/blocking are reflected immediately (AJAX). The home feed mixes posts from people you follow, a second-degree "extended network" (people your follows follow, and people who follow your followers), new voices and communities, and larger communities - so growing accounts and new communities are not permanently buried under popularity, and the feed lazy-loads further posts as you scroll. `/search?q=` searches people, communities, hashtags, and post text in one place and is wired to the header search box and the mobile menu on every page.
 
 ## Auth flow
 
@@ -87,10 +89,12 @@ The mailer uses Gmail OAuth2 through Nodemailer, so no Gmail password or less-se
 - `/auth/verify` email verification
 - `/auth/forgot-password` password reset request
 - `/auth/reset?token=...` password reset
-- `/dashboard` protected app entry
-- `/explore` community directory with search + category filter
-- `/communities/:slug` community detail; `/communities/:id/manage` owner controls
-- `/u/:id` public profile with follow/unfollow
-- `/search?q=` search across people, communities, and posts
-- `/posts/:id` post detail (public preview when logged out, full interactions when logged in)
-- `/notifications`, `/settings/:section`
+- `/dashboard` protected app entry (`/dashboard/feed/more` powers lazy-loaded scrolling)
+- `/explore` discovery hub: communities, viral posts, popular and new people
+- `/communities/:slug` community detail; `/communities/:id/manage` owner/moderator controls
+- `/u/:id` public profile with follow/unfollow/block; `/u/:id/followers`, `/u/:id/following`
+- `/search?q=` search across people, communities, hashtags, and posts
+- `/posts/:id` post detail with nested threaded comments (public preview when logged out, full interactions when logged in)
+- `/notifications`, `/settings/:section` (`/settings/security/2fa/recovery-codes` shows one-time recovery codes)
+- `/guide` tips for growing a profile, a community, and staying secure
+- `/about`, `/privacy`, `/terms`, `/community-guidelines`, `/accessibility`, `/contact`

@@ -2,23 +2,52 @@
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="owner-layout">
+	<% if (community.coverImage) { %><div class="profile-banner" style="margin-bottom:26px;"><img src="<%= community.coverImage %>" alt=""></div><% } %>
 	<section class="owner-hero">
 		<p class="eyebrow">Community owner dashboard</p>
-		<h1><%= community.name %></h1>
+		<div style="display:flex;align-items:center;gap:14px;">
+			<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:56px;height:56px;border-radius:14px;object-fit:cover;"><% } %>
+			<h1 style="margin:0;"><%= community.name %></h1>
+		</div>
 		<p><%= community.description %></p>
 		<span class="owner-stat"><strong><%= community.membersCount %></strong> members</span>
+		<a href="/communities/<%= community.slug %>" class="settings-link" style="display:inline-block;margin-left:16px;">View public page →</a>
 	</section>
 	<section class="owner-grid">
-		<form class="settings-block" method="post" action="/communities/<%= community._id %>/manage">
+		<form class="settings-block" method="post" action="/communities/<%= community._id %>/manage" enctype="multipart/form-data">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<h2>Community details</h2>
+			<label>Community picture (pfp)<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover;margin-bottom:6px;"><% } %><input type="file" name="avatarImage" accept="image/*"><small>Up to 1.5MB.</small></label>
+			<label>Community banner<% if (community.coverImage) { %><img src="<%= community.coverImage %>" alt="" style="width:100%;max-width:360px;height:90px;object-fit:cover;border-radius:10px;margin-bottom:6px;"><% } %><input type="file" name="bannerImage" accept="image/*"><small>Up to 2MB.</small></label>
 			<label>Name<input name="name" value="<%= community.name %>" required></label>
 			<label>Description<textarea name="description" maxlength="280" required><%= community.description %></textarea></label>
 			<label>Category<input name="category" value="<%= community.category || 'general' %>" required></label>
-			<label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community</label>
+			<label>Hashtags<input name="hashtags" value="<%= (community.hashtags || []).join(', ') %>" placeholder="woodworking, diy, makers"><small>Comma separated - helps people find this community.</small></label>
+			<label>Community guidelines<textarea name="guidelines" maxlength="4000" placeholder="What's expected from members here?"><%= community.guidelines || '' %></textarea></label>
+			<label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community <small>(new members must be approved to join)</small></label>
+			<label class="privacy-check"><input type="checkbox" name="requireApproval" <%= community.requireApproval ? 'checked' : '' %>> Review posts before they appear <small>(moderation queue below)</small></label>
 			<label>Banned words<input name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>" placeholder="word, phrase"></label>
 			<button class="button button-primary button-small" type="submit">Save controls <span>↗</span></button>
 		</form>
+
+		<% if (community.requireApproval) { %>
+		<section class="settings-block">
+			<h2>Posts awaiting review</h2>
+			<% if (!pendingPosts.length) { %><p>Nothing waiting for review.</p><% } %>
+			<% pendingPosts.forEach((post) => { %>
+			<div style="border-top:1px solid var(--line);padding:14px 0;">
+				<strong style="font-size:12px;"><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Member' %></a></strong>
+				<p style="color:#d7d8e2;font-size:13px;margin:8px 0;"><%= post.body %></p>
+				<form method="post" action="/communities/<%= community._id %>/posts/<%= post._id %>/review" style="display:flex;gap:8px;">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<button class="button button-small button-primary" name="decision" value="approve" type="submit">Approve</button>
+					<button class="button button-small button-danger" name="decision" value="reject" type="submit">Reject</button>
+				</form>
+			</div>
+			<% }) %>
+		</section>
+		<% } %>
+
 		<section class="settings-block">
 			<h2>Join requests</h2>
 			<% if (!requests.length) { %><p>No pending requests.</p><% } %>
@@ -30,6 +59,18 @@
 			</div>
 			<% }) %>
 		</section>
+
+		<section class="settings-block">
+			<div class="settings-block-heading"><h2>Moderators</h2></div>
+			<p>Add a trusted member as a moderator by their username or email. If they are not a member yet, they'll be added to the community.</p>
+			<form method="post" action="/communities/<%= community._id %>/moderators" style="display:flex;gap:8px;margin:10px 0 16px;">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<input name="identifier" placeholder="Username or email" required>
+				<button class="button button-small button-dark" type="submit">Add moderator</button>
+			</form>
+			<% moderators.forEach((mod) => { %><div class="device-row"><span class="device-icon">✦</span><div><strong><%= mod.name %></strong><span><%= mod.email %></span></div></div><% }) %>
+		</section>
+
 		<section class="settings-block">
 			<h2>Members & roles</h2>
 			<% members.forEach((member) => { %>

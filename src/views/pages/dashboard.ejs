@@ -15,7 +15,7 @@
 			<a href="/notifications">&#128276; <span>Notifications</span></a>
 			<a href="#people">♧ <span>People to follow</span></a>
 		</nav>
-		<div class="sidebar-note"><span>✦</span><p><strong>Make room for new voices.</strong><br>Every follow shapes your Crowdwide.</p></div>
+		<div class="sidebar-note"><span>✦</span><p><strong>Make room for new voices.</strong><br>Every follow shapes your Crowdwide.<br><a href="/guide" style="color:#8da0ff;">Read tips to grow →</a></p></div>
 	</aside>
 	<section class="feed-column">
 		<div class="feed-heading">
@@ -48,35 +48,15 @@
 			<a class="button button-dark button-small" href="/explore">Explore communities <span>↗</span></a>
 		</section>
 		<% } %>
+		<div id="feed-posts">
 		<% feed.posts.forEach((post) => { %>
-		<article class="post-card" id="post-<%= post._id %>">
-			<div class="post-meta">
-				<%- include('../partials/avatar', { person: post.author, size: 'small' }) %>
-				<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %></span></div>
-				<span class="post-source"><%= post.feedSource || 'From your communities' %></span>
-			</div>
-			<p class="post-body"><%= post.body %></p>
-			<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
-			<% if ((post.media || []).length) { %>
-			<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
-				<% post.media.forEach((media) => { %>
-				<div class="post-media-frame">
-					<% if (media.kind === 'image') { %><img src="<%= media.thumbnailUrl || media.url %>" alt="<%= media.alt || 'Post image' %>" loading="lazy">
-					<% } else if (media.kind === 'video') { %><video controls preload="none" src="<%= media.url %>"></video>
-					<% } else if (media.kind === 'audio') { %><audio controls preload="none" src="<%= media.url %>"></audio><% } %>
-				</div>
-				<% }) %>
-			</div>
-			<% } %>
-			<div class="post-actions">
-				<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.liked ? '♥' : '♡' %> <%= post.likes?.length || 0 %></button></form>
-				<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.bookmarked ? '▣ Saved' : '▱ Save' %></button></form>
-				<form method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">↗ Share <%= post.sharesCount || 0 %></button></form>
-				<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;text-decoration:none;">◌ <%= post.commentsCount || 0 %></a>
-			</div>
-			<form class="comment-form" method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
-		</article>
+			<%- include('../partials/post-card', { post, csrfToken }) %>
 		<% }) %>
+		</div>
+		<% if (feed.posts.length) { %>
+		<div id="feed-sentinel" data-feed-mode="<%= feed.label === 'Personalized feed' ? 'personalized' : 'normal' %>" data-cursor="<%= feed.posts[feed.posts.length - 1].createdAt.toISOString ? feed.posts[feed.posts.length - 1].createdAt.toISOString() : feed.posts[feed.posts.length - 1].createdAt %>"></div>
+		<p id="feed-end-note" class="upload-help" style="display:none;text-align:center;padding:18px 0;">You're all caught up.</p>
+		<% } %>
 	</section>
 	<aside class="discover-column" id="explore">
 		<section class="discover-panel" id="communities">

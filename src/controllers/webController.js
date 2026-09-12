@@ -198,19 +198,36 @@ exports.createCommunity = async (req, res) => {
 };
 
 exports.profile = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name email bio profilePicture privacy createdAt isVerified following').lean();
+	const profileUser = await User.findById(req.params.id).select('name email bio links profilePicture bannerImage privacy createdAt isVerified following').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
 	const viewerId = req.session.user.id;
 	const isSelf = String(profileUser._id) === String(viewerId);
+	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published' };
 	const [posts, followersCount, viewer, postCount] = await Promise.all([
-		Post.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
+		Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
-		User.findById(viewerId).select('following bookmarks').lean(),
-		Post.countDocuments({ author: profileUser._id })
+		User.findById(viewerId).select('following bookmarks blockedUsers').lean(),
+		Post.countDocuments({ author: profileUser._id, status: 'published' })
 	]);
 	const populatedPosts = (await Post.populate(posts, { path: 'author', select: 'name profilePicture' }));
 	const bookmarked = (viewer?.bookmarks || []).map(String);
 	const posts_ = populatedPosts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) }));
+
+	let activity = [];
+	let suggestions = [];
+	if (isSelf) {
+		const [likedPosts, myComments, followingIds] = await Promise.all([
+			Post.find({ likes: profileUser._id, status: 'published' }).sort({ updatedAt: -1 }).limit(6).populate('author', 'name profilePicture').lean(),
+			Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(6).populate('post', 'body author').lean(),
+			Promise.resolve((viewer?.following || []).map(String))
+		]);
+		activity = [
+			...likedPosts.map((post) => ({ kind: 'like', post, at: post.updatedAt })),
+			...myComments.filter((comment) => comment.post).map((comment) => ({ kind: 'comment', comment, at: comment.createdAt }))
+		].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 6);
+		suggestions = await getPopularPeople(5, [...followingIds, profileUser._id]);
+	}
+
 	res.render('pages/profile', {
 		title: `${profileUser.name} on Crowdwide`,
 		pagePath: `/u/${profileUser._id}`,
@@ -221,7 +238,10 @@ exports.profile = async (req, res) => {
 		followersCount,
 		followingCount: (profileUser.following || []).length,
 		isSelf,
-		isFollowing: !isSelf && (viewer?.following || []).some((id) => String(id) === String(profileUser._id))
+		isFollowing: !isSelf && (viewer?.following || []).some((id) => String(id) === String(profileUser._id)),
+		isBlocked: !isSelf && (viewer?.blockedUsers || []).some((id) => String(id) === String(profileUser._id)),
+		activity,
+		suggestions
 	});
 };
 
@@ -231,10 +251,11 @@ exports.search = async (req, res) => {
 	const tag = q.startsWith('#') ? q.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
 	const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(safe, 'i');
+	const viewer = await User.findById(req.session.user.id).select('blockedUsers').lean();
 	const [users, communities, posts] = await Promise.all([
-		tag ? Promise.resolve([]) : User.find({ name: regex, isVerified: true }).limit(10).select('name bio profilePicture').lean(),
+		tag ? Promise.resolve([]) : User.find({ name: regex, isVerified: true, _id: { $nin: viewer?.blockedUsers || [] } }).limit(10).select('name bio profilePicture').lean(),
 		Community.find(tag ? { hashtags: tag } : { $or: [{ name: regex }, { description: regex }, { hashtags: q.toLowerCase() }] }).limit(10).lean(),
-		Post.find({ status: 'published', ...(tag ? { hashtags: tag } : { body: regex }) }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+		Post.find({ status: 'published', author: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { body: regex }) }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
 	]);
 	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag });
 };
@@ -320,6 +341,27 @@ exports.guide = (req, res) => {
 		}
 	];
 	res.render('pages/guide', { title: 'Guide & tips', pagePath: '/guide', description: 'Practical tips for getting the most out of Crowdwide - growing a profile, growing a community, and staying secure.', topics });
+};
+
+exports.moreFeedPosts = async (req, res) => {
+	const user = await User.findById(req.session.user.id).select('joinedCommunities bookmarks blockedUsers').lean();
+	const before = new Date(req.query.before);
+	const cursor = Number.isNaN(before.getTime()) ? new Date() : before;
+	const mode = req.query.feed === 'personalized' ? 'personalized' : 'normal';
+	const blockedIds = (user.blockedUsers || []).map(String);
+	// Infinite scroll continues as a straight recency stream (not the
+	// weighted mix used for the first page) - simple, predictable, and cheap
+	// to paginate deep into the feed.
+	const filter = { status: 'published', createdAt: { $lt: cursor } };
+	if (mode === 'personalized') filter.community = { $in: user.joinedCommunities || [] };
+	const posts = await Post.find(filter).sort({ createdAt: -1 }).limit(10).lean();
+	const populated = (await populatePosts(posts)).filter((post) => !blockedIds.includes(String(post.author?._id)));
+	const bookmarked = (user.bookmarks || []).map(String);
+	const ready = populated.map((post) => ({ ...post, feedSource: 'Further back', liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
+	res.render('partials/post-cards-fragment', { posts: ready, csrfToken: res.locals.csrfToken }, (err, html) => {
+		if (err) return res.status(500).json({ error: 'Could not load more posts.' });
+		res.json({ html, done: posts.length < 10, cursor: posts.length ? posts[posts.length - 1].createdAt : null });
+	});
 };
 
 exports.infoPage = (req, res) => {

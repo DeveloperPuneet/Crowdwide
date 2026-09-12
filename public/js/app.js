@@ -193,3 +193,36 @@ document.querySelectorAll('form').forEach((form) => {
     }
   });
 });
+
+// Lazy-load / infinite scroll for the home feed.
+const feedSentinel = document.getElementById('feed-sentinel');
+if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
+  const feedList = document.getElementById('feed-posts');
+  const endNote = document.getElementById('feed-end-note');
+  let loading = false;
+  let done = false;
+  const observer = new IntersectionObserver((entries) => {
+    if (!entries[0].isIntersecting || loading || done) return;
+    loading = true;
+    const cursor = feedSentinel.dataset.cursor;
+    const mode = feedSentinel.dataset.feedMode;
+    window.axios.get(`/dashboard/feed/more?before=${encodeURIComponent(cursor)}&feed=${mode}`)
+      .then(({ data }) => {
+        if (data.html) {
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = data.html;
+          feedList.append(...wrapper.children);
+          Array.from(wrapper.querySelectorAll('.post-card img')).forEach((img) => { img.loading = 'lazy'; img.decoding = 'async'; });
+        }
+        if (data.cursor) feedSentinel.dataset.cursor = data.cursor;
+        if (data.done || !data.html) {
+          done = true;
+          observer.disconnect();
+          if (endNote) endNote.style.display = 'block';
+        }
+      })
+      .catch(() => { done = true; observer.disconnect(); })
+      .finally(() => { loading = false; });
+  }, { rootMargin: '400px' });
+  observer.observe(feedSentinel);
+}

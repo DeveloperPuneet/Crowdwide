@@ -1,12 +1,17 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="community-detail">
+<main class="profile-layout">
+<div>
+	<a class="back-link" href="/explore">← All communities</a>
+	<% if (community.coverImage) { %><div class="profile-banner"><img src="<%= community.coverImage %>" alt=""></div><% } %>
 	<section class="community-detail-hero">
-		<a class="back-link" href="/explore">← All communities</a>
-		<p class="eyebrow"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p>
-		<h1><%= community.name %></h1>
+		<div style="display:flex;align-items:center;gap:14px;">
+			<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:54px;height:54px;border-radius:14px;object-fit:cover;"><% } else { %><span class="community-glyph" style="width:54px;height:54px;font-size:20px;border-radius:14px;">✦</span><% } %>
+			<div><p class="eyebrow" style="margin:0 0 4px;"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p><h1 style="margin:0;"><%= community.name %></h1></div>
+		</div>
 		<p><%= community.description %></p>
+		<% if ((community.hashtags || []).length) { %><div class="hashtag-row"><% community.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<div class="community-detail-meta">
 			<span><strong><%= community.membersCount %></strong> members</span>
 			<span>Owner: <a class="name-link" href="/u/<%= community.owner?._id %>"><%= community.owner?.name || 'Crowdwide' %></a></span>
@@ -26,7 +31,7 @@
 		<article class="post-card">
 			<div class="post-meta">
 				<%- include('../partials/avatar', { person: post.author, size: 'small', link: false }) %>
-				<div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %></span></div>
+				<div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %><% if (moderatorIds.includes(String(post.author?._id))) { %> <span style="color:#ff9850;font-size:10px;">MOD</span><% } %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %></span></div>
 			</div>
 			<p class="post-body"><%= post.body %></p>
 			<% if ((post.media || [])[0]) { %><div class="post-media count-1"><div class="post-media-frame"><% if (post.media[0].kind === 'image') { %><img src="<%= post.media[0].thumbnailUrl || post.media[0].url %>" alt="" loading="lazy"><% } %></div></div><% } %>
@@ -34,6 +39,25 @@
 		</a>
 		<% }) %>
 	</section>
+</div>
+<aside class="discover-column">
+	<% if (community.guidelines) { %>
+	<section class="discover-panel">
+		<div class="panel-heading"><h2>About & guidelines</h2></div>
+		<p style="color:#9295aa;font-size:12px;line-height:1.7;white-space:pre-wrap;"><%= community.guidelines %></p>
+	</section>
+	<% } %>
+	<section class="discover-panel">
+		<div class="panel-heading"><h2>Members</h2><span><%= community.membersCount %></span></div>
+		<% members.slice(0, 12).forEach((member) => { %>
+		<div class="discover-row">
+			<%- include('../partials/avatar', { person: member, size: 'tiny' }) %>
+			<div><strong><a class="name-link" href="/u/<%= member._id %>"><%= member.name %></a></strong><span><%= String(member._id) === String(community.owner?._id) ? 'Owner' : moderatorIds.includes(String(member._id)) ? 'Moderator' : 'Member' %></span></div>
+		</div>
+		<% }) %>
+		<% if (members.length > 12) { %><p style="color:#777a91;font-size:11px;padding-top:10px;">+<%= members.length - 12 %> more members</p><% } %>
+	</section>
+</aside>
 </main>
 <%- include('../partials/app-footer') %>
 <%- include('../partials/foot') %>

@@ -1,8 +1,10 @@
 <%- include('../partials/head', { title, description: profileUser.bio, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="community-detail">
+<main class="<%= isSelf ? 'profile-layout' : 'community-detail' %>">
+	<div>
 	<a class="back-link" href="/dashboard">← Back to feed</a>
+	<% if (profileUser.bannerImage) { %><div class="profile-banner"><img src="<%= profileUser.bannerImage %>" alt=""></div><% } %>
 	<section class="profile-hero">
 		<div class="profile-hero-top">
 			<div class="profile-identity">
@@ -12,16 +14,27 @@
 					<p class="profile-handle">@<%= profileUser.email.split('@')[0] %></p>
 				</div>
 			</div>
-			<% if (isSelf) { %>
-			<a class="button button-ghost button-small" href="/settings/profile">Edit profile</a>
-			<% } else { %>
-			<form class="follow-form" data-user="<%= profileUser._id %>" method="post" action="/users/<%= profileUser._id %>/follow">
-				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-				<button class="follow-button <%= isFollowing ? 'is-following' : '' %>" type="submit"><%= isFollowing ? 'Following' : 'Follow' %></button>
-			</form>
-			<% } %>
+			<div class="profile-actions">
+				<% if (isSelf) { %>
+				<a class="button button-ghost button-small" href="/settings/profile">Edit profile</a>
+				<% } else { %>
+				<form class="follow-form" data-user="<%= profileUser._id %>" method="post" action="/users/<%= profileUser._id %>/follow">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<button class="follow-button <%= isFollowing ? 'is-following' : '' %>" type="submit"><%= isFollowing ? 'Following' : 'Follow' %></button>
+				</form>
+				<form class="block-form" method="post" action="/users/<%= profileUser._id %>/block">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<button class="block-button <%= isBlocked ? 'is-blocked' : '' %>" type="submit"><%= isBlocked ? 'Blocked' : 'Block' %></button>
+				</form>
+				<% } %>
+			</div>
 		</div>
 		<% if (profileUser.bio) { %><p class="profile-bio"><%= profileUser.bio %></p><% } %>
+		<% if ((profileUser.links || []).length) { %>
+		<div class="profile-links">
+			<% profileUser.links.forEach((link) => { %><a class="profile-link-chip" href="<%= link.url %>" target="_blank" rel="noopener noreferrer nofollow">🔗 <%= link.label %></a><% }) %>
+		</div>
+		<% } %>
 		<div class="profile-stats">
 			<span><strong><%= postCount %></strong> posts</span>
 			<a href="/u/<%= profileUser._id %>/followers" style="color:inherit;text-decoration:none;"><strong class="follower-count" data-user="<%= profileUser._id %>"><%= followersCount %></strong> followers</a>
@@ -29,6 +42,23 @@
 		</div>
 		<p class="profile-joined">Joined <%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) %></p>
 	</section>
+
+	<% if (isSelf && activity.length) { %>
+	<section class="community-posts activity-section">
+		<div class="panel-heading"><h2>Recent activity</h2><span>You</span></div>
+		<% activity.forEach((item) => { %>
+		<div class="activity-row">
+			<span class="activity-icon"><%= item.kind === 'like' ? '♥' : '◌' %></span>
+			<% if (item.kind === 'like') { %>
+			<p>You liked <a href="/posts/<%= item.post._id %>"><%= item.post.author?.name || 'a post' %>'s post</a><br><small><%= (item.post.body || '').slice(0, 90) %><%= (item.post.body || '').length > 90 ? '…' : '' %></small></p>
+			<% } else { %>
+			<p>You commented on <a href="/posts/<%= item.comment.post._id %>">a post</a><br><small>"<%= (item.comment.body || '').slice(0, 90) %><%= (item.comment.body || '').length > 90 ? '…' : '' %>"</small></p>
+			<% } %>
+		</div>
+		<% }) %>
+	</section>
+	<% } %>
+
 	<section class="community-posts">
 		<div class="panel-heading"><h2><%= isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= posts.length %></span></div>
 		<% if (!posts.length) { %>
@@ -36,8 +66,9 @@
 		<% } %>
 		<% posts.forEach((post) => { %>
 		<article class="post-card" id="post-<%= post._id %>">
-			<div class="post-meta"><div><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %></span></div></div>
+			<div class="post-meta"><div><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %><% if (post.status === 'pending') { %> · <b style="color:#ff9850;">Awaiting review</b><% } else if (post.status === 'rejected') { %> · <b style="color:#ff8a9d;">Not approved</b><% } %></span></div></div>
 			<p class="post-body"><%= post.body %></p>
+			<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 			<% if ((post.media || []).length) { %>
 			<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
 				<% post.media.forEach((media) => { %>
@@ -57,6 +88,24 @@
 		</article>
 		<% }) %>
 	</section>
+	</div>
+
+	<% if (isSelf) { %>
+	<aside class="discover-column">
+		<section class="discover-panel">
+			<div class="panel-heading"><h2>People to follow</h2><span>Popular</span></div>
+			<% if (!suggestions.length) { %><p style="color:#777a91;font-size:12px;padding:10px 0;">Follow a few people to see suggestions here.</p><% } %>
+			<% suggestions.forEach((person) => { %>
+			<div class="discover-row">
+				<%- include('../partials/avatar', { person, size: 'tiny' }) %>
+				<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.followers %> follower<%= person.followers === 1 ? '' : 's' %></span></div>
+				<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>">+</button></form>
+			</div>
+			<% }) %>
+		</section>
+		<a class="settings-link" href="/explore">Explore Crowdwide →</a>
+	</aside>
+	<% } %>
 </main>
 <%- include('../partials/app-footer') %>
 <%- include('../partials/foot') %>

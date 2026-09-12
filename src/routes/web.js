@@ -11,6 +11,7 @@ const twoFactorController = require('../controllers/twoFactorController');
 router.get('/', controller.home);
 router.get('/health', controller.health);
 router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
+router.get('/dashboard/feed/more', requireAuth, requireVerified, controller.moreFeedPosts);
 router.get('/media/signed-upload', requireAuth, requireVerified, controller.signedUpload);
 router.get('/media/status', requireAuth, requireVerified, controller.mediaStatus);
 router.get('/media/:cluster/:id', controller.media);
