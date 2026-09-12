@@ -55,6 +55,7 @@ router.get('/users/suggest', requireAuth, requireVerified, controller.userSugges
 router.get('/u/:id', requireAuth, requireVerified, controller.profile);
 router.post('/users/:id/follow', requireAuth, requireVerified, interactionLimiter, interactionController.toggleFollow);
 router.post('/users/:id/block', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBlock);
+router.post('/users/:id/mute', requireAuth, requireVerified, interactionLimiter, interactionController.toggleMute);
 router.get('/u/:id/followers', requireAuth, requireVerified, controller.followersPage);
 router.get('/u/:id/following', requireAuth, requireVerified, controller.followingPage);
 router.get('/communities/:slug', requireAuth, requireVerified, communityController.detail);

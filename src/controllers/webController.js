@@ -136,6 +136,7 @@ exports.dashboard = async (req, res) => {
 		const mode = req.query.feed === 'personalized' ? 'personalized' : 'normal';
 		const followingIds = (user.following || []).map(String);
 		const blockedIds = (user.blockedUsers || []).map(String);
+		const mutedIds = (user.mutedUsers || []).map(String);
 		const [feed, communities, people, viralPosts] = await Promise.all([
 			buildFeed(user, mode),
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
@@ -144,7 +145,7 @@ exports.dashboard = async (req, res) => {
 		]);
 		const bookmarked = (user.bookmarks || []).map(String);
 		feed.posts = feed.posts
-			.filter((post) => !blockedIds.includes(String(post.author?._id)))
+			.filter((post) => !blockedIds.includes(String(post.author?._id)) && !mutedIds.includes(String(post.author?._id)))
 			.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
 		const viralIds = new Set(viralPosts.map((post) => String(post._id)));
 		const [latestPosts, latestArticles] = await Promise.all(['post', 'article'].map(async (type) => {
@@ -152,7 +153,7 @@ exports.dashboard = async (req, res) => {
 			return populatePosts(posts);
 		}));
 		const decorateTabPosts = (posts) => posts
-			.filter((post) => !blockedIds.includes(String(post.author?._id)))
+			.filter((post) => !blockedIds.includes(String(post.author?._id)) && !mutedIds.includes(String(post.author?._id)))
 			.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
 		const decoratedLatestPosts = decorateTabPosts(latestPosts);
 		const decoratedLatestArticles = decorateTabPosts(latestArticles);
@@ -301,7 +302,7 @@ exports.profile = async (req, res) => {
 	const [posts, followersCount, viewer, postCount, likedPosts, comments] = await Promise.all([
 		Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
-		User.findById(viewerId).select('following bookmarks blockedUsers').lean(),
+		User.findById(viewerId).select('following bookmarks blockedUsers mutedUsers').lean(),
 		Post.countDocuments({ author: profileUser._id, status: 'published' }),
 		Post.find({ likes: profileUser._id, status: 'published' }).sort({ updatedAt: -1 }).limit(30).populate('community', 'name slug').lean(),
 		Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt', populate: { path: 'author', select: 'name' } }).lean()
@@ -347,6 +348,7 @@ exports.profile = async (req, res) => {
 		isFollowing: !isSelf && (viewer?.following || []).some((id) => String(id) === String(profileUser._id)),
 		isFollowingBack: !isSelf && (profileUser.following || []).some((id) => String(id) === String(viewerId)),
 		isBlocked: !isSelf && (viewer?.blockedUsers || []).some((id) => String(id) === String(profileUser._id)),
+		isMuted: !isSelf && (viewer?.mutedUsers || []).some((id) => String(id) === String(profileUser._id)),
 		activity,
 		suggestions
 	});
@@ -368,7 +370,7 @@ exports.search = async (req, res) => {
 	const tag = q.startsWith('#') ? q.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
 	const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(safe, 'i');
-	const viewer = await User.findById(req.session.user.id).select('blockedUsers').lean();
+	const viewer = await User.findById(req.session.user.id).select('blockedUsers mutedUsers').lean();
 	const postFilter = { status: 'published', author: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { body: regex }) };
 	if (filters.type) postFilter.type = filters.type;
 	if (filters.community) postFilter.community = filters.community;
@@ -379,9 +381,9 @@ exports.search = async (req, res) => {
 	if (Object.keys(createdAt).length) postFilter.createdAt = createdAt;
 	const postSort = filters.sort === 'oldest' ? { createdAt: 1 } : filters.sort === 'popular' ? { likes: -1, commentsCount: -1, createdAt: -1 } : { createdAt: -1 };
 	const [users, communities, posts] = await Promise.all([
-		User.find({ isVerified: true, _id: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { $or: [{ name: regex }, { bio: regex }, { hashtags: q.toLowerCase() }] }) }).limit(10).select('name bio hashtags profilePicture').lean(),
+		User.find({ isVerified: true, _id: { $nin: [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])] }, ...(tag ? { hashtags: tag } : { $or: [{ name: regex }, { bio: regex }, { hashtags: q.toLowerCase() }] }) }).limit(10).select('name bio hashtags profilePicture').lean(),
 		Community.find(tag ? { hashtags: tag } : { $or: [{ name: regex }, { description: regex }, { hashtags: q.toLowerCase() }] }).limit(10).lean(),
-		Post.find(postFilter).sort(postSort).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+		Post.find({ ...postFilter, author: { $nin: [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])] } }).sort(postSort).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
 	]);
 	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches: trendingHashtags, communityOptions, filters });
 };
@@ -486,11 +488,11 @@ exports.guide = (req, res) => {
 };
 
 exports.moreFeedPosts = async (req, res) => {
-	const user = await User.findById(req.session.user.id).select('joinedCommunities bookmarks blockedUsers').lean();
+	const user = await User.findById(req.session.user.id).select('joinedCommunities bookmarks blockedUsers mutedUsers').lean();
 	const before = new Date(req.query.before);
 	const cursor = Number.isNaN(before.getTime()) ? new Date() : before;
 	const mode = req.query.feed === 'personalized' ? 'personalized' : 'normal';
-	const blockedIds = (user.blockedUsers || []).map(String);
+	const blockedIds = [...(user.blockedUsers || []), ...(user.mutedUsers || [])].map(String);
 	// Infinite scroll continues as a straight recency stream (not the
 	// weighted mix used for the first page) - simple, predictable, and cheap
 	// to paginate deep into the feed.

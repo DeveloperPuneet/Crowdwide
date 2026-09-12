@@ -230,13 +230,13 @@ exports.commentThread = async (req, res) => {
 };
 
 exports.notifications = async (req, res) => {
-  const viewer = await User.findById(req.session.user.id).select('blockedUsers').lean();
+  const viewer = await User.findById(req.session.user.id).select('blockedUsers mutedUsers').lean();
   const [notificationsRaw, unread] = await Promise.all([
     Notification.find({ recipient: req.session.user.id }).sort({ createdAt: -1 }).limit(50).populate('actor', 'name profilePicture').lean(),
     Notification.countDocuments({ recipient: req.session.user.id, readAt: null })
   ]);
-  const blockedIds = (viewer?.blockedUsers || []).map(String);
-  const visibleNotifications = notificationsRaw.filter((notification) => !notification.actor || !blockedIds.includes(String(notification.actor._id)));
+  const hiddenIds = [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])].map(String);
+  const visibleNotifications = notificationsRaw.filter((notification) => !notification.actor || !hiddenIds.includes(String(notification.actor._id)));
   const grouped = new Map();
   visibleNotifications.forEach((notification) => {
     const key = [notification.type, notification.post || '', notification.community || ''].join(':');
@@ -321,6 +321,19 @@ exports.toggleBlock = async (req, res) => {
   }
   await user.save();
   redirectBack(req, res, { blocked: !alreadyBlocked });
+};
+
+exports.toggleMute = async (req, res) => {
+  const targetId = req.params.id;
+  if (targetId === String(req.session.user.id)) return redirectBack(req, res, { ok: false });
+  const user = await User.findById(req.session.user.id);
+  const target = await User.exists({ _id: targetId });
+  if (!user || !target) return redirectBack(req, res, { ok: false });
+  const alreadyMuted = (user.mutedUsers || []).some((id) => String(id) === targetId);
+  if (alreadyMuted) user.mutedUsers.pull(targetId);
+  else user.mutedUsers.addToSet(targetId);
+  await user.save();
+  redirectBack(req, res, { muted: !alreadyMuted });
 };
 
 exports.toggleFollow = async (req, res) => {

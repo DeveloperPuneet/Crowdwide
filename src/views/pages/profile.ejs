@@ -27,6 +27,7 @@
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 					<button class="block-button <%= isBlocked ? 'is-blocked' : '' %>" type="submit"><%= isBlocked ? 'Blocked' : 'Block' %></button>
 				</form>
+				<form class="mute-form" data-user="<%= profileUser._id %>" method="post" action="/users/<%= profileUser._id %>/mute"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="mute-button <%= isMuted ? 'is-muted' : '' %>" type="submit"><%= isMuted ? 'Unmute' : 'Mute' %></button></form>
 				<% if (!isBlocked) { %><a class="button button-ghost button-small" href="/messages/<%= profileUser._id %>">Message</a><% } %>
 				<% } %>
 			</div>

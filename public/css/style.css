@@ -93,6 +93,8 @@ a.avatar-link { display: inline-flex; }
 .follow-button:hover { background: #586aff; border-color: #586aff; color: #fff; }
 .follow-button.is-following { background: #171a30; border-color: var(--line); color: #85889e; }
 .follow-button.is-following:hover { background: #4a1f2e; border-color: #914d63; color: #ffb0bf; }
+.mute-button { border: 1px solid #3b4269; background: transparent; color: #cfd3ff; border-radius: 999px; padding: 7px 16px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.mute-button:hover, .mute-button.is-muted { background: #252b58; border-color: #586aff; color: #fff; }
 .joined-mark { margin-left: auto; color: #5ad99a !important; font-size: 10px !important; }
 input, textarea, select {
   border: 1px solid #32354e; border-radius: 8px; background: #0d1020; color: #fff;

@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema({
   },
   bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  mutedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorSecret: String,
   recoveryCodes: [recoveryCodeSchema],

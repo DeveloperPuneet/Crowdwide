@@ -297,7 +297,7 @@ document.addEventListener('click', (event) => {
   if (!event.target.closest('.share-form')) closeShareMenus();
 });
 
-const asyncInteractionSelector = '.post-actions form, .follow-form, .block-form, [data-async-interaction]';
+const asyncInteractionSelector = '.post-actions form, .follow-form, .block-form, .mute-form, [data-async-interaction]';
 const showInteractionMessage = (form, text, error = false) => {
   form.parentElement.querySelector('.interaction-message')?.remove();
   const message = document.createElement('span');
@@ -350,6 +350,10 @@ document.addEventListener('submit', async (event) => {
     if (data.blocked !== undefined) {
       button.classList.toggle('is-blocked', data.blocked);
       button.textContent = data.blocked ? 'Blocked' : 'Block';
+    }
+    if (data.muted !== undefined) {
+      button.classList.toggle('is-muted', data.muted);
+      button.textContent = data.muted ? 'Unmute' : 'Mute';
     }
     if (data.voted !== undefined) {
       form.closest('.post-poll')?.querySelectorAll('button').forEach((option) => { option.disabled = true; });

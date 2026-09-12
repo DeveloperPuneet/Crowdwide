@@ -12,11 +12,12 @@
 - Direct messages, group conversations, notification preferences/grouping, mention notifications, and security notifications.
 - Feed discovery, personalized feeds, viral/new tabs, trending hashtags, recommendations, search filters, RSS, and `/api/v1/posts`.
 - Production indexes, centralized error handling, database-aware health checks, and scheduled publication worker.
+- User mute/unmute controls applied to feeds, search, notifications, and profile actions.
 
 ## Next Priorities
 
 1. Add browser push notifications with an explicit opt-in and service worker.
-2. Add profile/community mute controls and unanswered-post discovery.
+2. Add unanswered-post discovery.
 3. Add content warnings, link previews, richer article editing, and media captions/transcripts.
 4. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
 5. Add automated route/permission/upload tests and end-to-end signup/posting tests.
