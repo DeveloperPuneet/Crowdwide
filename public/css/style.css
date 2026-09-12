@@ -227,6 +227,12 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .info-sections h2 { font-size: 21px; letter-spacing: -.5px; margin: 30px 0 14px; }
 .info-sections p { color: #9295aa; font-size: 13px; line-height: 1.8; margin: 0; }
 .info-page .site-footer { margin-top: 0; }
+.guide-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 26px; }
+.guide-card { border-top: 1px solid var(--line); padding-top: 20px; }
+.guide-card h2 { font-size: 21px; letter-spacing: -.5px; margin: 26px 0 14px; }
+.guide-card ul { margin: 0; padding-left: 18px; display: grid; gap: 10px; }
+.guide-card li { color: #9295aa; font-size: 13px; line-height: 1.7; }
+.guide-card li::marker { color: var(--orange); }
 .two-factor-qr { display: block; width: 200px; height: 200px; margin: 6px auto 24px; border-radius: 10px; background: #fff; padding: 10px; }
 
 /* 5. App shell: header / sidebar / layout / footer -------------------------*/
@@ -329,6 +335,9 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .post-meta span { color: #777a91; font-size: 11px; display: block; margin-top: 3px; }
 .post-source { margin-left: auto !important; color: #f19855 !important; font-size: 10px !important; text-align: right; }
 .post-body { font-size: 15px; line-height: 1.7; color: #dedfe8; margin: 16px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.hashtag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 14px; }
+.hashtag-chip { display: inline-block; color: #8da0ff; background: #171a30; border: 1px solid #2c3050; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; }
+.hashtag-chip:hover { background: #232852; color: #fff; }
 
 /* Media: consistent aspect-ratio boxes so images/video never explode the layout */
 .post-media { display: grid; gap: 6px; margin: 14px 0; border-radius: 10px; overflow: hidden; }
@@ -367,9 +376,18 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .thread-comment { position: relative; padding: 14px 0 14px 18px; border-left: 1px solid #3a4167; }
 .thread-comment[data-depth="1"] { margin-left: 24px; border-left-color: #5d6cc1; }
 .thread-comment[data-depth="2"] { margin-left: 48px; border-left-color: #7e8dff; }
-.thread-comment strong { display: block; color: #f3f3f8; font-size: 12px; margin-bottom: 5px; }
+.thread-comment[data-depth="3"] { margin-left: 66px; border-left-color: #9aa4ff; }
+.thread-comment-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.thread-comment strong { display: block; color: #f3f3f8; font-size: 12px; }
 .thread-comment p { color: #b5b7c7; font-size: 13px; line-height: 1.6; margin: 0; }
 .thread-comment time { display: block; color: #6f748e; font-size: 10px; margin-top: 7px; }
+.thread-reply { margin-top: 8px; }
+.thread-reply summary { list-style: none; cursor: pointer; color: #8da0ff; font-size: 11px; font-weight: 600; display: inline-block; }
+.thread-reply summary::-webkit-details-marker { display: none; }
+.thread-reply[open] summary { margin-bottom: 8px; }
+.thread-reply form { display: flex; gap: 7px; }
+.thread-reply input { flex: 1; padding: 7px 9px; font-size: 11px; }
+.thread-reply button { background: #252b58; border: 0; color: #fff; border-radius: 8px; padding: 0 12px; font-size: 10px; }
 
 .public-post-cta { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
 .public-post-cta p { margin: 0; color: #9295aa; font-size: 13px; }

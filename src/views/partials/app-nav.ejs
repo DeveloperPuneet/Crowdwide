@@ -12,7 +12,7 @@
   </form>
   <div class="app-nav-actions">
     <a class="icon-button" href="/search" aria-label="Search">⌕</a>
-    <a class="notification-button" href="/notifications" aria-label="Notifications"><span>♢</span><b class="notification-badge" hidden>0</b></a>
+    <a class="notification-button" href="/notifications" aria-label="Notifications"><span>&#128276;</span><b class="notification-badge" hidden>0</b></a>
     <% if (locals.currentUser) { %><span class="welcome">Hey, <%= currentUser.name.split(' ')[0] %></span><% } %>
     <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false">☰</button>
   </div>
@@ -28,7 +28,7 @@
     <a href="/dashboard">◉ Home feed</a>
     <a href="/explore">◎ Explore</a>
     <a href="/explore">⌂ Communities</a>
-    <a href="/notifications">♢ Notifications</a>
+    <a href="/notifications">&#128276; Notifications</a>
     <% if (locals.currentUser) { %>
     <a href="/u/<%= currentUser.id %>">✦ Your profile</a>
     <a href="/settings/profile">⚙ Settings</a>

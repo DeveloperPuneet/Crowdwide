@@ -55,17 +55,31 @@ exports.share = async (req, res) => {
   res.json({ url: `${process.env.APP_URL || 'http://localhost:3000'}/posts/${req.params.id}`, shares: post?.sharesCount || 0 });
 };
 
+function buildCommentTree(comments) {
+  const byId = new Map(comments.map((comment) => [String(comment._id), { ...comment, children: [] }]));
+  const roots = [];
+  byId.forEach((comment) => {
+    if (comment.parent && byId.has(String(comment.parent))) {
+      byId.get(String(comment.parent)).children.push(comment);
+    } else {
+      roots.push(comment);
+    }
+  });
+  return roots;
+}
+
 exports.postDetail = async (req, res) => {
   const post = await Post.findById(req.params.id).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const comments = await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean();
+  const commentTree = buildCommentTree(comments);
   const viewerId = req.session.user?.id;
   if (viewerId) {
     const viewer = await User.findById(viewerId).select('bookmarks').lean();
     post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
     post.bookmarked = (viewer?.bookmarks || []).some((id) => String(id) === String(post._id));
   }
-  res.render('pages/post-detail', { title: `${post.author?.name || 'Crowdwide'} post`, pagePath: `/posts/${post._id}`, noIndex: false, post, comments });
+  res.render('pages/post-detail', { title: `${post.author?.name || 'Crowdwide'} post`, pagePath: `/posts/${post._id}`, noIndex: false, post, comments, commentTree });
 };
 
 exports.commentThread = async (req, res) => {
@@ -89,6 +103,22 @@ exports.unreadCount = async (req, res) => {
 exports.readNotifications = async (req, res) => {
   await Notification.updateMany({ recipient: req.session.user.id, readAt: null }, { readAt: new Date() });
   res.redirect('/notifications');
+};
+
+exports.toggleBlock = async (req, res) => {
+  const targetId = req.params.id;
+  if (targetId === String(req.session.user.id)) return redirectBack(req, res, { ok: false });
+  const user = await User.findById(req.session.user.id);
+  if (!user) return redirectBack(req, res, { ok: false });
+  const alreadyBlocked = user.blockedUsers.some((id) => String(id) === targetId);
+  if (alreadyBlocked) {
+    user.blockedUsers.pull(targetId);
+  } else {
+    user.blockedUsers.addToSet(targetId);
+    user.following.pull(targetId);
+  }
+  await user.save();
+  redirectBack(req, res, { blocked: !alreadyBlocked });
 };
 
 exports.toggleFollow = async (req, res) => {

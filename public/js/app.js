@@ -104,38 +104,6 @@ document.querySelectorAll('.feed-column .post-card').forEach((postCard) => {
   });
 });
 
-const publicPost = document.querySelector('.public-post');
-if (window.axios && publicPost) {
-  const postId = window.location.pathname.split('/').pop();
-  const thread = document.querySelector('.community-posts');
-  const renderThread = (comments) => {
-    if (!thread) return;
-    const heading = thread.querySelector('.panel-heading');
-    thread.replaceChildren(heading || document.createElement('div'));
-    if (heading) heading.querySelector('span').textContent = `${comments.length} replies`;
-    const byParent = comments.reduce((map, comment) => {
-      const key = comment.parent ? String(comment.parent) : 'root';
-      (map[key] ||= []).push(comment);
-      return map;
-    }, {});
-    const append = (items, depth = 0) => items.forEach((comment) => {
-      const node = document.createElement('article');
-      node.className = 'thread-comment';
-      node.dataset.depth = Math.min(depth, 2);
-      const author = document.createElement('strong');
-      author.textContent = comment.author?.name || 'Member';
-      const body = document.createElement('p');
-      body.textContent = comment.body;
-      const date = document.createElement('time');
-      date.textContent = new Date(comment.createdAt).toLocaleString();
-      node.append(author, body, date);
-      thread.append(node);
-      append(byParent[String(comment._id)] || [], depth + 1);
-    });
-    append(byParent.root || []);
-  };
-  window.axios.get(`/posts/${postId}/comments`).then(({ data }) => renderThread(data.comments)).catch(() => {});
-}
 document.querySelectorAll('.post-card video, .post-card audio').forEach((media) => {
   media.preload = 'none';
 });
@@ -158,7 +126,7 @@ if (window.axios) {
   window.setInterval(heartbeat, 13 * 60 * 1000);
 }
 
-document.querySelectorAll('.post-actions form, .comment-form, .follow-form').forEach((form) => {
+document.querySelectorAll('.post-actions form, .follow-form, .block-form').forEach((form) => {
   form.addEventListener('submit', async (event) => {
     if (!window.axios) return;
     event.preventDefault();
@@ -176,19 +144,9 @@ document.querySelectorAll('.post-actions form, .comment-form, .follow-form').for
         button.textContent = response.data.following ? 'Following' : 'Follow';
         document.querySelectorAll(`.follower-count[data-user="${form.dataset.user}"]`).forEach((el) => { el.textContent = response.data.followersCount; });
       }
-      if (response.data.comment) {
-        const thread = form.closest('.post-card')?.querySelector('.comment-thread') || (() => {
-          const created = document.createElement('div');
-          created.className = 'comment-thread';
-          form.before(created);
-          return created;
-        })();
-        const comment = document.createElement('div');
-        comment.className = 'comment';
-        comment.innerHTML = `<strong>You</strong><span></span>`;
-        comment.querySelector('span').textContent = response.data.comment.body;
-        thread.append(comment);
-        form.reset();
+      if (response.data.blocked !== undefined) {
+        button.classList.toggle('is-blocked', response.data.blocked);
+        button.textContent = response.data.blocked ? 'Blocked' : 'Block';
       }
     } catch (error) {
       const message = document.createElement('span');

@@ -1,0 +1,27 @@
+<%- include('../partials/head', { title, bodyClass: 'auth-page', pagePath, noIndex: true }) %>
+<div class="auth-shell" style="width:min(520px, calc(100% - 32px));">
+	<a class="brand auth-brand" href="/"><img src="/images/Crowdwide_logo.png" alt=""><span>Crowdwide</span></a>
+	<div class="auth-card">
+		<p class="eyebrow">Save these now</p>
+		<h1 style="font-size:30px;">Your recovery codes.</h1>
+		<p class="form-note">Each code works once and lets you sign in if you lose access to your authenticator app. Save them somewhere safe - they will not be shown again.</p>
+		<div id="recovery-codes-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;background:#0d1020;border:1px solid #32354e;border-radius:10px;padding:18px;font:700 15px 'Space Grotesk',monospace;letter-spacing:1px;margin:20px 0;">
+			<% codes.forEach((code) => { %><span><%= code %></span><% }) %>
+		</div>
+		<div style="display:flex;gap:10px;flex-wrap:wrap;">
+			<button class="button button-ghost button-small" type="button" id="download-codes">Download as .txt <span>↓</span></button>
+			<a class="button button-primary button-small" href="/settings/security">I've saved these, continue <span>↗</span></a>
+		</div>
+	</div>
+</div>
+<script>
+document.getElementById('download-codes').addEventListener('click', function () {
+	var codes = <%- JSON.stringify(codes) %>;
+	var blob = new Blob(['Crowdwide recovery codes\nEach code can be used once.\n\n' + codes.join('\n') + '\n'], { type: 'text/plain' });
+	var link = document.createElement('a');
+	link.href = URL.createObjectURL(blob);
+	link.download = 'crowdwide-recovery-codes.txt';
+	link.click();
+});
+</script>
+<%- include('../partials/foot') %>

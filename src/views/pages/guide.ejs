@@ -1,0 +1,22 @@
+<%- include('../partials/head', { title, description, pagePath }) %>
+<div class="info-page">
+<%- include('../partials/nav') %>
+<main class="info-main container">
+	<p class="eyebrow">Crowdwide / Guide</p>
+	<h1>Getting the most<br>out of Crowdwide.</h1>
+	<p class="info-intro">Practical, specific tips for setting up your account, growing a profile people follow, building a community that lasts, and keeping your account secure.</p>
+	<div class="guide-grid">
+		<% topics.forEach((topic, index) => { %>
+		<article class="guide-card">
+			<span class="principle-number">0<%= index + 1 %></span>
+			<h2><%= topic.heading %></h2>
+			<ul>
+				<% topic.tips.forEach((tip) => { %><li><%= tip %></li><% }) %>
+			</ul>
+		</article>
+		<% }) %>
+	</div>
+</main>
+<%- include('../partials/site-footer') %>
+</div>
+<%- include('../partials/foot') %>

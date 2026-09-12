@@ -11,7 +11,8 @@ async function settingsData(req) {
   const user = await User.findById(req.session.user.id).lean();
   const sessions = await LoginSession.find({ user: user._id }).sort({ lastSeenAt: -1 }).lean();
   const ownedCommunities = await Community.find({ owner: user._id }).sort({ createdAt: -1 }).lean();
-  return { user, sessions, ownedCommunities };
+  const blockedUsers = user.blockedUsers?.length ? await User.find({ _id: { $in: user.blockedUsers } }).select('name profilePicture').lean() : [];
+  return { user, sessions, ownedCommunities, blockedUsers };
 }
 
 exports.page = async (req, res) => {
@@ -24,9 +25,27 @@ exports.updateProfile = async (req, res) => {
   user.name = req.body.name?.trim() || user.name;
   user.bio = req.body.bio?.trim() || '';
   user.privacy = ['public', 'followers'].includes(req.body.privacy) ? req.body.privacy : user.privacy;
-  if (req.file) {
-    const stored = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, { kind: 'profile-picture', owner: user._id.toString() });
+
+  const links = [];
+  for (let i = 0; i < 4; i += 1) {
+    const label = req.body[`linkLabel${i}`]?.trim();
+    let url = req.body[`linkUrl${i}`]?.trim();
+    if (label && url) {
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+      links.push({ label: label.slice(0, 40), url: url.slice(0, 300) });
+    }
+  }
+  user.links = links;
+
+  const picture = req.files?.profilePicture?.[0];
+  const banner = req.files?.bannerImage?.[0];
+  if (picture) {
+    const stored = await uploadBuffer(picture.buffer, picture.originalname, picture.mimetype, { kind: 'profile-picture', owner: user._id.toString() });
     user.profilePicture = mediaUrl(stored);
+  }
+  if (banner) {
+    const stored = await uploadBuffer(banner.buffer, banner.originalname, banner.mimetype, { kind: 'profile-banner', owner: user._id.toString() });
+    user.bannerImage = mediaUrl(stored);
   }
   await user.save();
   req.session.user.name = user.name;

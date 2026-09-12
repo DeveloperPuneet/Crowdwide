@@ -1,0 +1,29 @@
+<%
+  const node = locals.node;
+  const depth = locals.depth || 0;
+  const postId = locals.postId;
+  const csrf = locals.csrfToken;
+  const canReply = locals.canReply;
+%>
+<article class="thread-comment" data-depth="<%= Math.min(depth, 3) %>">
+	<div class="thread-comment-head">
+		<%- include('avatar', { person: node.author || {}, size: 'tiny', link: true }) %>
+		<strong><a class="name-link" href="/u/<%= node.author?._id %>"><%= node.author?.name || 'Member' %></a></strong>
+	</div>
+	<p><%= node.body %></p>
+	<time><%= new Date(node.createdAt).toLocaleString() %></time>
+	<% if (canReply) { %>
+	<details class="thread-reply">
+		<summary>Reply</summary>
+		<form method="post" action="/posts/<%= postId %>/comments">
+			<input type="hidden" name="_csrf" value="<%= csrf %>">
+			<input type="hidden" name="parent" value="<%= node._id %>">
+			<input name="body" maxlength="2000" placeholder="Reply to <%= node.author?.name || 'this comment' %>" required>
+			<button type="submit">Reply</button>
+		</form>
+	</details>
+	<% } %>
+	<% (node.children || []).forEach((child) => { %>
+		<%- include('comment-node', { node: child, depth: depth + 1, postId, csrfToken: csrf, canReply }) %>
+	<% }) %>
+</article>

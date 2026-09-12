@@ -24,8 +24,8 @@
 		<% if (profileUser.bio) { %><p class="profile-bio"><%= profileUser.bio %></p><% } %>
 		<div class="profile-stats">
 			<span><strong><%= postCount %></strong> posts</span>
-			<span><strong class="follower-count" data-user="<%= profileUser._id %>"><%= followersCount %></strong> followers</span>
-			<span><strong><%= followingCount %></strong> following</span>
+			<a href="/u/<%= profileUser._id %>/followers" style="color:inherit;text-decoration:none;"><strong class="follower-count" data-user="<%= profileUser._id %>"><%= followersCount %></strong> followers</a>
+			<a href="/u/<%= profileUser._id %>/following" style="color:inherit;text-decoration:none;"><strong><%= followingCount %></strong> following</a>
 		</div>
 		<p class="profile-joined">Joined <%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) %></p>
 	</section>

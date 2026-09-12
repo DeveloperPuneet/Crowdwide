@@ -15,6 +15,7 @@
 			<div><strong><%= post.author?.name || 'Crowdwide member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %></span></div>
 		</div>
 		<p class="post-body" style="-webkit-line-clamp:unset;max-height:none;"><%= post.body %></p>
+		<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<% if ((post.media || []).length) { %>
 		<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
 			<% post.media.forEach((media) => { %>
@@ -44,7 +45,11 @@
 	<section class="community-posts">
 		<div class="panel-heading"><h2>Replies</h2><span><%= comments.length %></span></div>
 		<% if (!comments.length) { %><p style="color:#777a91;font-size:12px;">No replies yet.</p><% } %>
-		<% comments.forEach((comment) => { %><div class="comment"><strong><%= comment.author?.name || 'Member' %></strong><span><%= comment.body %></span></div><% }) %>
+		<div class="post-detail-thread">
+			<% commentTree.forEach((node) => { %>
+				<%- include('../partials/comment-node', { node, depth: 0, postId: post._id, csrfToken, canReply: !!currentUser }) %>
+			<% }) %>
+		</div>
 	</section>
 </main>
 <%- include('../partials/site-footer') %>

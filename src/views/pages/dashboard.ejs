@@ -12,6 +12,7 @@
 			<a href="/explore">◎ <span>Explore</span></a>
 			<a href="/explore">⌂ <span>Communities</span></a>
 			<a href="/u/<%= currentUser.id %>">✦ <span>Your profile</span></a>
+			<a href="/notifications">&#128276; <span>Notifications</span></a>
 			<a href="#people">♧ <span>People to follow</span></a>
 		</nav>
 		<div class="sidebar-note"><span>✦</span><p><strong>Make room for new voices.</strong><br>Every follow shapes your Crowdwide.</p></div>
@@ -55,6 +56,7 @@
 				<span class="post-source"><%= post.feedSource || 'From your communities' %></span>
 			</div>
 			<p class="post-body"><%= post.body %></p>
+			<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 			<% if ((post.media || []).length) { %>
 			<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
 				<% post.media.forEach((media) => { %>
@@ -70,17 +72,8 @@
 				<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.liked ? '♥' : '♡' %> <%= post.likes?.length || 0 %></button></form>
 				<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.bookmarked ? '▣ Saved' : '▱ Save' %></button></form>
 				<form method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">↗ Share <%= post.sharesCount || 0 %></button></form>
-				<span>◌ <%= post.commentsCount || 0 %></span>
+				<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;text-decoration:none;">◌ <%= post.commentsCount || 0 %></a>
 			</div>
-			<% if (post.comments?.length) { %>
-			<div class="comment-thread">
-				<% post.comments.forEach((comment) => { %>
-				<div class="comment"><strong><%= comment.author?.name || 'Member' %></strong><span><%= comment.body %></span>
-					<form method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="parent" value="<%= comment._id %>"><input name="body" maxlength="2000" placeholder="Reply to <%= comment.author?.name || 'this comment' %>" required><button type="submit">Reply</button></form>
-				</div>
-				<% }) %>
-			</div>
-			<% } %>
 			<form class="comment-form" method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
 		</article>
 		<% }) %>

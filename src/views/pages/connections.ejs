@@ -1,0 +1,51 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="explore-page" style="max-width:720px;">
+	<a class="back-link" href="/u/<%= profileUser._id %>">← Back to profile</a>
+	<p class="eyebrow"><%= profileUser.name %></p>
+	<h1 style="font-size:38px;"><%= mode === 'followers' ? 'Followers' : 'Following' %></h1>
+	<div class="feed-tabs" style="margin-top:22px;">
+		<a class="<%= mode === 'followers' ? 'feed-tab-active' : '' %>" href="/u/<%= profileUser._id %>/followers">Followers</a>
+		<a class="<%= mode === 'following' ? 'feed-tab-active' : '' %>" href="/u/<%= profileUser._id %>/following">Following</a>
+	</div>
+
+	<% if (!list.length) { %>
+	<div class="empty-feed">
+		<h2><%= mode === 'followers' ? 'No followers yet.' : 'Not following anyone yet.' %></h2>
+		<p><%= mode === 'followers' ? 'When people follow this profile, they will show up here.' : 'Posts from people this profile follows will show up here once they follow someone.' %></p>
+	</div>
+	<% } %>
+	<% list.forEach((person) => {
+		const isSelf = String(person._id) === String(currentUser.id);
+		const alreadyFollowing = followingSet.includes(String(person._id));
+	%>
+	<div class="search-user-row">
+		<a href="/u/<%= person._id %>" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;text-decoration:none;color:inherit;">
+			<%- include('../partials/avatar', { person, size: 'small', link: false }) %>
+			<div><strong><%= person.name %></strong><span><%= person.bio || 'Crowdwide member' %></span></div>
+		</a>
+		<% if (!isSelf) { %>
+		<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<button class="follow-button <%= alreadyFollowing ? 'is-following' : '' %>" type="submit"><%= alreadyFollowing ? 'Following' : 'Follow' %></button>
+		</form>
+		<% } %>
+	</div>
+	<% }) %>
+
+	<% if (suggestions.length) { %>
+	<section class="discover-panel" style="margin-top:40px;">
+		<div class="panel-heading"><h2>Suggestions for you</h2><span>Popular</span></div>
+		<% suggestions.forEach((person) => { %>
+		<div class="discover-row">
+			<%- include('../partials/avatar', { person, size: 'tiny' }) %>
+			<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.followers %> follower<%= person.followers === 1 ? '' : 's' %> on Crowdwide</span></div>
+			<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>">+</button></form>
+		</div>
+		<% }) %>
+	</section>
+	<% } %>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

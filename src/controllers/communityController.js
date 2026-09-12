@@ -1,6 +1,9 @@
 const Community = require('../models/Community');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
+const { parseHashtagList } = require('../utils/hashtags');
+const { getViralPosts, getPopularPeople } = require('../services/discovery');
 
 const moderationOnly = async (req, res, next) => {
   const community = await Community.findById(req.params.id);
@@ -31,46 +34,106 @@ exports.explore = async (req, res) => {
   const query = req.query.q?.trim();
   const category = req.query.category?.trim().toLowerCase();
   const filter = {};
-  if (query) filter.$or = [{ name: new RegExp(query, 'i') }, { description: new RegExp(query, 'i') }];
+  if (query) {
+    const tag = query.startsWith('#') ? query.slice(1).toLowerCase() : null;
+    filter.$or = tag ? [{ hashtags: tag }, { name: new RegExp(query, 'i') }] : [{ name: new RegExp(query, 'i') }, { description: new RegExp(query, 'i') }, { hashtags: query.toLowerCase() }];
+  }
   if (category) filter.category = category;
-  const [communities, categories] = await Promise.all([
+  const isBrowsing = Boolean(query || category);
+  const [communities, categories, newPeople, popularPeople, viralPosts] = await Promise.all([
     Community.find(filter).sort({ membersCount: -1, createdAt: -1 }).limit(30).lean(),
-    Community.distinct('category')
+    Community.distinct('category'),
+    isBrowsing ? Promise.resolve([]) : User.find({ _id: { $ne: req.session.user.id }, isVerified: true }).sort({ createdAt: -1 }).limit(6).select('name bio profilePicture createdAt').lean(),
+    isBrowsing ? Promise.resolve([]) : getPopularPeople(6, [req.session.user.id]),
+    isBrowsing ? Promise.resolve([]) : getViralPosts(4)
   ]);
-  res.render('pages/explore', { title: 'Explore communities', pagePath: '/explore', noIndex: true, communities, categories, query: query || '', category: category || '' });
+  res.render('pages/explore', { title: 'Explore', pagePath: '/explore', noIndex: true, communities, categories, query: query || '', category: category || '', newPeople, popularPeople, viralPosts, isBrowsing });
 };
 
 exports.detail = async (req, res) => {
   const community = await Community.findOne({ slug: req.params.slug }).populate('owner', 'name profilePicture').lean();
   if (!community) return res.status(404).render('pages/not-found', { title: 'Community not found' });
-  const posts = await Post.find({ community: community._id }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean();
+  const [posts, members] = await Promise.all([
+    Post.find({ community: community._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
+    User.find({ _id: { $in: community.members } }).select('name profilePicture').limit(60).lean()
+  ]);
   const joined = community.members.some((id) => String(id) === String(req.session.user.id));
   const requested = community.joinRequests?.some((request) => String(request.user) === String(req.session.user.id));
-  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, joined, requested, isOwner: community.owner && String(community.owner._id) === String(req.session.user.id) });
+  const moderatorIds = (community.moderators || []).map(String);
+  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner: community.owner && String(community.owner._id) === String(req.session.user.id) });
 };
 exports.manage = async (req, res) => {
-  const [members, posts, requests, moderators] = await Promise.all([
+  const [members, posts, pendingPosts, requests, moderators] = await Promise.all([
     User.find({ _id: { $in: req.community.members } }).select('name email profilePicture').lean(),
-    Post.find({ community: req.community._id }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').lean(),
+    Post.find({ community: req.community._id, status: 'published' }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').lean(),
+    Post.find({ community: req.community._id, status: 'pending' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
     User.find({ _id: { $in: req.community.joinRequests.map((request) => request.user) } }).select('name email').lean(),
     User.find({ _id: { $in: req.community.moderators } }).select('name email').lean()
   ]);
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, community: req.community, members, posts, requests, moderators });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, community: req.community, members, posts, pendingPosts, requests, moderators, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
 };
 
 exports.update = async (req, res) => {
   req.community.name = req.body.name?.trim() || req.community.name;
   req.community.description = req.body.description?.trim() || req.community.description;
+  req.community.guidelines = req.body.guidelines?.trim().slice(0, 4000) || req.community.guidelines;
   req.community.category = req.body.category?.trim().toLowerCase() || req.community.category;
   req.community.isPrivate = req.body.isPrivate === 'on';
+  req.community.requireApproval = req.body.requireApproval === 'on';
   req.community.bannedWords = (req.body.bannedWords || '').split(',').map((word) => word.trim().toLowerCase()).filter(Boolean).slice(0, 100);
+  if (req.body.hashtags !== undefined) req.community.hashtags = parseHashtagList(req.body.hashtags);
+
+  const avatar = req.files?.avatarImage?.[0];
+  const banner = req.files?.bannerImage?.[0];
+  if (avatar) {
+    const stored = await uploadBuffer(avatar.buffer, avatar.originalname, avatar.mimetype, { kind: 'community-avatar', community: String(req.community._id) });
+    req.community.avatarImage = mediaUrl(stored);
+  }
+  if (banner) {
+    const stored = await uploadBuffer(banner.buffer, banner.originalname, banner.mimetype, { kind: 'community-banner', community: String(req.community._id) });
+    req.community.coverImage = mediaUrl(stored);
+  }
+
   await req.community.save();
   req.session.flash = { type: 'success', message: 'Community details updated.' };
   res.redirect(`/communities/${req.community._id}/manage`);
 };
 
+exports.addModerator = async (req, res) => {
+  const identifier = req.body.identifier?.trim();
+  if (!identifier) return res.redirect(`/communities/${req.community._id}/manage`);
+  const lookup = identifier.includes('@') ? { email: identifier.toLowerCase() } : { name: new RegExp(`^${identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+  const person = await User.findOne(lookup).select('_id').lean();
+  if (!person) {
+    req.session.flash = { type: 'error', message: 'No Crowdwide member matches that username or email.' };
+    return res.redirect(`/communities/${req.community._id}/manage`);
+  }
+  const alreadyMember = req.community.members.some((id) => String(id) === String(person._id));
+  if (!alreadyMember) {
+    req.community.members.addToSet(person._id);
+    req.community.memberRoles.push({ user: person._id, role: 'moderator' });
+    req.community.membersCount = req.community.members.length;
+    await User.findByIdAndUpdate(person._id, { $addToSet: { joinedCommunities: req.community._id } });
+  } else {
+    req.community.memberRoles = req.community.memberRoles.map((entry) => (String(entry.user) === String(person._id) ? { user: entry.user, role: 'moderator' } : entry));
+  }
+  req.community.moderators.addToSet(person._id);
+  await req.community.save();
+  req.session.flash = { type: 'success', message: 'Moderator added.' };
+  res.redirect(`/communities/${req.community._id}/manage`);
+};
+
+exports.reviewPost = async (req, res) => {
+  const post = await Post.findOne({ _id: req.params.postId, community: req.community._id, status: 'pending' });
+  if (post) {
+    post.status = req.body.decision === 'approve' ? 'published' : 'rejected';
+    await post.save();
+  }
+  res.redirect(`/communities/${req.community._id}/manage`);
+};
+
 exports.requestJoin = async (req, res) => {
-  const community = await Community.findOne({ slug: req.params.slug });
+  const community = await Community.findById(req.params.id);
   if (!community) return res.redirect('/explore');
   const userId = req.session.user.id;
   if (community.members.some((id) => String(id) === String(userId))) return res.redirect(`/communities/${community.slug}`);
@@ -85,7 +148,7 @@ exports.requestJoin = async (req, res) => {
     await community.save();
     await User.findByIdAndUpdate(userId, { $addToSet: { joinedCommunities: community._id } });
   }
-  res.redirect(`/communities/${community.slug}`);
+  res.redirect(req.get('referer') || `/communities/${community.slug}`);
 };
 
 exports.reviewRequest = async (req, res) => {
