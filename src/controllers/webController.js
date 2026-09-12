@@ -333,17 +333,35 @@ exports.profile = async (req, res) => {
 exports.search = async (req, res) => {
 	const q = (req.query.q || '').trim();
 	const trendingHashtags = await getTrendingHashtags(12);
-	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches: trendingHashtags });
+	const communityOptions = await Community.find().sort({ name: 1 }).select('name _id').lean();
+	const filters = {
+		type: ['post', 'article', 'poll'].includes(req.query.type) ? req.query.type : '',
+		community: /^[a-f\d]{24}$/i.test(req.query.community || '') ? req.query.community : '',
+		media: req.query.media === 'with-media' ? 'with-media' : '',
+		sort: ['newest', 'oldest', 'popular'].includes(req.query.sort) ? req.query.sort : 'newest',
+		from: req.query.from || '',
+		to: req.query.to || ''
+	};
+	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches: trendingHashtags, communityOptions, filters });
 	const tag = q.startsWith('#') ? q.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
 	const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(safe, 'i');
 	const viewer = await User.findById(req.session.user.id).select('blockedUsers').lean();
+	const postFilter = { status: 'published', author: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { body: regex }) };
+	if (filters.type) postFilter.type = filters.type;
+	if (filters.community) postFilter.community = filters.community;
+	if (filters.media) postFilter.media = { $exists: true, $ne: [] };
+	const createdAt = {};
+	if (/^\d{4}-\d{2}-\d{2}$/.test(filters.from)) createdAt.$gte = new Date(`${filters.from}T00:00:00.000Z`);
+	if (/^\d{4}-\d{2}-\d{2}$/.test(filters.to)) createdAt.$lte = new Date(`${filters.to}T23:59:59.999Z`);
+	if (Object.keys(createdAt).length) postFilter.createdAt = createdAt;
+	const postSort = filters.sort === 'oldest' ? { createdAt: 1 } : filters.sort === 'popular' ? { likes: -1, commentsCount: -1, createdAt: -1 } : { createdAt: -1 };
 	const [users, communities, posts] = await Promise.all([
 		User.find({ isVerified: true, _id: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { $or: [{ name: regex }, { bio: regex }, { hashtags: q.toLowerCase() }] }) }).limit(10).select('name bio hashtags profilePicture').lean(),
 		Community.find(tag ? { hashtags: tag } : { $or: [{ name: regex }, { description: regex }, { hashtags: q.toLowerCase() }] }).limit(10).lean(),
-		Post.find({ status: 'published', author: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { body: regex }) }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+		Post.find(postFilter).sort(postSort).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
 	]);
-	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches: trendingHashtags });
+	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches: trendingHashtags, communityOptions, filters });
 };
 
 exports.hashtagSuggestions = async (req, res) => {

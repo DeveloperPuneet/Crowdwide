@@ -3,8 +3,14 @@
 <main class="explore-page" style="max-width:820px;">
 	<p class="eyebrow">Search Crowdwide</p>
 	<h1>Find people, communities, and posts.</h1>
-	<form class="search-form" method="get" action="/search">
+	<form class="search-form search-filter-form" method="get" action="/search">
 		<input type="search" name="q" value="<%= query %>" placeholder="Search Crowdwide" autofocus>
+		<select name="type" aria-label="Content type"><option value="">All content</option><option value="post" <%= filters.type === 'post' ? 'selected' : '' %>>Posts</option><option value="article" <%= filters.type === 'article' ? 'selected' : '' %>>Articles</option><option value="poll" <%= filters.type === 'poll' ? 'selected' : '' %>>Polls</option></select>
+		<select name="community" aria-label="Community"><option value="">All communities</option><% communityOptions.forEach((community) => { %><option value="<%= community._id %>" <%= filters.community === String(community._id) ? 'selected' : '' %>><%= community.name %></option><% }) %></select>
+		<select name="sort" aria-label="Sort results"><option value="newest" <%= filters.sort === 'newest' ? 'selected' : '' %>>Newest</option><option value="oldest" <%= filters.sort === 'oldest' ? 'selected' : '' %>>Oldest</option><option value="popular" <%= filters.sort === 'popular' ? 'selected' : '' %>>Popular</option></select>
+		<label class="search-date">From<input type="date" name="from" value="<%= filters.from %>"></label>
+		<label class="search-date">To<input type="date" name="to" value="<%= filters.to %>"></label>
+		<label class="search-media"><input type="checkbox" name="media" value="with-media" <%= filters.media === 'with-media' ? 'checked' : '' %>> Media</label>
 		<button class="button button-primary" type="submit">Search <span>⌕</span></button>
 	</form>
 

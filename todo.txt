@@ -23,9 +23,9 @@ Completed in this pass:
 - Safe account-link rendering for @handles in posts and threaded comments.
 - Twitter-style post replies linked to the original post.
 - Scheduled publishing with future-time validation and a minute publication worker.
+- Advanced search filters for type, community, media, date range, and sort order.
 
 Still to implement or assess:
-- Scheduled publishing requires a background worker.
 - Advanced discovery and broader production hardening remain.
 - Advanced search filters, notification grouping, push notifications, and RSS/API features.
 - Expanded community workflows, moderation appeals, anti-spam, monitoring, backups, and broader integration tests.
