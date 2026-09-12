@@ -288,40 +288,81 @@ document.addEventListener('click', (event) => {
   if (!event.target.closest('.share-form')) closeShareMenus();
 });
 
-document.querySelectorAll('.post-actions form, .follow-form, .block-form').forEach((form) => {
-  form.addEventListener('submit', async (event) => {
-    if (!window.axios) return;
-    event.preventDefault();
-    const button = form.querySelector('button');
-    if (button) button.disabled = true;
-    try {
-      const response = await window.axios.post(form.action, new URLSearchParams(new FormData(form)), { headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content, 'X-Requested-With': 'XMLHttpRequest' } });
-      if (response.data.liked !== undefined) {
-        button.innerHTML = `${response.data.liked ? '♥' : '♡'} ${response.data.likes}`;
-      }
-      if (response.data.bookmarked !== undefined) button.textContent = response.data.bookmarked ? '▣ Saved' : '▱ Save';
-      if (response.data.shares !== undefined) {
-        button.textContent = '↗ Share';
-        if (response.data.url) showShareMenu(form, response.data.url);
-      }
-      if (response.data.following !== undefined) {
-        button.classList.toggle('is-following', response.data.following);
-        button.textContent = response.data.following ? 'Following' : 'Follow';
-        document.querySelectorAll(`.follower-count[data-user="${form.dataset.user}"]`).forEach((el) => { el.textContent = response.data.followersCount; });
-      }
-      if (response.data.blocked !== undefined) {
-        button.classList.toggle('is-blocked', response.data.blocked);
-        button.textContent = response.data.blocked ? 'Blocked' : 'Block';
-      }
-    } catch (error) {
-      const message = document.createElement('span');
-      message.className = 'interaction-error';
-      message.textContent = 'Could not update right now.';
-      form.after(message);
-    } finally {
-      if (button) button.disabled = false;
+const asyncInteractionSelector = '.post-actions form, .follow-form, .block-form, [data-async-interaction]';
+const showInteractionMessage = (form, text, error = false) => {
+  form.parentElement.querySelector('.interaction-message')?.remove();
+  const message = document.createElement('span');
+  message.className = `interaction-message${error ? ' interaction-error' : ''}`;
+  message.textContent = text;
+  form.after(message);
+  if (!error) window.setTimeout(() => message.remove(), 2200);
+};
+
+const appendComment = (form, body) => {
+  const thread = document.querySelector('.post-detail-thread');
+  if (!thread) return;
+  const parentId = form.querySelector('input[name="parent"]')?.value;
+  const parent = parentId ? thread.querySelector(`[data-comment-id="${parentId}"]`) : null;
+  const comment = document.createElement('article');
+  comment.className = 'thread-comment thread-comment-new';
+  comment.dataset.depth = parent ? '1' : '0';
+  const text = document.createElement('p');
+  text.textContent = body;
+  const time = document.createElement('time');
+  time.textContent = 'Just now';
+  comment.append(text, time);
+  (parent || thread).append(comment);
+};
+
+document.addEventListener('submit', async (event) => {
+  const form = event.target.closest('form');
+  if (!form || !form.matches(asyncInteractionSelector) || !window.axios) return;
+  event.preventDefault();
+  if (form.dataset.pending === 'true') return;
+  form.dataset.pending = 'true';
+  const button = form.querySelector('button[type="submit"]');
+  if (button) button.disabled = true;
+  try {
+    const response = await window.axios.post(form.action, new URLSearchParams(new FormData(form)), { headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content, 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = response.data;
+    if (data.ok === false) return showInteractionMessage(form, data.error || 'Could not update right now.', true);
+    if (data.liked !== undefined && form.classList.contains('comment-like-form')) button.textContent = `${data.liked ? '♥' : '♡'} ${data.likes}`;
+    else if (data.liked !== undefined) button.textContent = `${data.liked ? '♥' : '♡'} ${data.likes}`;
+    if (data.bookmarked !== undefined) button.textContent = data.bookmarked ? '▣ Saved' : '▱ Save';
+    if (data.shares !== undefined) {
+      button.textContent = '↗ Share';
+      if (data.url) showShareMenu(form, data.url);
     }
-  });
+    if (data.following !== undefined) {
+      button.classList.toggle('is-following', data.following);
+      button.textContent = data.following ? 'Following' : 'Follow';
+      document.querySelectorAll(`.follower-count[data-user="${form.dataset.user}"]`).forEach((el) => { el.textContent = data.followersCount; });
+    }
+    if (data.blocked !== undefined) {
+      button.classList.toggle('is-blocked', data.blocked);
+      button.textContent = data.blocked ? 'Blocked' : 'Block';
+    }
+    if (data.voted !== undefined) {
+      form.closest('.post-poll')?.querySelectorAll('button').forEach((option) => { option.disabled = true; });
+      button.classList.add('is-selected');
+      showInteractionMessage(form, data.voted ? 'Vote recorded.' : 'You already voted.');
+    }
+    if (data.reaction !== undefined) {
+      const reactionBar = form.closest('.reaction-bar');
+      reactionBar?.querySelectorAll('button').forEach((reactionButton) => reactionButton.classList.remove('is-selected'));
+      if (data.reaction) button.classList.add('is-selected');
+    }
+    if (data.comment) {
+      appendComment(form, data.comment.body);
+      form.reset();
+      showInteractionMessage(form, 'Comment posted.');
+    }
+  } catch (error) {
+    showInteractionMessage(form, 'Could not update right now.', true);
+  } finally {
+    form.dataset.pending = 'false';
+    if (button) button.disabled = false;
+  }
 });
 
 const notificationBadge = document.querySelector('.notification-badge');

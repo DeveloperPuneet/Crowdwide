@@ -61,6 +61,8 @@ h1 em, h2 em { color: #7192ff; font-style: normal; }
 a.avatar-link { display: inline-flex; }
 .name-link { color: inherit; }
 .name-link:hover { text-decoration: underline; }
+.mention-link { color: #8da0ff; font-weight: 600; }
+.mention-link:hover { color: #fff; text-decoration: underline; }
 .verified-tick { color: var(--cyan); margin-left: 3px; font-size: 11px; }
 
 /* 3. Buttons & forms --------------------------------------------------------*/
@@ -413,6 +415,8 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .reaction-bar form { display: inline-flex; }
 .reaction-bar button { border: 1px solid #2c355d; border-radius: 999px; background: #131832; color: #bfc7ff; padding: 5px 8px; cursor: pointer; font-size: 11px; }
 .reaction-bar button:hover { border-color: #7482ff; background: #222b57; color: #fff; }
+.reaction-bar button.is-selected, .post-poll button.is-selected { border-color: #8290ff; background: #303d7a; color: #fff; }
+.interaction-message { display: block; color: #78e0a5; font-size: 10px; margin: 6px 0; }
 .share-form { position: relative; }
 .share-menu { display: none; position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; min-width: 150px; padding: 6px; background: #171a30; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 24px rgba(0,0,0,.3); }
 .share-menu.is-open { display: grid; gap: 2px; }

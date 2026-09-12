@@ -19,10 +19,12 @@ Completed in this pass:
 - One-to-one group conversations with membership checks and account cleanup.
 - `@handle` mentions in published posts and comments with notification delivery.
 - `@handle` autocomplete in composer, comments, replies, and quote forms.
+- AJAX interaction handling for likes, comments, replies, polls, reactions, bookmarks, shares, follows, and blocks without page reloads.
+- Safe account-link rendering for @handles in posts and threaded comments.
 
 Still to implement or assess:
 - Scheduled publishing requires a background worker.
-- Account/embed mention rendering and Twitter-style post replies.
+- Twitter-style post replies.
 - Advanced search filters, notification grouping, push notifications, and RSS/API features.
 - Expanded community workflows, moderation appeals, anti-spam, monitoring, backups, and broader integration tests.
 

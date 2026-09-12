@@ -5,14 +5,14 @@
   const csrf = locals.csrfToken;
   const canReply = locals.canReply;
 %>
-<article class="thread-comment" data-depth="<%= Math.min(depth, 3) %>">
+	<article class="thread-comment" data-comment-id="<%= node._id %>" data-depth="<%= Math.min(depth, 3) %>">
 	<div class="thread-comment-head">
 		<%- include('avatar', { person: node.author || {}, size: 'tiny', link: true }) %>
 		<strong><a class="name-link" href="/u/<%= node.author?._id %>"><%= node.author?.name || 'Member' %></a></strong>
 	</div>
-	<p><%= node.body %></p>
+	<p><%- renderMentions(node.body) %></p>
 	<time><%= new Date(node.createdAt).toLocaleString() %></time>
-	<form class="comment-like-form" method="post" action="/comments/<%= node._id %>/like">
+	<form class="comment-like-form" data-async-interaction method="post" action="/comments/<%= node._id %>/like">
 		<input type="hidden" name="_csrf" value="<%= csrf %>">
 		<button type="submit">♡ <%= node.likes?.length || 0 %></button>
 	</form>
@@ -33,7 +33,7 @@
 	<% if (canReply) { %>
 	<details class="thread-reply">
 		<summary>Reply</summary>
-		<form method="post" action="/posts/<%= postId %>/comments">
+		<form data-async-interaction method="post" action="/posts/<%= postId %>/comments">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
 			<input type="hidden" name="parent" value="<%= node._id %>">
 			<input data-mention-input name="body" maxlength="2000" placeholder="Reply to <%= node.author?.name || 'this comment' %>" required>

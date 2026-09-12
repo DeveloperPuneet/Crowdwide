@@ -10,6 +10,7 @@ const connectDatabase = require('./src/config/database');
 const webRoutes = require('./src/routes/web');
 const authRoutes = require('./src/routes/auth');
 const { csrfProtection, generateToken } = require('./src/middleware/security');
+const { renderMentions } = require('./src/services/mentions');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -50,6 +51,7 @@ app.use((req, res, next) => {
   res.locals.flash = req.session.flash || null;
   res.locals.csrfToken = generateToken(req);
   res.locals.appUrl = process.env.APP_URL || `http://localhost:${port}`;
+  res.locals.renderMentions = renderMentions;
   delete req.session.flash;
   next();
 });
