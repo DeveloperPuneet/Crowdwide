@@ -36,7 +36,7 @@
 		<form method="post" action="/posts/<%= postId %>/comments">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
 			<input type="hidden" name="parent" value="<%= node._id %>">
-			<input name="body" maxlength="2000" placeholder="Reply to <%= node.author?.name || 'this comment' %>" required>
+			<input data-mention-input name="body" maxlength="2000" placeholder="Reply to <%= node.author?.name || 'this comment' %>" required>
 			<button type="submit">Reply</button>
 		</form>
 	</details>

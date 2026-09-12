@@ -48,6 +48,7 @@ router.get('/explore', requireAuth, requireVerified, communityController.explore
 router.get('/communities', requireAuth, requireVerified, communityController.directory);
 router.get('/search', requireAuth, requireVerified, controller.search);
 router.get('/hashtags/suggest', requireAuth, requireVerified, controller.hashtagSuggestions);
+router.get('/users/suggest', requireAuth, requireVerified, controller.userSuggestions);
 router.get('/u/:id', requireAuth, requireVerified, controller.profile);
 router.post('/users/:id/follow', requireAuth, requireVerified, interactionLimiter, interactionController.toggleFollow);
 router.post('/users/:id/block', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBlock);

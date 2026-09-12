@@ -37,7 +37,7 @@
 		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":120,"article":550}'>
 			<%- include('../partials/avatar', { person: currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">
-				<textarea name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
+				<textarea data-mention-input name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
 				<div class="composer-meta"><span data-word-count>0 / 120 words</span><div class="hashtag-suggestions" data-hashtag-suggestions></div></div>
 				<fieldset class="poll-composer" hidden><legend>Poll choices</legend><input name="pollQuestion" maxlength="200" placeholder="Ask a question"><div class="poll-option-grid"><input name="pollOptions" maxlength="80" placeholder="Option 1"><input name="pollOptions" maxlength="80" placeholder="Option 2"><input name="pollOptions" maxlength="80" placeholder="Option 3"><input name="pollOptions" maxlength="80" placeholder="Option 4"></div></fieldset>
 				<div class="composer-actions">

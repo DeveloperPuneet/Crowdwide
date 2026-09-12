@@ -18,6 +18,7 @@ Completed in this pass:
 - Additional post reactions with one active reaction per user.
 - One-to-one group conversations with membership checks and account cleanup.
 - `@handle` mentions in published posts and comments with notification delivery.
+- `@handle` autocomplete in composer, comments, replies, and quote forms.
 
 Still to implement or assess:
 - Scheduled publishing requires a background worker.

@@ -49,10 +49,10 @@
 		<summary>Quote</summary>
 		<form method="post" action="/posts/<%= post._id %>/quote">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-			<textarea name="body" maxlength="4000" placeholder="Add your commentary..." required></textarea>
+			<textarea data-mention-input name="body" maxlength="4000" placeholder="Add your commentary..." required></textarea>
 			<button type="submit">Publish quote</button>
 		</form>
 	</details>
 	<form class="post-report-form" method="post" action="/posts/<%= post._id %>/report"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" maxlength="500" placeholder="Report this post"><button type="submit">Report</button></form>
-	<form class="comment-form" method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
+	<form class="comment-form" method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input data-mention-input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
 </article>

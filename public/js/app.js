@@ -49,6 +49,44 @@ if (composer) {
   updateCount();
 }
 
+document.querySelectorAll('[data-mention-input]').forEach((input) => {
+  const menu = document.createElement('div');
+  menu.className = 'mention-suggestions';
+  menu.hidden = true;
+  input.insertAdjacentElement('afterend', menu);
+  let timer;
+  const close = () => { menu.hidden = true; menu.replaceChildren(); };
+  input.addEventListener('input', () => {
+    const before = input.value.slice(0, input.selectionStart);
+    const match = before.match(/(?:^|\s)@([a-z0-9._-]*)$/i);
+    if (!match || !match[1]) return close();
+    clearTimeout(timer);
+    timer = setTimeout(() => fetch(`/users/suggest?q=${encodeURIComponent(match[1])}`).then((response) => response.json()).then((users) => {
+      menu.replaceChildren(...users.map((user) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        const name = document.createElement('strong');
+        name.textContent = user.name;
+        const handle = document.createElement('span');
+        handle.textContent = ` @${user.handle}`;
+        button.append(name, handle);
+        button.addEventListener('click', () => {
+          const caret = input.selectionStart;
+          const current = input.value.slice(0, caret);
+          const tokenStart = current.lastIndexOf(`@${match[1]}`);
+          input.focus();
+          input.setSelectionRange(tokenStart, caret);
+          input.setRangeText(`@${user.handle} `, tokenStart, caret, 'end');
+          close();
+        });
+        return button;
+      }));
+      menu.hidden = !users.length;
+    }).catch(close), 120);
+  });
+  document.addEventListener('click', (event) => { if (event.target !== input && !menu.contains(event.target)) close(); });
+});
+
 document.querySelectorAll('.media-picker input[type="file"]').forEach((input) => {
   input.multiple = true;
   const label = input.closest('.media-picker');

@@ -336,6 +336,16 @@ exports.hashtagSuggestions = async (req, res) => {
 	res.json(hashtags.filter(({ tag }) => !prefix || tag.startsWith(prefix)).slice(0, 8));
 };
 
+exports.userSuggestions = async (req, res) => {
+	const prefix = (req.query.q || '').replace(/^@/, '').toLowerCase().replace(/[^a-z0-9._-]/g, '');
+	if (!prefix) return res.json([]);
+	const safe = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const regex = new RegExp(`^${safe}`, 'i');
+	const viewer = await User.findById(req.session.user.id).select('blockedUsers').lean();
+	const users = await User.find({ isVerified: true, _id: { $ne: req.session.user.id, $nin: viewer?.blockedUsers || [] }, $or: [{ name: regex }, { email: regex }] }).limit(8).select('name email profilePicture').lean();
+	res.json(users.map((user) => ({ id: user._id, name: user.name, handle: user.email.split('@')[0], profilePicture: user.profilePicture })));
+};
+
 exports.followersPage = async (req, res) => {
 	const profileUser = await User.findById(req.params.id).select('name profilePicture').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
