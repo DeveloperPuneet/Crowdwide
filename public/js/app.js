@@ -206,6 +206,48 @@ if (window.axios) {
   window.setInterval(heartbeat, 13 * 60 * 1000);
 }
 
+const closeShareMenus = (except) => {
+  document.querySelectorAll('.share-menu.is-open').forEach((menu) => {
+    if (menu !== except) menu.classList.remove('is-open');
+  });
+};
+
+const showShareMenu = (form, url) => {
+  let menu = form.querySelector('.share-menu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.className = 'share-menu';
+    menu.innerHTML = '<button type="button" data-share-action="native">Share...</button><button type="button" data-share-action="copy">Copy link</button><a data-share-action="x" target="_blank" rel="noopener noreferrer">Post to X</a><a data-share-action="whatsapp" target="_blank" rel="noopener noreferrer">Send on WhatsApp</a>';
+    form.append(menu);
+    menu.addEventListener('click', async (event) => {
+      const action = event.target.closest('[data-share-action]')?.dataset.shareAction;
+      if (!action) return;
+      if (action === 'native' && navigator.share) {
+        try { await navigator.share({ title: document.title, url }); } catch (error) { if (error.name !== 'AbortError') event.target.textContent = 'Sharing unavailable'; }
+      }
+      if (action === 'copy') {
+        try {
+          await navigator.clipboard.writeText(url);
+          event.target.textContent = 'Link copied';
+          window.setTimeout(() => { event.target.textContent = 'Copy link'; }, 1600);
+        } catch (error) { event.target.textContent = 'Copy failed'; }
+      }
+      if (action === 'x') window.open(`https://x.com/intent/post?url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
+      if (action === 'whatsapp') window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
+      if (action !== 'copy') closeShareMenus(menu);
+    });
+  }
+  menu.querySelector('[data-share-action="native"]').hidden = !navigator.share;
+  menu.querySelector('[data-share-action="x"]').href = `https://x.com/intent/post?url=${encodeURIComponent(url)}`;
+  menu.querySelector('[data-share-action="whatsapp"]').href = `https://wa.me/?text=${encodeURIComponent(url)}`;
+  closeShareMenus(menu);
+  menu.classList.toggle('is-open');
+};
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.share-form')) closeShareMenus();
+});
+
 document.querySelectorAll('.post-actions form, .follow-form, .block-form').forEach((form) => {
   form.addEventListener('submit', async (event) => {
     if (!window.axios) return;
@@ -218,7 +260,10 @@ document.querySelectorAll('.post-actions form, .follow-form, .block-form').forEa
         button.innerHTML = `${response.data.liked ? '♥' : '♡'} ${response.data.likes}`;
       }
       if (response.data.bookmarked !== undefined) button.textContent = response.data.bookmarked ? '▣ Saved' : '▱ Save';
-      if (response.data.shares !== undefined) button.textContent = `↗ Share ${response.data.shares}`;
+      if (response.data.shares !== undefined) {
+        button.textContent = `↗ Share ${response.data.shares}`;
+        if (response.data.url) showShareMenu(form, response.data.url);
+      }
       if (response.data.following !== undefined) {
         button.classList.toggle('is-following', response.data.following);
         button.textContent = response.data.following ? 'Following' : 'Follow';
