@@ -44,6 +44,7 @@
 					<select name="type" aria-label="Post type"><option value="post">Post · 120 words</option><option value="article">Article · 550 words</option><option value="poll">Poll · 120 words</option></select>
 					<select name="community" aria-label="Choose a community"><option value="">Open Crowdwide</option><% communities.forEach((community) => { %><option value="<%= community._id %>"><%= community.name %></option><% }) %></select>
 					<label class="schedule-picker">Schedule<input type="datetime-local" name="scheduledAt" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
+					<label class="schedule-picker">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
 					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*"></label>
 					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
 					<button class="button button-primary button-small" type="submit">Publish <span>↗</span></button>

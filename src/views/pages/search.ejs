@@ -11,6 +11,7 @@
 		<label class="search-date">From<input type="date" name="from" value="<%= filters.from %>"></label>
 		<label class="search-date">To<input type="date" name="to" value="<%= filters.to %>"></label>
 		<label class="search-media"><input type="checkbox" name="media" value="with-media" <%= filters.media === 'with-media' ? 'checked' : '' %>> Media</label>
+		<label class="search-media"><input type="checkbox" name="unanswered" value="true" <%= filters.unanswered ? 'checked' : '' %>> No replies</label>
 		<button class="button button-primary" type="submit">Search <span>⌕</span></button>
 	</form>
 

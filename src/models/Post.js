@@ -4,6 +4,7 @@ const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community' },
   body: { type: String, trim: true, maxlength: 4000 },
+  contentWarning: { type: String, trim: true, maxlength: 120, default: '' },
   hashtags: [{ type: String, trim: true, lowercase: true }],
   type: { type: String, enum: ['post', 'article', 'poll'], default: 'post' },
   status: { type: String, enum: ['draft', 'scheduled', 'published', 'pending', 'rejected'], default: 'published' },

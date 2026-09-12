@@ -1,4 +1,5 @@
-<article class="post-card" id="post-<%= post._id %>">
+<article class="post-card <%= post.contentWarning ? 'has-content-warning' : '' %>" id="post-<%= post._id %>">
+	<% if (post.contentWarning) { %><button class="content-warning-toggle" type="button" data-warning-toggle>Show content: <%= post.contentWarning %></button><% } %>
 	<div class="post-meta">
 		<%- include('avatar', { person: post.author, size: 'small' }) %>
 		<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %><% if (post.status === 'draft') { %> · Draft<% } else if (post.status === 'scheduled') { %> · Scheduled<% } %></span></div>

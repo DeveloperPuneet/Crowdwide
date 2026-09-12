@@ -224,7 +224,7 @@ exports.createPost = async (req, res) => {
 		media.push(item);
 	}
 	const isDraft = req.body.saveAsDraft === 'on';
-	const createdPost = await Post.create({ author: req.session.user.id, body, type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+	const createdPost = await Post.create({ author: req.session.user.id, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
 	if (isDraft) {
 		req.session.flash = { type: 'success', message: 'Draft saved. It is visible only to you.' };
@@ -362,6 +362,7 @@ exports.search = async (req, res) => {
 		type: ['post', 'article', 'poll'].includes(req.query.type) ? req.query.type : '',
 		community: /^[a-f\d]{24}$/i.test(req.query.community || '') ? req.query.community : '',
 		media: req.query.media === 'with-media' ? 'with-media' : '',
+		unanswered: req.query.unanswered === 'true',
 		sort: ['newest', 'oldest', 'popular'].includes(req.query.sort) ? req.query.sort : 'newest',
 		from: req.query.from || '',
 		to: req.query.to || ''
@@ -375,6 +376,7 @@ exports.search = async (req, res) => {
 	if (filters.type) postFilter.type = filters.type;
 	if (filters.community) postFilter.community = filters.community;
 	if (filters.media) postFilter.media = { $exists: true, $ne: [] };
+	if (filters.unanswered) postFilter.commentsCount = 0;
 	const createdAt = {};
 	if (/^\d{4}-\d{2}-\d{2}$/.test(filters.from)) createdAt.$gte = new Date(`${filters.from}T00:00:00.000Z`);
 	if (/^\d{4}-\d{2}-\d{2}$/.test(filters.to)) createdAt.$lte = new Date(`${filters.to}T23:59:59.999Z`);

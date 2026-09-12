@@ -13,23 +13,23 @@
 - Feed discovery, personalized feeds, viral/new tabs, trending hashtags, recommendations, search filters, RSS, and `/api/v1/posts`.
 - Production indexes, centralized error handling, database-aware health checks, and scheduled publication worker.
 - User mute/unmute controls applied to feeds, search, notifications, and profile actions.
+- Unanswered-post discovery filter in search.
+- Content-warning labels with blurred content and in-place reveal controls.
 
 ## Next Priorities
 
 1. Add browser push notifications with an explicit opt-in and service worker.
-2. Add unanswered-post discovery.
-3. Add content warnings, link previews, richer article editing, and media captions/transcripts.
-4. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
-5. Add automated route/permission/upload tests and end-to-end signup/posting tests.
-6. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
-7. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
-8. Evaluate monetization only after safety, reliability, and accessibility work is complete.
+2. Add link previews, richer article editing, and media captions/transcripts.
+3. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
+4. Add automated route/permission/upload tests and end-to-end signup/posting tests.
+5. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
+6. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
+7. Evaluate monetization only after safety, reliability, and accessibility work is complete.
 
 ## Known Gaps
 
 - Push notifications are not implemented.
-- User/community mute controls are not implemented.
-- Content warnings, link previews, rich article blocks, captions, and transcripts are not implemented.
+- Link previews, rich article blocks, captions, and transcripts are not implemented.
 - Moderation appeals and evidence attachments are not implemented.
 - Automated integration/end-to-end coverage is still limited to smoke tests.
 - Monitoring, backups, CI/staging, and upload virus scanning require deployment infrastructure.

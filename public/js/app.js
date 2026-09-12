@@ -1,5 +1,13 @@
 window.addEventListener('load', () => document.body.classList.add('page-ready'));
 
+document.querySelectorAll('[data-warning-toggle]').forEach((toggle) => {
+  toggle.addEventListener('click', () => {
+    const card = toggle.closest('.has-content-warning');
+    card?.classList.remove('has-content-warning');
+    toggle.remove();
+  });
+});
+
 const composer = document.querySelector('#composer');
 if (composer) {
   const openComposer = document.querySelector('[data-composer-open]');

@@ -9,7 +9,8 @@
 <% } %>
 <main class="community-detail post-detail-page">
 	<a class="back-link" href="<%= currentUser ? '/dashboard' : '/' %>">← <%= currentUser ? 'Back to feed' : 'Crowdwide' %></a>
-	<article class="post-card public-post">
+	<article class="post-card public-post <%= post.contentWarning ? 'has-content-warning' : '' %>">
+		<% if (post.contentWarning) { %><button class="content-warning-toggle" type="button" data-warning-toggle>Show content: <%= post.contentWarning %></button><% } %>
 		<div class="post-meta">
 			<%- include('../partials/avatar', { person: post.author, size: 'small', link: !!currentUser }) %>
 			<div><strong><%= post.author?.name || 'Crowdwide member' %></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %></span></div>
