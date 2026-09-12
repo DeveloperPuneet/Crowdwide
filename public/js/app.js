@@ -261,7 +261,7 @@ document.querySelectorAll('.post-actions form, .follow-form, .block-form').forEa
       }
       if (response.data.bookmarked !== undefined) button.textContent = response.data.bookmarked ? '▣ Saved' : '▱ Save';
       if (response.data.shares !== undefined) {
-        button.textContent = `↗ Share ${response.data.shares}`;
+        button.textContent = '↗ Share';
         if (response.data.url) showShareMenu(form, response.data.url);
       }
       if (response.data.following !== undefined) {
