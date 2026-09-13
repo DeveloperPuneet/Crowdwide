@@ -78,7 +78,12 @@ router.post('/admin/moderators/:id/delete', requireAuth, requireVerified, requir
 router.post('/admin/reports/:id', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.resolveReport);
 router.post('/admin/moderation/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.reviewAction);
 router.post('/admin/posts/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deletePost);
+router.post('/admin/posts/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updatePost);
 router.post('/admin/users/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteUser);
+router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateUser);
+router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateCommunity);
+router.post('/admin/communities/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteCommunity);
+router.post('/admin/settings', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateSiteSettings);
 router.get('/moderator', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.moderator);
 router.post('/moderator/actions', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.submitAction);
 router.get('/settings/:section?', requireAuth, requireVerified, settingsController.page);

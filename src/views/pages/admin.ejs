@@ -1,12 +1,247 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
-<main class="explore-page admin-console"><%- include('../partials/flash') %>
+<main class="explore-page admin-console admin-wide"><%- include('../partials/flash') %>
   <p class="eyebrow">Restricted operations</p><h1>Admin console</h1>
-  <div class="admin-stats"><span><strong><%= stats.users %></strong> users</span><span><strong><%= stats.posts %></strong> posts</span><span><strong><%= stats.communities %></strong> communities</span><span><strong><%= stats.reports %></strong> reports</span></div>
-  <section class="settings-block"><h2>Create moderator</h2><form class="settings-form compact" method="post" action="/admin/moderators"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Name<input name="name" required></label><label>Email<input type="email" name="email" required></label><label>Temporary password<input type="password" name="password" minlength="8" required></label><button class="button button-primary button-small">Create moderator</button></form></section>
-  <section class="settings-block"><h2>Moderators</h2><% moderators.forEach((mod) => { %><div class="device-row"><div><strong><%= mod.name %></strong><span><%= mod.moderatorId %> · <%= mod.email %></span></div><form method="post" action="/admin/moderators/<%= mod._id %>/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-danger">Remove</button></form></div><% }) %></section>
-  <section class="settings-block"><h2>Pending moderator actions</h2><% if (!pendingActions.length) { %><p>No actions waiting for approval.</p><% } %><% pendingActions.forEach((item) => { %><div class="device-row"><div><strong><%= item.action %></strong><span><%= item.moderator?.name || 'Moderator' %> · <%= item.reason %></span></div><form method="post" action="/admin/moderation/<%= item._id %>/review"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" name="decision" value="approve">Approve</button><button class="button button-small button-danger" name="decision" value="reject">Reject</button></form></div><% }) %></section>
-  <section class="settings-block"><h2>Reports</h2><% if (!openReports.length) { %><p>No open reports.</p><% } %><% openReports.forEach((report) => { %><div class="device-row"><div><strong><%= report.targetType %></strong><span><%= report.reason %> · reported by <%= report.reporter?.name || 'member' %></span></div><form method="post" action="/admin/reports/<%= report._id %>"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button name="status" value="resolved" class="button button-small button-primary">Resolve</button><button name="status" value="dismissed" class="button button-small button-ghost">Dismiss</button></form></div><% }) %></section>
-  <section class="settings-block"><h2>Communities</h2><% communities.forEach((community) => { %><div class="device-row"><div><strong><%= community.name %></strong><span><%= community.membersCount %> members · owner <%= community.owner?.name || 'unknown' %> · <%= community.requireApproval ? 'approval on' : 'approval off' %></span></div></div><% }) %></section>
-  <section class="settings-block"><h2>Recent audit activity</h2><% auditLogs.forEach((entry) => { %><div class="device-row"><div><strong><%= entry.action %></strong><span><%= entry.actor?.name || 'system' %> · <%= new Date(entry.createdAt).toLocaleString() %></span></div></div><% }) %></section>
-</main><%- include('../partials/app-footer') %><%- include('../partials/foot') %>
+  <div class="admin-stats"><span><strong><%= stats.users %></strong> users</span><span><strong><%= stats.posts %></strong> posts</span><span><strong><%= stats.communities %></strong> communities</span><span><strong><%= stats.reports %></strong> reports</span><span><strong><%= pendingActions.length %></strong> pending approvals</span></div>
+
+  <nav class="admin-tabs">
+    <button type="button" class="admin-tab" data-tab="overview">Overview</button>
+    <button type="button" class="admin-tab" data-tab="users">Users</button>
+    <button type="button" class="admin-tab" data-tab="posts">Posts</button>
+    <button type="button" class="admin-tab" data-tab="communities">Communities</button>
+    <button type="button" class="admin-tab" data-tab="reports">Reports<% if (openReports.length) { %> (<%= openReports.length %>)<% } %></button>
+    <button type="button" class="admin-tab" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
+    <button type="button" class="admin-tab" data-tab="moderators">Moderators</button>
+    <button type="button" class="admin-tab" data-tab="settings">Site settings</button>
+    <button type="button" class="admin-tab" data-tab="audit">Audit log</button>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <section class="admin-panel" data-panel="overview">
+    <div class="settings-block admin-wide">
+      <h2>What needs attention</h2>
+      <p><%= pendingActions.length %> moderator action<%= pendingActions.length === 1 ? '' : 's' %> waiting for your approval, <%= openReports.length %> open report<%= openReports.length === 1 ? '' : 's' %>.</p>
+      <% if (siteSettings.maintenanceMode) { %><p class="admin-badge status-suspended">Maintenance mode is ON — the site is showing a maintenance message to visitors.</p><% } %>
+    </div>
+  </section>
+
+  <!-- USERS -->
+  <section class="admin-panel" data-panel="users">
+    <div class="admin-section-head"><h2>Users</h2><input class="admin-search" type="search" placeholder="Filter by name or email" data-filter-table="users-table"></div>
+    <table class="admin-table" id="users-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Verified</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+      <tbody>
+      <% users.forEach((user) => { %>
+        <tr data-row-text="<%= (user.name + ' ' + user.email).toLowerCase() %>">
+          <td data-label="Name"><strong><%= user.name %></strong><% if (user.moderatorId) { %><br><span style="color:#777a91"><%= user.moderatorId %></span><% } %></td>
+          <td data-label="Email"><%= user.email %></td>
+          <td data-label="Role"><span class="admin-badge role-<%= user.role %>"><%= user.role %></span></td>
+          <td data-label="Verified"><%= user.isVerified ? 'Yes' : 'No' %></td>
+          <td data-label="Status"><% if (user.loginLockedUntil && new Date(user.loginLockedUntil) > new Date()) { %><span class="admin-badge status-suspended">Suspended</span><% } else { %>Active<% } %><% if (user.warnings?.length) { %> · <%= user.warnings.length %> warning<%= user.warnings.length === 1 ? '' : 's' %><% } %></td>
+          <td data-label="Joined"><%= new Date(user.createdAt).toLocaleDateString() %></td>
+          <td><button type="button" class="admin-row-toggle" data-edit-toggle="user-edit-<%= user._id %>">Edit</button></td>
+        </tr>
+        <tr class="admin-editrow" id="user-edit-<%= user._id %>">
+          <td colspan="7">
+            <form class="admin-edit-form" method="post" action="/admin/users/<%= user._id %>/edit">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <label>Name<input type="text" name="name" value="<%= user.name %>"></label>
+              <label>Email<input type="email" name="email" value="<%= user.email %>"></label>
+              <label>Role<select name="role" <%= String(user._id) === String(currentUser.id) ? 'disabled' : '' %>>
+                <option value="user" <%= user.role === 'user' ? 'selected' : '' %>>User</option>
+                <option value="moderator" <%= user.role === 'moderator' ? 'selected' : '' %>>Moderator</option>
+                <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>Admin</option>
+              </select></label>
+              <label class="checkbox-field"><input type="checkbox" name="isVerified" <%= user.isVerified ? 'checked' : '' %>> Verified</label>
+              <% if (String(user._id) !== String(currentUser.id)) { %>
+              <label>Suspension
+                <select name="suspend">
+                  <option value="">No change</option>
+                  <option value="on">Suspend (1 year)</option>
+                  <option value="off">Lift suspension</option>
+                </select>
+              </label>
+              <label class="full-width">Suspension reason (shown to admins only)<input type="text" name="suspensionReason" value="<%= user.suspensionReason || '' %>"></label>
+              <% } %>
+              <div class="admin-edit-form-actions">
+                <button class="button button-small button-primary" type="submit">Save</button>
+              </div>
+            </form>
+            <% if (String(user._id) !== String(currentUser.id) && user.role !== 'admin') { %>
+            <form method="post" action="/admin/users/<%= user._id %>/delete" onsubmit="return confirm('Permanently delete this user and their posts?');" style="margin-top:8px;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="button button-small button-danger" type="submit">Delete user</button>
+            </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- POSTS -->
+  <section class="admin-panel" data-panel="posts">
+    <div class="admin-section-head"><h2>Posts</h2><input class="admin-search" type="search" placeholder="Filter by author or text" data-filter-table="posts-table"></div>
+    <table class="admin-table" id="posts-table">
+      <thead><tr><th>Author</th><th>Body</th><th>Type</th><th>Status</th><th>Moderation</th><th>Community</th><th></th></tr></thead>
+      <tbody>
+      <% posts.forEach((post) => { %>
+        <tr data-row-text="<%= ((post.author?.name || '') + ' ' + (post.body || '')).toLowerCase() %>">
+          <td data-label="Author"><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Unknown' %></a></td>
+          <td data-label="Body"><%= (post.body || '').slice(0, 90) %><%= (post.body || '').length > 90 ? '…' : '' %></td>
+          <td data-label="Type"><%= post.type %></td>
+          <td data-label="Status"><%= post.status %></td>
+          <td data-label="Moderation"><span class="admin-badge status-<%= post.moderationStatus %>"><%= post.moderationStatus %></span> (<%= post.moderationScore || 0 %>)</td>
+          <td data-label="Community"><%= post.community?.name || 'Open Crowdwide' %></td>
+          <td><a class="admin-row-toggle" href="/posts/<%= post._id %>" target="_blank" rel="noopener">View</a> <button type="button" class="admin-row-toggle" data-edit-toggle="post-edit-<%= post._id %>">Edit</button></td>
+        </tr>
+        <tr class="admin-editrow" id="post-edit-<%= post._id %>">
+          <td colspan="7">
+            <form class="admin-edit-form" method="post" action="/admin/posts/<%= post._id %>/edit">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <label class="full-width">Body<textarea name="body"><%= post.body %></textarea></label>
+              <label>Status<select name="status">
+                <% ['draft','scheduled','published','pending','rejected'].forEach((s) => { %><option value="<%= s %>" <%= post.status === s ? 'selected' : '' %>><%= s %></option><% }) %>
+              </select></label>
+              <label>Moderation status<select name="moderationStatus">
+                <% ['unreviewed','good','needs-review','reported'].forEach((s) => { %><option value="<%= s %>" <%= post.moderationStatus === s ? 'selected' : '' %>><%= s %></option><% }) %>
+              </select></label>
+              <label>Content warning<input type="text" name="contentWarning" value="<%= post.contentWarning || '' %>"></label>
+              <% if (post.community) { %><label class="checkbox-field"><input type="checkbox" name="pinToCommunity"> Pinned in community</label><% } %>
+              <div class="admin-edit-form-actions">
+                <button class="button button-small button-primary" type="submit">Save</button>
+              </div>
+            </form>
+            <form method="post" action="/admin/posts/<%= post._id %>/delete" onsubmit="return confirm('Delete this post?');" style="margin-top:8px;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="button button-small button-danger" type="submit">Delete post</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- COMMUNITIES -->
+  <section class="admin-panel" data-panel="communities">
+    <h2>Communities</h2>
+    <table class="admin-table">
+      <thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Privacy</th><th></th></tr></thead>
+      <tbody>
+      <% communities.forEach((community) => { %>
+        <tr>
+          <td data-label="Name"><strong><%= community.name %></strong></td>
+          <td data-label="Owner"><%= community.owner?.name || 'unknown' %></td>
+          <td data-label="Members"><%= community.membersCount %></td>
+          <td data-label="Privacy"><%= community.isPrivate ? 'Private' : 'Public' %> · <%= community.requireApproval ? 'approval on' : 'approval off' %></td>
+          <td><button type="button" class="admin-row-toggle" data-edit-toggle="community-edit-<%= community._id %>">Edit</button></td>
+        </tr>
+        <tr class="admin-editrow" id="community-edit-<%= community._id %>">
+          <td colspan="5">
+            <form class="admin-edit-form" method="post" action="/admin/communities/<%= community._id %>/edit">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <label>Name<input type="text" name="name" value="<%= community.name %>"></label>
+              <label>Category<input type="text" name="category" value="<%= community.category %>"></label>
+              <label class="full-width">Description<textarea name="description"><%= community.description %></textarea></label>
+              <label class="full-width">Guidelines<textarea name="guidelines"><%= community.guidelines || '' %></textarea></label>
+              <label class="full-width">Banned words (comma separated)<input type="text" name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>"></label>
+              <label class="checkbox-field"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private</label>
+              <label class="checkbox-field"><input type="checkbox" name="requireApproval" <%= community.requireApproval ? 'checked' : '' %>> Require post approval</label>
+              <div class="admin-edit-form-actions">
+                <button class="button button-small button-primary" type="submit">Save</button>
+              </div>
+            </form>
+            <form method="post" action="/admin/communities/<%= community._id %>/delete" onsubmit="return confirm('Delete this community and all of its posts?');" style="margin-top:8px;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="button button-small button-danger" type="submit">Delete community</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="admin-panel" data-panel="reports">
+    <h2>Open reports</h2>
+    <% if (!openReports.length) { %><p>No open reports.</p><% } %>
+    <% openReports.forEach((report) => { %>
+    <div class="device-row">
+      <div>
+        <strong><%= report.targetType %> · <%= report.target %></strong>
+        <span><%= report.reason %> · reported by <%= report.reporter?.name || 'member' %> · <%= new Date(report.createdAt).toLocaleString() %></span>
+      </div>
+      <form method="post" action="/admin/reports/<%= report._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input name="resolution" placeholder="Resolution note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:#d7d8e2;border-radius:7px;padding:7px 9px;font-size:11px;">
+        <button name="status" value="resolved" class="button button-small button-primary">Resolve</button>
+        <button name="status" value="dismissed" class="button button-small button-ghost">Dismiss</button>
+      </form>
+    </div>
+    <% }) %>
+  </section>
+
+  <!-- APPROVAL QUEUE -->
+  <section class="admin-panel" data-panel="queue">
+    <h2>Pending moderator actions</h2>
+    <% if (!pendingActions.length) { %><p>No actions waiting for approval.</p><% } %>
+    <% pendingActions.forEach((item) => { %>
+    <div class="device-row" style="flex-direction:column;align-items:stretch;">
+      <div><strong><%= item.action %></strong><span> requested by <%= item.moderator?.name || 'Moderator' %> (<%= item.moderator?.moderatorId %>) · target <%= item.targetType %> <%= item.target %></span></div>
+      <div class="admin-diff"><strong>Reason</strong><%= item.reason %><% if (item.payload && Object.keys(item.payload).length) { %><strong style="margin-top:8px;">Proposed change</strong><% Object.entries(item.payload).forEach(([k, v]) => { %><%= k %>: <%= v %>
+<% }) %><% } %></div>
+      <form method="post" action="/admin/moderation/<%= item._id %>/review" style="display:flex;gap:8px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:#d7d8e2;border-radius:7px;padding:7px 9px;font-size:11px;">
+        <button class="button button-small button-primary" name="decision" value="approve">Approve &amp; apply</button>
+        <button class="button button-small button-danger" name="decision" value="reject">Reject</button>
+      </form>
+    </div>
+    <% }) %>
+  </section>
+
+  <!-- MODERATORS -->
+  <section class="admin-panel" data-panel="moderators">
+    <section class="settings-block"><h2>Create moderator</h2><form class="settings-form compact" method="post" action="/admin/moderators"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Name<input name="name" required></label><label>Email<input type="email" name="email" required></label><label>Temporary password<input type="password" name="password" minlength="8" required></label><button class="button button-primary button-small">Create moderator</button></form></section>
+    <section class="settings-block"><h2>Current moderators</h2><% moderators.forEach((mod) => { %><div class="device-row"><div><strong><%= mod.name %></strong><span><%= mod.moderatorId %> · <%= mod.email %></span></div><form method="post" action="/admin/moderators/<%= mod._id %>/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-danger">Remove</button></form></div><% }) %><% if (!moderators.length) { %><p>No moderators yet.</p><% } %></section>
+  </section>
+
+  <!-- SITE SETTINGS -->
+  <section class="admin-panel" data-panel="settings">
+    <section class="settings-block admin-wide">
+      <h2>Site settings</h2>
+      <form class="admin-edit-form" method="post" action="/admin/settings">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Site name<input type="text" name="siteName" value="<%= siteSettings.siteName %>"></label>
+        <label class="full-width">Tagline<input type="text" name="tagline" value="<%= siteSettings.tagline %>"></label>
+        <label class="checkbox-field"><input type="checkbox" name="registrationOpen" <%= siteSettings.registrationOpen ? 'checked' : '' %>> New signups open</label>
+        <label class="checkbox-field"><input type="checkbox" name="postApprovalDefault" <%= siteSettings.postApprovalDefault ? 'checked' : '' %>> New communities require post approval by default</label>
+        <label class="checkbox-field"><input type="checkbox" name="maintenanceMode" <%= siteSettings.maintenanceMode ? 'checked' : '' %>> Maintenance mode</label>
+        <label class="full-width">Maintenance message<input type="text" name="maintenanceMessage" value="<%= siteSettings.maintenanceMessage %>"></label>
+        <label class="full-width">Site-wide announcement banner<input type="text" name="announcement" value="<%= siteSettings.announcement %>"></label>
+        <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save settings</button></div>
+      </form>
+    </section>
+  </section>
+
+  <!-- AUDIT LOG -->
+  <section class="admin-panel" data-panel="audit">
+    <h2>Recent audit activity</h2>
+    <% auditLogs.forEach((entry) => { %><div class="device-row"><div><strong><%= entry.action %></strong><span><%= entry.actor?.name || 'system' %> · <%= new Date(entry.createdAt).toLocaleString() %></span></div></div><% }) %>
+  </section>
+</main>
+<script>
+document.addEventListener('input', function (e) {
+  var input = e.target.closest('[data-filter-table]');
+  if (!input) return;
+  var table = document.getElementById(input.dataset.filterTable);
+  var q = input.value.trim().toLowerCase();
+  table.querySelectorAll('tbody tr[data-row-text]').forEach(function (row) {
+    row.style.display = row.dataset.rowText.indexOf(q) === -1 ? 'none' : '';
+  });
+});
+</script>
+<%- include('../partials/app-footer') %><%- include('../partials/foot') %>

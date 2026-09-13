@@ -37,6 +37,12 @@ const userSchema = new mongoose.Schema({
   moderatorId: { type: String, unique: true, sparse: true, index: true },
   loginAttempts: { type: Number, default: 0 },
   loginLockedUntil: Date,
+  suspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
+  warnings: [{
+    reason: { type: String, trim: true, maxlength: 500 },
+    issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt: { type: Date, default: Date.now }
+  }],
   twoFactorAttempts: { type: Number, default: 0 },
   twoFactorLockedUntil: Date,
   isVerified: { type: Boolean, default: false },

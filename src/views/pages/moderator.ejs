@@ -1,10 +1,53 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
 <main class="explore-page admin-console"><%- include('../partials/flash') %>
-  <p class="eyebrow">Restricted operations</p><h1>Moderator console</h1><p class="form-note">Identifier: <strong><%= moderator.moderatorId %></strong>. Personal emails, sessions, and account security data are hidden here.</p>
-  <section class="settings-block"><h2>Moderation feed</h2><p>Review posts for usefulness, originality, civility, relevance, and clear evidence. Good-post ratings improve a post's review priority only after admin approval. Your own posts are excluded.</p><% if (!moderationFeed.length) { %><p>No posts are ready for review.</p><% } %><% moderationFeed.forEach((post) => { %><article class="moderation-post"><div><strong><%= post.author?.name || 'Member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · score <%= post.moderationScore || 0 %></span></div><p><%= post.body %></p><div class="moderation-actions"><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="rate-good-post"><input type="hidden" name="target" value="<%= post._id %>"><input type="hidden" name="reason" value="Meets quality criteria: useful, relevant, original, civil, and well-presented."><button class="button button-small button-primary">Good post</button></form><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="rate-bad-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Why does it need review?" required><button class="button button-small button-ghost">Bad post</button></form><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="report-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Report reason" required><button class="button button-small button-danger">Report</button></form></div></article><% }) %></section>
+  <p class="eyebrow">Restricted operations</p><h1>Moderator console</h1><p class="form-note">Identifier: <strong><%= moderator.moderatorId %></strong>. Personal emails, sessions, and account security data are hidden here. Every action you submit here is queued for an admin's approval before it takes effect.</p>
+
+  <section class="settings-block admin-wide"><h2>Moderation feed</h2><p>Review posts for usefulness, originality, civility, relevance, and clear evidence. Good-post ratings improve a post's review priority only after admin approval. Your own posts are excluded.</p><% if (!moderationFeed.length) { %><p>No posts are ready for review.</p><% } %><% moderationFeed.forEach((post) => { %><article class="moderation-post"><div><strong><%= post.author?.name || 'Member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · score <%= post.moderationScore || 0 %></span></div><p><%= post.body %></p><div class="moderation-actions"><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="rate-good-post"><input type="hidden" name="target" value="<%= post._id %>"><input type="hidden" name="reason" value="Meets quality criteria: useful, relevant, original, civil, and well-presented."><button class="button button-small button-primary">Good post</button></form><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="rate-bad-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Why does it need review?" required><button class="button button-small button-ghost">Bad post</button></form><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="report-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Report reason" required><button class="button button-small button-danger">Report</button></form></div>
+  <details class="post-owner-tools"><summary>Propose edit (needs admin approval)</summary>
+    <form method="post" action="/moderator/actions">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="action" value="edit-post">
+      <input type="hidden" name="target" value="<%= post._id %>">
+      <textarea name="payload[body]" maxlength="4000" placeholder="Corrected post body"><%= post.body %></textarea>
+      <input name="reason" placeholder="Why does this need editing?" required style="margin-top:8px;width:100%;">
+      <button class="button button-small button-primary" style="margin-top:8px;" type="submit">Send edit for approval</button>
+    </form>
+  </details>
+  <details class="post-owner-tools"><summary>Warn or suspend author (needs admin approval)</summary>
+    <form method="post" action="/moderator/actions" style="margin-bottom:8px;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="action" value="warn-user">
+      <input type="hidden" name="target" value="<%= post.author?._id %>">
+      <input name="reason" placeholder="Reason for warning" required>
+      <button class="button button-small button-ghost" type="submit">Send warning for approval</button>
+    </form>
+    <form method="post" action="/moderator/actions">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="action" value="suspend-user">
+      <input type="hidden" name="target" value="<%= post.author?._id %>">
+      <input name="reason" placeholder="Reason for suspension" required>
+      <button class="button button-small button-danger" type="submit">Send suspension for approval</button>
+    </form>
+  </details>
+  </article><% }) %></section>
+
+  <section class="settings-block admin-wide"><h2>Community changes</h2><p>Propose edits to a community's description, guidelines, or banned-word list. An admin must approve before they apply.</p>
+  <% communities.forEach((community) => { %>
+  <details class="post-owner-tools"><summary><%= community.name %> · <%= community.membersCount %> members</summary>
+    <form method="post" action="/moderator/actions">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="action" value="edit-community">
+      <input type="hidden" name="target" value="<%= community._id %>">
+      <label style="display:block;margin-bottom:6px;font-size:11px;color:#9ea2bd;">Description<textarea name="payload[description]"><%= community.description %></textarea></label>
+      <label style="display:block;margin-bottom:6px;font-size:11px;color:#9ea2bd;">Guidelines<textarea name="payload[guidelines]"><%= community.guidelines || '' %></textarea></label>
+      <label style="display:block;margin-bottom:6px;font-size:11px;color:#9ea2bd;">Banned words (comma separated)<input name="payload[bannedWords]" value="<%= (community.bannedWords || []).join(', ') %>" style="width:100%;"></label>
+      <input name="reason" placeholder="Why does this need changing?" required style="width:100%;margin-bottom:8px;">
+      <button class="button button-small button-primary" type="submit">Send for approval</button>
+    </form>
+  </details>
+  <% }) %></section>
 
   <section class="settings-block"><h2>Open reports</h2><% if (!reports.length) { %><p>No open reports.</p><% } %><% reports.forEach((report) => { %><div class="device-row"><div><strong><%= report.targetType %></strong><span><%= report.target %> · <%= report.reason %></span></div></div><% }) %></section>
-  <section class="settings-block"><h2>Your action history</h2><% actions.forEach((item) => { %><div class="device-row"><div><strong><%= item.action %></strong><span><%= item.targetType %> <%= item.target %> · <%= item.status %> · <%= item.reason %></span></div></div><% }) %></section>
-  <section class="settings-block"><h2>Community overview</h2><% communities.forEach((community) => { %><div class="device-row"><div><strong><%= community.name %></strong><span><%= community.category %> · <%= community.membersCount %> members · <%= community.description %></span></div></div><% }) %></section>
+  <section class="settings-block"><h2>Your action history</h2><% actions.forEach((item) => { %><div class="device-row"><div><strong><%= item.action %></strong><span><%= item.targetType %> <%= item.target %> · <%= item.status %> · <%= item.reason %><% if (item.reviewNote) { %> · admin note: <%= item.reviewNote %><% } %></span></div></div><% }) %><% if (!actions.length) { %><p>No actions submitted yet.</p><% } %></section>
 </main><%- include('../partials/app-footer') %><%- include('../partials/foot') %>

@@ -1,0 +1,315 @@
+/* Crowdwide custom media player
+   Replaces native <video>/<audio> chrome with a themed, consistent player
+   built from the same tokens as the rest of the UI (see :root in style.css). */
+
+.cw-player {
+  position: relative;
+  background: var(--ink);
+  border-radius: 14px;
+  overflow: hidden;
+  isolation: isolate;
+  margin: 14px 0;
+}
+
+/* The wrapper now owns spacing/rounding — the raw element inside it shouldn't
+   double up on either (avoids a visible seam between the video and its
+   rounded frame). */
+.cw-player--video video {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  max-height: 460px !important;
+}
+
+.cw-player--audio {
+  background: linear-gradient(135deg, var(--ink-soft), var(--ink));
+  border: 1px solid var(--line);
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+/* Video surface */
+.cw-player video {
+  display: block;
+  width: 100%;
+  max-height: 460px;
+  background: #000;
+  cursor: pointer;
+}
+
+.cw-player--audio audio,
+.cw-player--video video[data-native] {
+  display: none;
+}
+
+/* Center play button shown when paused / before first play */
+.cw-center-btn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 9, 20, 0.25);
+  border: 0;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity .15s ease, background .15s ease;
+  z-index: 2;
+}
+
+.cw-center-btn svg { width: 30px; height: 30px; }
+
+.cw-center-btn .cw-center-disc {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(16, 18, 38, 0.72);
+  border: 1px solid rgba(255,255,255,.18);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.cw-center-btn:hover .cw-center-disc { transform: scale(1.06); box-shadow: 0 0 0 6px rgba(77,101,255,.18), 0 8px 30px rgba(0,0,0,.4); }
+
+.cw-player.is-playing .cw-center-btn { opacity: 0; pointer-events: none; }
+.cw-player.is-playing:hover .cw-center-btn,
+.cw-player.is-playing.show-ui .cw-center-btn { opacity: 0; }
+.cw-player:not(.is-playing) .cw-center-btn { opacity: 1; pointer-events: all; background: rgba(8,9,20,.35); }
+
+/* Buffering spinner */
+.cw-spinner {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+.cw-player.is-buffering .cw-spinner { display: flex; }
+.cw-spinner span {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.18);
+  border-top-color: var(--cyan);
+  animation: cw-spin .8s linear infinite;
+}
+@keyframes cw-spin { to { transform: rotate(360deg); } }
+
+/* Control bar */
+.cw-controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  background: linear-gradient(to top, rgba(4,5,12,.92) 0%, rgba(4,5,12,.65) 55%, transparent 100%);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 3;
+}
+.cw-player--audio .cw-controls {
+  position: static;
+  background: none;
+  opacity: 1;
+  transform: none;
+  padding: 10px 0 0;
+}
+
+.cw-player.is-playing:hover .cw-controls,
+.cw-player.show-ui .cw-controls,
+.cw-player:not(.is-playing) .cw-controls { opacity: 1; transform: none; }
+
+.cw-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #f6f6fa;
+  width: 30px; height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  flex: none;
+  transition: background .12s ease, color .12s ease;
+}
+.cw-btn:hover { background: rgba(255,255,255,.1); }
+.cw-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.cw-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+/* Seek bar */
+.cw-seek {
+  position: relative;
+  flex: 1 1 auto;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+.cw-seek-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.18);
+  overflow: hidden;
+}
+.cw-seek-buffered {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: rgba(255,255,255,.28);
+}
+.cw-seek-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, var(--cyan), var(--blue));
+}
+.cw-seek-handle {
+  position: absolute;
+  top: 50%;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(77,101,255,.28);
+  transform: translate(-50%, -50%);
+  left: 0%;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.cw-seek:hover .cw-seek-handle,
+.cw-seek.is-dragging .cw-seek-handle { opacity: 1; }
+.cw-seek:hover .cw-seek-track,
+.cw-seek.is-dragging .cw-seek-track { height: 6px; }
+
+.cw-time {
+  font: 500 12px/1 'DM Sans', sans-serif;
+  color: #d7d8e6;
+  white-space: nowrap;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.cw-volume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.cw-volume-track {
+  width: 0;
+  overflow: hidden;
+  transition: width .15s ease;
+}
+.cw-volume:hover .cw-volume-track,
+.cw-volume.is-active .cw-volume-track { width: 64px; }
+.cw-volume-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 60px;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.22);
+  outline: none;
+  cursor: pointer;
+}
+.cw-volume-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+}
+.cw-volume-range::-moz-range-thumb {
+  width: 10px; height: 10px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* Speed menu */
+.cw-speed { position: relative; flex: none; }
+.cw-speed-btn {
+  font: 700 11px/1 'Space Grotesk', sans-serif;
+  color: #f6f6fa;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 8px;
+  height: 30px;
+  cursor: pointer;
+}
+.cw-speed-btn:hover { background: rgba(255,255,255,.1); }
+.cw-speed-menu {
+  position: absolute;
+  bottom: 38px;
+  right: 0;
+  background: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  min-width: 64px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.45);
+  z-index: 4;
+}
+.cw-speed.is-open .cw-speed-menu { display: flex; }
+.cw-speed-menu button {
+  background: none;
+  border: 0;
+  color: #d7d8e6;
+  font: 500 12px/1 'DM Sans', sans-serif;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cw-speed-menu button:hover { background: rgba(255,255,255,.08); }
+.cw-speed-menu button.is-active { color: var(--cyan); }
+
+/* Video-only controls hidden in audio mode */
+.cw-player--audio .cw-fullscreen { display: none; }
+
+/* Audio mode: waveform-style bar + icon block instead of a video frame */
+.cw-audio-face {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+.cw-audio-icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--pink), var(--orange));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex: none;
+}
+.cw-audio-icon svg { width: 18px; height: 18px; fill: currentColor; }
+.cw-audio-meta { font: 600 12px/1.3 'DM Sans', sans-serif; color: #d7d8e6; }
+.cw-audio-meta small { display: block; color: var(--muted); font-weight: 500; margin-top: 2px; }
+
+/* Fallback: if JS never enhances the element (blocked/slow), keep native controls usable */
+.post-media-frame video[data-cw-pending],
+.post-media-frame audio[data-cw-pending] {
+  display: block !important;
+}
+
+@media (max-width: 700px) {
+  .cw-controls { padding: 8px 8px 10px; gap: 7px; }
+  .cw-time { font-size: 11px; }
+  .cw-volume-track, .cw-volume:hover .cw-volume-track { width: 0; }
+  .cw-volume { display: none; }
+  .cw-center-btn .cw-center-disc { width: 52px; height: 52px; }
+}
