@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
-const { sendVerificationCode, sendNewDeviceAlert } = require('../services/mailer');
+const { sendVerificationCode, sendNewDeviceAlert, sendPasswordResetLink, sendSecurityAlert } = require('../services/mailer');
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
@@ -12,8 +12,12 @@ async function establishSession(req, user) {
   req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '' };
   const existingSession = await LoginSession.exists({ user: user._id });
   await LoginSession.create({ user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') });
-  if (existingSession) await sendNewDeviceAlert(user, { ipAddress: req.ip, userAgent: req.get('user-agent') });
+  if (existingSession && user.notificationPreferences?.security !== false) {
+    await sendNewDeviceAlert(user, { ipAddress: req.ip, userAgent: req.get('user-agent') });
+  }
 }
+
+exports.establishSession = establishSession;
 
 exports.loginPage = (req, res) => res.render('pages/login', { title: 'Sign in' });
 exports.registerPage = (req, res) => res.render('pages/register', { title: 'Create your account' });
@@ -119,7 +123,8 @@ exports.forgot = async (req, res) => {
     user.resetToken = token();
     user.resetExpires = Date.now() + 30 * 60 * 1000;
     await user.save();
-    console.log(`[Crowdwide password reset preview] /auth/reset?token=${user.resetToken}`);
+    const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+    await sendPasswordResetLink(user, `${appUrl}/auth/reset?token=${user.resetToken}`);
   }
   setFlash(req, 'success', 'If that email belongs to Crowdwide, a reset link is on its way.');
   res.redirect('/auth/forgot-password');
@@ -135,6 +140,13 @@ exports.reset = async (req, res) => {
   user.resetToken = undefined;
   user.resetExpires = undefined;
   await user.save();
+  if (user.notificationPreferences?.security !== false) {
+    await sendSecurityAlert(user, {
+      subject: 'Your Crowdwide password was reset',
+      heading: 'Password reset',
+      message: 'Your Crowdwide password was just reset. If you did not do this, secure your account immediately by resetting your password again and reviewing your active sessions.'
+    });
+  }
   setFlash(req, 'success', 'Your password has been updated.');
   res.redirect('/auth/login');
 };

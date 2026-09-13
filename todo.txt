@@ -15,28 +15,27 @@
 - User mute/unmute controls applied to feeds, search, notifications, and profile actions.
 - Unanswered-post discovery filter in search.
 - Content-warning labels with blurred content and in-place reveal controls.
+- Admin console functions (post/community/user moderation, pinning, settings, moderator approval queue) audited end-to-end; the "pin post to community" control never persisted or reflected state and is now fixed. (#8)
+- Group chat (create/list/thread/send) audited end-to-end; a membership-check bug that 404'd every member out of their own group thread is fixed. (#10)
+- Security emails: new-sign-in alerts (now firing correctly for both password and 2FA logins), password-changed, 2FA enabled/disabled, recovery-codes-regenerated, and a real password-reset email (previously just console-logged) — all respecting the existing per-user "security notifications" preference toggle. (#9)
+- Automated tests: permission/role-middleware and upload-validation unit tests (DB-free, run via `npm test`), plus a route-level/end-to-end signup-verify-login-post and admin-permission suite (`npm run test:e2e`, requires a MongoDB connection - see Known Gaps). (#4)
 
 ## Next Priorities
 
 1. Add browser push notifications with an explicit opt-in and service worker.
 2. Add link previews, richer article editing, and media captions/transcripts.
 3. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
-4. Add automated route/permission/upload tests and end-to-end signup/posting tests.
-5. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
-6. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
-7. Evaluate monetization only after safety, reliability, and accessibility work is complete.
-8. Complete admin make all functions working
-9. safety mails on user login sent to user and etc action like that
-10.group chat working
-SOLVE KNOWN GAPS
-11. full check if any feature is not working or broken
-12. PUBLIC TEST: done by the developers
-13. STABLE RELEASE
+4. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
+5. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
+6. Evaluate monetization only after safety, reliability, and accessibility work is complete.
+7. full check if any feature is not working or broken (ongoing - see Known Gaps for the one confirmed severe bug found and fixed this pass: the post composer form had no CSRF token and could not submit at all)
+8. PUBLIC TEST: done by the developers
+9. STABLE RELEASE
 
 ## Known Gaps
 
 - Push notifications are not implemented.
 - Link previews, rich article blocks, captions, and transcripts are not implemented.
 - Moderation appeals and evidence attachments are not implemented.
-- Automated integration/end-to-end coverage is still limited to smoke tests.
+- The `test:e2e` suite (signup/posting flow, admin route permissions) is written and wired into `npm run test:e2e`, but has not been executed successfully in this environment - it needs network access to download a MongoDB binary (via mongodb-memory-server) or a MONGODB_URI pointing at a real database. Run it locally to confirm before relying on it in CI.
 - Monitoring, backups, CI/staging, and upload virus scanning require deployment infrastructure.

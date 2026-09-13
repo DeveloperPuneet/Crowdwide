@@ -35,6 +35,7 @@
 			<span><%= feed.note %></span>
 		</div>
 		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":120,"article":550}'>
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<%- include('../partials/avatar', { person: currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">
 				<textarea data-mention-input name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>

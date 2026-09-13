@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const { generateSecret, generateURI, verify } = require('otplib');
 const QRCode = require('qrcode');
 const User = require('../models/User');
+const { sendSecurityAlert } = require('../services/mailer');
+const { establishSession } = require('./authController');
 
 function generateRecoveryCodes(count = 8) {
   const codes = [];
@@ -35,6 +37,13 @@ exports.enable = async (req, res) => {
   user.twoFactorEnabled = true;
   user.recoveryCodes = await Promise.all(codes.map(async (code) => ({ codeHash: await bcrypt.hash(code, 10) })));
   await user.save();
+  if (user.notificationPreferences?.security !== false) {
+    await sendSecurityAlert(user, {
+      subject: 'Two-factor authentication turned on',
+      heading: 'Two-factor authentication enabled',
+      message: 'Two-factor authentication was just turned on for your Crowdwide account. If you did not make this change, secure your account immediately.'
+    });
+  }
   // Recovery codes only ever exist in plaintext right here, right after
   // generation - shown once so the user can save/download them, then
   // discarded. Only the bcrypt hashes are persisted.
@@ -58,6 +67,13 @@ exports.regenerateRecoveryCodes = async (req, res) => {
   const codes = generateRecoveryCodes();
   user.recoveryCodes = await Promise.all(codes.map(async (code) => ({ codeHash: await bcrypt.hash(code, 10) })));
   await user.save();
+  if (user.notificationPreferences?.security !== false) {
+    await sendSecurityAlert(user, {
+      subject: 'Two-factor recovery codes regenerated',
+      heading: 'Recovery codes regenerated',
+      message: 'Your Crowdwide two-factor recovery codes were just regenerated. Your old recovery codes no longer work. If you did not make this change, secure your account immediately.'
+    });
+  }
   req.session.freshRecoveryCodes = codes;
   res.redirect('/settings/security/2fa/recovery-codes');
 };
@@ -72,6 +88,13 @@ exports.disable = async (req, res) => {
   user.twoFactorSecret = undefined;
   user.recoveryCodes = [];
   await user.save();
+  if (user.notificationPreferences?.security !== false) {
+    await sendSecurityAlert(user, {
+      subject: 'Two-factor authentication turned off',
+      heading: 'Two-factor authentication disabled',
+      message: 'Two-factor authentication was just turned off for your Crowdwide account. If you did not make this change, secure your account immediately.'
+    });
+  }
   res.redirect('/settings/security');
 };
 
@@ -118,9 +141,8 @@ exports.verifyLogin = async (req, res) => {
   delete req.session.pendingTwoFactorExpiresAt;
   user.twoFactorAttempts = 0;
   user.twoFactorLockedUntil = undefined;
-  req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '' };
-  const LoginSession = require('../models/LoginSession');
-  await LoginSession.create({ user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') });
+  await user.save();
+  await establishSession(req, user);
   if (req.body.recoveryCode) {
     const remaining = user.recoveryCodes.filter((entry) => !entry.usedAt).length;
     req.session.flash = { type: 'success', message: `Signed in with a recovery code. ${remaining} recovery code${remaining === 1 ? '' : 's'} left - regenerate them soon from Settings.` };

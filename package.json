@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node --test test/e2e/*.test.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^8.1.0",
@@ -28,6 +29,8 @@
     "sharp": "^0.35.4"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7"
+    "mongodb-memory-server": "^10.4.3",
+    "nodemon": "^3.1.7",
+    "supertest": "^7.2.2"
   }
 }

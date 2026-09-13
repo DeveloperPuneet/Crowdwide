@@ -8,6 +8,7 @@ const GroupConversation = require('../models/GroupConversation');
 const GroupMessage = require('../models/GroupMessage');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
+const { sendSecurityAlert } = require('../services/mailer');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -67,6 +68,13 @@ exports.changePassword = async (req, res) => {
   }
   user.password = await bcrypt.hash(req.body.newPassword, 12);
   await user.save();
+  if (user.notificationPreferences?.security !== false) {
+    await sendSecurityAlert(user, {
+      subject: 'Your Crowdwide password was changed',
+      heading: 'Password changed',
+      message: 'Your Crowdwide password was just changed. If you did not make this change, reset your password immediately and review your active sessions.'
+    });
+  }
   flash(req, 'success', 'Password changed. Other devices remain signed in until you log them out.');
   res.redirect('/settings/security');
 };

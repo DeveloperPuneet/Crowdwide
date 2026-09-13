@@ -41,20 +41,36 @@ async function sendVerificationCode(user, code) {
   await transporter.sendMail(message);
 }
 
-async function sendNewDeviceAlert(user, details) {
+async function sendSecurityAlert(user, { subject, heading, message }) {
   const transporter = getTransporter();
-  const message = {
+  const mail = {
     from: process.env.MAIL_FROM || process.env.GMAIL_USER || 'Crowdwide <hello@crowdwide.com>',
     to: user.email,
-    subject: 'New Crowdwide sign-in',
-    text: `A new device signed in to your Crowdwide account from ${details.ipAddress || 'an unknown IP'} using ${details.userAgent || 'an unknown browser'}. If this was not you, change your password immediately.`,
-    html: `<h2>New Crowdwide sign-in</h2><p>A new device signed in from <strong>${details.ipAddress || 'an unknown IP'}</strong>.</p><p>${details.userAgent || 'Unknown browser'}</p><p>If this was not you, change your password immediately.</p>`
+    subject,
+    text: message,
+    html: `<h2>${heading}</h2><p>${message}</p>`
   };
   if (!transporter) {
-    console.log(`[Crowdwide mail preview] New device for ${user.email}: ${message.text}`);
+    console.log(`[Crowdwide mail preview] ${subject} for ${user.email}: ${message}`);
     return;
   }
-  await transporter.sendMail(message);
+  await transporter.sendMail(mail);
 }
 
-module.exports = { sendVerificationCode, sendNewDeviceAlert };
+async function sendNewDeviceAlert(user, details) {
+  return sendSecurityAlert(user, {
+    subject: 'New Crowdwide sign-in',
+    heading: 'New Crowdwide sign-in',
+    message: `A new sign-in to your Crowdwide account was recorded from ${details.ipAddress || 'an unknown IP'} using ${details.userAgent || 'an unknown browser'}. If this was not you, change your password immediately.`
+  });
+}
+
+async function sendPasswordResetLink(user, resetUrl) {
+  return sendSecurityAlert(user, {
+    subject: 'Reset your Crowdwide password',
+    heading: 'Reset your password',
+    message: `We received a request to reset your Crowdwide password. This link expires in 30 minutes: ${resetUrl}. If you did not request this, you can safely ignore this email and your password will stay the same.`
+  });
+}
+
+module.exports = { sendVerificationCode, sendNewDeviceAlert, sendSecurityAlert, sendPasswordResetLink };
