@@ -27,6 +27,18 @@ const userSchema = new mongoose.Schema({
     follows: { type: Boolean, default: true },
     security: { type: Boolean, default: true }
   },
+  // Push is opt-in and off by default -- a user only gets an entry here
+  // (and pushNotificationsEnabled flips to true) after they explicitly
+  // click "Enable" in Settings and their browser grants permission.
+  pushNotificationsEnabled: { type: Boolean, default: false },
+  pushSubscriptions: [{
+    endpoint: { type: String, required: true },
+    keys: {
+      p256dh: { type: String, required: true },
+      auth: { type: String, required: true }
+    },
+    createdAt: { type: Date, default: Date.now }
+  }],
   bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   mutedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

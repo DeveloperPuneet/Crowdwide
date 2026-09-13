@@ -9,6 +9,7 @@ const GroupMessage = require('../models/GroupMessage');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
 const { sendSecurityAlert } = require('../services/mailer');
+const { isPushConfigured, getPublicKey } = require('../services/push');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -22,7 +23,7 @@ async function settingsData(req) {
 
 exports.page = async (req, res) => {
   const data = await settingsData(req);
-  res.render('pages/settings', { title: 'Settings', pagePath: '/settings', noIndex: true, section: req.params.section || 'profile', sessionID: req.sessionID, ...data });
+  res.render('pages/settings', { title: 'Settings', pagePath: '/settings', noIndex: true, section: req.params.section || 'profile', sessionID: req.sessionID, pushConfigured: isPushConfigured(), pushPublicKey: getPublicKey(), ...data });
 };
 
 exports.updateProfile = async (req, res) => {
@@ -139,4 +140,32 @@ exports.deleteAccount = async (req, res) => {
     GroupConversation.updateMany({ members: userId }, { $pull: { members: userId } })
   ]);
   req.session.destroy(() => res.redirect('/'));
+};
+
+exports.pushPublicKey = (req, res) => {
+  const publicKey = getPublicKey();
+  if (!publicKey) return res.status(503).json({ error: 'Push notifications are not configured on this server.' });
+  res.json({ publicKey });
+};
+
+exports.pushSubscribe = async (req, res) => {
+  if (!isPushConfigured()) return res.status(503).json({ error: 'Push notifications are not configured on this server.' });
+  const { endpoint, keys } = req.body?.subscription || {};
+  if (!endpoint || !keys?.p256dh || !keys?.auth) return res.status(400).json({ error: 'Invalid push subscription.' });
+  await User.findByIdAndUpdate(req.session.user.id, {
+    pushNotificationsEnabled: true,
+    $pull: { pushSubscriptions: { endpoint } }
+  });
+  await User.findByIdAndUpdate(req.session.user.id, {
+    $push: { pushSubscriptions: { endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } } }
+  });
+  res.json({ ok: true });
+};
+
+exports.pushUnsubscribe = async (req, res) => {
+  const endpoint = req.body?.endpoint;
+  const update = endpoint ? { $pull: { pushSubscriptions: { endpoint } } } : { pushSubscriptions: [], pushNotificationsEnabled: false };
+  const user = await User.findByIdAndUpdate(req.session.user.id, update, { new: true }).select('pushSubscriptions');
+  if (endpoint && !user.pushSubscriptions.length) await User.findByIdAndUpdate(req.session.user.id, { pushNotificationsEnabled: false });
+  res.json({ ok: true });
 };

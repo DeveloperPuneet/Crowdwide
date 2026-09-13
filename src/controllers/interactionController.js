@@ -7,6 +7,7 @@ const Report = require('../models/Report');
 const Message = require('../models/Message');
 const { extractHashtags } = require('../utils/hashtags');
 const { notifyMentionedUsers } = require('../services/mentions');
+const { sendPushToUser } = require('../services/push');
 
 const redirectBack = (req, res, payload = {}) => {
   if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, ...payload });
@@ -15,12 +16,17 @@ const redirectBack = (req, res, payload = {}) => {
 
 const canAccessPost = (post, userId) => post && (!['draft', 'scheduled'].includes(post.status) || String(post.author) === String(userId));
 
-async function notify(recipient, actor, type, message, post, community) {
+async function notify(recipient, actor, type, message, post, community, actorName) {
   if (!recipient || String(recipient) === String(actor)) return;
   const recipientUser = await User.findById(recipient).select('notificationPreferences').lean();
   const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : ['comment', 'reply', 'mention'].includes(type) ? 'comments' : 'security';
   if (recipientUser?.notificationPreferences && recipientUser.notificationPreferences[preferenceKey] === false) return;
   await Notification.create({ recipient, actor, type, message, post, community });
+  sendPushToUser(recipient, {
+    title: 'Crowdwide',
+    body: actorName ? `${actorName} ${message}` : message,
+    url: post ? `/posts/${post}` : '/notifications'
+  }).catch((error) => console.error('Push notification failed:', error.message));
 }
 
 exports.toggleLike = async (req, res) => {
@@ -30,7 +36,7 @@ exports.toggleLike = async (req, res) => {
   if (alreadyLiked) post.likes.pull(req.session.user.id);
   else {
     post.likes.addToSet(req.session.user.id);
-    await notify(post.author, req.session.user.id, 'like', 'liked your post.', post._id, post.community);
+    await notify(post.author, req.session.user.id, 'like', 'liked your post.', post._id, post.community, req.session.user.name);
   }
   await post.save();
   redirectBack(req, res, { liked: !alreadyLiked, likes: post.likes.length });
@@ -76,7 +82,7 @@ exports.comment = async (req, res) => {
   const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent: req.body.parent || null });
   post.commentsCount += 1;
   await post.save();
-  await notify(post.author, req.session.user.id, req.body.parent ? 'reply' : 'comment', req.body.parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community);
+  await notify(post.author, req.session.user.id, req.body.parent ? 'reply' : 'comment', req.body.parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
   await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
   if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, comment: { id: comment._id, body: comment.body } });
   res.redirect(`${req.get('referer') || `/dashboard`}#post-${post._id}`);
@@ -128,7 +134,7 @@ exports.toggleBookmark = async (req, res) => {
 
 exports.share = async (req, res) => {
   const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $nin: ['draft', 'scheduled'] } }, { author: req.session.user.id }] }, { $inc: { sharesCount: 1 } }, { new: true });
-  if (post) await notify(post.author, req.session.user.id, 'comment', 'shared your post.', post._id, post.community);
+  if (post) await notify(post.author, req.session.user.id, 'comment', 'shared your post.', post._id, post.community, req.session.user.name);
   if (req.get('X-Requested-With') !== 'XMLHttpRequest') return redirectBack(req, res);
   res.json({ url: `${process.env.APP_URL || 'http://localhost:3000'}/posts/${req.params.id}`, shares: post?.sharesCount || 0 });
 };
@@ -151,7 +157,7 @@ exports.quotePost = async (req, res) => {
     return res.redirect(req.get('referer') || '/dashboard');
   }
   await Post.create({ author: req.session.user.id, body, type: 'post', quotedPost: source._id, hashtags: extractHashtags(body), status: 'published' });
-  await notify(source.author, req.session.user.id, 'comment', 'quoted your post.', source._id);
+  await notify(source.author, req.session.user.id, 'comment', 'quoted your post.', source._id, undefined, req.session.user.name);
   res.redirect(req.get('referer') || '/dashboard');
 };
 
@@ -183,7 +189,7 @@ exports.replyPost = async (req, res) => {
     if ((community.bannedWords || []).some((word) => word && bodyLower.includes(word))) return redirectBack(req, res, { ok: false, error: 'That reply contains a word this community has blocked.' });
   }
   const reply = await Post.create({ author: req.session.user.id, body, type: 'post', community: source.community, replyTo: source._id, hashtags: extractHashtags(body), status: 'published' });
-  await notify(source.author, req.session.user.id, 'comment', 'replied to your post.', source._id, source.community);
+  await notify(source.author, req.session.user.id, 'comment', 'replied to your post.', source._id, source.community, req.session.user.name);
   return redirectBack(req, res, { reply: { id: reply._id, body: reply.body } });
 };
 
@@ -350,7 +356,7 @@ exports.toggleFollow = async (req, res) => {
     user.following.pull(targetId);
   } else {
     user.following.addToSet(targetId);
-    await notify(target._id, user._id, 'follow', 'started following you.');
+    await notify(target._id, user._id, 'follow', 'started following you.', undefined, undefined, user.name);
   }
   await user.save();
   const followersCount = await User.countDocuments({ following: targetId });

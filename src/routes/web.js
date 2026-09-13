@@ -98,6 +98,9 @@ router.post('/settings/security/devices/:id/logout', requireAuth, requireVerifie
 router.post('/settings/security/devices/logout-all', requireAuth, requireVerified, settingsController.logoutAll);
 router.post('/settings/privacy', requireAuth, requireVerified, settingsController.setInactivity);
 router.post('/settings/notifications', requireAuth, requireVerified, settingsController.setNotifications);
+router.get('/settings/push/public-key', requireAuth, requireVerified, settingsController.pushPublicKey);
+router.post('/settings/push/subscribe', requireAuth, requireVerified, settingsController.pushSubscribe);
+router.post('/settings/push/unsubscribe', requireAuth, requireVerified, settingsController.pushUnsubscribe);
 router.get('/settings/account/download', requireAuth, requireVerified, settingsController.downloadData);
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);

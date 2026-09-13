@@ -46,6 +46,16 @@
       <label><span><input type="checkbox" name="notifySecurity" <%= user.notificationPreferences?.security !== false ? 'checked' : '' %>> Security alerts</span></label>
       <button class="button button-primary" type="submit">Save notification settings <span>↗</span></button>
     </form>
+    <div class="settings-block">
+      <h3>Browser push notifications</h3>
+      <% if (!pushConfigured) { %>
+      <p>Push notifications aren't configured on this server yet.</p>
+      <% } else { %>
+      <p>Get a notification on this device when someone likes, comments, follows, or mentions you - even when Crowdwide isn't open. Off by default; nothing is sent until you turn this on.</p>
+      <label><span><input type="checkbox" id="push-toggle"> Enable push notifications on this device</span></label>
+      <p class="form-note" id="push-status">Checking status…</p>
+      <% } %>
+    </div>
     <% } else { %>
     <p class="eyebrow">Your account</p><h2>Take your data with you.</h2>
     <div class="settings-block"><h3>Download your activity</h3><p>Get a JSON copy of your profile, posts, and communities you own.</p><a class="button button-small button-ghost" href="/settings/account/download">Request data download <span>↓</span></a></div>

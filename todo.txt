@@ -18,19 +18,19 @@
 - Admin console functions (post/community/user moderation, pinning, settings, moderator approval queue) audited end-to-end; the "pin post to community" control never persisted or reflected state and is now fixed. (#8)
 - Group chat (create/list/thread/send) audited end-to-end; a membership-check bug that 404'd every member out of their own group thread is fixed. (#10)
 - Security emails: new-sign-in alerts (now firing correctly for both password and 2FA logins), password-changed, 2FA enabled/disabled, recovery-codes-regenerated, and a real password-reset email (previously just console-logged) — all respecting the existing per-user "security notifications" preference toggle. (#9)
-- Automated tests: permission/role-middleware and upload-validation unit tests (DB-free, run via `npm test`), plus a route-level/end-to-end signup-verify-login-post and admin-permission suite (`npm run test:e2e`, requires a MongoDB connection - see Known Gaps). (#4)
+- Automated tests: permission/role-middleware, upload-validation, and push-service unit tests (DB-free, run via `npm test`, 30/30 passing), plus a route-level/end-to-end signup-verify-login-post and admin-permission suite (`npm run test:e2e`, requires a MongoDB connection - see Known Gaps). (#4)
+- Browser push notifications (likes, comments, replies, follows, mentions) with explicit per-device opt-in from Settings, a service worker, and graceful no-op when VAPID keys aren't configured. Dead subscriptions are pruned automatically. Unit-tested (see above); the live browser flow (permission prompt, service worker registration, an actual push arriving) has not been exercised in a real browser - see Known Gaps. (Next Priorities #1)
 
 ## Next Priorities
 
-1. Add browser push notifications with an explicit opt-in and service worker.
-2. Add link previews, richer article editing, and media captions/transcripts.
-3. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
-4. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
-5. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
-6. Evaluate monetization only after safety, reliability, and accessibility work is complete.
-7. full check if any feature is not working or broken (ongoing - see Known Gaps for the one confirmed severe bug found and fixed this pass: the post composer form had no CSRF token and could not submit at all)
-8. PUBLIC TEST: done by the developers
-9. STABLE RELEASE
+1. Add link previews, richer article editing, and media captions/transcripts.
+2. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
+3. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
+4. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
+5. Evaluate monetization only after safety, reliability, and accessibility work is complete.
+6. full check if any feature is not working or broken (ongoing - only admin, group chat, auth, posting, settings/notifications, and tests have had a close pass so far; communities, DMs, search, and the moderation queue have not)
+7. PUBLIC TEST: done by the developers
+8. STABLE RELEASE
 
 ## Known Gaps
 
@@ -38,4 +38,5 @@
 - Link previews, rich article blocks, captions, and transcripts are not implemented.
 - Moderation appeals and evidence attachments are not implemented.
 - The `test:e2e` suite (signup/posting flow, admin route permissions) is written and wired into `npm run test:e2e`, but has not been executed successfully in this environment - it needs network access to download a MongoDB binary (via mongodb-memory-server) or a MONGODB_URI pointing at a real database. Run it locally to confirm before relying on it in CI.
+- Push notifications are unit-tested but the live browser flow (permission prompt, service worker registration/subscription, a push actually arriving on a device) has not been exercised in a real browser - this sandbox has no browser. Also requires generating real VAPID keys (`npx web-push generate-vapid-keys`) and setting them in the deployment environment before it does anything.
 - Monitoring, backups, CI/staging, and upload virus scanning require deployment infrastructure.

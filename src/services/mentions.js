@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const { sendPushToUser } = require('./push');
 
 const HANDLE_PATTERN = /@([a-z0-9][a-z0-9._-]{1,39})/gi;
 const HTML_ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -21,9 +22,14 @@ async function notifyMentionedUsers(text, actorId, postId, communityId, message 
   const handles = extractMentionHandles(text);
   if (!handles.length) return;
   const recipients = await Promise.all(handles.map((handle) => User.findOne({ email: new RegExp(`^${escapeRegex(handle)}@`, 'i'), isVerified: true }).select('_id notificationPreferences').lean()));
-  const notifications = recipients.filter((user) => user && String(user._id) !== String(actorId) && user.notificationPreferences?.comments !== false)
-    .map((user) => ({ recipient: user._id, actor: actorId, type: 'mention', message, post: postId, community: communityId }));
-  if (notifications.length) await Notification.insertMany(notifications);
+  const eligible = recipients.filter((user) => user && String(user._id) !== String(actorId) && user.notificationPreferences?.comments !== false);
+  if (!eligible.length) return;
+  await Notification.insertMany(eligible.map((user) => ({ recipient: user._id, actor: actorId, type: 'mention', message, post: postId, community: communityId })));
+  await Promise.all(eligible.map((user) => sendPushToUser(user._id, {
+    title: 'Crowdwide',
+    body: message,
+    url: postId ? `/posts/${postId}` : '/notifications'
+  }).catch((error) => console.error('Push notification failed:', error.message))));
 }
 
 module.exports = { extractMentionHandles, notifyMentionedUsers, renderMentions };
