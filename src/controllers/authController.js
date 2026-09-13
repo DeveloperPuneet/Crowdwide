@@ -118,37 +118,49 @@ exports.verify = async (req, res) => {
 };
 
 exports.forgot = async (req, res) => {
-  const user = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
-  if (user) {
-    user.resetToken = token();
-    user.resetExpires = Date.now() + 30 * 60 * 1000;
-    await user.save();
-    const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
-    await sendPasswordResetLink(user, `${appUrl}/auth/reset?token=${user.resetToken}`);
+  try {
+    const user = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
+    if (user) {
+      user.resetToken = token();
+      user.resetExpires = Date.now() + 30 * 60 * 1000;
+      await user.save();
+      const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+      await sendPasswordResetLink(user, `${appUrl}/auth/reset?token=${user.resetToken}`);
+    }
+    setFlash(req, 'success', 'If that email belongs to Crowdwide, a reset link is on its way.');
+    res.redirect('/auth/forgot-password');
+  } catch (error) {
+    console.error(error);
+    setFlash(req, 'error', 'We could not process that request right now.');
+    res.redirect('/auth/forgot-password');
   }
-  setFlash(req, 'success', 'If that email belongs to Crowdwide, a reset link is on its way.');
-  res.redirect('/auth/forgot-password');
 };
 
 exports.reset = async (req, res) => {
-  const user = await User.findOne({ resetToken: req.body.token, resetExpires: { $gt: Date.now() } });
-  if (!user || !req.body.password || req.body.password.length < 8) {
-    setFlash(req, 'error', 'That reset link is invalid or your password is too short.');
-    return res.redirect(`/auth/reset?token=${encodeURIComponent(req.body.token || '')}`);
+  try {
+    const user = await User.findOne({ resetToken: req.body.token, resetExpires: { $gt: Date.now() } });
+    if (!user || !req.body.password || req.body.password.length < 8) {
+      setFlash(req, 'error', 'That reset link is invalid or your password is too short.');
+      return res.redirect(`/auth/reset?token=${encodeURIComponent(req.body.token || '')}`);
+    }
+    user.password = await bcrypt.hash(req.body.password, 12);
+    user.resetToken = undefined;
+    user.resetExpires = undefined;
+    await user.save();
+    if (user.notificationPreferences?.security !== false) {
+      await sendSecurityAlert(user, {
+        subject: 'Your Crowdwide password was reset',
+        heading: 'Password reset',
+        message: 'Your Crowdwide password was just reset. If you did not do this, secure your account immediately by resetting your password again and reviewing your active sessions.'
+      });
+    }
+    setFlash(req, 'success', 'Your password has been updated.');
+    res.redirect('/auth/login');
+  } catch (error) {
+    console.error(error);
+    setFlash(req, 'error', 'We could not reset your password right now.');
+    res.redirect(`/auth/reset?token=${encodeURIComponent(req.body.token || '')}`);
   }
-  user.password = await bcrypt.hash(req.body.password, 12);
-  user.resetToken = undefined;
-  user.resetExpires = undefined;
-  await user.save();
-  if (user.notificationPreferences?.security !== false) {
-    await sendSecurityAlert(user, {
-      subject: 'Your Crowdwide password was reset',
-      heading: 'Password reset',
-      message: 'Your Crowdwide password was just reset. If you did not do this, secure your account immediately by resetting your password again and reviewing your active sessions.'
-    });
-  }
-  setFlash(req, 'success', 'Your password has been updated.');
-  res.redirect('/auth/login');
 };
 
 exports.logout = async (req, res) => {

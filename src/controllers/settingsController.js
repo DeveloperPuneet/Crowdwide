@@ -62,22 +62,28 @@ exports.updateProfile = async (req, res) => {
 };
 
 exports.changePassword = async (req, res) => {
-  const user = await User.findById(req.session.user.id);
-  if (!user || !(await bcrypt.compare(req.body.currentPassword || '', user.password)) || !req.body.newPassword || req.body.newPassword.length < 8) {
-    flash(req, 'error', 'Check your current password and use a new password of at least 8 characters.');
-    return res.redirect('/settings/security');
+  try {
+    const user = await User.findById(req.session.user.id);
+    if (!user || !(await bcrypt.compare(req.body.currentPassword || '', user.password)) || !req.body.newPassword || req.body.newPassword.length < 8) {
+      flash(req, 'error', 'Check your current password and use a new password of at least 8 characters.');
+      return res.redirect('/settings/security');
+    }
+    user.password = await bcrypt.hash(req.body.newPassword, 12);
+    await user.save();
+    if (user.notificationPreferences?.security !== false) {
+      await sendSecurityAlert(user, {
+        subject: 'Your Crowdwide password was changed',
+        heading: 'Password changed',
+        message: 'Your Crowdwide password was just changed. If you did not make this change, reset your password immediately and review your active sessions.'
+      });
+    }
+    flash(req, 'success', 'Password changed. Other devices remain signed in until you log them out.');
+    res.redirect('/settings/security');
+  } catch (error) {
+    console.error(error);
+    flash(req, 'error', 'Could not change your password right now.');
+    res.redirect('/settings/security');
   }
-  user.password = await bcrypt.hash(req.body.newPassword, 12);
-  await user.save();
-  if (user.notificationPreferences?.security !== false) {
-    await sendSecurityAlert(user, {
-      subject: 'Your Crowdwide password was changed',
-      heading: 'Password changed',
-      message: 'Your Crowdwide password was just changed. If you did not make this change, reset your password immediately and review your active sessions.'
-    });
-  }
-  flash(req, 'success', 'Password changed. Other devices remain signed in until you log them out.');
-  res.redirect('/settings/security');
 };
 
 exports.logoutDevice = async (req, res) => {

@@ -24,6 +24,23 @@ function getTransporter() {
   });
 }
 
+// Email is a best-effort side effect of these auth actions, never a
+// precondition for them: a mail-provider hiccup (timeout, expired OAuth
+// token, rate limit) must never make login, registration, 2FA, or password
+// reset fail or hang just because the notification email didn't go out.
+// deliver() swallows send failures (logging them) instead of throwing.
+async function deliver(transporter, mail, previewLabel) {
+  if (!transporter) {
+    console.log(`[Crowdwide mail preview] ${previewLabel}`);
+    return;
+  }
+  try {
+    await transporter.sendMail(mail);
+  } catch (error) {
+    console.error(`Failed to send mail (${mail.subject}) to ${mail.to}:`, error.message);
+  }
+}
+
 async function sendVerificationCode(user, code) {
   const transporter = getTransporter();
   const message = {
@@ -33,12 +50,7 @@ async function sendVerificationCode(user, code) {
     text: `Your Crowdwide verification code is ${code}. It expires in 15 minutes.`,
     html: `<h2>Welcome to Crowdwide</h2><p>Your verification code is <strong>${code}</strong>.</p><p>This code expires in 15 minutes.</p>`
   };
-
-  if (!transporter) {
-    console.log(`[Crowdwide mail preview] Verification code for ${user.email}: ${code}`);
-    return;
-  }
-  await transporter.sendMail(message);
+  await deliver(transporter, message, `Verification code for ${user.email}: ${code}`);
 }
 
 async function sendSecurityAlert(user, { subject, heading, message }) {
@@ -50,11 +62,7 @@ async function sendSecurityAlert(user, { subject, heading, message }) {
     text: message,
     html: `<h2>${heading}</h2><p>${message}</p>`
   };
-  if (!transporter) {
-    console.log(`[Crowdwide mail preview] ${subject} for ${user.email}: ${message}`);
-    return;
-  }
-  await transporter.sendMail(mail);
+  await deliver(transporter, mail, `${subject} for ${user.email}: ${message}`);
 }
 
 async function sendNewDeviceAlert(user, details) {
