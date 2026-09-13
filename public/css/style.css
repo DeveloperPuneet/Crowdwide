@@ -55,7 +55,7 @@ h1 em, h2 em { color: #7192ff; font-style: normal; }
   font: 700 15px 'Space Grotesk', sans-serif; color: #fff;
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.avatar.small { width: 32px; height: 32px; font-size: 12px; }
+.avatar.small { width: 32px; height: 32px; font-size: 12px; display:flex; justify-content: center;align-items: center; }
 .avatar.tiny { width: 29px; height: 29px; font-size: 11px; }
 .avatar.large { width: 84px; height: 84px; font-size: 30px; border: 3px solid var(--ink); }
 a.avatar-link { display: inline-flex; }
