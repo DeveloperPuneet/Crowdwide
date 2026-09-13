@@ -3,7 +3,9 @@ const GroupMessage = require('../models/GroupMessage');
 const User = require('../models/User');
 
 function memberOf(group, userId) {
-  return group?.members?.some((id) => String(id) === String(userId));
+  // group.members may be raw ObjectIds (unpopulated queries) or populated
+  // user documents (e.g. thread()'s .populate('members', ...)) -- handle both.
+  return group?.members?.some((member) => String(member?._id || member) === String(userId));
 }
 
 exports.list = async (req, res) => {

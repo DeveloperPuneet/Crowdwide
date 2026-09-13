@@ -108,7 +108,10 @@
                 <% ['unreviewed','good','needs-review','reported'].forEach((s) => { %><option value="<%= s %>" <%= post.moderationStatus === s ? 'selected' : '' %>><%= s %></option><% }) %>
               </select></label>
               <label>Content warning<input type="text" name="contentWarning" value="<%= post.contentWarning || '' %>"></label>
-              <% if (post.community) { %><label class="checkbox-field"><input type="checkbox" name="pinToCommunity"> Pinned in community</label><% } %>
+              <% if (post.community) { %><label>Community pin<select name="pinToCommunity">
+                <option value="off" <%= pinnedPostIds.has(String(post._id)) ? '' : 'selected' %>>Not pinned</option>
+                <option value="on" <%= pinnedPostIds.has(String(post._id)) ? 'selected' : '' %>>Pinned</option>
+              </select></label><% } %>
               <div class="admin-edit-form-actions">
                 <button class="button button-small button-primary" type="submit">Save</button>
               </div>
