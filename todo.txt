@@ -25,6 +25,13 @@
 5. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
 6. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
 7. Evaluate monetization only after safety, reliability, and accessibility work is complete.
+8. Complete admin make all functions working
+9. safety mails on user login sent to user and etc action like that
+10.group chat working
+SOLVE KNOWN GAPS
+11. full check if any feature is not working or broken
+12. PUBLIC TEST: done by the developers
+13. STABLE RELEASE
 
 ## Known Gaps
 
