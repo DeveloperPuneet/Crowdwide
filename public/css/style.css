@@ -406,12 +406,12 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .hashtag-chip { display: inline-block; color: #8da0ff; background: #171a30; border: 1px solid #2c3050; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; }
 .hashtag-chip:hover { background: #232852; color: #fff; }
 
-/* Media: consistent aspect-ratio boxes so images/video never explode the layout */
+/* Media keeps each asset's native proportions so no image or video is cropped. */
 .post-media { display: grid; gap: 6px; margin: 14px 0; border-radius: 10px; overflow: hidden; }
 .post-media.count-2 { grid-template-columns: 1fr 1fr; }
-.post-media-frame { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #05060f; overflow: hidden; border-radius: 10px; }
+.post-media-frame { position: relative; width: 100%; background: #05060f; overflow: hidden; border-radius: 10px; }
 .post-media.count-2 .post-media-frame { border-radius: 8px; }
-.post-media-frame img, .post-media-frame video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.post-media-frame img, .post-media-frame video { width: 100%; height: auto; max-height: none; object-fit: contain; display: block; }
 .post-media-frame audio { position: absolute; inset: auto 10px 10px 10px; width: calc(100% - 20px); }
 .post-card audio { display: block; width: 100%; margin: 14px 0; }
 
@@ -563,7 +563,6 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .post-detail-page { max-width: min(80vw, 1120px); min-width: min(70vw, 760px); margin-left: max(24px, 10vw); margin-right: auto; }
 .post-detail-page .public-post { width: 100%; }
 .post-detail-page .post-body { font-size: 17px; line-height: 1.8; }
-.post-detail-page .post-media-frame { aspect-ratio: 16 / 9; }
 .page-preloader { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; gap: 12px; align-content: center; background: #0a0c18; transition: opacity .35s ease, visibility .35s ease; }
 .page-preloader .preloader-mark { color: var(--orange); font-size: 28px; animation: preloader-pulse 1s ease-in-out infinite; }
 .preloader-line { width: 90px; height: 2px; overflow: hidden; background: #272d4f; }
@@ -767,7 +766,6 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
   .composer-actions { justify-content: space-between; }
   .composer select { max-width: 46%; }
   .post-source { display: none !important; }
-  .post-media-frame { aspect-ratio: 16 / 11; }
   .notifications-heading { display: block; }
   .notifications-heading form { margin-top: 12px; }
   .upload-preview { grid-template-columns: 1fr; }
