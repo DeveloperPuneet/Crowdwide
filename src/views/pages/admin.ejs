@@ -10,6 +10,7 @@
     <button type="button" class="admin-tab" data-tab="posts">Posts</button>
     <button type="button" class="admin-tab" data-tab="communities">Communities</button>
     <button type="button" class="admin-tab" data-tab="reports">Reports<% if (openReports.length) { %> (<%= openReports.length %>)<% } %></button>
+    <button type="button" class="admin-tab" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
     <button type="button" class="admin-tab" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
     <button type="button" class="admin-tab" data-tab="moderators">Moderators</button>
     <button type="button" class="admin-tab" data-tab="settings">Site settings</button>
@@ -20,7 +21,7 @@
   <section class="admin-panel" data-panel="overview">
     <div class="settings-block admin-wide">
       <h2>What needs attention</h2>
-      <p><%= pendingActions.length %> moderator action<%= pendingActions.length === 1 ? '' : 's' %> waiting for your approval, <%= openReports.length %> open report<%= openReports.length === 1 ? '' : 's' %>.</p>
+      <p><%= pendingActions.length %> moderator action<%= pendingActions.length === 1 ? '' : 's' %> waiting for your approval, <%= openReports.length %> open report<%= openReports.length === 1 ? '' : 's' %>, <%= pendingAppeals.length %> pending appeal<%= pendingAppeals.length === 1 ? '' : 's' %>.</p>
       <% if (siteSettings.maintenanceMode) { %><p class="admin-badge status-suspended">Maintenance mode is ON — the site is showing a maintenance message to visitors.</p><% } %>
     </div>
   </section>
@@ -193,6 +194,27 @@
         <input name="resolution" placeholder="Resolution note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:#d7d8e2;border-radius:7px;padding:7px 9px;font-size:11px;">
         <button name="status" value="resolved" class="button button-small button-primary">Resolve</button>
         <button name="status" value="dismissed" class="button button-small button-ghost">Dismiss</button>
+      </form>
+    </div>
+    <% }) %>
+  </section>
+
+  <!-- APPEALS -->
+  <section class="admin-panel" data-panel="appeals">
+    <h2>Pending appeals</h2>
+    <% if (!pendingAppeals.length) { %><p>No pending appeals.</p><% } %>
+    <% pendingAppeals.forEach((appeal) => { %>
+    <div class="device-row">
+      <div>
+        <strong><%= appeal.actionType %> · <%= appeal.user?.name || 'member' %> (<%= appeal.user?.email || 'unknown' %>)</strong>
+        <span>Filed <%= new Date(appeal.createdAt).toLocaleString() %><% if (appeal.reasonSnapshot) { %> · original reason: <%= appeal.reasonSnapshot %><% } %></span>
+        <p><%= appeal.message %></p>
+      </div>
+      <form method="post" action="/admin/appeals/<%= appeal._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:#d7d8e2;border-radius:7px;padding:7px 9px;font-size:11px;">
+        <button name="decision" value="approve" class="button button-small button-primary">Approve &amp; lift</button>
+        <button name="decision" value="deny" class="button button-small button-ghost">Deny</button>
       </form>
     </div>
     <% }) %>

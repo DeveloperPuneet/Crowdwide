@@ -2,4 +2,5 @@
 <p class="eyebrow">Welcome back</p><h1>Good things<br><em>happen here.</em></h1><p class="form-note">Sign in to pick up where you left off.</p>
 <form class="auth-form" method="post" action="/auth/login"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Email address<input type="email" name="email" placeholder="you@example.com" required></label><label>Password <a href="/auth/forgot-password">Forgot?</a><input type="password" name="password" placeholder="Your password" required></label><button class="button button-primary button-full" type="submit">Sign in <span>↗</span></button></form>
 <p class="switch-auth">New to Crowdwide? <a href="/auth/register">Create an account</a></p>
+<p class="switch-auth">Account suspended? <a href="/auth/appeal">Appeal it</a></p>
 <%- include('../partials/auth-shell-end') %>

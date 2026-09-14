@@ -10,6 +10,7 @@ const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
 const { sendSecurityAlert } = require('../services/mailer');
 const { isPushConfigured, getPublicKey } = require('../services/push');
+const Appeal = require('../models/Appeal');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -18,7 +19,8 @@ async function settingsData(req) {
   const sessions = await LoginSession.find({ user: user._id }).sort({ lastSeenAt: -1 }).lean();
   const ownedCommunities = await Community.find({ owner: user._id }).sort({ createdAt: -1 }).lean();
   const blockedUsers = user.blockedUsers?.length ? await User.find({ _id: { $in: user.blockedUsers } }).select('name profilePicture').lean() : [];
-  return { user, sessions, ownedCommunities, blockedUsers };
+  const appeals = await Appeal.find({ user: user._id }).sort({ createdAt: -1 }).limit(20).lean();
+  return { user, sessions, ownedCommunities, blockedUsers, appeals };
 }
 
 exports.page = async (req, res) => {

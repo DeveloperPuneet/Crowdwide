@@ -7,6 +7,7 @@ const Report = require('../models/Report');
 const AuditLog = require('../models/AuditLog');
 const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
+const Appeal = require('../models/Appeal');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const audit = (req, action, targetType, target, details = {}) => AuditLog.create({ actor: req.roleUser._id, action, targetType, target, details, ipAddress: req.ip, userAgent: req.get('user-agent') });
@@ -68,18 +69,41 @@ exports.moderatePost = async (req, res) => {
 };
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, moderators, auditLogs, siteSettings] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, siteSettings] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(80).populate('reporter', 'name email').lean(),
     ModerationAction.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('moderator', 'name moderatorId').lean(),
+    Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
     User.find({ role: 'moderator' }).select('name email moderatorId isVerified createdAt loginLockedUntil').sort({ createdAt: -1 }).lean(),
     AuditLog.find().sort({ createdAt: -1 }).limit(100).populate('actor', 'name email role moderatorId').lean(),
     SiteSetting.getSingleton()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, moderators, auditLogs, siteSettings, pinnedPostIds, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, siteSettings, pinnedPostIds, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+};
+
+exports.resolveAppeal = async (req, res) => {
+  const appeal = await Appeal.findById(req.params.id);
+  if (!appeal || appeal.status !== 'pending') {
+    flash(req, 'error', 'That appeal is no longer pending.');
+    return res.redirect('/admin#appeals');
+  }
+  const approve = req.body.decision === 'approve';
+  if (approve) {
+    if (appeal.actionType === 'suspension') await User.findByIdAndUpdate(appeal.user, { suspendedUntil: null, suspensionReason: '' });
+    else if (appeal.actionType === 'posting-restriction') await User.findByIdAndUpdate(appeal.user, { postingRestrictedUntil: null, postingRestrictionReason: '' });
+    else if (appeal.actionType === 'warning') await User.findByIdAndUpdate(appeal.user, { $pull: { warnings: { _id: appeal.warningId } } });
+  }
+  appeal.status = approve ? 'approved' : 'denied';
+  appeal.reviewedBy = req.roleUser._id;
+  appeal.reviewedAt = new Date();
+  appeal.reviewNote = req.body.note?.trim().slice(0, 500) || '';
+  await appeal.save();
+  await audit(req, approve ? 'approve-appeal' : 'deny-appeal', 'user', appeal.user, { actionType: appeal.actionType });
+  flash(req, 'success', `Appeal ${approve ? 'approved' : 'denied'}.`);
+  res.redirect('/admin#appeals');
 };
 
 exports.updateUser = async (req, res) => {

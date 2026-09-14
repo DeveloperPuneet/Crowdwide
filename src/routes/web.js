@@ -8,6 +8,7 @@ const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
 const { interactionLimiter, apiLimiter, csrfSynchronisedProtection } = require('../middleware/security');
 const twoFactorController = require('../controllers/twoFactorController');
+const appealController = require('../controllers/appealController');
 const adminController = require('../controllers/adminController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
 
@@ -76,6 +77,7 @@ router.get('/admin', requireAuth, requireVerified, requireAdmin, requirePanelPas
 router.post('/admin/moderators', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.createModerator);
 router.post('/admin/moderators/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteModerator);
 router.post('/admin/reports/:id', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.resolveReport);
+router.post('/admin/appeals/:id', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.resolveAppeal);
 router.post('/admin/moderation/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.reviewAction);
 router.post('/admin/posts/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deletePost);
 router.post('/admin/posts/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updatePost);
@@ -98,6 +100,7 @@ router.post('/settings/security/devices/:id/logout', requireAuth, requireVerifie
 router.post('/settings/security/devices/logout-all', requireAuth, requireVerified, settingsController.logoutAll);
 router.post('/settings/privacy', requireAuth, requireVerified, settingsController.setInactivity);
 router.post('/settings/notifications', requireAuth, requireVerified, settingsController.setNotifications);
+router.post('/settings/appeals', requireAuth, requireVerified, appealController.submitAppeal);
 router.get('/settings/push/public-key', requireAuth, requireVerified, settingsController.pushPublicKey);
 router.post('/settings/push/subscribe', requireAuth, requireVerified, settingsController.pushSubscribe);
 router.post('/settings/push/unsubscribe', requireAuth, requireVerified, settingsController.pushUnsubscribe);

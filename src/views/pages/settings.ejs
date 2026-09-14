@@ -8,6 +8,7 @@
     <a class="<%= section === 'security' ? 'settings-active' : '' %>" href="/settings/security">Security & devices</a>
     <a class="<%= section === 'privacy' ? 'settings-active' : '' %>" href="/settings/privacy">Privacy</a>
     <a class="<%= section === 'notifications' ? 'settings-active' : '' %>" href="/settings/notifications">Notifications</a>
+    <% if (user.suspendedUntil || user.postingRestrictedUntil || user.warnings?.length || appeals.length) { %><a class="<%= section === 'moderation' ? 'settings-active' : '' %>" href="/settings/moderation">Moderation</a><% } %>
     <a class="<%= section === 'account' ? 'settings-active' : '' %>" href="/settings/account">Account</a>
   </aside>
   <section class="settings-content"><%- include('../partials/flash') %>
@@ -56,6 +57,34 @@
       <p class="form-note" id="push-status">Checking status…</p>
       <% } %>
     </div>
+    <% } else if (section === 'moderation') { %>
+    <p class="eyebrow">Account standing</p><h2>Moderation status.</h2>
+    <% if (user.postingRestrictedUntil && new Date(user.postingRestrictedUntil) > new Date()) { %>
+    <div class="settings-block danger-zone">
+      <h3>Posting restricted</h3>
+      <p>You can't create new posts or comments until <%= new Date(user.postingRestrictedUntil).toLocaleString() %>.<% if (user.postingRestrictionReason) { %> Reason: <%= user.postingRestrictionReason %><% } %></p>
+      <% const pendingRestrictionAppeal = appeals.find((appeal) => appeal.actionType === 'posting-restriction' && appeal.status === 'pending'); %>
+      <% if (pendingRestrictionAppeal) { %><p><em>Your appeal is pending review.</em></p><% } else { %>
+      <form method="post" action="/settings/appeals"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="actionType" value="posting-restriction"><textarea name="message" maxlength="1000" placeholder="Explain why this restriction should be lifted" required></textarea><button class="button button-small" type="submit">Submit appeal</button></form>
+      <% } %>
+    </div>
+    <% } %>
+    <% (user.warnings || []).forEach((warning) => { %>
+    <div class="settings-block">
+      <h3>Warning · <%= new Date(warning.createdAt).toLocaleDateString() %></h3>
+      <p><%= warning.reason %></p>
+      <% const pendingWarningAppeal = appeals.find((appeal) => appeal.actionType === 'warning' && String(appeal.warningId) === String(warning._id) && appeal.status === 'pending'); %>
+      <% if (pendingWarningAppeal) { %><p><em>Your appeal is pending review.</em></p><% } else { %>
+      <form method="post" action="/settings/appeals"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="actionType" value="warning"><input type="hidden" name="warningId" value="<%= warning._id %>"><textarea name="message" maxlength="1000" placeholder="Explain why this warning should be removed" required></textarea><button class="button button-small" type="submit">Submit appeal</button></form>
+      <% } %>
+    </div>
+    <% }) %>
+    <% if (appeals.length) { %>
+    <div class="settings-block">
+      <h3>Your appeal history</h3>
+      <% appeals.forEach((appeal) => { %><div class="device-row"><div><strong><%= appeal.actionType %> · <%= appeal.status %></strong><span><%= new Date(appeal.createdAt).toLocaleDateString() %><% if (appeal.reviewNote) { %> · <%= appeal.reviewNote %><% } %></span></div></div><% }) %>
+    </div>
+    <% } %>
     <% } else { %>
     <p class="eyebrow">Your account</p><h2>Take your data with you.</h2>
     <div class="settings-block"><h3>Download your activity</h3><p>Get a JSON copy of your profile, posts, and communities you own.</p><a class="button button-small button-ghost" href="/settings/account/download">Request data download <span>↓</span></a></div>
