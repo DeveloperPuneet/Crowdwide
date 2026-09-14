@@ -15,13 +15,19 @@
 			<%- include('../partials/avatar', { person: post.author, size: 'small', link: !!currentUser }) %>
 			<div><strong><%= post.author?.name || 'Crowdwide member' %></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %></span></div>
 		</div>
-		<p class="post-body" style="-webkit-line-clamp:unset;max-height:none;"><%- renderMentions(post.body) %></p>
+		<div class="post-body" style="-webkit-line-clamp:unset;max-height:none;"><%- renderRichBody(post.body) %></div>
 		<% if (post.poll?.question && post.poll.options?.length) { %>
 		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %></section>
 		<% } %>
 		<% if (post.quotedPost) { %><a class="quoted-post" href="/posts/<%= post.quotedPost._id %>"><strong><%= post.quotedPost.author?.name || 'Crowdwide member' %>'s post</strong><p><%= post.quotedPost.body %></p></a><% } %>
 		<% if (post.replyTo) { %><a class="quoted-post reply-source" href="/posts/<%= post.replyTo._id %>"><strong>Replying to <%= post.replyTo.author?.name || 'Crowdwide member' %></strong><p><%= post.replyTo.body %></p></a><% } %>
 		<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
+		<% if (post.linkPreview?.title) { %>
+		<a class="link-preview-card" href="<%= post.linkPreview.url %>" target="_blank" rel="noopener noreferrer nofollow">
+			<% if (post.linkPreview.image) { %><img src="<%= post.linkPreview.image %>" alt="" loading="lazy"><% } %>
+			<div class="link-preview-body"><span class="link-preview-site"><%= post.linkPreview.siteName %></span><strong><%= post.linkPreview.title %></strong><% if (post.linkPreview.description) { %><p><%= post.linkPreview.description %></p><% } %></div>
+		</a>
+		<% } %>
 		<% if ((post.media || []).length) { %>
 		<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
 			<% post.media.forEach((media) => { %>
@@ -29,6 +35,8 @@
 				<% if (media.kind === 'image') { %><img src="<%= media.thumbnailUrl || media.url %>" alt="<%= media.alt || 'Post image' %>" loading="lazy">
 				<% } else if (media.kind === 'video') { %><video controls controlsList="nodownload" disablePictureInPicture preload="none" src="<%= media.url %>"></video>
 				<% } else if (media.kind === 'audio') { %><audio controls controlsList="nodownload" preload="none" src="<%= media.url %>"></audio><% } %>
+				<% if (media.caption) { %><p class="media-caption"><%= media.caption %></p><% } %>
+				<% if (media.transcript && media.kind !== 'image') { %><details class="media-transcript"><summary>Transcript</summary><p><%= media.transcript %></p></details><% } %>
 			</div>
 			<% }) %>
 		</div>

@@ -13,6 +13,8 @@ const postSchema = new mongoose.Schema({
     url: { type: String, required: true },
     kind: { type: String, enum: ['image', 'video', 'audio'], default: 'image' },
     alt: String,
+    caption: String,
+    transcript: String,
     storageKey: String,
     thumbnailUrl: String
   }],
@@ -25,6 +27,13 @@ const postSchema = new mongoose.Schema({
   },
   quotedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
   replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
+  linkPreview: {
+    url: String,
+    title: String,
+    description: String,
+    image: String,
+    siteName: String
+  },
   reactions: {
     celebrate: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     insightful: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

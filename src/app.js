@@ -7,7 +7,7 @@ const connectMongo = require('connect-mongo');
 const webRoutes = require('./routes/web');
 const authRoutes = require('./routes/auth');
 const { csrfProtection, generateToken } = require('./middleware/security');
-const { renderMentions } = require('./services/mentions');
+const { renderMentions, renderRichBody } = require('./services/mentions');
 
 function createApp({ port = process.env.PORT || 3000 } = {}) {
   const app = express();
@@ -49,6 +49,7 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     res.locals.csrfToken = generateToken(req);
     res.locals.appUrl = process.env.APP_URL || `http://localhost:${port}`;
     res.locals.renderMentions = renderMentions;
+    res.locals.renderRichBody = renderRichBody;
     delete req.session.flash;
     next();
   });

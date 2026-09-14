@@ -21,17 +21,19 @@
 - Automated tests: permission/role-middleware, upload-validation, and push-service unit tests (DB-free, run via `npm test`, 30/30 passing), plus a route-level/end-to-end signup-verify-login-post and admin-permission suite (`npm run test:e2e`, requires a MongoDB connection - see Known Gaps). (#4)
 - Browser push notifications (likes, comments, replies, follows, mentions) with explicit per-device opt-in from Settings, a service worker, and graceful no-op when VAPID keys aren't configured. Dead subscriptions are pruned automatically. Unit-tested (see above); the live browser flow (permission prompt, service worker registration, an actual push arriving) has not been exercised in a real browser - see Known Gaps. (Next Priorities #1)
 - Auth reliability: a mail-provider hiccup (timeout, expired OAuth token, rate limit) could make login show "temporarily unavailable" with correct credentials, make registration show a false failure after the account was already created, and made 2FA login/password-reset hang indefinitely with no response (Express 4 doesn't auto-catch async route rejections, and none of those handlers had try/catch). Mail sending is now best-effort everywhere - it logs and continues instead of throwing - and every previously-unguarded auth/2FA/password-change handler now has proper error handling instead of hanging. Verified with 5 new unit tests simulating a down mail provider.
+- Richer article/post rendering: paragraphs, "# heading" lines, "- list" lines, and **bold**/*italic* are now rendered as real HTML instead of one plain-text blob, with HTML always escaped before any formatting is applied (XSS-safe). Unit-tested (10 tests) including an explicit script-injection attempt.
+- Media captions and transcripts: `caption` (shown under the media) and `transcript` (expandable, for audio/video) fields added end-to-end - schema, composer form, and display. Also fixed: the composer's file input was missing the `multiple` attribute, so "upload up to 2 files" was never actually reachable in the browser despite the backend supporting it; and alt text had no way to be entered anywhere in the UI despite being listed as done. Note: like the pre-existing alt-text field, caption/transcript are one field per post (applied to every file in that post), not per individual file - see Known Gaps.
+- Link previews: the first URL in a post (when the post has no attached media) is unfurled in the background - title/description/image/site via Open Graph tags, falling back to `<title>`/`<meta name="description">` - and shown as a card. Fetching is fire-and-forget (never blocks or delays posting, the same lesson as the auth-reliability fix above), time-capped, size-capped (reads at most 200KB), and has a baseline SSRF guard blocking localhost/private/link-local hosts. 18 unit tests cover URL extraction, the SSRF guard, HTML parsing, and full end-to-end parsing against a mocked fetch - see Known Gaps for what live testing would still need to confirm.
 
 ## Next Priorities
 
-1. Add link previews, richer article editing, and media captions/transcripts.
-2. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
-3. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
-4. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
-5. Evaluate monetization only after safety, reliability, and accessibility work is complete.
-6. full check if any feature is not working or broken (ongoing - only admin, group chat, auth, posting, settings/notifications, and tests have had a close pass so far; communities, DMs, search, and the moderation queue have not)
-7. PUBLIC TEST: done by the developers
-8. STABLE RELEASE
+1. Add moderation appeals, evidence attachments, temporary mutes, CAPTCHA/abuse controls, and stronger spam detection.
+2. Add structured logging, monitoring/alerts, backup/restore checks, CI, staging, and virus scanning for uploads.
+3. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
+4. Evaluate monetization only after safety, reliability, and accessibility work is complete.
+5. full check if any feature is not working or broken (ongoing - only admin, group chat, auth, posting/media/articles, link previews, settings/notifications, and tests have had a close pass so far; communities, DMs, search, and the moderation queue have not)
+6. PUBLIC TEST: done by the developers
+7. STABLE RELEASE
 
 ## Known Gaps
 
@@ -40,4 +42,6 @@
 - Moderation appeals and evidence attachments are not implemented.
 - The `test:e2e` suite (signup/posting flow, admin route permissions) is written and wired into `npm run test:e2e`, but has not been executed successfully in this environment - it needs network access to download a MongoDB binary (via mongodb-memory-server) or a MONGODB_URI pointing at a real database. Run it locally to confirm before relying on it in CI.
 - Push notifications are unit-tested but the live browser flow (permission prompt, service worker registration/subscription, a push actually arriving on a device) has not been exercised in a real browser - this sandbox has no browser. Also requires generating real VAPID keys (`npx web-push generate-vapid-keys`) and setting them in the deployment environment before it does anything.
+- Link previews: the SSRF guard checks the hostname/IP as written in the URL, not the IP it actually resolves to, so it does not defend against DNS rebinding (a hostname that resolves to a private IP only at fetch time). The whole feature is unit-tested against a mocked fetch but has not made a real HTTP request in this sandbox - worth trying against a few real URLs (including ones that redirect, and ones with no Open Graph tags at all) before relying on it. Also, since fetching is fire-and-forget, a freshly-created post's preview may not be visible until the next page load/refresh.
+- Media alt text, caption, and transcript are one field per post (applied to every uploaded file in that post) rather than per individual file - fine for the common one-file case, less precise when two files are attached with different content.
 - Monitoring, backups, CI/staging, and upload virus scanning require deployment infrastructure.

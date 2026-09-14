@@ -7,6 +7,7 @@ const Comment = require('../models/Comment');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
 const { notifyMentionedUsers } = require('../services/mentions');
+const { extractFirstUrl, fetchLinkPreview } = require('../services/linkPreview');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -215,7 +216,7 @@ exports.createPost = async (req, res) => {
 	const media = [];
 	for (const file of req.files || []) {
 		const stored = await uploadBuffer(file.buffer, file.originalname, file.mimetype, { kind: file.mediaKind, owner: req.session.user.id });
-		const item = { url: mediaUrl(stored), storageKey: stored.id, kind: file.mediaKind, alt: req.body.mediaAlt?.trim() || '' };
+		const item = { url: mediaUrl(stored), storageKey: stored.id, kind: file.mediaKind, alt: req.body.mediaAlt?.trim() || '', caption: req.body.mediaCaption?.trim().slice(0, 280) || '', transcript: req.body.mediaTranscript?.trim().slice(0, 4000) || '' };
 		if (file.mediaKind === 'image') {
 			const thumbnail = await createImageThumbnail(file.buffer);
 			const thumbnailFile = await uploadBuffer(thumbnail, `${file.originalname}.thumb.webp`, 'image/webp', { kind: 'thumbnail', parent: stored.id, owner: req.session.user.id });
@@ -226,6 +227,16 @@ exports.createPost = async (req, res) => {
 	const isDraft = req.body.saveAsDraft === 'on';
 	const createdPost = await Post.create({ author: req.session.user.id, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
+	if (!isDraft && !media.length) {
+		// Fire-and-forget: unfurling a link must never delay or block the
+		// response to the person posting, so this is deliberately not awaited.
+		const firstUrl = extractFirstUrl(body);
+		if (firstUrl) {
+			fetchLinkPreview(firstUrl)
+				.then((preview) => preview && Post.findByIdAndUpdate(createdPost._id, { linkPreview: preview }))
+				.catch((error) => console.error('Link preview update failed:', error.message));
+		}
+	}
 	if (isDraft) {
 		req.session.flash = { type: 'success', message: 'Draft saved. It is visible only to you.' };
 	} else if (status === 'scheduled') {
