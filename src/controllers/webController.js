@@ -8,6 +8,8 @@ const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
 const { notifyMentionedUsers } = require('../services/mentions');
 const { extractFirstUrl, fetchLinkPreview } = require('../services/linkPreview');
+const { checkPostingRestriction } = require('../utils/postingRestriction');
+const { isRepeatPost } = require('../utils/spamDetection');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -170,12 +172,21 @@ exports.dashboard = async (req, res) => {
 };
 
 exports.createPost = async (req, res) => {
+	const restriction = await checkPostingRestriction(req.session.user.id);
+	if (restriction) {
+		req.session.flash = { type: 'error', message: restriction };
+		return res.redirect('/dashboard');
+	}
 	const body = req.body.body?.trim();
 	const type = ['article', 'poll'].includes(req.body.type) ? req.body.type : 'post';
 	const wordLimit = type === 'article' ? 550 : 120;
 	const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
 	if (!body || wordCount > wordLimit) {
 		req.session.flash = { type: 'error', message: `${type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` };
+		return res.redirect('/dashboard');
+	}
+	if (req.body.saveAsDraft !== 'on' && await isRepeatPost(Post, req.session.user.id, body)) {
+		req.session.flash = { type: 'error', message: "You've already posted this recently. Try adding something new." };
 		return res.redirect('/dashboard');
 	}
 	const pollQuestion = req.body.pollQuestion?.trim();

@@ -16,7 +16,7 @@ const SUSPENSION_MS = 365 * 24 * 60 * 60 * 1000;
 
 async function applyPostModerationAction(req, action, post, reason) {
   if (action === 'delete-post') await Post.deleteOne({ _id: post._id });
-  if (action === 'suspend-user') await User.findByIdAndUpdate(post.author?._id || post.author, { loginLockedUntil: new Date(Date.now() + SUSPENSION_MS), suspensionReason: reason });
+  if (action === 'suspend-user') await User.findByIdAndUpdate(post.author?._id || post.author, { suspendedUntil: new Date(Date.now() + SUSPENSION_MS), suspensionReason: reason });
   if (['rate-good-post', 'rate-bad-post'].includes(action)) {
     const scoreChange = action === 'rate-good-post' ? 1 : -1;
     await Post.findByIdAndUpdate(post._id, { $inc: { moderationScore: scoreChange }, $set: { moderationStatus: scoreChange > 0 ? 'good' : 'needs-review' } });
@@ -69,7 +69,7 @@ exports.moderatePost = async (req, res) => {
 
 exports.admin = async (req, res) => {
   const [users, communities, posts, openReports, pendingActions, moderators, auditLogs, siteSettings] = await Promise.all([
-    User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt loginLockedUntil suspensionReason warnings').lean(),
+    User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(80).populate('reporter', 'name email').lean(),
@@ -97,11 +97,19 @@ exports.updateUser = async (req, res) => {
   changes.isVerified = req.body.isVerified === 'on';
   if (!isSelf) {
     if (req.body.suspend === 'on') {
-      changes.loginLockedUntil = new Date(Date.now() + SUSPENSION_MS);
+      changes.suspendedUntil = new Date(Date.now() + SUSPENSION_MS);
       changes.suspensionReason = req.body.suspensionReason?.trim().slice(0, 500) || 'Suspended by admin.';
     } else if (req.body.suspend === 'off') {
-      changes.loginLockedUntil = null;
+      changes.suspendedUntil = null;
       changes.suspensionReason = '';
+    }
+    const restrictionDurations = { '24h': 24 * 60 * 60 * 1000, '72h': 3 * 24 * 60 * 60 * 1000, '7d': 7 * 24 * 60 * 60 * 1000 };
+    if (restrictionDurations[req.body.postingRestriction]) {
+      changes.postingRestrictedUntil = new Date(Date.now() + restrictionDurations[req.body.postingRestriction]);
+      changes.postingRestrictionReason = req.body.postingRestrictionReason?.trim().slice(0, 500) || 'Restricted by admin.';
+    } else if (req.body.postingRestriction === 'off') {
+      changes.postingRestrictedUntil = null;
+      changes.postingRestrictionReason = '';
     }
   }
   Object.assign(user, changes);
@@ -238,10 +246,10 @@ async function applyApprovedAction(req, action) {
     await Post.findByIdAndUpdate(action.target, { body: payload.body.trim().slice(0, 4000) });
   }
   if (action.action === 'suspend-user') {
-    await User.findByIdAndUpdate(action.target, { loginLockedUntil: new Date(Date.now() + SUSPENSION_MS), suspensionReason: action.reason });
+    await User.findByIdAndUpdate(action.target, { suspendedUntil: new Date(Date.now() + SUSPENSION_MS), suspensionReason: action.reason });
   }
   if (action.action === 'unsuspend-user') {
-    await User.findByIdAndUpdate(action.target, { loginLockedUntil: null, suspensionReason: '' });
+    await User.findByIdAndUpdate(action.target, { suspendedUntil: null, suspensionReason: '' });
   }
   if (action.action === 'warn-user') {
     await User.findByIdAndUpdate(action.target, { $push: { warnings: { reason: action.reason, issuedBy: action.moderator } } });
@@ -283,7 +291,7 @@ exports.reviewAction = async (req, res) => {
 
 exports.moderator = async (req, res) => {
   const [reports, actions, communities, moderationFeed] = await Promise.all([
-    Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(60).select('targetType target reason status createdAt').lean(),
+    Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(60).select('targetType target reason evidenceUrl status createdAt').lean(),
     ModerationAction.find({ moderator: req.roleUser._id }).sort({ createdAt: -1 }).limit(60).select('action targetType target reason status createdAt reviewNote').lean(),
     Community.find().sort({ membersCount: -1 }).limit(60).select('name slug description guidelines category membersCount requireApproval bannedWords createdAt').lean(),
     Post.find({ status: 'published', author: { $ne: req.roleUser._id } }).sort({ moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus').populate('author', 'name profilePicture').populate('community', 'name slug').lean()

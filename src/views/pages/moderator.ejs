@@ -48,6 +48,6 @@
   </details>
   <% }) %></section>
 
-  <section class="settings-block"><h2>Open reports</h2><% if (!reports.length) { %><p>No open reports.</p><% } %><% reports.forEach((report) => { %><div class="device-row"><div><strong><%= report.targetType %></strong><span><%= report.target %> · <%= report.reason %></span></div></div><% }) %></section>
+  <section class="settings-block"><h2>Open reports</h2><% if (!reports.length) { %><p>No open reports.</p><% } %><% reports.forEach((report) => { %><div class="device-row"><div><strong><%= report.targetType %></strong><span><%= report.target %> · <%= report.reason %></span><% if (report.evidenceUrl) { %><a href="<%= report.evidenceUrl %>" target="_blank" rel="noopener noreferrer"><img src="<%= report.evidenceUrl %>" alt="Reported evidence screenshot" style="max-width:140px;border-radius:6px;margin-top:6px;display:block;"></a><% } %></div></div><% }) %></section>
   <section class="settings-block"><h2>Your action history</h2><% actions.forEach((item) => { %><div class="device-row"><div><strong><%= item.action %></strong><span><%= item.targetType %> <%= item.target %> · <%= item.status %> · <%= item.reason %><% if (item.reviewNote) { %> · admin note: <%= item.reviewNote %><% } %></span></div></div><% }) %><% if (!actions.length) { %><p>No actions submitted yet.</p><% } %></section>
 </main><%- include('../partials/app-footer') %><%- include('../partials/foot') %>

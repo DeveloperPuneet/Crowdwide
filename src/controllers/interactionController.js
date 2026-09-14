@@ -8,6 +8,8 @@ const Message = require('../models/Message');
 const { extractHashtags } = require('../utils/hashtags');
 const { notifyMentionedUsers } = require('../services/mentions');
 const { sendPushToUser } = require('../services/push');
+const { checkPostingRestriction } = require('../utils/postingRestriction');
+const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 
 const redirectBack = (req, res, payload = {}) => {
   if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, ...payload });
@@ -47,9 +49,14 @@ exports.reportPost = async (req, res) => {
   if (!canAccessPost(post, req.session.user.id)) return redirectBack(req, res, { reported: false });
   const reason = req.body.reason?.trim();
   if (post && reason) {
+    let evidenceUrl;
+    if (req.file) {
+      const stored = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, { kind: 'report-evidence', owner: req.session.user.id });
+      evidenceUrl = mediaUrl(stored);
+    }
     await Report.updateOne(
       { reporter: req.session.user.id, targetType: 'post', target: post._id },
-      { $setOnInsert: { reporter: req.session.user.id, targetType: 'post', target: post._id, reason } },
+      { $setOnInsert: { reporter: req.session.user.id, targetType: 'post', target: post._id, reason, evidenceUrl } },
       { upsert: true }
     );
   }
@@ -76,6 +83,8 @@ exports.deletePost = async (req, res) => {
 };
 
 exports.comment = async (req, res) => {
+  const restriction = await checkPostingRestriction(req.session.user.id);
+  if (restriction) return redirectBack(req, res, { ok: false, error: restriction });
   const body = req.body.body?.trim();
   const post = await Post.findById(req.params.id);
   if (!canAccessPost(post, req.session.user.id) || !body || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Comment must be between 1 and 2,000 characters.' });

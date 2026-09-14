@@ -107,3 +107,28 @@ test('validateCommunityUpload passes when no files were submitted', () => {
   validateCommunityUpload(req, res, () => { calledNext = true; });
   assert.equal(calledNext, true);
 });
+
+test('validateReportUpload rejects an oversized evidence file', () => {
+  const req = fakeReq({ file: { size: 2 * 1024 * 1024 } });
+  const res = fakeRes();
+  let calledNext = false;
+  require('../src/middleware/uploads').validateReportUpload(req, res, () => { calledNext = true; });
+  assert.equal(calledNext, false);
+  assert.match(req.session.flash.message, /evidence screenshots must be smaller than 2MB/i);
+});
+
+test('validateReportUpload passes when no evidence file was submitted', () => {
+  const req = fakeReq({ file: undefined });
+  const res = fakeRes();
+  let calledNext = false;
+  require('../src/middleware/uploads').validateReportUpload(req, res, () => { calledNext = true; });
+  assert.equal(calledNext, true);
+});
+
+test('validateReportUpload passes for an evidence file within the limit', () => {
+  const req = fakeReq({ file: { size: 1024 } });
+  const res = fakeRes();
+  let calledNext = false;
+  require('../src/middleware/uploads').validateReportUpload(req, res, () => { calledNext = true; });
+  assert.equal(calledNext, true);
+});

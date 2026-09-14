@@ -71,6 +71,6 @@
 			<button type="submit">Publish quote</button>
 		</form>
 	</details>
-	<form class="post-report-form" method="post" action="/posts/<%= post._id %>/report"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" maxlength="500" placeholder="Report this post"><button type="submit">Report</button></form>
+	<form class="post-report-form" method="post" action="/posts/<%= post._id %>/report" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" maxlength="500" placeholder="Report this post"><label class="report-evidence-label">Evidence (optional)<input type="file" name="evidence" accept="image/*"></label><button type="submit">Report</button></form>
 	<form class="comment-form" data-async-interaction method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input data-mention-input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
 </article>

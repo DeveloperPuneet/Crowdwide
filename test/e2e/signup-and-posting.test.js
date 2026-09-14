@@ -25,6 +25,9 @@ test('signup -> verify -> login -> create a post shows up on the dashboard', asy
   const registerPage = await agent.get('/auth/register');
   assert.equal(registerPage.status, 200);
   const registerToken = extractCsrfToken(registerPage.text);
+  const captchaMatch = registerPage.text.match(/what is (\d+) \+ (\d+)\?/);
+  assert.ok(captchaMatch, 'registration page should render a captcha challenge');
+  const captchaAnswer = Number(captchaMatch[1]) + Number(captchaMatch[2]);
 
   // 2. Register. The app emails a 6-digit verification code (or console-logs
   // it, since no MAIL_* env vars are set in tests) -- read it back from the
@@ -33,7 +36,8 @@ test('signup -> verify -> login -> create a post shows up on the dashboard', asy
     _csrf: registerToken,
     name: 'Pat Example',
     email,
-    password: 'a-strong-password-123'
+    password: 'a-strong-password-123',
+    captchaAnswer
   });
   assert.equal(registerRes.status, 302);
   assert.match(registerRes.headers.location, /\/auth\/verify/);

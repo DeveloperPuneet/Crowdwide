@@ -49,7 +49,18 @@ const userSchema = new mongoose.Schema({
   moderatorId: { type: String, unique: true, sparse: true, index: true },
   loginAttempts: { type: Number, default: 0 },
   loginLockedUntil: Date,
+  // Admin-imposed suspension, kept separate from loginLockedUntil (which is
+  // only ever a self-clearing failed-password lockout) so that a handful of
+  // wrong password guesses against a suspended account can never shorten
+  // or clear a moderator's suspension.
+  suspendedUntil: Date,
   suspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
+  // A moderator-imposed temporary block on creating new posts/comments -
+  // shorter and less severe than a suspension, and distinct from
+  // `mutedUsers` below (which is a personal "hide this person's content
+  // from me" preference, not a moderation action).
+  postingRestrictedUntil: Date,
+  postingRestrictionReason: { type: String, trim: true, maxlength: 500, default: '' },
   warnings: [{
     reason: { type: String, trim: true, maxlength: 500 },
     issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

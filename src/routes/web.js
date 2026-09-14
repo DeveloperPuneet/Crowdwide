@@ -3,7 +3,7 @@ const controller = require('../controllers/webController');
 const { requireAuth, requireVerified } = require('../middleware/auth');
 const settingsController = require('../controllers/settingsController');
 const communityController = require('../controllers/communityController');
-const { postUpload, profileUpload, communityUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, handleUploadError } = require('../middleware/uploads');
+const { postUpload, profileUpload, communityUpload, reportUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
 const { interactionLimiter, apiLimiter, csrfSynchronisedProtection } = require('../middleware/security');
@@ -36,7 +36,7 @@ router.post('/posts/:id/moderate', requireAuth, requireVerified, requireModerato
 router.get('/posts/:id/comments', interactionController.commentThread);
 router.post('/notifications/read', requireAuth, requireVerified, interactionController.readNotifications);
 router.post('/posts/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleLike);
-router.post('/posts/:id/report', requireAuth, requireVerified, interactionLimiter, interactionController.reportPost);
+router.post('/posts/:id/report', requireAuth, requireVerified, interactionLimiter, reportUpload, csrfSynchronisedProtection, handleUploadError, validateReportUpload, interactionController.reportPost);
 router.post('/posts/:id/comments', requireAuth, requireVerified, interactionLimiter, interactionController.comment);
 router.post('/comments/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editComment);
 router.post('/comments/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deleteComment);

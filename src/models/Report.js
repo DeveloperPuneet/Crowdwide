@@ -5,6 +5,7 @@ const reportSchema = new mongoose.Schema({
   targetType: { type: String, enum: ['post', 'user', 'community', 'comment'], required: true },
   target: { type: mongoose.Schema.Types.ObjectId, required: true },
   reason: { type: String, trim: true, maxlength: 500, required: true },
+  evidenceUrl: String,
   status: { type: String, enum: ['open', 'reviewing', 'resolved', 'dismissed'], default: 'open', index: true },
   resolution: { type: String, trim: true, maxlength: 1000 },
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

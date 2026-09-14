@@ -10,6 +10,7 @@ const PROFILE_PICTURE_LIMIT = 1.5 * 1024 * 1024;
 const PROFILE_BANNER_LIMIT = 1.5 * 1024 * 1024;
 const COMMUNITY_AVATAR_LIMIT = 1.5 * 1024 * 1024;
 const COMMUNITY_BANNER_LIMIT = 2 * 1024 * 1024;
+const REPORT_EVIDENCE_LIMIT = 2 * 1024 * 1024;
 
 function classify(file) {
   if (file.mimetype.startsWith('image/')) return 'image';
@@ -37,6 +38,13 @@ const communityUpload = multer({
   limits: { fileSize: COMMUNITY_BANNER_LIMIT + 1, files: 2 },
   fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
 }).fields([{ name: 'avatarImage', maxCount: 1 }, { name: 'bannerImage', maxCount: 1 }]);
+
+// Optional single evidence screenshot attached to a report.
+const reportUpload = multer({
+  storage,
+  limits: { fileSize: REPORT_EVIDENCE_LIMIT + 1, files: 1 },
+  fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
+}).single('evidence');
 
 function validatePostUpload(req, res, next) {
   if (!req.files?.length) return next();
@@ -79,12 +87,20 @@ function validateCommunityUpload(req, res, next) {
   next();
 }
 
+function validateReportUpload(req, res, next) {
+  if (req.file && req.file.size >= REPORT_EVIDENCE_LIMIT) {
+    req.session.flash = { type: 'error', message: 'Evidence screenshots must be smaller than 2MB.' };
+    return res.redirect(req.get('referer') || '/dashboard');
+  }
+  next();
+}
+
 function handleUploadError(error, req, res, next) {
   if (!error) return next();
   req.session.flash = { type: 'error', message: error.code === 'LIMIT_FILE_SIZE' ? 'That file is larger than the allowed limit.' : 'We could not process that upload.' };
   if (req.path.startsWith('/settings')) return res.redirect('/settings/profile');
-  if (req.path.includes('/manage')) return res.redirect(req.get('referer') || '/dashboard');
+  if (req.path.includes('/manage') || req.path.includes('/report')) return res.redirect(req.get('referer') || '/dashboard');
   res.redirect('/dashboard');
 }
 
-module.exports = { postUpload, profileUpload, communityUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, handleUploadError };
+module.exports = { postUpload, profileUpload, communityUpload, reportUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, handleUploadError };

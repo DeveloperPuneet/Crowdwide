@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
 const { sendVerificationCode, sendNewDeviceAlert, sendPasswordResetLink, sendSecurityAlert } = require('../services/mailer');
+const { generateChallenge, verifyChallenge } = require('../services/captcha');
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
@@ -20,7 +21,7 @@ async function establishSession(req, user) {
 exports.establishSession = establishSession;
 
 exports.loginPage = (req, res) => res.render('pages/login', { title: 'Sign in' });
-exports.registerPage = (req, res) => res.render('pages/register', { title: 'Create your account' });
+exports.registerPage = (req, res) => res.render('pages/register', { title: 'Create your account', captcha: generateChallenge(req) });
 exports.verifyPage = (req, res) => res.render('pages/verify', { title: 'Verify your email', email: req.query.email || '' });
 exports.forgotPage = (req, res) => res.render('pages/forgot-password', { title: 'Reset your password' });
 exports.resetPage = (req, res) => res.render('pages/reset-password', { title: 'Choose a new password', token: req.query.token || '' });
@@ -28,6 +29,10 @@ exports.resetPage = (req, res) => res.render('pages/reset-password', { title: 'C
 exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    if (!verifyChallenge(req, req.body.captchaAnswer)) {
+      setFlash(req, 'error', 'That verification answer was not correct. Try again.');
+      return res.redirect('/auth/register');
+    }
     if (!name || !email || !password || password.length < 8) {
       setFlash(req, 'error', 'Add your name, a valid email, and a password of at least 8 characters.');
       return res.redirect('/auth/register');
@@ -56,6 +61,10 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
+    if (user?.suspendedUntil && user.suspendedUntil > Date.now()) {
+      setFlash(req, 'error', `Your account is suspended until ${new Date(user.suspendedUntil).toLocaleString()}.${user.suspensionReason ? ` Reason: ${user.suspensionReason}` : ''}`);
+      return res.redirect('/auth/login');
+    }
     if (user?.loginLockedUntil && user.loginLockedUntil > Date.now()) {
       setFlash(req, 'error', 'Too many failed attempts. Try again later.');
       return res.redirect('/auth/login');

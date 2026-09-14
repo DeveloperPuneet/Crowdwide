@@ -37,7 +37,7 @@
           <td data-label="Email"><%= user.email %></td>
           <td data-label="Role"><span class="admin-badge role-<%= user.role %>"><%= user.role %></span></td>
           <td data-label="Verified"><%= user.isVerified ? 'Yes' : 'No' %></td>
-          <td data-label="Status"><% if (user.loginLockedUntil && new Date(user.loginLockedUntil) > new Date()) { %><span class="admin-badge status-suspended">Suspended</span><% } else { %>Active<% } %><% if (user.warnings?.length) { %> · <%= user.warnings.length %> warning<%= user.warnings.length === 1 ? '' : 's' %><% } %></td>
+          <td data-label="Status"><% if (user.suspendedUntil && new Date(user.suspendedUntil) > new Date()) { %><span class="admin-badge status-suspended">Suspended</span><% } else if (user.postingRestrictedUntil && new Date(user.postingRestrictedUntil) > new Date()) { %><span class="admin-badge status-suspended">Posting restricted</span><% } else { %>Active<% } %><% if (user.warnings?.length) { %> · <%= user.warnings.length %> warning<%= user.warnings.length === 1 ? '' : 's' %><% } %></td>
           <td data-label="Joined"><%= new Date(user.createdAt).toLocaleDateString() %></td>
           <td><button type="button" class="admin-row-toggle" data-edit-toggle="user-edit-<%= user._id %>">Edit</button></td>
         </tr>
@@ -62,6 +62,16 @@
                 </select>
               </label>
               <label class="full-width">Suspension reason (shown to admins only)<input type="text" name="suspensionReason" value="<%= user.suspensionReason || '' %>"></label>
+              <label>Posting restriction
+                <select name="postingRestriction">
+                  <option value="">No change</option>
+                  <option value="24h">Restrict 24 hours</option>
+                  <option value="72h">Restrict 3 days</option>
+                  <option value="7d">Restrict 7 days</option>
+                  <option value="off">Lift restriction</option>
+                </select>
+              </label>
+              <label class="full-width">Restriction reason (shown to admins only)<input type="text" name="postingRestrictionReason" value="<%= user.postingRestrictionReason || '' %>"></label>
               <% } %>
               <div class="admin-edit-form-actions">
                 <button class="button button-small button-primary" type="submit">Save</button>
@@ -176,6 +186,7 @@
       <div>
         <strong><%= report.targetType %> · <%= report.target %></strong>
         <span><%= report.reason %> · reported by <%= report.reporter?.name || 'member' %> · <%= new Date(report.createdAt).toLocaleString() %></span>
+        <% if (report.evidenceUrl) { %><a href="<%= report.evidenceUrl %>" target="_blank" rel="noopener noreferrer"><img src="<%= report.evidenceUrl %>" alt="Reported evidence screenshot" style="max-width:160px;border-radius:6px;margin-top:6px;display:block;"></a><% } %>
       </div>
       <form method="post" action="/admin/reports/<%= report._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
