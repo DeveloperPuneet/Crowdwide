@@ -5,6 +5,7 @@ const QRCode = require('qrcode');
 const User = require('../models/User');
 const { sendSecurityAlert } = require('../services/mailer');
 const { establishSession } = require('./authController');
+const logger = require('../services/logger');
 
 function generateRecoveryCodes(count = 8) {
   const codes = [];
@@ -26,7 +27,7 @@ exports.setupPage = async (req, res) => {
     const qrCode = await QRCode.toDataURL(otpauth);
     res.render('pages/two-factor', { title: 'Two-factor authentication', pagePath: '/settings/security/2fa', noIndex: true, qrCode, enabled: user.twoFactorEnabled });
   } catch (error) {
-    console.error(error);
+    logger.error('Two-factor authentication action failed', error);
     req.session.flash = { type: 'error', message: 'Could not load two-factor setup right now.' };
     res.redirect('/settings/security');
   }
@@ -57,7 +58,7 @@ exports.enable = async (req, res) => {
     req.session.freshRecoveryCodes = codes;
     res.redirect('/settings/security/2fa/recovery-codes');
   } catch (error) {
-    console.error(error);
+    logger.error('Two-factor authentication action failed', error);
     req.session.flash = { type: 'error', message: 'Could not enable two-factor authentication right now.' };
     res.redirect('/settings/security/2fa');
   }
@@ -90,7 +91,7 @@ exports.regenerateRecoveryCodes = async (req, res) => {
     req.session.freshRecoveryCodes = codes;
     res.redirect('/settings/security/2fa/recovery-codes');
   } catch (error) {
-    console.error(error);
+    logger.error('Two-factor authentication action failed', error);
     req.session.flash = { type: 'error', message: 'Could not regenerate recovery codes right now.' };
     res.redirect('/settings/security');
   }
@@ -116,7 +117,7 @@ exports.disable = async (req, res) => {
     }
     res.redirect('/settings/security');
   } catch (error) {
-    console.error(error);
+    logger.error('Two-factor authentication action failed', error);
     req.session.flash = { type: 'error', message: 'Could not disable two-factor authentication right now.' };
     res.redirect('/settings/security/2fa');
   }
@@ -174,7 +175,7 @@ exports.verifyLogin = async (req, res) => {
     }
     res.redirect('/dashboard');
   } catch (error) {
-    console.error(error);
+    logger.error('Two-factor authentication action failed', error);
     req.session.flash = { type: 'error', message: 'Sign in is temporarily unavailable.' };
     res.redirect('/auth/login');
   }

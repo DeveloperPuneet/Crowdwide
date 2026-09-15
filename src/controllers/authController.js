@@ -4,6 +4,7 @@ const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
 const { sendVerificationCode, sendNewDeviceAlert, sendPasswordResetLink, sendSecurityAlert } = require('../services/mailer');
 const { generateChallenge, verifyChallenge } = require('../services/captcha');
+const logger = require('../services/logger');
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
@@ -52,7 +53,7 @@ exports.register = async (req, res) => {
     setFlash(req, 'success', 'Your verification code is on its way.');
     res.redirect(`/auth/verify?email=${encodeURIComponent(user.email)}`);
   } catch (error) {
-    console.error(error);
+    logger.error('Auth action failed', error);
     setFlash(req, 'error', 'We could not create your account right now.');
     res.redirect('/auth/register');
   }
@@ -139,7 +140,7 @@ exports.forgot = async (req, res) => {
     setFlash(req, 'success', 'If that email belongs to Crowdwide, a reset link is on its way.');
     res.redirect('/auth/forgot-password');
   } catch (error) {
-    console.error(error);
+    logger.error('Auth action failed', error);
     setFlash(req, 'error', 'We could not process that request right now.');
     res.redirect('/auth/forgot-password');
   }
@@ -166,7 +167,7 @@ exports.reset = async (req, res) => {
     setFlash(req, 'success', 'Your password has been updated.');
     res.redirect('/auth/login');
   } catch (error) {
-    console.error(error);
+    logger.error('Auth action failed', error);
     setFlash(req, 'error', 'We could not reset your password right now.');
     res.redirect(`/auth/reset?token=${encodeURIComponent(req.body.token || '')}`);
   }

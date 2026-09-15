@@ -8,6 +8,8 @@ const webRoutes = require('./routes/web');
 const authRoutes = require('./routes/auth');
 const { csrfProtection, generateToken } = require('./middleware/security');
 const { renderMentions, renderRichBody } = require('./services/mentions');
+const logger = require('./services/logger');
+const { alertOnCriticalError } = require('./services/alerting');
 
 function createApp({ port = process.env.PORT || 3000 } = {}) {
   const app = express();
@@ -59,8 +61,9 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   app.use((req, res) => res.status(404).render('pages/not-found', { title: 'Page not found' }));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
-    console.error('Unhandled request error:', error);
     const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 600 ? error.status : 500;
+    logger.error('Unhandled request error', { error, route: req.path, status });
+    if (status >= 500) alertOnCriticalError(error, { route: req.path }).catch(() => {});
     if (req.path.startsWith('/api/')) return res.status(status).json({ error: status === 500 ? 'Internal server error.' : error.message });
     return res.status(status).render('pages/not-found', { title: status === 404 ? 'Page not found' : 'Crowdwide is having trouble' });
   });

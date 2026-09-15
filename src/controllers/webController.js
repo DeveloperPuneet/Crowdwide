@@ -10,6 +10,7 @@ const { notifyMentionedUsers } = require('../services/mentions');
 const { extractFirstUrl, fetchLinkPreview } = require('../services/linkPreview');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
 const { isRepeatPost } = require('../utils/spamDetection');
+const logger = require('../services/logger');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -57,7 +58,7 @@ exports.home = async (req, res) => {
 			}
 		});
 	} catch (error) {
-		console.error('Unable to load live homepage stats:', error.message);
+		logger.error('Unable to load live homepage stats', error);
 		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] }, viralPosts: [], popularPeople: [] });
 	}
 };
@@ -166,7 +167,7 @@ exports.dashboard = async (req, res) => {
 		const activeTab = ['for-you', 'my-community', 'posts-new', 'posts-viral', 'articles-new', 'articles-viral'].includes(req.query.view) ? req.query.view : (mode === 'personalized' ? 'my-community' : 'for-you');
 		res.render('pages/dashboard', { title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true, feed: { ...feed, latestPosts: decoratedLatestPosts, latestArticles: decoratedLatestArticles, viralPosts: viralPostItems, viralArticles: viralArticleItems, activeTab, visiblePosts: groups[activeTab] }, communities, people, joinedCommunities: (user.joinedCommunities || []).map(String), following: followingIds });
 	} catch (error) {
-		console.error('Unable to load dashboard:', error.message);
+		logger.error('Unable to load dashboard', error);
 		res.status(500).render('pages/not-found', { title: 'Dashboard unavailable', noIndex: true });
 	}
 };
@@ -245,7 +246,7 @@ exports.createPost = async (req, res) => {
 		if (firstUrl) {
 			fetchLinkPreview(firstUrl)
 				.then((preview) => preview && Post.findByIdAndUpdate(createdPost._id, { linkPreview: preview }))
-				.catch((error) => console.error('Link preview update failed:', error.message));
+				.catch((error) => logger.error('Link preview update failed', error));
 		}
 	}
 	if (isDraft) {

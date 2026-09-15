@@ -1,5 +1,6 @@
 const webPush = require('web-push');
 const User = require('../models/User');
+const logger = require('./logger');
 
 let configured = false;
 
@@ -43,7 +44,7 @@ async function sendPushToUser(userId, payload) {
       }, body);
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) deadEndpoints.push(subscription.endpoint);
-      else console.error('Push notification failed:', error.message);
+      else logger.error('Push notification failed', error);
     }
   }));
 

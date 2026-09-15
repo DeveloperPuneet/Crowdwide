@@ -1,4 +1,5 @@
 require('dotenv').config();
+const logger = require('./src/services/logger');
 
 const createApp = require('./src/app');
 const connectDatabase = require('./src/config/database');
@@ -10,10 +11,10 @@ const app = createApp({ port });
 async function start() {
   await connectDatabase();
   startPublicationWorker();
-  app.listen(port, () => console.log(`Crowdwide is live at http://localhost:${port}`));
+  app.listen(port, () => logger.info(`Crowdwide is live at http://localhost:${port}`));
 }
 
 start().catch((error) => {
-  console.error('Unable to start Crowdwide:', error.message);
+  logger.error('Unable to start Crowdwide', error);
   process.exit(1);
 });

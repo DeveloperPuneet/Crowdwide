@@ -23,6 +23,7 @@
 
 const mongoose = require('mongoose');
 const { GridFSBucket, ObjectId } = require('mongodb');
+const logger = require('./logger');
 
 const BUCKET_NAME = 'crowdwideMedia';
 
@@ -58,9 +59,9 @@ async function initStorageClusters() {
       const connection = mongoose.createConnection(uri, { serverSelectionTimeoutMS: 8000 });
       await connection.asPromise();
       connections.push(connection);
-      console.log(`Crowdwide extended storage: cluster ${clusterIndex} connected.`);
+      logger.info(`Crowdwide extended storage: cluster ${clusterIndex} connected.`);
     } catch (error) {
-      console.warn(`Crowdwide extended storage: cluster ${clusterIndex} failed to connect (${error.message}). It will be skipped.`);
+      logger.warn(`Crowdwide extended storage: cluster ${clusterIndex} failed to connect. It will be skipped.`, error);
     }
   }
 

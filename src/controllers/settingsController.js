@@ -11,6 +11,7 @@ const { parseHashtagList } = require('../utils/hashtags');
 const { sendSecurityAlert } = require('../services/mailer');
 const { isPushConfigured, getPublicKey } = require('../services/push');
 const Appeal = require('../models/Appeal');
+const logger = require('../services/logger');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -82,7 +83,7 @@ exports.changePassword = async (req, res) => {
     flash(req, 'success', 'Password changed. Other devices remain signed in until you log them out.');
     res.redirect('/settings/security');
   } catch (error) {
-    console.error(error);
+    logger.error('Settings action failed', error);
     flash(req, 'error', 'Could not change your password right now.');
     res.redirect('/settings/security');
   }

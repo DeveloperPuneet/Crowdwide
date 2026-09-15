@@ -10,6 +10,7 @@ const { notifyMentionedUsers } = require('../services/mentions');
 const { sendPushToUser } = require('../services/push');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
+const logger = require('../services/logger');
 
 const redirectBack = (req, res, payload = {}) => {
   if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, ...payload });
@@ -28,7 +29,7 @@ async function notify(recipient, actor, type, message, post, community, actorNam
     title: 'Crowdwide',
     body: actorName ? `${actorName} ${message}` : message,
     url: post ? `/posts/${post}` : '/notifications'
-  }).catch((error) => console.error('Push notification failed:', error.message));
+  }).catch((error) => logger.error('Push notification failed', error));
 }
 
 exports.toggleLike = async (req, res) => {

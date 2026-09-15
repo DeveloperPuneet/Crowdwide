@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const logger = require('./logger');
 
 function getTransporter() {
   if (process.env.MAIL_PROVIDER === 'gmail') {
@@ -31,13 +32,13 @@ function getTransporter() {
 // deliver() swallows send failures (logging them) instead of throwing.
 async function deliver(transporter, mail, previewLabel) {
   if (!transporter) {
-    console.log(`[Crowdwide mail preview] ${previewLabel}`);
+    logger.info(`[Crowdwide mail preview] ${previewLabel}`);
     return;
   }
   try {
     await transporter.sendMail(mail);
   } catch (error) {
-    console.error(`Failed to send mail (${mail.subject}) to ${mail.to}:`, error.message);
+    logger.error(`Failed to send mail (${mail.subject}) to ${mail.to}`, error);
   }
 }
 

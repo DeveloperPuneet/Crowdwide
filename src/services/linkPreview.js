@@ -6,6 +6,8 @@
 // app - a slow or hanging external site must never make "create a post"
 // hang, which was exactly the class of bug fixed elsewhere this session.
 
+const logger = require('./logger');
+
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/i;
 const MAX_BYTES = 200 * 1024; // plenty for a page's <head>; we never need the body
 const FETCH_TIMEOUT_MS = 5000;
@@ -133,7 +135,7 @@ async function fetchLinkPreview(rawUrl) {
       siteName: decodeEntities(siteName).trim().slice(0, 100)
     };
   } catch (error) {
-    console.error(`Link preview fetch failed for ${rawUrl}:`, error.message);
+    logger.error(`Link preview fetch failed for ${rawUrl}`, error);
     return null;
   } finally {
     clearTimeout(timeout);

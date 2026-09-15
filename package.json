@@ -7,7 +7,9 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "test": "node --test test/*.test.js",
-    "test:e2e": "node --test test/e2e/*.test.js"
+    "test:e2e": "node --test test/e2e/*.test.js",
+    "backup": "node scripts/backup.js",
+    "backup:verify": "node scripts/restore-check.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^8.1.0",

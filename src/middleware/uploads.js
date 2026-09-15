@@ -1,4 +1,6 @@
 const multer = require('multer');
+const { scanRequestFiles } = require('../services/virusScan');
+const logger = require('../services/logger');
 const storage = multer.memoryStorage();
 
 const mediaLimits = {
@@ -95,6 +97,25 @@ function validateReportUpload(req, res, next) {
   next();
 }
 
+async function scanUploadsForViruses(req, res, next) {
+  try {
+    const infectedFilename = await scanRequestFiles(req);
+    if (infectedFilename) {
+      req.session.flash = { type: 'error', message: `"${infectedFilename}" was flagged by virus scanning and was not uploaded.` };
+      return res.redirect(req.get('referer') || '/dashboard');
+    }
+    next();
+  } catch (error) {
+    // Fails OPEN: a scanner outage (timeout, connection refused) blocks
+    // the scan, not the upload - consistent with how mailer/push/link
+    // preview degrade elsewhere in this app. A stricter deployment that
+    // wants to fail closed instead should treat this catch block as the
+    // place to change - see Known Gaps in todo.txt for the trade-off.
+    logger.error('Virus scan could not be completed; allowing the upload through', error);
+    next();
+  }
+}
+
 function handleUploadError(error, req, res, next) {
   if (!error) return next();
   req.session.flash = { type: 'error', message: error.code === 'LIMIT_FILE_SIZE' ? 'That file is larger than the allowed limit.' : 'We could not process that upload.' };
@@ -103,4 +124,4 @@ function handleUploadError(error, req, res, next) {
   res.redirect('/dashboard');
 }
 
-module.exports = { postUpload, profileUpload, communityUpload, reportUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, handleUploadError };
+module.exports = { postUpload, profileUpload, communityUpload, reportUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };
