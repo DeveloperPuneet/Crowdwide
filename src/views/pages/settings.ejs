@@ -8,6 +8,7 @@
     <a class="<%= section === 'security' ? 'settings-active' : '' %>" href="/settings/security">Security & devices</a>
     <a class="<%= section === 'privacy' ? 'settings-active' : '' %>" href="/settings/privacy">Privacy</a>
     <a class="<%= section === 'notifications' ? 'settings-active' : '' %>" href="/settings/notifications">Notifications</a>
+    <a class="<%= section === 'history' ? 'settings-active' : '' %>" href="/settings/history">History</a>
     <% if (user.suspendedUntil || user.postingRestrictedUntil || user.warnings?.length || appeals.length) { %><a class="<%= section === 'moderation' ? 'settings-active' : '' %>" href="/settings/moderation">Moderation</a><% } %>
     <a class="<%= section === 'account' ? 'settings-active' : '' %>" href="/settings/account">Account</a>
   </aside>
@@ -57,6 +58,13 @@
       <p class="form-note" id="push-status">Checking status…</p>
       <% } %>
     </div>
+    <% } else if (section === 'history') { %>
+    <p class="eyebrow">Your account</p><h2>Account history.</h2>
+    <% if (!accountEvents.length) { %><p class="form-note">No account activity recorded yet.</p><% } %>
+    <% const historyLabels = { 'login': 'Signed in', 'password-changed': 'Password changed', 'two-factor-enabled': 'Two-factor authentication turned on', 'two-factor-disabled': 'Two-factor authentication turned off', 'recovery-codes-regenerated': 'Recovery codes regenerated', 'suspended': 'Account suspended', 'suspension-lifted': 'Suspension lifted', 'posting-restricted': 'Posting restricted', 'posting-restriction-lifted': 'Posting restriction lifted', 'warning-issued': 'Warning issued', 'warning-removed': 'Warning removed', 'appeal-submitted': 'Appeal submitted', 'appeal-approved': 'Appeal approved', 'appeal-denied': 'Appeal denied' }; %>
+    <% accountEvents.forEach((event) => { %>
+    <div class="device-row"><div><strong><%= historyLabels[event.type] || event.type %></strong><span><%= new Date(event.createdAt).toLocaleString() %><% if (event.detail) { %> · <%= event.detail %><% } %></span></div></div>
+    <% }) %>
     <% } else if (section === 'moderation') { %>
     <p class="eyebrow">Account standing</p><h2>Moderation status.</h2>
     <% if (user.postingRestrictedUntil && new Date(user.postingRestrictedUntil) > new Date()) { %>

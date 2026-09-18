@@ -99,3 +99,7 @@ The mailer uses Gmail OAuth2 through Nodemailer, so no Gmail password or less-se
 - `/notifications`, `/settings/:section` (`/settings/security/2fa/recovery-codes` shows one-time recovery codes)
 - `/guide` tips for growing a profile, a community, and staying secure
 - `/about`, `/privacy`, `/terms`, `/community-guidelines`, `/accessibility`, `/contact`
+
+## Operations
+
+CI, staging, backups/restore verification, upload virus scanning, and error alerting are covered in [`DEPLOYMENT.md`](./DEPLOYMENT.md).

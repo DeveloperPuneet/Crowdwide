@@ -17,7 +17,16 @@ const redirectBack = (req, res, payload = {}) => {
   return res.redirect(req.get('referer') || '/dashboard');
 };
 
-const canAccessPost = (post, userId) => post && (!['draft', 'scheduled'].includes(post.status) || String(post.author) === String(userId));
+const canAccessPost = async (post, userId) => {
+  if (!post) return false;
+  if (['draft', 'scheduled'].includes(post.status) && String(post.author) !== String(userId)) return false;
+  if (post.community) {
+    const restricted = await Community.exists({ _id: post.community, isPrivate: true, members: { $ne: userId } });
+    if (restricted) return false;
+  }
+  return true;
+};
+exports.canAccessPost = canAccessPost;
 
 async function notify(recipient, actor, type, message, post, community, actorName) {
   if (!recipient || String(recipient) === String(actor)) return;
@@ -34,7 +43,7 @@ async function notify(recipient, actor, type, message, post, community, actorNam
 
 exports.toggleLike = async (req, res) => {
   const post = await Post.findById(req.params.id);
-  if (!canAccessPost(post, req.session.user.id)) return redirectBack(req, res, { ok: false });
+  if (!(await canAccessPost(post, req.session.user.id))) return redirectBack(req, res, { ok: false });
   const alreadyLiked = post.likes.some((id) => String(id) === String(req.session.user.id));
   if (alreadyLiked) post.likes.pull(req.session.user.id);
   else {
@@ -46,8 +55,8 @@ exports.toggleLike = async (req, res) => {
 };
 
 exports.reportPost = async (req, res) => {
-  const post = await Post.findById(req.params.id).select('_id author status').lean();
-  if (!canAccessPost(post, req.session.user.id)) return redirectBack(req, res, { reported: false });
+  const post = await Post.findById(req.params.id).select('_id author status community').lean();
+  if (!(await canAccessPost(post, req.session.user.id))) return redirectBack(req, res, { reported: false });
   const reason = req.body.reason?.trim();
   if (post && reason) {
     let evidenceUrl;
@@ -88,7 +97,7 @@ exports.comment = async (req, res) => {
   if (restriction) return redirectBack(req, res, { ok: false, error: restriction });
   const body = req.body.body?.trim();
   const post = await Post.findById(req.params.id);
-  if (!canAccessPost(post, req.session.user.id) || !body || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Comment must be between 1 and 2,000 characters.' });
+  if (!(await canAccessPost(post, req.session.user.id)) || !body || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Comment must be between 1 and 2,000 characters.' });
   const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent: req.body.parent || null });
   post.commentsCount += 1;
   await post.save();
@@ -121,8 +130,8 @@ exports.deleteComment = async (req, res) => {
 };
 
 exports.toggleCommentLike = async (req, res) => {
-  const comment = await Comment.findById(req.params.id).populate('post', 'author status');
-  if (!comment || !canAccessPost(comment.post, req.session.user.id)) return redirectBack(req, res, { ok: false });
+  const comment = await Comment.findById(req.params.id).populate('post', 'author status community');
+  if (!comment || !(await canAccessPost(comment.post, req.session.user.id))) return redirectBack(req, res, { ok: false });
   const alreadyLiked = comment.likes.some((id) => String(id) === String(req.session.user.id));
   if (alreadyLiked) comment.likes.pull(req.session.user.id);
   else comment.likes.addToSet(req.session.user.id);
@@ -131,8 +140,8 @@ exports.toggleCommentLike = async (req, res) => {
 };
 
 exports.toggleBookmark = async (req, res) => {
-  const post = await Post.findById(req.params.id).select('author status').lean();
-  if (!canAccessPost(post, req.session.user.id)) return redirectBack(req, res, { ok: false });
+  const post = await Post.findById(req.params.id).select('author status community').lean();
+  if (!(await canAccessPost(post, req.session.user.id))) return redirectBack(req, res, { ok: false });
   const user = await User.findById(req.session.user.id);
   if (!user) return redirectBack(req, res);
   const exists = user.bookmarks.some((id) => String(id) === req.params.id);
@@ -143,7 +152,9 @@ exports.toggleBookmark = async (req, res) => {
 };
 
 exports.share = async (req, res) => {
-  const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $nin: ['draft', 'scheduled'] } }, { author: req.session.user.id }] }, { $inc: { sharesCount: 1 } }, { new: true });
+  const existing = await Post.findById(req.params.id).select('author status community sharesCount');
+  if (!(await canAccessPost(existing, req.session.user.id))) return redirectBack(req, res, { ok: false });
+  const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { sharesCount: 1 } }, { new: true });
   if (post) await notify(post.author, req.session.user.id, 'comment', 'shared your post.', post._id, post.community, req.session.user.name);
   if (req.get('X-Requested-With') !== 'XMLHttpRequest') return redirectBack(req, res);
   res.json({ url: `${process.env.APP_URL || 'http://localhost:3000'}/posts/${req.params.id}`, shares: post?.sharesCount || 0 });
@@ -152,7 +163,7 @@ exports.share = async (req, res) => {
 exports.votePoll = async (req, res) => {
   const post = await Post.findById(req.params.id);
   const optionIndex = Number(req.body.optionIndex);
-  if (!canAccessPost(post, req.session.user.id) || !post.poll?.options?.[optionIndex]) return redirectBack(req, res, { ok: false, error: 'That poll is unavailable.' });
+  if (!(await canAccessPost(post, req.session.user.id)) || !post.poll?.options?.[optionIndex]) return redirectBack(req, res, { ok: false, error: 'That poll is unavailable.' });
   const alreadyVoted = post.poll.options.some((option) => option.votes.some((id) => String(id) === String(req.session.user.id)));
   if (!alreadyVoted) post.poll.options[optionIndex].votes.addToSet(req.session.user.id);
   await post.save();
@@ -160,9 +171,9 @@ exports.votePoll = async (req, res) => {
 };
 
 exports.quotePost = async (req, res) => {
-  const source = await Post.findById(req.params.id).select('author status body').lean();
+  const source = await Post.findById(req.params.id).select('author status body community').lean();
   const body = req.body.body?.trim();
-  if (!canAccessPost(source, req.session.user.id) || !body || body.length > 4000) {
+  if (!(await canAccessPost(source, req.session.user.id)) || !body || body.length > 4000) {
     req.session.flash = { type: 'error', message: 'Add commentary before quoting that post.' };
     return res.redirect(req.get('referer') || '/dashboard');
   }
@@ -175,7 +186,7 @@ exports.toggleReaction = async (req, res) => {
   const reactionTypes = ['celebrate', 'insightful', 'support', 'funny'];
   const reaction = req.body.reaction;
   const post = await Post.findById(req.params.id);
-  if (!canAccessPost(post, req.session.user.id) || !reactionTypes.includes(reaction)) return redirectBack(req, res, { ok: false });
+  if (!(await canAccessPost(post, req.session.user.id)) || !reactionTypes.includes(reaction)) return redirectBack(req, res, { ok: false });
   const reactions = post.reactions?.toObject ? post.reactions.toObject() : { ...(post.reactions || {}) };
   reactionTypes.forEach((type) => {
     const users = Array.isArray(reactions[type]) ? reactions[type].map(String) : [];
@@ -191,7 +202,7 @@ exports.toggleReaction = async (req, res) => {
 exports.replyPost = async (req, res) => {
   const source = await Post.findById(req.params.id).select('author status community body').lean();
   const body = req.body.body?.trim();
-  if (!canAccessPost(source, req.session.user.id) || !body || body.length > 4000) return redirectBack(req, res, { ok: false, error: 'Replies must include 1 to 4,000 characters.' });
+  if (!(await canAccessPost(source, req.session.user.id)) || !body || body.length > 4000) return redirectBack(req, res, { ok: false, error: 'Replies must include 1 to 4,000 characters.' });
   if (source.community) {
     const community = await Community.findById(source.community).select('members bannedWords');
     if (!community?.members.some((id) => String(id) === String(req.session.user.id))) return redirectBack(req, res, { ok: false, error: 'Join the community before replying to this post.' });
@@ -218,7 +229,9 @@ function buildCommentTree(comments) {
 
 exports.postDetail = async (req, res) => {
   const viewerId = req.session.user?.id;
-  const post = await Post.findOneAndUpdate({ _id: req.params.id, $or: [{ status: { $nin: ['draft', 'scheduled'] } }, { author: viewerId || null }] }, { $inc: { viewsCount: 1 } }, { new: true })
+  const existing = await Post.findOne({ _id: req.params.id, $or: [{ status: { $nin: ['draft', 'scheduled'] } }, { author: viewerId || null }] }).select('author status community').lean();
+  if (!(await canAccessPost(existing, viewerId))) return res.status(404).render('pages/not-found', { title: 'Post not found' });
+  const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } }, { new: true })
     .populate('author', 'name profilePicture')
     .populate('community', 'name slug')
     .populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } })
@@ -239,8 +252,8 @@ exports.postDetail = async (req, res) => {
 };
 
 exports.commentThread = async (req, res) => {
-  const post = await Post.findById(req.params.id).select('author status').lean();
-  if (!canAccessPost(post, req.session.user?.id)) return res.status(404).json({ comments: [] });
+  const post = await Post.findById(req.params.id).select('author status community').lean();
+  if (!(await canAccessPost(post, req.session.user?.id))) return res.status(404).json({ comments: [] });
   const comments = await Comment.find({ post: req.params.id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean();
   res.json({ comments });
 };

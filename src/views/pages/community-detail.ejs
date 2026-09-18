@@ -22,10 +22,13 @@
 		</div>
 	</section>
 	<section class="community-posts">
-		<div class="panel-heading"><h2>Community posts</h2><span><%= posts.length %> recent</span></div>
-		<% if (!posts.length) { %>
+		<div class="panel-heading"><h2>Community posts</h2><span><%= locked ? 'Members only' : `${posts.length} recent` %></span></div>
+		<% if (locked) { %>
+		<div class="empty-feed"><h2>This is a private community.</h2><p>Posts and members are only visible once your request to join is approved.</p></div>
+		<% } else if (!posts.length) { %>
 		<div class="empty-feed"><h2>This community is just beginning.</h2><p>Be the first person to start the conversation.</p></div>
 		<% } %>
+		<% if (!locked) { %>
 		<% posts.forEach((post) => { %>
 		<a class="post-open-link" href="/posts/<%= post._id %>" style="display:block;text-decoration:none;">
 		<article class="post-card">
@@ -38,6 +41,7 @@
 		</article>
 		</a>
 		<% }) %>
+		<% } %>
 	</section>
 </div>
 <aside class="discover-column">

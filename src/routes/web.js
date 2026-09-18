@@ -15,6 +15,7 @@ const { requireAdmin, requireModerator, requirePanelPassword } = require('../mid
 router.get('/', controller.home);
 router.get('/health', controller.health);
 router.get('/rss.xml', controller.rss);
+router.get('/u/:id/rss.xml', controller.profileRss);
 router.get('/api/v1/posts', apiLimiter, controller.apiPosts);
 router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
 router.get('/dashboard/feed/more', requireAuth, requireVerified, controller.moreFeedPosts);
@@ -51,6 +52,7 @@ router.post('/posts/:id/reply', requireAuth, requireVerified, interactionLimiter
 router.get('/explore', requireAuth, requireVerified, communityController.explore);
 router.get('/communities', requireAuth, requireVerified, communityController.directory);
 router.get('/search', requireAuth, requireVerified, controller.search);
+router.post('/search/history/clear', requireAuth, requireVerified, controller.clearSearchHistory);
 router.get('/hashtags/suggest', requireAuth, requireVerified, controller.hashtagSuggestions);
 router.get('/users/suggest', requireAuth, requireVerified, controller.userSuggestions);
 router.get('/u/:id', requireAuth, requireVerified, controller.profile);
@@ -59,6 +61,7 @@ router.post('/users/:id/block', requireAuth, requireVerified, interactionLimiter
 router.post('/users/:id/mute', requireAuth, requireVerified, interactionLimiter, interactionController.toggleMute);
 router.get('/u/:id/followers', requireAuth, requireVerified, controller.followersPage);
 router.get('/u/:id/following', requireAuth, requireVerified, controller.followingPage);
+router.get('/communities/:slug/rss.xml', controller.communityRss);
 router.get('/communities/:slug', requireAuth, requireVerified, communityController.detail);
 router.post('/posts', requireAuth, requireVerified, postUpload, csrfSynchronisedProtection, handleUploadError, validatePostUpload, scanUploadsForViruses, controller.createPost);
 router.post('/communities', requireAuth, requireVerified, controller.createCommunity);
@@ -107,7 +110,7 @@ router.post('/settings/push/unsubscribe', requireAuth, requireVerified, settings
 router.get('/settings/account/download', requireAuth, requireVerified, settingsController.downloadData);
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
-['/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact'].forEach((path) => router.get(path, controller.infoPage));
+['/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/premium', '/contact'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);
 router.get('/sitemap.xml', controller.sitemap);
 

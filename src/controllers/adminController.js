@@ -8,6 +8,7 @@ const AuditLog = require('../models/AuditLog');
 const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
 const Appeal = require('../models/Appeal');
+const { logEvent } = require('../services/accountHistory');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const audit = (req, action, targetType, target, details = {}) => AuditLog.create({ actor: req.roleUser._id, action, targetType, target, details, ipAddress: req.ip, userAgent: req.get('user-agent') });
@@ -17,7 +18,10 @@ const SUSPENSION_MS = 365 * 24 * 60 * 60 * 1000;
 
 async function applyPostModerationAction(req, action, post, reason) {
   if (action === 'delete-post') await Post.deleteOne({ _id: post._id });
-  if (action === 'suspend-user') await User.findByIdAndUpdate(post.author?._id || post.author, { suspendedUntil: new Date(Date.now() + SUSPENSION_MS), suspensionReason: reason });
+  if (action === 'suspend-user') {
+    await User.findByIdAndUpdate(post.author?._id || post.author, { suspendedUntil: new Date(Date.now() + SUSPENSION_MS), suspensionReason: reason });
+    logEvent(post.author?._id || post.author, 'suspended', reason);
+  }
   if (['rate-good-post', 'rate-bad-post'].includes(action)) {
     const scoreChange = action === 'rate-good-post' ? 1 : -1;
     await Post.findByIdAndUpdate(post._id, { $inc: { moderationScore: scoreChange }, $set: { moderationStatus: scoreChange > 0 ? 'good' : 'needs-review' } });
@@ -101,6 +105,7 @@ exports.resolveAppeal = async (req, res) => {
   appeal.reviewedAt = new Date();
   appeal.reviewNote = req.body.note?.trim().slice(0, 500) || '';
   await appeal.save();
+  logEvent(appeal.user, approve ? 'appeal-approved' : 'appeal-denied', appeal.reviewNote);
   await audit(req, approve ? 'approve-appeal' : 'deny-appeal', 'user', appeal.user, { actionType: appeal.actionType });
   flash(req, 'success', `Appeal ${approve ? 'approved' : 'denied'}.`);
   res.redirect('/admin#appeals');
@@ -138,6 +143,8 @@ exports.updateUser = async (req, res) => {
   }
   Object.assign(user, changes);
   await user.save();
+  if ('suspendedUntil' in changes) logEvent(user._id, changes.suspendedUntil ? 'suspended' : 'suspension-lifted', changes.suspensionReason);
+  if ('postingRestrictedUntil' in changes) logEvent(user._id, changes.postingRestrictedUntil ? 'posting-restricted' : 'posting-restriction-lifted', changes.postingRestrictionReason);
   await audit(req, 'edit-user', 'user', user._id, { changes: Object.keys(changes) });
   flash(req, 'success', `Updated ${user.name}.`);
   res.redirect('/admin#users');
@@ -271,12 +278,15 @@ async function applyApprovedAction(req, action) {
   }
   if (action.action === 'suspend-user') {
     await User.findByIdAndUpdate(action.target, { suspendedUntil: new Date(Date.now() + SUSPENSION_MS), suspensionReason: action.reason });
+    logEvent(action.target, 'suspended', action.reason);
   }
   if (action.action === 'unsuspend-user') {
     await User.findByIdAndUpdate(action.target, { suspendedUntil: null, suspensionReason: '' });
+    logEvent(action.target, 'suspension-lifted');
   }
   if (action.action === 'warn-user') {
     await User.findByIdAndUpdate(action.target, { $push: { warnings: { reason: action.reason, issuedBy: action.moderator } } });
+    logEvent(action.target, 'warning-issued', action.reason);
   }
   if (action.action === 'edit-community') {
     const update = {};

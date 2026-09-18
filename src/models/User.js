@@ -61,6 +61,11 @@ const userSchema = new mongoose.Schema({
   // from me" preference, not a moderation action).
   postingRestrictedUntil: Date,
   postingRestrictionReason: { type: String, trim: true, maxlength: 500, default: '' },
+  // Most-recent-first, capped at 20 by the $slice in webController.search.
+  searchHistory: [{
+    query: { type: String, trim: true, maxlength: 200 },
+    searchedAt: { type: Date, default: Date.now }
+  }],
   warnings: [{
     reason: { type: String, trim: true, maxlength: 500 },
     issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

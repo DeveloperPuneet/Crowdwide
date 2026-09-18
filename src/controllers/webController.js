@@ -9,6 +9,7 @@ const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../ser
 const { notifyMentionedUsers } = require('../services/mentions');
 const { extractFirstUrl, fetchLinkPreview } = require('../services/linkPreview');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
+const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const { isRepeatPost } = require('../utils/spamDetection');
 const logger = require('../services/logger');
 
@@ -77,9 +78,10 @@ async function populatePosts(posts) {
 async function buildFeed(user, mode) {
 	const joinedIds = user.joinedCommunities || [];
 	const followingIds = (user.following || []).map(String);
+	const restrictedCommunityIds = await getRestrictedCommunityIds(user._id);
 	if (mode === 'personalized') {
 		const likedTags = await Post.find({ likes: user._id, status: 'published' }).distinct('hashtags');
-		const personalizedFilter = { status: 'published', $or: [{ community: { $in: joinedIds } }, { hashtags: { $in: likedTags } }] };
+		const personalizedFilter = { status: 'published', community: { $nin: restrictedCommunityIds }, $or: [{ community: { $in: joinedIds } }, { hashtags: { $in: likedTags } }] };
 		const ownPosts = await Post.find({ author: user._id, status: { $in: ['draft', 'scheduled', 'published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean();
 		const relevantPosts = await Post.find(personalizedFilter).sort({ createdAt: -1 }).limit(30).lean();
 		const unique = new Map([...ownPosts, ...relevantPosts].map((post) => [String(post._id), post]));
@@ -94,17 +96,17 @@ async function buildFeed(user, mode) {
 	const [followingOfFollowing, followersOfFollowers, followedPosts, newPosts, largeCommunities, viralPosts, recentPosts, ownPosts] = await Promise.all([
 		followingIds.length ? User.find({ _id: { $in: followingIds } }).distinct('following') : Promise.resolve([]),
 		User.find({ following: user._id }).distinct('_id').then((followers) => (followers.length ? User.find({ following: { $in: followers } }).distinct('_id') : [])),
-		followingIds.length ? Post.find({ author: { $in: followingIds }, status: 'published' }).sort({ createdAt: -1 }).limit(10).lean() : Promise.resolve([]),
-		Post.find({ status: 'published', $or: [{ createdAt: { $gte: recentCutoff } }, { community: { $exists: false } }] }).sort({ createdAt: -1 }).limit(20).lean(),
+		followingIds.length ? Post.find({ author: { $in: followingIds }, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ createdAt: -1 }).limit(10).lean() : Promise.resolve([]),
+		Post.find({ status: 'published', community: { $nin: restrictedCommunityIds }, $or: [{ createdAt: { $gte: recentCutoff } }, { community: { $exists: false } }] }).sort({ createdAt: -1 }).limit(20).lean(),
 		Community.find().sort({ membersCount: -1 }).limit(20).select('_id').lean(),
-		Post.aggregate([{ $match: { status: 'published' } }, { $addFields: { likesTotal: { $size: { $ifNull: ['$likes', []] } } } }, { $sort: { likesTotal: -1, createdAt: -1 } }, { $limit: 20 }]),
-		Post.find({ status: 'published' }).sort({ createdAt: -1 }).limit(30).lean()
+		Post.aggregate([{ $match: { status: 'published', community: { $nin: restrictedCommunityIds } } }, { $addFields: { likesTotal: { $size: { $ifNull: ['$likes', []] } } } }, { $sort: { likesTotal: -1, createdAt: -1 } }, { $limit: 20 }]),
+		Post.find({ status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ createdAt: -1 }).limit(30).lean()
 		, Post.find({ author: user._id, status: { $in: ['draft', 'scheduled', 'published', 'pending'] } }).sort({ createdAt: -1 }).limit(6).lean()
 	]);
 	const extendedNetworkIds = Array.from(new Set([...followingOfFollowing, ...followersOfFollowers].map(String)))
 		.filter((id) => id !== String(user._id) && !followingIds.includes(id));
-	const extendedPosts = extendedNetworkIds.length ? await Post.find({ author: { $in: extendedNetworkIds }, status: 'published' }).sort({ createdAt: -1 }).limit(6).lean() : [];
-	const largeIds = largeCommunities.map((community) => community._id);
+	const extendedPosts = extendedNetworkIds.length ? await Post.find({ author: { $in: extendedNetworkIds }, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ createdAt: -1 }).limit(6).lean() : [];
+	const largeIds = largeCommunities.map((community) => community._id).filter((id) => !restrictedCommunityIds.some((restricted) => String(restricted) === String(id)));
 	const largePosts = await Post.find({ community: { $in: largeIds }, status: 'published' }).sort({ createdAt: -1 }).limit(30).lean();
 	// Growth-minded ranking: everyone's feed reserves real room for new voices
 	// alongside the reach of larger communities, so posts from small/new
@@ -152,8 +154,9 @@ exports.dashboard = async (req, res) => {
 			.filter((post) => !blockedIds.includes(String(post.author?._id)) && !mutedIds.includes(String(post.author?._id)))
 			.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(user._id)), bookmarked: bookmarked.includes(String(post._id)) }));
 		const viralIds = new Set(viralPosts.map((post) => String(post._id)));
+		const restrictedCommunityIds = await getRestrictedCommunityIds(user._id);
 		const [latestPosts, latestArticles] = await Promise.all(['post', 'article'].map(async (type) => {
-			const posts = await Post.find({ status: 'published', type }).sort({ createdAt: -1 }).limit(30).lean();
+			const posts = await Post.find({ status: 'published', type, community: { $nin: restrictedCommunityIds } }).sort({ createdAt: -1 }).limit(30).lean();
 			return populatePosts(posts);
 		}));
 		const decorateTabPosts = (posts) => posts
@@ -280,25 +283,38 @@ exports.health = (req, res) => {
 };
 
 exports.apiPosts = async (req, res) => {
-	const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 50);
-	const filter = { status: 'published' };
-	if (req.query.type && ['post', 'article', 'poll'].includes(req.query.type)) filter.type = req.query.type;
-	if (/^[a-f\d]{24}$/i.test(req.query.community || '')) filter.community = req.query.community;
-	if (req.query.before && !Number.isNaN(new Date(req.query.before).getTime())) filter.createdAt = { $lt: new Date(req.query.before) };
-	const posts = await Post.find(filter).sort({ createdAt: -1 }).limit(limit).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
-	const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-	res.set('Access-Control-Allow-Origin', '*');
-	res.json({ data: posts.map((post) => ({
-		id: post._id,
-		url: `${baseUrl}/posts/${post._id}`,
-		body: post.body,
-		type: post.type,
-		author: post.author,
-		community: post.community,
-		hashtags: post.hashtags || [],
-		media: post.media || [],
-		createdAt: post.createdAt
-	})), nextCursor: posts.length === limit ? posts[posts.length - 1].createdAt : null });
+	try {
+		const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 50);
+		const filter = { status: 'published' };
+		if (req.query.type && ['post', 'article', 'poll'].includes(req.query.type)) filter.type = req.query.type;
+		if (/^[a-f\d]{24}$/i.test(req.query.community || '')) filter.community = req.query.community;
+		if (req.query.before && !Number.isNaN(new Date(req.query.before).getTime())) filter.createdAt = { $lt: new Date(req.query.before) };
+		// This endpoint has no auth (it's a public, CORS-open API), so every
+		// private community is off-limits here regardless of who's asking -
+		// there is no "viewer" to check membership for.
+		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
+		if (filter.community && restrictedCommunityIds.some((id) => String(id) === filter.community)) {
+			return res.json({ data: [], nextCursor: null });
+		}
+		filter.community = filter.community ? filter.community : { $nin: restrictedCommunityIds };
+		const posts = await Post.find(filter).sort({ createdAt: -1 }).limit(limit).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
+		const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+		res.set('Access-Control-Allow-Origin', '*');
+		res.json({ data: posts.map((post) => ({
+			id: post._id,
+			url: `${baseUrl}/posts/${post._id}`,
+			body: post.body,
+			type: post.type,
+			author: post.author,
+			community: post.community,
+			hashtags: post.hashtags || [],
+			media: post.media || [],
+			createdAt: post.createdAt
+		})), nextCursor: posts.length === limit ? posts[posts.length - 1].createdAt : null });
+	} catch (error) {
+		logger.error('apiPosts failed', error);
+		res.status(500).json({ error: 'Internal server error.' });
+	}
 };
 
 exports.media = (req, res) => streamFile(Number(req.params.cluster), req.params.id, res);
@@ -321,15 +337,21 @@ exports.profile = async (req, res) => {
 	const isSelf = String(profileUser._id) === String(viewerId);
 	let tab = ['posts', 'activity', 'likes', 'comments', 'saved'].includes(req.query.tab) ? req.query.tab : 'posts';
 	if (!isSelf && tab === 'saved') tab = 'posts';
-	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published' };
+	const restrictedCommunityIds = await getRestrictedCommunityIds(viewerId);
+	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
 	const [posts, followersCount, viewer, postCount, likedPosts, comments] = await Promise.all([
 		Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
 		User.findById(viewerId).select('following bookmarks blockedUsers mutedUsers').lean(),
-		Post.countDocuments({ author: profileUser._id, status: 'published' }),
-		Post.find({ likes: profileUser._id, status: 'published' }).sort({ updatedAt: -1 }).limit(30).populate('community', 'name slug').lean(),
-		Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt', populate: { path: 'author', select: 'name' } }).lean()
+		Post.countDocuments({ author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }),
+		Post.find({ likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ updatedAt: -1 }).limit(30).populate('community', 'name slug').lean(),
+		Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt community', populate: { path: 'author', select: 'name' } }).lean()
 	]);
+	// Comment.find can't filter by its parent post's community in the query
+	// itself (no community field on Comment), so this is filtered in code:
+	// a comment on a private-community post the viewer can't see would
+	// otherwise leak that post's body via the profile's Comments tab.
+	const visibleComments = comments.filter((comment) => !comment.post?.community || !restrictedCommunityIds.some((id) => String(id) === String(comment.post.community)));
 	const populatedPosts = (await Post.populate(posts, { path: 'author', select: 'name profilePicture' }));
 	const populatedLikes = (await Post.populate(likedPosts, { path: 'author', select: 'name profilePicture' }));
 	const bookmarked = (viewer?.bookmarks || []).map(String);
@@ -362,7 +384,7 @@ exports.profile = async (req, res) => {
 		posts: posts_,
 		profileTab: tab,
 		profileLikes: populatedLikes,
-		profileComments: comments,
+		profileComments: visibleComments,
 		savedPosts,
 		postCount,
 		followersCount,
@@ -381,6 +403,8 @@ exports.search = async (req, res) => {
 	const q = (req.query.q || '').trim();
 	const trendingHashtags = await getTrendingHashtags(12);
 	const communityOptions = await Community.find().sort({ name: 1 }).select('name _id').lean();
+	const viewer = await User.findById(req.session.user.id).select('blockedUsers mutedUsers searchHistory').lean();
+	const recentSearches = (viewer?.searchHistory || []).slice(0, 8);
 	const filters = {
 		type: ['post', 'article', 'poll'].includes(req.query.type) ? req.query.type : '',
 		community: /^[a-f\d]{24}$/i.test(req.query.community || '') ? req.query.community : '',
@@ -390,12 +414,16 @@ exports.search = async (req, res) => {
 		from: req.query.from || '',
 		to: req.query.to || ''
 	};
-	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches: trendingHashtags, communityOptions, filters });
+	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches: trendingHashtags, recentSearches, communityOptions, filters });
 	const tag = q.startsWith('#') ? q.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
 	const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(safe, 'i');
-	const viewer = await User.findById(req.session.user.id).select('blockedUsers mutedUsers').lean();
-	const postFilter = { status: 'published', author: { $nin: viewer?.blockedUsers || [] }, ...(tag ? { hashtags: tag } : { body: regex }) };
+	if (q.length <= 200) {
+		await User.findByIdAndUpdate(req.session.user.id, { $pull: { searchHistory: { query: { $regex: `^${safe}$`, $options: 'i' } } } });
+		await User.findByIdAndUpdate(req.session.user.id, { $push: { searchHistory: { $each: [{ query: q, searchedAt: new Date() }], $position: 0, $slice: 20 } } });
+	}
+	const restrictedCommunityIds = await getRestrictedCommunityIds(req.session.user.id);
+	const postFilter = { status: 'published', author: { $nin: viewer?.blockedUsers || [] }, community: { $nin: restrictedCommunityIds }, ...(tag ? { hashtags: tag } : { body: regex }) };
 	if (filters.type) postFilter.type = filters.type;
 	if (filters.community) postFilter.community = filters.community;
 	if (filters.media) postFilter.media = { $exists: true, $ne: [] };
@@ -410,7 +438,12 @@ exports.search = async (req, res) => {
 		Community.find(tag ? { hashtags: tag } : { $or: [{ name: regex }, { description: regex }, { hashtags: q.toLowerCase() }] }).limit(10).lean(),
 		Post.find({ ...postFilter, author: { $nin: [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])] } }).sort(postSort).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
 	]);
-	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches: trendingHashtags, communityOptions, filters });
+	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches: trendingHashtags, recentSearches, communityOptions, filters });
+};
+
+exports.clearSearchHistory = async (req, res) => {
+	await User.findByIdAndUpdate(req.session.user.id, { searchHistory: [] });
+	res.redirect('/search');
 };
 
 exports.hashtagSuggestions = async (req, res) => {
@@ -608,6 +641,17 @@ exports.infoPage = (req, res) => {
 				['Tell us what is missing', 'Accessibility is ongoing work. Please report a barrier with the page URL and a description of what happened to <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a> so we can investigate.']
 			]
 		},
+		'/premium': {
+			title: 'Crowdwide Premium',
+			heading: 'Something worth paying for - eventually.',
+			intro: "Crowdwide isn't selling anything yet, and we're not in a hurry to. This page exists so the plan is visible, not so you can buy something today.",
+			sections: [
+				['Why nothing is for sale yet', "Alpha software with a small userbase and moderation tools it's still stress-testing is the wrong place to introduce billing. Charging people, or their attention via ads, before the basics are solid gets the incentives backwards - we'd be optimizing for revenue instead of for the product being worth using."],
+				['What has to be true first', 'Three things, in order: (1) the safety and moderation systems (reporting, appeals, suspensions, spam detection) need real usage behind them, not just tests; (2) reliability and accessibility need to hold up under real traffic, not just a demo; (3) there needs to be an actual community using Crowdwide day to day - premium features should make an already-good experience better, not be the reason to show up.'],
+				['What it might look like', "Nothing is committed yet, but the likely shape is optional and additive: things like extended media limits, profile customization, or community tools for owners running larger communities. Whatever it becomes, the core experience - posting, communities, feeds, messaging - is not going behind a paywall."],
+				['Want to know when it exists', "There's no waitlist to join yet either - when there's something real to offer, it will show up here and be announced through the usual channels. For now, this page is a promise about sequencing, not a product."]
+			]
+		},
 		'/contact': {
 			title: 'Contact Crowdwide',
 			heading: 'Bring us a thought.',
@@ -626,12 +670,69 @@ exports.infoPage = (req, res) => {
 };
 
 exports.robots = (req, res) => { res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /auth/\nSitemap: ${(process.env.APP_URL || 'http://localhost:3000')}/sitemap.xml`); };
-exports.sitemap = (req, res) => { res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact', '/auth/login', '/auth/register'].map((path) => `<url><loc>${(process.env.APP_URL || 'http://localhost:3000')}${path}</loc></url>`).join('')}</urlset>`); };
+exports.sitemap = (req, res) => { res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/premium', '/contact', '/auth/login', '/auth/register'].map((path) => `<url><loc>${(process.env.APP_URL || 'http://localhost:3000')}${path}</loc></url>`).join('')}</urlset>`); };
+
+function escapeXml(value = '') {
+	return String(value).replace(/[<>&'"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
+}
+
+function buildRssFeed({ title, link, description, posts, baseUrl }) {
+	const items = posts.map((post) => `<item><title>${escapeXml(`${post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post'} by ${post.author?.name || 'Crowdwide member'}`)}</title><link>${baseUrl}/posts/${post._id}</link><guid isPermaLink="true">${baseUrl}/posts/${post._id}</guid><description>${escapeXml(post.body || '')}</description><pubDate>${new Date(post.createdAt).toUTCString()}</pubDate><author>${escapeXml(post.author?.name || 'Crowdwide member')}</author></item>`).join('');
+	return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${escapeXml(title)}</title><link>${link}</link><description>${escapeXml(description)}</description><lastBuildDate>${new Date().toUTCString()}</lastBuildDate>${items}</channel></rss>`;
+}
 
 exports.rss = async (req, res) => {
-	const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-	const escapeXml = (value = '') => String(value).replace(/[<>&'\"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
-	const posts = await Post.find({ status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
-	const items = posts.map((post) => `<item><title>${escapeXml(`${post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post'} by ${post.author?.name || 'Crowdwide member'}`)}</title><link>${baseUrl}/posts/${post._id}</link><guid isPermaLink="true">${baseUrl}/posts/${post._id}</guid><description>${escapeXml(post.body || '')}</description><pubDate>${new Date(post.createdAt).toUTCString()}</pubDate><author>${escapeXml(post.author?.name || 'Crowdwide member')}</author></item>`).join('');
-	res.type('application/rss+xml').send(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Crowdwide</title><link>${baseUrl}</link><description>Published posts and articles from Crowdwide.</description><lastBuildDate>${new Date().toUTCString()}</lastBuildDate>${items}</channel></rss>`);
+	try {
+		const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+		// Public, unauthenticated feed - every private community is off-limits
+		// here regardless of who's requesting it, same as apiPosts below.
+		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
+		const posts = await Post.find({ status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
+		res.type('application/rss+xml').send(buildRssFeed({ title: 'Crowdwide', link: baseUrl, description: 'Published posts and articles from Crowdwide.', posts, baseUrl }));
+	} catch (error) {
+		logger.error('Global RSS feed failed', error);
+		res.status(500).type('text/plain').send('This feed is temporarily unavailable.');
+	}
+};
+
+exports.profileRss = async (req, res) => {
+	try {
+		const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+		const profileUser = await User.findById(req.params.id).select('name isVerified').lean();
+		if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Member not found' });
+		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
+		const posts = await Post.find({ author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
+		res.type('application/rss+xml').send(buildRssFeed({
+			title: `${profileUser.name} on Crowdwide`,
+			link: `${baseUrl}/u/${profileUser._id}`,
+			description: `Public posts from ${profileUser.name} on Crowdwide.`,
+			posts,
+			baseUrl
+		}));
+	} catch (error) {
+		logger.error('Profile RSS feed failed', error);
+		res.status(500).type('text/plain').send('This feed is temporarily unavailable.');
+	}
+};
+
+exports.communityRss = async (req, res) => {
+	try {
+		const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+		const community = await Community.findOne({ slug: req.params.slug }).select('name slug isPrivate').lean();
+		// A private community has no public feed at all - not even an empty
+		// one, since a 200-with-nothing response still confirms the slug
+		// exists and is private. 404 either way, same as a nonexistent one.
+		if (!community || community.isPrivate) return res.status(404).render('pages/not-found', { title: 'Community not found' });
+		const posts = await Post.find({ community: community._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
+		res.type('application/rss+xml').send(buildRssFeed({
+			title: `${community.name} on Crowdwide`,
+			link: `${baseUrl}/communities/${community.slug}`,
+			description: `Posts from the ${community.name} community on Crowdwide.`,
+			posts,
+			baseUrl
+		}));
+	} catch (error) {
+		logger.error('Community RSS feed failed', error);
+		res.status(500).type('text/plain').send('This feed is temporarily unavailable.');
+	}
 };

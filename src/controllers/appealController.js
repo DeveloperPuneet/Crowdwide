@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Appeal = require('../models/Appeal');
+const { logEvent } = require('../services/accountHistory');
 
 const setFlash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -20,6 +21,7 @@ exports.submitPublicAppeal = async (req, res) => {
       const alreadyPending = await Appeal.exists({ user: user._id, actionType: 'suspension', status: 'pending' });
       if (!alreadyPending) {
         await Appeal.create({ user: user._id, actionType: 'suspension', reasonSnapshot: user.suspensionReason || '', message: message.slice(0, 1000) });
+        logEvent(user._id, 'appeal-submitted', 'suspension');
       }
     }
   }
@@ -51,6 +53,7 @@ exports.submitAppeal = async (req, res) => {
       return res.redirect('/settings/moderation');
     }
     await Appeal.create({ user: user._id, actionType: 'posting-restriction', reasonSnapshot: user.postingRestrictionReason || '', message: message.slice(0, 1000) });
+    logEvent(user._id, 'appeal-submitted', 'posting-restriction');
   } else {
     const warning = user.warnings.id(req.body.warningId);
     if (!warning) {
@@ -63,6 +66,7 @@ exports.submitAppeal = async (req, res) => {
       return res.redirect('/settings/moderation');
     }
     await Appeal.create({ user: user._id, actionType: 'warning', warningId: warning._id, reasonSnapshot: warning.reason || '', message: message.slice(0, 1000) });
+    logEvent(user._id, 'appeal-submitted', 'warning');
   }
 
   setFlash(req, 'success', 'Your appeal has been submitted for review.');

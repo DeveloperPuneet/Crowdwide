@@ -34,9 +34,9 @@
 
 ## Next Priorities
 
-1. Add account history/search history, RSS feeds for public profiles/communities, and API documentation.
-2. Evaluate monetization only after safety, reliability, and accessibility work is complete.
-3. full check if any feature is not working or broken (ongoing - only admin, group chat, auth, posting/media/articles, link previews, settings/notifications, moderation/suspension/appeals, ops/infra, and tests have had a close pass so far; communities, DMs, and search have not)
+1. Write API documentation for `/api/v1/posts` (account history, search history, and per-profile/per-community RSS are all Completed now, see below).
+2. Evaluate monetization only after safety, reliability, and accessibility work is complete - see the new `/premium` page, which explains this publicly instead of just being a backlog note.
+3. full check if any feature is not working or broken (ongoing - admin, group chat, auth, posting/media/articles, link previews, settings/notifications, moderation/suspension/appeals, ops/infra, communities, and tests have now had a close pass - see the severe finding below. DMs and search-as-a-feature (vs. search-as-a-privacy-surface, which IS covered by the fix below) still have not.)
 4. PUBLIC TEST: done by the developers
 5. STABLE RELEASE
 

@@ -6,6 +6,7 @@ const User = require('../models/User');
 const { sendSecurityAlert } = require('../services/mailer');
 const { establishSession } = require('./authController');
 const logger = require('../services/logger');
+const { logEvent } = require('../services/accountHistory');
 
 function generateRecoveryCodes(count = 8) {
   const codes = [];
@@ -45,6 +46,7 @@ exports.enable = async (req, res) => {
     user.twoFactorEnabled = true;
     user.recoveryCodes = await Promise.all(codes.map(async (code) => ({ codeHash: await bcrypt.hash(code, 10) })));
     await user.save();
+    logEvent(user._id, 'two-factor-enabled');
     if (user.notificationPreferences?.security !== false) {
       await sendSecurityAlert(user, {
         subject: 'Two-factor authentication turned on',
@@ -81,6 +83,7 @@ exports.regenerateRecoveryCodes = async (req, res) => {
     const codes = generateRecoveryCodes();
     user.recoveryCodes = await Promise.all(codes.map(async (code) => ({ codeHash: await bcrypt.hash(code, 10) })));
     await user.save();
+    logEvent(user._id, 'recovery-codes-regenerated');
     if (user.notificationPreferences?.security !== false) {
       await sendSecurityAlert(user, {
         subject: 'Two-factor recovery codes regenerated',
@@ -108,6 +111,7 @@ exports.disable = async (req, res) => {
     user.twoFactorSecret = undefined;
     user.recoveryCodes = [];
     await user.save();
+    logEvent(user._id, 'two-factor-disabled');
     if (user.notificationPreferences?.security !== false) {
       await sendSecurityAlert(user, {
         subject: 'Two-factor authentication turned off',

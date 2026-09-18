@@ -5,6 +5,7 @@ const LoginSession = require('../models/LoginSession');
 const { sendVerificationCode, sendNewDeviceAlert, sendPasswordResetLink, sendSecurityAlert } = require('../services/mailer');
 const { generateChallenge, verifyChallenge } = require('../services/captcha');
 const logger = require('../services/logger');
+const { logEvent } = require('../services/accountHistory');
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
@@ -14,6 +15,7 @@ async function establishSession(req, user) {
   req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '' };
   const existingSession = await LoginSession.exists({ user: user._id });
   await LoginSession.create({ user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') });
+  logEvent(user._id, 'login', req.ip);
   if (existingSession && user.notificationPreferences?.security !== false) {
     await sendNewDeviceAlert(user, { ipAddress: req.ip, userAgent: req.get('user-agent') });
   }
@@ -157,6 +159,7 @@ exports.reset = async (req, res) => {
     user.resetToken = undefined;
     user.resetExpires = undefined;
     await user.save();
+    logEvent(user._id, 'password-changed', 'Via password-reset link');
     if (user.notificationPreferences?.security !== false) {
       await sendSecurityAlert(user, {
         subject: 'Your Crowdwide password was reset',

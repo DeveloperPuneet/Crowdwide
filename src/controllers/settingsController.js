@@ -11,7 +11,9 @@ const { parseHashtagList } = require('../utils/hashtags');
 const { sendSecurityAlert } = require('../services/mailer');
 const { isPushConfigured, getPublicKey } = require('../services/push');
 const Appeal = require('../models/Appeal');
+const AccountEvent = require('../models/AccountEvent');
 const logger = require('../services/logger');
+const { logEvent } = require('../services/accountHistory');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -21,7 +23,8 @@ async function settingsData(req) {
   const ownedCommunities = await Community.find({ owner: user._id }).sort({ createdAt: -1 }).lean();
   const blockedUsers = user.blockedUsers?.length ? await User.find({ _id: { $in: user.blockedUsers } }).select('name profilePicture').lean() : [];
   const appeals = await Appeal.find({ user: user._id }).sort({ createdAt: -1 }).limit(20).lean();
-  return { user, sessions, ownedCommunities, blockedUsers, appeals };
+  const accountEvents = await AccountEvent.find({ user: user._id }).sort({ createdAt: -1 }).limit(50).lean();
+  return { user, sessions, ownedCommunities, blockedUsers, appeals, accountEvents };
 }
 
 exports.page = async (req, res) => {
@@ -73,6 +76,7 @@ exports.changePassword = async (req, res) => {
     }
     user.password = await bcrypt.hash(req.body.newPassword, 12);
     await user.save();
+    logEvent(user._id, 'password-changed', 'Via Settings');
     if (user.notificationPreferences?.security !== false) {
       await sendSecurityAlert(user, {
         subject: 'Your Crowdwide password was changed',

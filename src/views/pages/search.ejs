@@ -17,6 +17,12 @@
 
 	<% if (!query) { %>
 	<div class="search-discovery-grid">
+		<% if (recentSearches.length) { %>
+		<section class="search-section">
+			<h2>Your recent searches <form method="post" action="/search/history/clear" style="display:inline;"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small">Clear</button></form></h2>
+			<div class="popular-search-list"><% recentSearches.forEach((entry) => { %><a href="/search?q=<%= encodeURIComponent(entry.query) %>"><%= entry.query %></a><% }) %></div>
+		</section>
+		<% } %>
 		<section class="search-section"><h2>Viral hashtags</h2><div class="hashtag-row"><% trendingHashtags.forEach(({ tag, posts }) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %> <small><%= posts %></small></a><% }) %></div></section>
 		<section class="search-section"><h2>Popular searches</h2><div class="popular-search-list"><% popularSearches.slice(0, 8).forEach(({ tag, posts }) => { %><a href="/search?q=%23<%= tag %>">#<%= tag %><span><%= posts %> posts</span></a><% }) %></div></section>
 	</div>
