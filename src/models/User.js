@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema({
     likes: { type: Boolean, default: true },
     comments: { type: Boolean, default: true },
     follows: { type: Boolean, default: true },
+    messages: { type: Boolean, default: true },
     security: { type: Boolean, default: true }
   },
   // Push is opt-in and off by default -- a user only gets an entry here

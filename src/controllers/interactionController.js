@@ -28,18 +28,19 @@ const canAccessPost = async (post, userId) => {
 };
 exports.canAccessPost = canAccessPost;
 
-async function notify(recipient, actor, type, message, post, community, actorName) {
+async function notify(recipient, actor, type, message, post, community, actorName, url) {
   if (!recipient || String(recipient) === String(actor)) return;
   const recipientUser = await User.findById(recipient).select('notificationPreferences').lean();
-  const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : ['comment', 'reply', 'mention'].includes(type) ? 'comments' : 'security';
+  const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : type === 'message' ? 'messages' : ['comment', 'reply', 'mention'].includes(type) ? 'comments' : 'security';
   if (recipientUser?.notificationPreferences && recipientUser.notificationPreferences[preferenceKey] === false) return;
   await Notification.create({ recipient, actor, type, message, post, community });
   sendPushToUser(recipient, {
     title: 'Crowdwide',
     body: actorName ? `${actorName} ${message}` : message,
-    url: post ? `/posts/${post}` : '/notifications'
+    url: url || (post ? `/posts/${post}` : '/notifications')
   }).catch((error) => logger.error('Push notification failed', error));
 }
+exports.notify = notify;
 
 exports.toggleLike = async (req, res) => {
   const post = await Post.findById(req.params.id);
@@ -287,48 +288,65 @@ exports.unreadCount = async (req, res) => {
 };
 
 exports.messages = async (req, res) => {
-  const userId = req.session.user.id;
-  const messages = await Message.find({ $or: [{ sender: userId }, { recipient: userId }] })
-    .sort({ createdAt: -1 }).limit(300)
-    .populate('sender', 'name profilePicture').populate('recipient', 'name profilePicture').lean();
-  const conversations = new Map();
-  messages.forEach((message) => {
-    const other = String(message.sender._id) === String(userId) ? message.recipient : message.sender;
-    const key = String(other._id);
-    if (!conversations.has(key)) conversations.set(key, { person: other, latest: message, unread: 0 });
-    if (String(message.recipient._id) === String(userId) && !message.readAt) conversations.get(key).unread += 1;
-  });
-  res.render('pages/messages', { title: 'Messages', pagePath: '/messages', noIndex: true, conversations: Array.from(conversations.values()) });
+  try {
+    const userId = req.session.user.id;
+    const messages = await Message.find({ $or: [{ sender: userId }, { recipient: userId }] })
+      .sort({ createdAt: -1 }).limit(300)
+      .populate('sender', 'name profilePicture').populate('recipient', 'name profilePicture').lean();
+    const conversations = new Map();
+    messages.forEach((message) => {
+      const other = String(message.sender._id) === String(userId) ? message.recipient : message.sender;
+      const key = String(other._id);
+      if (!conversations.has(key)) conversations.set(key, { person: other, latest: message, unread: 0 });
+      if (String(message.recipient._id) === String(userId) && !message.readAt) conversations.get(key).unread += 1;
+    });
+    res.render('pages/messages', { title: 'Messages', pagePath: '/messages', noIndex: true, conversations: Array.from(conversations.values()) });
+  } catch (error) {
+    logger.error('Loading messages failed', error);
+    res.status(500).render('pages/not-found', { title: 'Crowdwide is having trouble' });
+  }
 };
 
 exports.messageThread = async (req, res) => {
-  const userId = req.session.user.id;
-  const person = await User.findById(req.params.id).select('name profilePicture blockedUsers').lean();
-  if (!person || String(person._id) === String(userId)) return res.redirect('/messages');
-  const viewer = await User.findById(userId).select('blockedUsers').lean();
-  const blocked = (viewer?.blockedUsers || []).some((id) => String(id) === String(person._id)) || (person.blockedUsers || []).some((id) => String(id) === String(userId));
-  if (blocked) {
-    req.session.flash = { type: 'error', message: 'Messaging is unavailable for this account.' };
-    return res.redirect('/messages');
+  try {
+    const userId = req.session.user.id;
+    const person = await User.findById(req.params.id).select('name profilePicture blockedUsers').lean();
+    if (!person || String(person._id) === String(userId)) return res.redirect('/messages');
+    const viewer = await User.findById(userId).select('blockedUsers').lean();
+    const blocked = (viewer?.blockedUsers || []).some((id) => String(id) === String(person._id)) || (person.blockedUsers || []).some((id) => String(id) === String(userId));
+    if (blocked) {
+      req.session.flash = { type: 'error', message: 'Messaging is unavailable for this account.' };
+      return res.redirect('/messages');
+    }
+    await Message.updateMany({ sender: person._id, recipient: userId, readAt: null }, { readAt: new Date() });
+    const thread = await Message.find({ $or: [{ sender: userId, recipient: person._id }, { sender: person._id, recipient: userId }] })
+      .sort({ createdAt: 1 }).limit(100).populate('sender', 'name profilePicture').lean();
+    res.render('pages/message-thread', { title: `Messages with ${person.name}`, pagePath: `/messages/${person._id}`, noIndex: true, person, thread });
+  } catch (error) {
+    logger.error('Loading message thread failed', error);
+    res.status(500).render('pages/not-found', { title: 'Crowdwide is having trouble' });
   }
-  await Message.updateMany({ sender: person._id, recipient: userId, readAt: null }, { readAt: new Date() });
-  const thread = await Message.find({ $or: [{ sender: userId, recipient: person._id }, { sender: person._id, recipient: userId }] })
-    .sort({ createdAt: 1 }).limit(100).populate('sender', 'name profilePicture').lean();
-  res.render('pages/message-thread', { title: `Messages with ${person.name}`, pagePath: `/messages/${person._id}`, noIndex: true, person, thread });
 };
 
 exports.sendMessage = async (req, res) => {
-  const userId = req.session.user.id;
-  const body = req.body.body?.trim();
-  const recipient = await User.findById(req.params.id).select('_id isVerified blockedUsers').lean();
-  const viewer = await User.findById(userId).select('blockedUsers').lean();
-  const blocked = recipient && ((viewer?.blockedUsers || []).some((id) => String(id) === String(recipient._id)) || (recipient.blockedUsers || []).some((id) => String(id) === String(userId)));
-  if (!recipient || !recipient.isVerified || blocked || !body || body.length > 2000) {
+  try {
+    const userId = req.session.user.id;
+    const body = req.body.body?.trim();
+    const recipient = await User.findById(req.params.id).select('_id isVerified blockedUsers').lean();
+    const viewer = await User.findById(userId).select('blockedUsers').lean();
+    const blocked = recipient && ((viewer?.blockedUsers || []).some((id) => String(id) === String(recipient._id)) || (recipient.blockedUsers || []).some((id) => String(id) === String(userId)));
+    if (!recipient || !recipient.isVerified || blocked || !body || body.length > 2000) {
+      req.session.flash = { type: 'error', message: 'That message could not be sent.' };
+      return res.redirect(`/messages/${req.params.id}`);
+    }
+    await Message.create({ sender: userId, recipient: recipient._id, body });
+    await notify(recipient._id, userId, 'message', 'sent you a message.', undefined, undefined, req.session.user.name, `/messages/${userId}`);
+    res.redirect(`/messages/${recipient._id}`);
+  } catch (error) {
+    logger.error('Sending message failed', error);
     req.session.flash = { type: 'error', message: 'That message could not be sent.' };
-    return res.redirect(`/messages/${req.params.id}`);
+    res.redirect(`/messages/${req.params.id}`);
   }
-  await Message.create({ sender: userId, recipient: recipient._id, body });
-  res.redirect(`/messages/${recipient._id}`);
 };
 
 exports.readNotifications = async (req, res) => {

@@ -284,7 +284,8 @@ exports.health = (req, res) => {
 
 exports.apiPosts = async (req, res) => {
 	try {
-		const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 50);
+		const parsedLimit = Number.parseInt(req.query.limit, 10);
+		const limit = Math.min(Math.max(Number.isNaN(parsedLimit) ? 20 : parsedLimit, 1), 50);
 		const filter = { status: 'published' };
 		if (req.query.type && ['post', 'article', 'poll'].includes(req.query.type)) filter.type = req.query.type;
 		if (/^[a-f\d]{24}$/i.test(req.query.community || '')) filter.community = req.query.community;

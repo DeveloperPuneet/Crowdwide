@@ -119,6 +119,7 @@ exports.setNotifications = async (req, res) => {
       likes: req.body.notifyLikes === 'on',
       comments: req.body.notifyComments === 'on',
       follows: req.body.notifyFollows === 'on',
+      messages: req.body.notifyMessages === 'on',
       security: req.body.notifySecurity === 'on'
     }
   });

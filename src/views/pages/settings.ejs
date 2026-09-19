@@ -45,6 +45,7 @@
       <label><span><input type="checkbox" name="notifyLikes" <%= user.notificationPreferences?.likes !== false ? 'checked' : '' %>> Likes on your posts</span></label>
       <label><span><input type="checkbox" name="notifyComments" <%= user.notificationPreferences?.comments !== false ? 'checked' : '' %>> Comments and replies</span></label>
       <label><span><input type="checkbox" name="notifyFollows" <%= user.notificationPreferences?.follows !== false ? 'checked' : '' %>> New followers</span></label>
+      <label><span><input type="checkbox" name="notifyMessages" <%= user.notificationPreferences?.messages !== false ? 'checked' : '' %>> Direct messages</span></label>
       <label><span><input type="checkbox" name="notifySecurity" <%= user.notificationPreferences?.security !== false ? 'checked' : '' %>> Security alerts</span></label>
       <button class="button button-primary" type="submit">Save notification settings <span>↗</span></button>
     </form>
