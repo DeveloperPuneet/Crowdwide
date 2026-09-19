@@ -23,7 +23,7 @@
 	<section class="feed-column">
 		<div class="feed-heading">
 			<div><p class="eyebrow">Your corner of Crowdwide</p><h1>Good to see you, <em><%= currentUser.name.split(' ')[0] %>.</em></h1></div>
-			<button class="button button-primary" type="button" data-composer-open>Share something <span>+</span></button>
+			<button class="button button-primary" type="button" data-composer-open aria-expanded="false" aria-controls="composer">Share something <span>+</span></button>
 		</div>
 		<div class="feed-tabs">
 			<a class="<%= feed.activeTab === 'for-you' ? 'feed-tab-active' : '' %>" href="/dashboard?view=for-you">For you</a>
@@ -47,20 +47,24 @@
 					<label class="schedule-picker">Schedule<input type="datetime-local" name="scheduledAt" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
 					<label class="schedule-picker">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
 					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*" multiple></label>
+					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
 					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
 					<button class="button button-primary button-small" type="submit">Publish <span>↗</span></button>
 				</div>
-				<div class="composer-media-meta">
-					<label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe the media"></label>
-					<label>Caption (shown under the media)<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
-					<label>Transcript (for audio/video)<textarea name="mediaTranscript" maxlength="4000" placeholder="Optional transcript"></textarea></label>
-				</div>
+				<details class="composer-media-details">
+					<summary>Media details · alt text, caption, transcript</summary>
+					<div class="composer-media-meta">
+						<label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe the media"></label>
+						<label>Caption (shown under the media)<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
+						<label>Transcript (for audio/video)<textarea name="mediaTranscript" maxlength="4000" placeholder="Optional transcript"></textarea></label>
+					</div>
+				</details>
 				<small class="upload-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files · use **bold**, *italic*, "# heading", and "- list" lines for richer formatting</small>
 			</div>
 		</form>
 		<% if (!feed.visiblePosts.length) { %>
 		<section class="empty-feed">
-			<div class="empty-orbit"><img src="/images/Crowdwide_logo.png" alt=""></div>
+			<div class="empty-orbit"><img src="/images/Crowdwide_logo_192.png" alt=""></div>
 			<h2><%= feed.label === 'Personalized feed' ? 'Your community feed is waiting.' : 'Your feed starts with curiosity.' %></h2>
 			<p><%= feed.label === 'Personalized feed' ? 'Join a community to see its posts appear here.' : 'Follow someone, join a community, or share the first thought that gets the conversation moving.' %></p>
 			<a class="button button-dark button-small" href="/explore">Explore communities <span>↗</span></a>

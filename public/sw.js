@@ -23,8 +23,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/images/Crowdwide_logo.png',
-      badge: '/images/Crowdwide_logo.png',
+      icon: '/images/Crowdwide_logo_192.png',
+      badge: '/images/Crowdwide_logo_192.png',
       data: { url: data.url || '/notifications' }
     })
   );

@@ -1,7 +1,7 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="explore-page" style="max-width:720px;">
+<main class="explore-page" style="max-width:920px;">
 	<a class="back-link" href="/u/<%= profileUser._id %>">← Back to profile</a>
 	<p class="eyebrow"><%= profileUser.name %></p>
 	<h1 style="font-size:38px;"><%= mode === 'followers' ? 'Followers' : 'Following' %></h1>

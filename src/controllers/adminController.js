@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const { hashPassword } = require('../utils/passwords');
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
@@ -240,7 +241,7 @@ exports.createModerator = async (req, res) => {
     flash(req, 'error', 'That email is already in use.');
     return res.redirect('/admin');
   }
-  const moderator = await User.create({ name: name.trim(), email: normalizedEmail, password: await bcrypt.hash(password, 12), role: 'moderator', moderatorId: `MOD-${crypto.randomBytes(5).toString('hex').toUpperCase()}`, isVerified: true });
+  const moderator = await User.create({ name: name.trim(), email: normalizedEmail, password: await hashPassword(password), role: 'moderator', moderatorId: `MOD-${crypto.randomBytes(5).toString('hex').toUpperCase()}`, isVerified: true });
   await audit(req, 'create-moderator', 'user', moderator._id, { moderatorId: moderator.moderatorId });
   flash(req, 'success', `Moderator created. Their identifier is ${moderator.moderatorId}.`);
   res.redirect('/admin');

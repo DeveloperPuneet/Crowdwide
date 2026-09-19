@@ -6,6 +6,7 @@ const { sendVerificationCode, sendNewDeviceAlert, sendPasswordResetLink, sendSec
 const { generateChallenge, verifyChallenge } = require('../services/captcha');
 const logger = require('../services/logger');
 const { logEvent } = require('../services/accountHistory');
+const { hashPassword } = require('../utils/passwords');
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
@@ -14,10 +15,18 @@ const setFlash = (req, type, message) => { req.session.flash = { type, message }
 async function establishSession(req, user) {
   req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '' };
   const existingSession = await LoginSession.exists({ user: user._id });
-  await LoginSession.create({ user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent') });
+  // Upsert rather than create: signing in again from a browser that already
+  // has a LoginSession for this session id used to hit the unique index and
+  // fail the whole sign-in with "temporarily unavailable".
+  await LoginSession.findOneAndUpdate(
+    { sessionId: req.sessionID },
+    { user: user._id, sessionId: req.sessionID, ipAddress: req.ip, userAgent: req.get('user-agent'), lastSeenAt: new Date() },
+    { upsert: true, setDefaultsOnInsert: true }
+  );
   logEvent(user._id, 'login', req.ip);
   if (existingSession && user.notificationPreferences?.security !== false) {
-    await sendNewDeviceAlert(user, { ipAddress: req.ip, userAgent: req.get('user-agent') });
+    // Not awaited: the email is a courtesy and must never slow sign-in down.
+    sendNewDeviceAlert(user, { ipAddress: req.ip, userAgent: req.get('user-agent') });
   }
 }
 
@@ -47,11 +56,11 @@ exports.register = async (req, res) => {
       return res.redirect('/auth/login');
     }
     const verificationCode = code();
-    if (!user) user = new User({ name, email: normalizedEmail, password: await bcrypt.hash(password, 12) });
+    if (!user) user = new User({ name, email: normalizedEmail, password: await hashPassword(password) });
     user.verificationCode = verificationCode;
     user.verificationExpires = Date.now() + 15 * 60 * 1000;
     await user.save();
-    await sendVerificationCode(user, verificationCode);
+    sendVerificationCode(user, verificationCode); // not awaited - see mailer.js
     setFlash(req, 'success', 'Your verification code is on its way.');
     res.redirect(`/auth/verify?email=${encodeURIComponent(user.email)}`);
   } catch (error) {
@@ -85,18 +94,18 @@ exports.login = async (req, res) => {
       return res.redirect('/auth/login');
     }
     if (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL.toLowerCase().trim() && user.role !== 'admin') user.role = 'admin';
-    user.loginAttempts = 0;
-    user.loginLockedUntil = undefined;
-    await user.save();
+    if (user.loginAttempts) user.loginAttempts = 0;
+    if (user.loginLockedUntil) user.loginLockedUntil = undefined;
     if (!user.isVerified) {
       const verificationCode = code();
       user.verificationCode = verificationCode;
       user.verificationExpires = Date.now() + 15 * 60 * 1000;
       await user.save();
-      await sendVerificationCode(user, verificationCode);
+      sendVerificationCode(user, verificationCode); // not awaited - see mailer.js
       setFlash(req, 'error', 'Your email is not verified yet. We sent you a fresh code.');
       return res.redirect(`/auth/verify?email=${encodeURIComponent(user.email)}`);
     }
+    if (user.isModified()) await user.save();
     if (user.twoFactorEnabled) {
       req.session.pendingTwoFactorUser = user.id;
       req.session.pendingTwoFactorExpiresAt = Date.now() + 10 * 60 * 1000;
@@ -105,6 +114,7 @@ exports.login = async (req, res) => {
     await establishSession(req, user);
     res.redirect('/dashboard');
   } catch (error) {
+    logger.error('Sign in failed', error);
     setFlash(req, 'error', 'Sign in is temporarily unavailable.');
     res.redirect('/auth/login');
   }
@@ -124,9 +134,30 @@ exports.verify = async (req, res) => {
     await establishSession(req, user);
     res.redirect('/dashboard');
   } catch (error) {
+    logger.error('Email verification failed', error);
     setFlash(req, 'error', 'We could not verify that code right now.');
     res.redirect('/auth/verify');
   }
+};
+
+exports.resendCode = async (req, res) => {
+  const email = req.body.email?.toLowerCase().trim();
+  try {
+    const user = email ? await User.findOne({ email }) : null;
+    if (user && !user.isVerified) {
+      const verificationCode = code();
+      user.verificationCode = verificationCode;
+      user.verificationExpires = Date.now() + 15 * 60 * 1000;
+      await user.save();
+      sendVerificationCode(user, verificationCode); // not awaited - see mailer.js
+    }
+    // Same message either way so this can't be used to discover which emails have accounts.
+    setFlash(req, 'success', 'If that email is waiting for verification, a new code is on its way.');
+  } catch (error) {
+    logger.error('Resending verification code failed', error);
+    setFlash(req, 'error', 'We could not send a new code right now.');
+  }
+  res.redirect(`/auth/verify?email=${encodeURIComponent(email || '')}`);
 };
 
 exports.forgot = async (req, res) => {
@@ -137,7 +168,7 @@ exports.forgot = async (req, res) => {
       user.resetExpires = Date.now() + 30 * 60 * 1000;
       await user.save();
       const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
-      await sendPasswordResetLink(user, `${appUrl}/auth/reset?token=${user.resetToken}`);
+      sendPasswordResetLink(user, `${appUrl}/auth/reset?token=${user.resetToken}`); // not awaited - see mailer.js
     }
     setFlash(req, 'success', 'If that email belongs to Crowdwide, a reset link is on its way.');
     res.redirect('/auth/forgot-password');
@@ -155,13 +186,13 @@ exports.reset = async (req, res) => {
       setFlash(req, 'error', 'That reset link is invalid or your password is too short.');
       return res.redirect(`/auth/reset?token=${encodeURIComponent(req.body.token || '')}`);
     }
-    user.password = await bcrypt.hash(req.body.password, 12);
+    user.password = await hashPassword(req.body.password);
     user.resetToken = undefined;
     user.resetExpires = undefined;
     await user.save();
     logEvent(user._id, 'password-changed', 'Via password-reset link');
     if (user.notificationPreferences?.security !== false) {
-      await sendSecurityAlert(user, {
+      sendSecurityAlert(user, {
         subject: 'Your Crowdwide password was reset',
         heading: 'Password reset',
         message: 'Your Crowdwide password was just reset. If you did not do this, secure your account immediately by resetting your password again and reviewing your active sessions.'

@@ -1,1 +1,108 @@
-img,video,audio{max-width:100%}.post-card img{display:block;width:auto;max-width:100%;max-height:420px;height:auto;object-fit:contain;border-radius:6px;margin:14px 0;background:#080914}.post-card video{display:block;width:100%;max-height:420px;object-fit:contain;border-radius:6px;background:#080914;margin:14px 0}.post-card audio{display:block;width:min(100%,430px);margin:14px 0}.sidebar-toggle{position:absolute;right:-13px;top:20px;width:26px;height:26px;border:1px solid #3b4269;border-radius:50%;background:#171a30;color:#fff;cursor:pointer;z-index:2}.app-sidebar{position:relative;transition:width .2s ease}.app-layout{transition:grid-template-columns .2s ease}.app-layout.sidebar-collapsed{grid-template-columns:70px minmax(0,680px) 300px}.app-layout.sidebar-collapsed .app-sidebar{padding-right:10px}.app-layout.sidebar-collapsed .sidebar-profile>div:last-child,.app-layout.sidebar-collapsed .side-links span,.app-layout.sidebar-collapsed .sidebar-note{display:none}.app-layout.sidebar-collapsed .side-links a{justify-content:center;font-size:18px}.app-layout.sidebar-collapsed .sidebar-profile{justify-content:center}.app-layout.sidebar-collapsed .sidebar-toggle{right:-13px}.media-picker{white-space:nowrap}.upload-help{line-height:1.5}@media(max-width:1100px){.app-layout.sidebar-collapsed{grid-template-columns:70px minmax(0,680px)}.app-layout.sidebar-collapsed .discover-column{display:none}}@media(max-width:700px){.app-layout{padding-top:20px}.app-layout.sidebar-collapsed{display:block}.app-layout.sidebar-collapsed .app-sidebar{display:none}.app-sidebar{display:block;min-height:0;border:0;padding:0;margin-bottom:24px}.sidebar-toggle{top:-8px;right:0}.sidebar-profile{margin-bottom:15px}.side-links{display:flex;overflow:auto;gap:5px}.side-links a{white-space:nowrap}.sidebar-note{display:none}.app-layout.sidebar-collapsed .app-sidebar{display:none}.post-card img{max-height:280px}.post-card video{max-height:280px}.composer-actions{align-items:stretch}.composer-actions select,.media-picker{max-width:100%;font-size:10px}.feed-heading h1{max-width:100%;overflow-wrap:anywhere}}
+/* ==========================================================================
+   Media + responsive layout refinements (loaded after style.css)
+
+   Media rule of thumb: never force one fixed shape on user content. Every
+   image and video sits in a frame that takes ITS OWN aspect ratio (--ar),
+   capped in height so a tall portrait clip can't swallow the whole screen,
+   and letterboxed (never cropped or stretched) when the cap kicks in.
+   ========================================================================== */
+
+img, video, audio { max-width: 100%; }
+
+/* ---- Post media ---------------------------------------------------------*/
+.post-media {
+  --media-max-h: min(72vh, 640px);
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+.post-media.count-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  --media-max-h: min(56vh, 460px);
+}
+.post-detail-page .post-media { --media-max-h: 85vh; }
+
+.post-media-frame {
+  min-width: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #05060f;
+  border: 1px solid var(--line);
+}
+.post-media-frame--audio { background: transparent; border: 0; overflow: visible; }
+
+.media-box { position: relative; width: 100%; background: #05060f; }
+/* Known ratio: reserve exactly that shape, capped in height. */
+.media-box.has-ratio { aspect-ratio: var(--ar, 16 / 9); max-height: var(--media-max-h); }
+
+.media-box img {
+  display: block;
+  width: 100%;
+  height: auto;              /* unknown ratio (older posts): natural proportions */
+  max-height: var(--media-max-h);
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: 0;
+  background: transparent;
+}
+.media-box.has-ratio img { height: 100%; max-height: none; }
+
+.media-box video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  object-fit: contain;       /* portrait/square/ultra-wide clips are letterboxed, never cropped */
+  background: #000;
+}
+
+/* The custom player wraps the <video>; make it fill the ratio frame. */
+.media-box .cw-player { position: absolute; inset: 0; margin: 0; border-radius: 0; }
+.media-box .cw-player video { position: absolute; inset: 0; max-height: none; }
+
+.post-media-frame audio { display: block; width: 100%; margin: 0; }
+.post-media-frame > .cw-player--audio { margin: 0; }
+
+@media (max-width: 700px) {
+  .post-media { --media-max-h: min(65vh, 520px); }
+  .post-media.count-2 { grid-template-columns: 1fr; --media-max-h: min(60vh, 480px); }
+}
+
+/* ---- Sidebar (collapsible icon rail) --------------------------------------*/
+.sidebar-toggle { position: absolute; right: -13px; top: 20px; width: 26px; height: 26px; border: 1px solid #3b4269; border-radius: 50%; background: #171a30; color: #fff; cursor: pointer; z-index: 2; }
+.app-layout { transition: grid-template-columns .2s ease; }
+.app-layout.sidebar-collapsed { grid-template-columns: 64px minmax(0, 880px) 330px; }
+.app-layout.sidebar-collapsed .app-sidebar { padding-right: 10px; }
+.app-layout.sidebar-collapsed .sidebar-profile > div:last-child,
+.app-layout.sidebar-collapsed .side-links span,
+.app-layout.sidebar-collapsed .sidebar-note { display: none; }
+.app-layout.sidebar-collapsed .side-links a { justify-content: center; font-size: 18px; }
+.app-layout.sidebar-collapsed .sidebar-profile { justify-content: center; }
+
+.media-picker { white-space: nowrap; }
+.upload-help { line-height: 1.5; }
+
+@media (max-width: 1150px) {
+  .app-layout.sidebar-collapsed { grid-template-columns: 64px minmax(0, 1fr); justify-content: stretch; }
+  .app-layout.sidebar-collapsed .discover-column { display: none; }
+}
+
+@media (max-width: 900px) {
+  .app-layout.sidebar-collapsed { display: block; }
+  .app-layout.sidebar-collapsed .app-sidebar { display: none; }
+}
+
+@media (max-width: 700px) {
+  .app-layout { padding-top: 20px; }
+  .app-sidebar { display: block; min-height: 0; border: 0; padding: 0; margin-bottom: 24px; }
+  .sidebar-toggle { top: -8px; right: 0; }
+  .sidebar-profile { margin-bottom: 15px; }
+  .side-links { display: flex; overflow: auto; gap: 5px; }
+  .side-links a { white-space: nowrap; }
+  .sidebar-note { display: none; }
+  .composer-actions { align-items: stretch; }
+  .composer-actions select, .media-picker { max-width: 100%; font-size: 10px; }
+  .feed-heading h1 { max-width: 100%; overflow-wrap: anywhere; }
+}

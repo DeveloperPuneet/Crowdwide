@@ -1,0 +1,27 @@
+<%# Shared media block for the feed card and the post page. Every asset keeps its own aspect ratio:
+    images reserve the ratio stored at upload time (older posts fall back to natural sizing),
+    videos start at 16:9 and snap to their real ratio as soon as the browser reads the metadata (see media-player.js). %>
+<% const mediaItems = post.media || []; %>
+<% if (mediaItems.length) { %>
+<div class="post-media <%= mediaItems.length === 2 ? 'count-2' : 'count-1' %>">
+	<% mediaItems.forEach((media) => {
+		const knownRatio = media.width && media.height ? `${media.width} / ${media.height}` : '';
+	%>
+	<div class="post-media-frame post-media-frame--<%= media.kind %>">
+		<% if (media.kind === 'image') { %>
+		<div class="media-box<%= knownRatio ? ' has-ratio' : '' %>"<% if (knownRatio) { %> style="--ar: <%= knownRatio %>"<% } %>>
+			<img src="<%= media.thumbnailUrl || media.url %>" alt="<%= media.alt || 'Post image' %>" loading="lazy" decoding="async"<% if (media.width && media.height) { %> width="<%= media.width %>" height="<%= media.height %>"<% } %>>
+		</div>
+		<% } else if (media.kind === 'video') { %>
+		<div class="media-box media-box--video has-ratio" style="--ar: 16 / 9">
+			<video controls controlsList="nodownload" disablePictureInPicture playsinline preload="metadata" src="<%= media.url %>#t=0.001"></video>
+		</div>
+		<% } else if (media.kind === 'audio') { %>
+		<audio controls controlsList="nodownload" preload="none" src="<%= media.url %>"></audio>
+		<% } %>
+		<% if (media.caption) { %><p class="media-caption"><%= media.caption %></p><% } %>
+		<% if (media.transcript && media.kind !== 'image') { %><details class="media-transcript"><summary>Transcript</summary><p><%= media.transcript %></p></details><% } %>
+	</div>
+	<% }) %>
+</div>
+<% } %>

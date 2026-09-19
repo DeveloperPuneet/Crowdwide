@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const { hashPassword } = require('../utils/passwords');
 const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
 const Post = require('../models/Post');
@@ -74,11 +75,11 @@ exports.changePassword = async (req, res) => {
       flash(req, 'error', 'Check your current password and use a new password of at least 8 characters.');
       return res.redirect('/settings/security');
     }
-    user.password = await bcrypt.hash(req.body.newPassword, 12);
+    user.password = await hashPassword(req.body.newPassword);
     await user.save();
     logEvent(user._id, 'password-changed', 'Via Settings');
     if (user.notificationPreferences?.security !== false) {
-      await sendSecurityAlert(user, {
+      sendSecurityAlert(user, {
         subject: 'Your Crowdwide password was changed',
         heading: 'Password changed',
         message: 'Your Crowdwide password was just changed. If you did not make this change, reset your password immediately and review your active sessions.'

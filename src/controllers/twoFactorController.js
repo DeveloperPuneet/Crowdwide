@@ -48,7 +48,7 @@ exports.enable = async (req, res) => {
     await user.save();
     logEvent(user._id, 'two-factor-enabled');
     if (user.notificationPreferences?.security !== false) {
-      await sendSecurityAlert(user, {
+      sendSecurityAlert(user, {
         subject: 'Two-factor authentication turned on',
         heading: 'Two-factor authentication enabled',
         message: 'Two-factor authentication was just turned on for your Crowdwide account. If you did not make this change, secure your account immediately.'
@@ -85,7 +85,7 @@ exports.regenerateRecoveryCodes = async (req, res) => {
     await user.save();
     logEvent(user._id, 'recovery-codes-regenerated');
     if (user.notificationPreferences?.security !== false) {
-      await sendSecurityAlert(user, {
+      sendSecurityAlert(user, {
         subject: 'Two-factor recovery codes regenerated',
         heading: 'Recovery codes regenerated',
         message: 'Your Crowdwide two-factor recovery codes were just regenerated. Your old recovery codes no longer work. If you did not make this change, secure your account immediately.'
@@ -113,7 +113,7 @@ exports.disable = async (req, res) => {
     await user.save();
     logEvent(user._id, 'two-factor-disabled');
     if (user.notificationPreferences?.security !== false) {
-      await sendSecurityAlert(user, {
+      sendSecurityAlert(user, {
         subject: 'Two-factor authentication turned off',
         heading: 'Two-factor authentication disabled',
         message: 'Two-factor authentication was just turned off for your Crowdwide account. If you did not make this change, secure your account immediately.'

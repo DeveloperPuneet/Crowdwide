@@ -178,6 +178,37 @@
     });
     media.addEventListener('ended', function () { setPlayIcon(false); fill.style.width = '0%'; handle.style.left = '0%'; });
 
+    // Keep each video's real proportions. The frame starts at 16:9 (so the
+    // layout doesn't jump around) and switches to the clip's own ratio as soon
+    // as the browser knows it - portrait phone clips, square clips and
+    // ultra-wide clips all get a frame that fits them.
+    if (kind === 'video') {
+      var box = media.closest('.media-box');
+      var frameEl = media.closest('.post-media-frame');
+      var applyRatio = function () {
+        if (!media.videoWidth || !media.videoHeight) return;
+        if (box) {
+          box.style.setProperty('--ar', media.videoWidth + ' / ' + media.videoHeight);
+          box.classList.add('has-ratio');
+        }
+        if (frameEl) {
+          var r = media.videoWidth / media.videoHeight;
+          frameEl.dataset.orientation = r > 1.05 ? 'landscape' : r < 0.95 ? 'portrait' : 'square';
+        }
+      };
+      media.addEventListener('loadedmetadata', applyRatio);
+      if (media.readyState >= 1) applyRatio();
+
+      // Don't keep playing (and buffering) a video that has been scrolled away.
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting && !media.paused && !document.fullscreenElement) media.pause();
+          });
+        }, { threshold: 0.15 }).observe(player);
+      }
+    }
+
     function seekToClientX(clientX) {
       var rect = seek.getBoundingClientRect();
       var pct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));

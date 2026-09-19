@@ -126,8 +126,42 @@ async function uploadBuffer(buffer, filename, contentType, metadata = {}) {
   });
 }
 
-/** Streams a stored file straight to an Express response. */
-function streamFile(clusterIndex, id, res) {
+/**
+ * Parses an HTTP Range header ("bytes=0-1023", "bytes=500-", "bytes=-500")
+ * against a file of `size` bytes. Returns { start, end } (inclusive), null
+ * when there is no usable Range header (serve the whole file), or
+ * 'unsatisfiable' when the range lies outside the file.
+ */
+function parseRange(header, size) {
+  if (!header || !/^bytes=/i.test(header) || size <= 0) return null;
+  const first = header.slice(6).split(',')[0].trim();
+  const match = /^(\d*)-(\d*)$/.exec(first);
+  if (!match || (match[1] === '' && match[2] === '')) return null;
+  let start;
+  let end;
+  if (match[1] === '') {
+    // suffix range: the last N bytes
+    const suffix = Number(match[2]);
+    if (!suffix) return 'unsatisfiable';
+    start = Math.max(0, size - suffix);
+    end = size - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1);
+  }
+  if (start >= size || start > end) return 'unsatisfiable';
+  return { start, end };
+}
+
+/**
+ * Streams a stored file to an Express response, with HTTP Range support.
+ * Range support is what lets browsers seek inside a video and is required
+ * for video to play at all in Safari/iOS; without it a <video> can only
+ * play from the very beginning, if at all.
+ */
+function streamFile(clusterIndex, id, req, res) {
+  // Backwards compatible with the old (cluster, id, res) signature.
+  if (res === undefined) { res = req; req = null; }
   if (!ObjectId.isValid(id)) return res.status(404).end();
   let bucket;
   try {
@@ -138,9 +172,26 @@ function streamFile(clusterIndex, id, res) {
   bucket.find({ _id: new ObjectId(id) }).toArray().then((files) => {
     const file = files[0];
     if (!file) return res.status(404).end();
+    const size = file.length;
     res.type(file.contentType || 'application/octet-stream');
-    res.set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Disposition': 'inline', 'X-Content-Type-Options': 'nosniff' });
-    bucket.openDownloadStream(file._id).on('error', () => res.status(404).end()).pipe(res);
+    res.set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Disposition': 'inline', 'X-Content-Type-Options': 'nosniff', 'Accept-Ranges': 'bytes' });
+
+    const range = parseRange(req?.headers?.range, size);
+    if (range === 'unsatisfiable') {
+      res.set('Content-Range', `bytes */${size}`);
+      return res.status(416).end();
+    }
+    let downloadOptions;
+    if (range) {
+      res.status(206);
+      res.set({ 'Content-Range': `bytes ${range.start}-${range.end}/${size}`, 'Content-Length': String(range.end - range.start + 1) });
+      // GridFS "end" is exclusive.
+      downloadOptions = { start: range.start, end: range.end + 1 };
+    } else {
+      res.set('Content-Length', String(size));
+    }
+    if (req?.method === 'HEAD') return res.end();
+    bucket.openDownloadStream(file._id, downloadOptions).on('error', () => res.destroy()).pipe(res);
   }).catch(() => res.status(404).end());
 }
 
@@ -171,6 +222,7 @@ module.exports = {
   initStorageClusters,
   uploadBuffer,
   streamFile,
+  parseRange,
   deleteFile,
   mediaUrl,
   clusterCount,

@@ -16,7 +16,11 @@ const postSchema = new mongoose.Schema({
     caption: String,
     transcript: String,
     storageKey: String,
-    thumbnailUrl: String
+    thumbnailUrl: String,
+    // Pixel size, stored for images so the feed can reserve the correct
+    // aspect ratio. Videos report theirs from the browser once loaded.
+    width: Number,
+    height: Number
   }],
   poll: {
     question: { type: String, trim: true, maxlength: 200 },

@@ -10,6 +10,7 @@ router.get('/register', controller.registerPage);
 router.post('/register', authLimiter, controller.register);
 router.get('/verify', controller.verifyPage);
 router.post('/verify', controller.verify);
+router.post('/resend', authLimiter, controller.resendCode);
 router.get('/forgot-password', controller.forgotPage);
 router.post('/forgot-password', authLimiter, controller.forgot);
 router.get('/reset', controller.resetPage);
