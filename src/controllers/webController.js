@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
-const { createSignedUpload, createImageThumbnail } = require('../services/storage');
+const { createSignedUpload, createImageThumbnail, getImageSize } = require('../services/storage');
 const { uploadBuffer, streamFile, mediaUrl, clusterStatus } = require('../services/storageCluster');
 const Comment = require('../models/Comment');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
@@ -236,6 +236,8 @@ exports.createPost = async (req, res) => {
 			const thumbnail = await createImageThumbnail(file.buffer);
 			const thumbnailFile = await uploadBuffer(thumbnail, `${file.originalname}.thumb.webp`, 'image/webp', { kind: 'thumbnail', parent: stored.id, owner: req.session.user.id });
 			item.thumbnailUrl = mediaUrl(thumbnailFile);
+			const size = await getImageSize(file.buffer);
+			if (size) Object.assign(item, size);
 		}
 		media.push(item);
 	}
@@ -318,7 +320,7 @@ exports.apiPosts = async (req, res) => {
 	}
 };
 
-exports.media = (req, res) => streamFile(Number(req.params.cluster), req.params.id, res);
+exports.media = (req, res) => streamFile(Number(req.params.cluster), req.params.id, req, res);
 
 exports.mediaStatus = async (req, res) => res.json({ clusters: await clusterStatus() });
 

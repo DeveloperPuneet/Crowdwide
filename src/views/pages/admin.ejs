@@ -79,7 +79,7 @@
               </div>
             </form>
             <% if (String(user._id) !== String(currentUser.id) && user.role !== 'admin') { %>
-            <form method="post" action="/admin/users/<%= user._id %>/delete" onsubmit="return confirm('Permanently delete this user and their posts?');" style="margin-top:8px;">
+            <form method="post" action="/admin/users/<%= user._id %>/delete" data-confirm="Permanently delete this user and their posts?" style="margin-top:8px;">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="button button-small button-danger" type="submit">Delete user</button>
             </form>
@@ -127,7 +127,7 @@
                 <button class="button button-small button-primary" type="submit">Save</button>
               </div>
             </form>
-            <form method="post" action="/admin/posts/<%= post._id %>/delete" onsubmit="return confirm('Delete this post?');" style="margin-top:8px;">
+            <form method="post" action="/admin/posts/<%= post._id %>/delete" data-confirm="Delete this post?" style="margin-top:8px;">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="button button-small button-danger" type="submit">Delete post</button>
             </form>
@@ -167,7 +167,7 @@
                 <button class="button button-small button-primary" type="submit">Save</button>
               </div>
             </form>
-            <form method="post" action="/admin/communities/<%= community._id %>/delete" onsubmit="return confirm('Delete this community and all of its posts?');" style="margin-top:8px;">
+            <form method="post" action="/admin/communities/<%= community._id %>/delete" data-confirm="Delete this community and all of its posts?" style="margin-top:8px;">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="button button-small button-danger" type="submit">Delete community</button>
             </form>

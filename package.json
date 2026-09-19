@@ -9,7 +9,8 @@
     "test": "node --test test/*.test.js",
     "test:e2e": "node --test test/e2e/*.test.js",
     "backup": "node scripts/backup.js",
-    "backup:verify": "node scripts/restore-check.js"
+    "backup:verify": "node scripts/restore-check.js",
+    "mail:test": "node scripts/test-mail.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^8.1.0",
@@ -35,5 +36,8 @@
     "mongodb-memory-server": "^10.4.3",
     "nodemon": "^3.1.7",
     "supertest": "^7.2.2"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

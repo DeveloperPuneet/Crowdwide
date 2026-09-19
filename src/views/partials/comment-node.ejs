@@ -24,7 +24,7 @@
 			<textarea name="body" maxlength="2000" required><%= node.body %></textarea>
 			<button type="submit">Save</button>
 		</form>
-		<form method="post" action="/comments/<%= node._id %>/delete" onsubmit="return confirm('Delete this comment?');">
+		<form method="post" action="/comments/<%= node._id %>/delete" data-confirm="Delete this comment?">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
 			<button type="submit">Delete</button>
 		</form>

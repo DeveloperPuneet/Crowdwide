@@ -18,7 +18,22 @@ async function createSignedUpload({ userId, kind, contentType }) {
 }
 
 async function createImageThumbnail(buffer) {
-  return sharp(buffer).resize(640, 640, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
+  // rotate() with no arguments applies the EXIF orientation. The WebP output
+  // has no EXIF, so without it phone photos taken in portrait showed up
+  // sideways in the feed.
+  return sharp(buffer).rotate().resize(640, 640, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
 }
 
-module.exports = { createSignedUpload, createImageThumbnail, cdnUrl, isConfigured: () => Boolean(bucket) };
+// Display dimensions (after EXIF rotation) so the feed can reserve the right
+// aspect ratio before the image has loaded. Returns null if unreadable.
+async function getImageSize(buffer) {
+  try {
+    const { width, height, orientation } = await sharp(buffer).metadata();
+    if (!width || !height) return null;
+    return orientation >= 5 ? { width: height, height: width } : { width, height };
+  } catch (error) {
+    return null;
+  }
+}
+
+module.exports = { createSignedUpload, createImageThumbnail, getImageSize, cdnUrl, isConfigured: () => Boolean(bucket) };

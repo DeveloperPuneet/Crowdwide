@@ -1,4 +1,9 @@
-window.addEventListener('load', () => document.body.classList.add('page-ready'));
+// Reveal the page as soon as the HTML is ready. Waiting for the window "load"
+// event meant a slow font, CDN script or large image kept the loading screen
+// up (and the site feeling stuck) long after the content was usable.
+const markPageReady = () => document.body.classList.add('page-ready');
+markPageReady();
+window.addEventListener('load', markPageReady);
 
 document.querySelectorAll('[data-warning-toggle]').forEach((toggle) => {
   toggle.addEventListener('click', () => {
@@ -11,13 +16,19 @@ document.querySelectorAll('[data-warning-toggle]').forEach((toggle) => {
 const composer = document.querySelector('#composer');
 if (composer) {
   const openComposer = document.querySelector('[data-composer-open]');
-  openComposer?.addEventListener('click', () => {
-    const isOpening = composer.classList.toggle('composer-hidden') === false;
-    openComposer.setAttribute('aria-expanded', String(isOpening));
-    if (!isOpening) return;
-    composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    composer.querySelector('textarea')?.focus();
-  });
+  const setComposerOpen = (open, { focus = true } = {}) => {
+    composer.classList.toggle('composer-hidden', !open);
+    openComposer?.setAttribute('aria-expanded', String(open));
+    if (open) {
+      composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      composer.querySelector('textarea')?.focus({ preventScroll: true });
+    } else if (focus) {
+      openComposer?.focus({ preventScroll: true });
+    }
+  };
+  openComposer?.addEventListener('click', () => setComposerOpen(composer.classList.contains('composer-hidden')));
+  composer.querySelector('[data-composer-close]')?.addEventListener('click', () => setComposerOpen(false));
+  composer.addEventListener('keydown', (event) => { if (event.key === 'Escape') setComposerOpen(false); });
   const textarea = composer.querySelector('textarea[name="body"]');
   const typeSelect = composer.querySelector('select[name="type"]');
   const count = composer.querySelector('[data-word-count]');
@@ -195,25 +206,34 @@ document.querySelectorAll('.post-card img').forEach((image) => {
   image.decoding = 'async';
 });
 
-document.querySelectorAll('.feed-column .post-card').forEach((postCard) => {
-  const postId = postCard.id.replace('post-', '');
-  if (!postId) return;
-  const openLink = document.createElement('a');
-  openLink.className = 'post-open-link';
-  openLink.href = `/posts/${postId}`;
-  openLink.textContent = 'Open post and comments →';
-  const actions = postCard.querySelector('.post-actions');
-  if (actions) actions.before(openLink);
-  postCard.addEventListener('click', (event) => {
-    if (event.target.closest('form,button,a,input,select,textarea,video,audio')) return;
-    window.location.href = openLink.href;
-  });
+// Post cards: tap anywhere on the card (except its own controls) to open the post.
+// Delegated, so cards added later by infinite scroll behave the same way.
+const cardInteractiveSelector = 'form,button,a,input,select,textarea,video,audio,summary,details,label,.cw-player,.share-menu,.post-poll';
+document.addEventListener('click', (event) => {
+  const card = event.target.closest('.post-card[data-post-url]');
+  if (!card || event.target.closest(cardInteractiveSelector)) return;
+  if (String(window.getSelection?.() || '').length) return; // don't hijack text selection
+  window.location.href = card.dataset.postUrl;
 });
 
-document.querySelectorAll('.post-card video, .post-card audio').forEach((media) => {
-  media.preload = 'none';
+// Long bodies are clamped in the feed; offer a "Read more" link only when text is really cut off.
+const enhanceCards = (root = document) => {
+  root.querySelectorAll('.post-card[data-post-url] .post-body').forEach((body) => {
+    if (body.dataset.moreChecked) return;
+    body.dataset.moreChecked = '1';
+    if (body.scrollHeight <= body.clientHeight + 2) return;
+    const more = document.createElement('a');
+    more.className = 'post-read-more';
+    more.href = body.closest('.post-card').dataset.postUrl;
+    more.textContent = 'Read more';
+    body.after(more);
+  });
+};
+enhanceCards();
+window.addEventListener('load', () => { document.querySelectorAll('.post-body[data-more-checked]').forEach((body) => { delete body.dataset.moreChecked; }); enhanceCards(); });
+
+document.querySelectorAll('.post-card audio').forEach((media) => {
   media.addEventListener('contextmenu', (event) => event.preventDefault());
-  media.setAttribute('controlsList', 'nodownload');
 });
 
 document.querySelectorAll('[data-drawer-open]').forEach((toggle) => {
@@ -347,7 +367,9 @@ document.addEventListener('submit', async (event) => {
     else if (data.liked !== undefined) button.textContent = `${data.liked ? '♥' : '♡'} ${data.likes}`;
     if (data.bookmarked !== undefined) button.textContent = data.bookmarked ? '▣ Saved' : '▱ Save';
     if (data.shares !== undefined) {
-      button.textContent = '↗ Share';
+      const shareCount = button.querySelector('[data-share-count]');
+      if (shareCount) shareCount.textContent = data.shares;
+      else button.textContent = `↗ ${data.shares}`;
       if (data.url) showShareMenu(form, data.url);
     }
     if (data.following !== undefined) {
@@ -417,14 +439,32 @@ document.querySelectorAll('form').forEach((form) => {
       form.appendChild(csrfInput);
     }
   }
-  form.addEventListener('submit', () => {
-    const submit = form.querySelector('button[type="submit"]');
-    if (submit) {
-      submit.disabled = true;
-      submit.style.opacity = '0.7';
-    }
+  form.addEventListener('submit', (event) => {
+    // Wait a tick before disabling: a submit button that is disabled inside
+    // its own submit event can lose its name/value (breaking "Save draft"),
+    // and a submit that another handler cancelled (word limit, async
+    // interaction) must not leave the button disabled.
+    window.setTimeout(() => {
+      if (event.defaultPrevented) return;
+      const submit = event.submitter || form.querySelector('button[type="submit"]');
+      if (submit) {
+        submit.disabled = true;
+        submit.style.opacity = '0.7';
+      }
+    }, 0);
   });
 });
+
+// Confirmation prompts (delete post/comment/user...). These used to be inline
+// onsubmit="" attributes, which the site's Content-Security-Policy blocks, so
+// the confirmation silently never appeared.
+document.addEventListener('submit', (event) => {
+  const message = event.target.closest?.('form[data-confirm]')?.dataset.confirm;
+  if (message && !window.confirm(message)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
 
 // Lazy-load / infinite scroll for the home feed.
 const feedSentinel = document.getElementById('feed-sentinel');
@@ -447,6 +487,7 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
           const existing = new Set(Array.from(feedList.querySelectorAll('.post-card')).map((card) => card.id));
           feedList.append(...Array.from(wrapper.children).filter((card) => !existing.has(card.id)));
           Array.from(wrapper.querySelectorAll('.post-card img')).forEach((img) => { img.loading = 'lazy'; img.decoding = 'async'; });
+          enhanceCards(feedList);
         }
         if (data.cursor) feedSentinel.dataset.cursor = data.cursor;
         if (data.done || !data.html) {
