@@ -105,7 +105,7 @@ async function fetchLinkPreview(rawUrl) {
     const response = await fetch(parsed.toString(), {
       signal: controller.signal,
       redirect: 'follow',
-      headers: { 'User-Agent': 'CrowdwideLinkPreview/1.0 (+https://crowdwide.onrender.com)' }
+      headers: { 'User-Agent': 'CrowdwideLinkPreview/1.0 (+https://www.crowdwide.run.place)' }
     });
     if (!response.ok) return null;
     const contentType = response.headers.get('content-type') || '';

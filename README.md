@@ -6,7 +6,7 @@ bug that hasn't surfaced yet. If something breaks, that's useful
 information, not an inconvenience.
 
 **Live:** the deployed instance runs at the URL set in `APP_URL` (see
-`.env.example`) - typically something like `https://crowdwide.onrender.com`.
+`.env.example`) - typically something like `https://www.crowdwide.run.place`.
 If you're reading this from the repo and aren't sure what the current
 live URL is, check your hosting dashboard; this file doesn't hardcode it
 so it can't go stale.

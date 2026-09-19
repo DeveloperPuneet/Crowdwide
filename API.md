@@ -28,7 +28,7 @@ Returns recently published posts, newest first.
   "data": [
     {
       "id": "abc",
-      "url": "https://crowdwide.onrender.com/posts/66f1a2b3c4d5e6f7a8b9c0d1",
+      "url": "https://www.crowdwide.run.place/posts/66f1a2b3c4d5e6f7a8b9c0d1",
       "body": "Post text.",
       "type": "post",
       "author": { "_id": "...", "name": "...", "profilePicture": "..." },
