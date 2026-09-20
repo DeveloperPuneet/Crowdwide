@@ -78,21 +78,39 @@ if (composer) {
 }
 
 document.querySelectorAll('[data-mention-input]').forEach((input) => {
+  // The suggestion list lives in a wrapper around the input and floats over
+  // whatever is below it. It is only ever in the page (and visible) while
+  // there are real suggestions - no empty box, and it never squeezes the
+  // input inside a flex row like the comment form.
+  let wrap = input.parentElement?.classList.contains('mention-wrap') ? input.parentElement : null;
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'mention-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.append(input);
+  }
   const menu = document.createElement('div');
   menu.className = 'mention-suggestions';
+  menu.setAttribute('role', 'listbox');
   menu.hidden = true;
-  input.insertAdjacentElement('afterend', menu);
+  wrap.append(menu);
   let timer;
+  let requestId = 0;
   const close = () => { menu.hidden = true; menu.replaceChildren(); };
+  input.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !menu.hidden) { event.stopPropagation(); close(); } });
   input.addEventListener('input', () => {
     const before = input.value.slice(0, input.selectionStart);
     const match = before.match(/(?:^|\s)@([a-z0-9._-]*)$/i);
-    if (!match || !match[1]) return close();
+    if (!match || !match[1]) { clearTimeout(timer); requestId += 1; return close(); }
     clearTimeout(timer);
+    const thisRequest = ++requestId;
     timer = setTimeout(() => fetch(`/users/suggest?q=${encodeURIComponent(match[1])}`).then((response) => response.json()).then((users) => {
+      if (thisRequest !== requestId) return; // a newer keystroke superseded this answer
+      if (!Array.isArray(users) || !users.length) return close();
       menu.replaceChildren(...users.map((user) => {
         const button = document.createElement('button');
         button.type = 'button';
+        button.setAttribute('role', 'option');
         const name = document.createElement('strong');
         name.textContent = user.name;
         const handle = document.createElement('span');
@@ -109,7 +127,7 @@ document.querySelectorAll('[data-mention-input]').forEach((input) => {
         });
         return button;
       }));
-      menu.hidden = !users.length;
+      menu.hidden = false;
     }).catch(close), 120);
   });
   document.addEventListener('click', (event) => { if (event.target !== input && !menu.contains(event.target)) close(); });
@@ -124,7 +142,7 @@ document.querySelectorAll('.media-picker input[type="file"]').forEach((input) =>
   label.innerHTML = '';
   const icon = document.createElement('span');
   icon.className = 'upload-dropzone-icon';
-  icon.textContent = '↑';
+  icon.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
   const copy = document.createElement('span');
   copy.className = 'upload-dropzone-copy';
   copy.innerHTML = '<strong>Drop media here</strong><small>or click to browse · paste with Ctrl+V</small>';
@@ -170,7 +188,7 @@ document.querySelectorAll('.media-picker input[type="file"]').forEach((input) =>
       remove.type = 'button';
       remove.className = 'upload-remove';
       remove.setAttribute('aria-label', `Remove ${file.name}`);
-      remove.textContent = '×';
+      remove.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       remove.addEventListener('click', (event) => {
         event.preventDefault();
         syncFiles(valid.filter((_, fileIndex) => fileIndex !== index));
@@ -254,7 +272,6 @@ document.querySelectorAll('[data-sidebar-toggle]').forEach((toggle) => {
     const collapsed = layout.classList.toggle('sidebar-collapsed');
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-label', collapsed ? 'Open sidebar' : 'Close sidebar');
-    toggle.textContent = collapsed ? '›' : '×';
   });
 });
 
@@ -266,13 +283,12 @@ document.querySelectorAll('.settings-nav').forEach((sidebar) => {
   toggle.type = 'button';
   toggle.setAttribute('aria-expanded', 'true');
   toggle.setAttribute('aria-label', 'Close sidebar');
-  toggle.textContent = '×';
+  toggle.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
   sidebar.prepend(toggle);
   toggle.addEventListener('click', () => {
     const collapsed = layout.classList.toggle('sidebar-collapsed');
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-label', collapsed ? 'Open sidebar' : 'Close sidebar');
-    toggle.textContent = collapsed ? '›' : '×';
   });
 });
 
@@ -363,13 +379,22 @@ document.addEventListener('submit', async (event) => {
     const response = await window.axios.post(form.action, new URLSearchParams(new FormData(form)), { headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content, 'X-Requested-With': 'XMLHttpRequest' } });
     const data = response.data;
     if (data.ok === false) return showInteractionMessage(form, data.error || 'Could not update right now.', true);
-    if (data.liked !== undefined && form.classList.contains('comment-like-form')) button.textContent = `${data.liked ? '♥' : '♡'} ${data.likes}`;
-    else if (data.liked !== undefined) button.textContent = `${data.liked ? '♥' : '♡'} ${data.likes}`;
-    if (data.bookmarked !== undefined) button.textContent = data.bookmarked ? '▣ Saved' : '▱ Save';
+    if (data.liked !== undefined) {
+      // The heart is an SVG that CSS fills when .is-liked is set.
+      button.classList.toggle('is-liked', Boolean(data.liked));
+      button.setAttribute('aria-pressed', String(Boolean(data.liked)));
+      const likeCount = button.querySelector('.count');
+      if (likeCount) likeCount.textContent = data.likes;
+    }
+    if (data.bookmarked !== undefined) {
+      button.classList.toggle('is-saved', Boolean(data.bookmarked));
+      button.setAttribute('aria-pressed', String(Boolean(data.bookmarked)));
+      const saveLabel = button.querySelector('.label');
+      if (saveLabel) saveLabel.textContent = data.bookmarked ? 'Saved' : 'Save';
+    }
     if (data.shares !== undefined) {
       const shareCount = button.querySelector('[data-share-count]');
       if (shareCount) shareCount.textContent = data.shares;
-      else button.textContent = `↗ ${data.shares}`;
       if (data.url) showShareMenu(form, data.url);
     }
     if (data.following !== undefined) {
@@ -466,20 +491,26 @@ document.addEventListener('submit', (event) => {
   }
 }, true);
 
-// Lazy-load / infinite scroll for the home feed.
+// Lazy-load / infinite scroll for the home feed. Pages come from the same
+// ranked list as the first page (page number, not a date cursor), so a page
+// never repeats or skips posts whichever tab is open.
 const feedSentinel = document.getElementById('feed-sentinel');
 if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
   const feedList = document.getElementById('feed-posts');
   const endNote = document.getElementById('feed-end-note');
   let loading = false;
   let done = false;
+  const finish = () => {
+    done = true;
+    observer.disconnect();
+    if (endNote) endNote.style.display = 'block';
+  };
   const observer = new IntersectionObserver((entries) => {
     if (!entries[0].isIntersecting || loading || done) return;
     loading = true;
-    const cursor = feedSentinel.dataset.cursor;
-    const mode = feedSentinel.dataset.feedMode;
-    const view = feedSentinel.dataset.feedView;
-    window.axios.get(`/dashboard/feed/more?before=${encodeURIComponent(cursor)}&feed=${mode}&view=${encodeURIComponent(view || '')}`)
+    const nextPage = (Number(feedSentinel.dataset.page) || 1) + 1;
+    const view = feedSentinel.dataset.feedView || 'for-you';
+    window.axios.get(`/dashboard/feed/more?page=${nextPage}&view=${encodeURIComponent(view)}`)
       .then(({ data }) => {
         if (data.html) {
           const wrapper = document.createElement('div');
@@ -489,12 +520,8 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
           Array.from(wrapper.querySelectorAll('.post-card img')).forEach((img) => { img.loading = 'lazy'; img.decoding = 'async'; });
           enhanceCards(feedList);
         }
-        if (data.cursor) feedSentinel.dataset.cursor = data.cursor;
-        if (data.done || !data.html) {
-          done = true;
-          observer.disconnect();
-          if (endNote) endNote.style.display = 'block';
-        }
+        feedSentinel.dataset.page = String(data.page || nextPage);
+        if (data.done || !data.html) finish();
       })
       .catch(() => { done = true; observer.disconnect(); })
       .finally(() => { loading = false; });

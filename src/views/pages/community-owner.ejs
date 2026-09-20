@@ -27,7 +27,7 @@
 			<label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community <small>(new members must be approved to join)</small></label>
 			<label class="privacy-check"><input type="checkbox" name="requireApproval" <%= community.requireApproval ? 'checked' : '' %>> Review posts before they appear <small>(moderation queue below)</small></label>
 			<label>Banned words<input name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>" placeholder="word, phrase"></label>
-			<button class="button button-primary button-small" type="submit">Save controls <span>↗</span></button>
+			<button class="button button-primary button-small" type="submit">Save controls <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 		</form>
 
 		<% if (community.requireApproval) { %>
@@ -68,7 +68,7 @@
 				<input name="identifier" placeholder="Username or email" required>
 				<button class="button button-small button-dark" type="submit">Add moderator</button>
 			</form>
-			<% moderators.forEach((mod) => { %><div class="device-row"><span class="device-icon">✦</span><div><strong><%= mod.name %></strong><span><%= mod.email %></span></div></div><% }) %>
+			<% moderators.forEach((mod) => { %><div class="device-row"><span class="device-icon"><%- icon('user', { size: 16 }) %></span><div><strong><%= mod.name %></strong><span><%= mod.email %></span></div></div><% }) %>
 		</section>
 
 		<section class="settings-block">

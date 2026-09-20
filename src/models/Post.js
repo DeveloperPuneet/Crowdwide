@@ -56,5 +56,8 @@ postSchema.index({ status: 1, createdAt: -1 });
 postSchema.index({ status: 1, community: 1, createdAt: -1 });
 postSchema.index({ status: 1, type: 1, createdAt: -1 });
 postSchema.index({ author: 1, status: 1, createdAt: -1 });
+// Feed ranking: interest lookups by hashtag and "posts this person liked".
+postSchema.index({ hashtags: 1, status: 1, createdAt: -1 });
+postSchema.index({ likes: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Post', postSchema);

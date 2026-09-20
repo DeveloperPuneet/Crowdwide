@@ -12,7 +12,7 @@
 		<label class="search-date">To<input type="date" name="to" value="<%= filters.to %>"></label>
 		<label class="search-media"><input type="checkbox" name="media" value="with-media" <%= filters.media === 'with-media' ? 'checked' : '' %>> Media</label>
 		<label class="search-media"><input type="checkbox" name="unanswered" value="true" <%= filters.unanswered ? 'checked' : '' %>> No replies</label>
-		<button class="button button-primary" type="submit">Search <span>⌕</span></button>
+		<button class="button button-primary" type="submit">Search <span><%- icon('search', { size: 16 }) %></span></button>
 	</form>
 
 	<% if (!query) { %>
@@ -20,15 +20,16 @@
 		<% if (recentSearches.length) { %>
 		<section class="search-section">
 			<h2>Your recent searches <form method="post" action="/search/history/clear" style="display:inline;"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small">Clear</button></form></h2>
-			<div class="popular-search-list"><% recentSearches.forEach((entry) => { %><a href="/search?q=<%= encodeURIComponent(entry.query) %>"><%= entry.query %></a><% }) %></div>
+			<div class="popular-search-list"><% recentSearches.forEach((entry) => { %><a href="/search?q=<%= encodeURIComponent(entry.query) %>"><%- icon('clock', { size: 15 }) %><span class="search-label"><%= entry.query %></span></a><% }) %></div>
 		</section>
 		<% } %>
 		<section class="search-section"><h2>Viral hashtags</h2><div class="hashtag-row"><% trendingHashtags.forEach(({ tag, posts }) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %> <small><%= posts %></small></a><% }) %></div></section>
-		<section class="search-section"><h2>Popular searches</h2><div class="popular-search-list"><% popularSearches.slice(0, 8).forEach(({ tag, posts }) => { %><a href="/search?q=%23<%= tag %>">#<%= tag %><span><%= posts %> posts</span></a><% }) %></div></section>
+		<section class="search-section"><h2>Popular searches</h2><%- include('../partials/popular-searches', { items: popularSearches.slice(0, 8) }) %></section>
 	</div>
 	<div class="empty-feed"><h2>Search for anything on Crowdwide.</h2><p>Try a name, a community, or a phrase from a post.</p></div>
 	<% } else if (!users.length && !communities.length && !posts.length) { %>
-	<div class="empty-feed"><h2>No results for “<%= query %>”.</h2><p>Try a different search term.</p></div>
+	<div class="empty-feed"><h2>No results for “<%= query %>”.</h2><p>Try a different search term, or start from something people are searching for.</p></div>
+	<% if (popularSearches.length) { %><section class="search-section" style="margin-top:28px;"><h2>Popular searches</h2><%- include('../partials/popular-searches', { items: popularSearches.slice(0, 8) }) %></section><% } %>
 	<% } else { %>
 
 	<% if (users.length) { %>
@@ -48,7 +49,7 @@
 		<h2>Communities</h2>
 		<% communities.forEach((community) => { %>
 		<a class="search-community-row" href="/communities/<%= community.slug %>" style="text-decoration:none;color:inherit;">
-			<span class="community-glyph">✦</span>
+			<span class="community-glyph"><%- icon('users', { size: 15 }) %></span>
 			<div><strong><%= community.name %></strong><span><%= (community.membersCount || 0).toLocaleString() %> members · <%= community.description %></span></div>
 		</a>
 		<% }) %>
@@ -65,7 +66,7 @@
 				<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.community?.name || 'Open Crowdwide' %></span></div>
 			</div>
 			<p class="post-body" style="-webkit-line-clamp:3;max-height:5em;"><%= post.body %></p>
-			<a class="post-open-link" href="/posts/<%= post._id %>">Open post →</a>
+			<a class="post-open-link" href="/posts/<%= post._id %>">Open post <%- icon('arrow-right', { size: 13 }) %></a>
 		</article>
 		<% }) %>
 	</section>

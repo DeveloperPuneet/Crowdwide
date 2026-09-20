@@ -1,5 +1,5 @@
 <%- include('../partials/auth-shell-start', { title }) %>
 <p class="eyebrow">One last step</p><h1>Check your<br><em>inbox.</em></h1><p class="form-note">We sent a 6-digit code to <strong><%= email %></strong>. Enter it below to unlock your Crowdwide.</p>
-<form class="auth-form" method="post" action="/auth/verify"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="email" value="<%= email %>"><label>Verification code<input class="code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label><button class="button button-primary button-full" type="submit">Verify email <span>↗</span></button></form>
+<form class="auth-form" method="post" action="/auth/verify"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="email" value="<%= email %>"><label>Verification code<input class="code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label><button class="button button-primary button-full" type="submit">Verify email <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button></form>
 <p class="switch-auth">Didn't get it? <a href="/auth/register">Start again</a></p>
 <%- include('../partials/auth-shell-end') %>

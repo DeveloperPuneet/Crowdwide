@@ -22,9 +22,9 @@
 	<% } %>
 	<%- include('post-media', { post }) %>
 	<div class="post-actions" aria-label="Post activity">
-		<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" aria-label="Like"><%= post.liked ? '♥' : '♡' %> <%= post.likes?.length || 0 %></button></form>
-		<a class="post-stat" href="/posts/<%= post._id %>#replies" aria-label="Comments">◌ <%= post.commentsCount || 0 %></a>
-		<form class="share-form" method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" aria-label="Share">↗ <span data-share-count><%= post.sharesCount || 0 %></span></button></form>
-		<span class="post-stat post-views" aria-label="Views">◉ <%= post.viewsCount || 0 %></span>
+		<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-label="Like" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 17 }) %><span class="count"><%= post.likes?.length || 0 %></span></button></form>
+		<a class="post-stat" href="/posts/<%= post._id %>#replies" aria-label="Comments"><%- icon('message-circle', { size: 17 }) %><span><%= post.commentsCount || 0 %></span></a>
+		<form class="share-form" method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" aria-label="Share"><%- icon('share', { size: 17 }) %><span data-share-count><%= post.sharesCount || 0 %></span></button></form>
+		<span class="post-stat post-views" aria-label="Views"><%- icon('eye', { size: 17 }) %><span><%= post.viewsCount || 0 %></span></span>
 	</div>
 </article>

@@ -8,7 +8,7 @@
 		<form class="explore-search" method="get" action="/explore">
 			<input name="q" value="<%= query %>" placeholder="Search communities or #hashtags">
 			<select name="category"><option value="">All categories</option><% categories.forEach((item) => { %><option value="<%= item %>" <%= category === item ? 'selected' : '' %>><%= item %></option><% }) %></select>
-			<button class="button button-primary" type="submit">Search <span>⌕</span></button>
+			<button class="button button-primary" type="submit">Search <span><%- icon('search', { size: 16 }) %></span></button>
 		</form>
 	</section>
 
@@ -21,7 +21,7 @@
 			<a class="viral-card" href="/posts/<%= post._id %>">
 				<div class="post-meta"><%- include('../partials/avatar', { person: post.author, size: 'tiny', link: false }) %><div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %></strong></div></div>
 				<p><%= (post.body || '').slice(0, 140) %><%= (post.body || '').length > 140 ? '…' : '' %></p>
-				<span class="viral-likes">♥ <%= post.likesTotal %></span>
+				<span class="viral-likes"><%- icon('heart', { size: 13 }) %> <%= post.likesTotal %></span>
 			</a>
 			<% }) %>
 		</div>
@@ -73,13 +73,13 @@
 			<% communities.forEach((community) => { %>
 			<a class="community-card" href="/communities/<%= community.slug %>">
 				<div class="community-card-top">
-					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph">✦</span><% } %>
+					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph"><%- icon('users', { size: 15 }) %></span><% } %>
 					<span class="community-category"><%= community.category || 'general' %></span>
 				</div>
 				<h2><%= community.name %></h2>
 				<p><%= community.description %></p>
 				<% if ((community.hashtags || []).length) { %><div class="hashtag-row"><% community.hashtags.slice(0, 3).forEach((tag) => { %><span class="hashtag-chip">#<%= tag %></span><% }) %></div><% } %>
-				<footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span><%= community.isPrivate ? 'Request to join' : 'Open to join' %> ↗</span></footer>
+				<footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span><%= community.isPrivate ? 'Request to join' : 'Open to join' %> <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></span></footer>
 			</a>
 			<% }) %>
 		</div>

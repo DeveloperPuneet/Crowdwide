@@ -59,7 +59,7 @@
 		<div class="panel-heading"><h2>Recent activity</h2><span>You</span></div>
 		<% activity.forEach((item) => { %>
 		<div class="activity-row">
-			<span class="activity-icon"><%= item.kind === 'like' ? '♥' : '◌' %></span>
+			<span class="activity-icon"><%- icon(item.kind === 'like' ? 'heart' : 'message-circle', { size: 15 }) %></span>
 			<% if (item.kind === 'like') { %>
 			<p>You liked <a href="/posts/<%= item.post._id %>"><%= item.post.author?.name || 'a post' %>'s post</a><br><small><%= (item.post.body || '').slice(0, 90) %><%= (item.post.body || '').length > 90 ? '…' : '' %></small></p>
 			<% } else { %>
@@ -74,7 +74,7 @@
 		<div class="panel-heading"><h2><%= isSelf ? 'Your comments' : `${profileUser.name}'s comments` %></h2><span><%= profileComments.length %></span></div>
 		<% if (!profileComments.length) { %><div class="empty-feed"><h2>No comments yet.</h2><p>This profile has not joined a conversation yet.</p></div><% } %>
 		<% profileComments.forEach((comment) => { %>
-		<div class="activity-row"><span class="activity-icon">◌</span><p><%= isSelf ? 'You' : profileUser.name %> commented on <a href="/posts/<%= comment.post?._id %>">a post</a><br><small>"<%= comment.body %>"</small></p></div>
+		<div class="activity-row"><span class="activity-icon"><%- icon('message-circle', { size: 15 }) %></span><p><%= isSelf ? 'You' : profileUser.name %> commented on <a href="/posts/<%= comment.post?._id %>">a post</a><br><small>"<%= comment.body %>"</small></p></div>
 		<% }) %>
 	</section>
 	<% } %>
@@ -102,9 +102,9 @@
 			</div>
 			<% } %>
 			<div class="post-actions">
-				<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.liked ? '♥' : '♡' %> <%= post.likes?.length || 0 %></button></form>
-				<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.bookmarked ? '▣ Saved' : '▱ Save' %></button></form>
-				<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;">◌ <%= post.commentsCount || 0 %></a>
+				<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-label="Like"><%- icon('heart', { size: 16 }) %><span class="count"><%= post.likes?.length || 0 %></span></button></form>
+				<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>"><%- icon('bookmark', { size: 16 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
+				<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;"><%- icon('message-circle', { size: 16 }) %> <%= post.commentsCount || 0 %></a>
 			</div>
 		</article>
 		<% }) %>

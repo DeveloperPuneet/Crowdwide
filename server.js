@@ -5,6 +5,7 @@ const createApp = require('./src/app');
 const connectDatabase = require('./src/config/database');
 const { startPublicationWorker } = require('./src/services/publicationWorker');
 const { verifyMailConfig } = require('./src/services/mailer');
+const { startKeepAlive, stopKeepAlive } = require('./src/services/keepAlive');
 
 const port = process.env.PORT || 3000;
 const app = createApp({ port });
@@ -14,7 +15,14 @@ process.on('unhandledRejection', (reason) => logger.error('Unhandled promise rej
 async function start() {
   await connectDatabase();
   startPublicationWorker();
-  app.listen(port, () => logger.info(`Crowdwide is live at http://localhost:${port}`));
+  const server = app.listen(port, () => logger.info(`Crowdwide is live at http://localhost:${port}`));
+
+  // Free-tier hosts put idle services to sleep; a node-cron job pings our own
+  // /health URL every few minutes so the instance stays warm.
+  startKeepAlive();
+  const shutdown = () => { stopKeepAlive(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 
   // Tell the operator up front whether email will actually work, instead of
   // leaving them to discover it when the first verification code never

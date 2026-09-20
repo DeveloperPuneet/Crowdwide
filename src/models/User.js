@@ -84,4 +84,8 @@ const userSchema = new mongoose.Schema({
   dataDownloadRequestedAt: Date
 }, { timestamps: true });
 
+// Feed ranking counts followers ("who follows this author") from this field.
+userSchema.index({ following: 1 });
+userSchema.index({ isVerified: 1, createdAt: -1 });
+
 module.exports = mongoose.model('User', userSchema);

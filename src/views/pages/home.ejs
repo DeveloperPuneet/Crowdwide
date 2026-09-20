@@ -7,10 +7,10 @@
       <p class="eyebrow"><span class="eyebrow-dot"></span> A social network for real discovery</p>
       <h1>Find your people.<br><em>Not just your audience.</em></h1>
       <p class="hero-lede">Crowdwide gives every voice a fair chance at discovery. Follow your curiosity, meet the people who get it, and make space for something new.</p>
-      <div class="hero-actions"><a class="button button-primary" href="/auth/register">Create your account <span>↗</span></a><a class="text-link" href="#why">See how it works <span>↓</span></a></div>
+      <div class="hero-actions"><a class="button button-primary" href="/auth/register">Create your account <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a><a class="text-link" href="#why">See how it works <span>↓</span></a></div>
       <div class="hero-proof"><div class="avatar-stack"><span>J</span><span>M</span><span>R</span><span>+</span></div><p><strong>Built for curious people</strong><br><span>and the communities they create</span></p></div>
     </div>
-    <div class="hero-visual reveal reveal-delay"><div class="orbit-card"><img src="/images/Crowdwide_cover.png" alt="Crowdwide network illustration"></div><div class="visual-note note-top"><span class="note-icon">✦</span><strong>New voices</strong><small>are worth finding</small></div><div class="visual-note note-bottom"><span class="note-icon blue">◎</span><strong>Discovery</strong><small>without the noise</small></div></div>
+    <div class="hero-visual reveal reveal-delay"><div class="orbit-card"><img src="/images/Crowdwide_cover.png" alt="Crowdwide network illustration"></div><div class="visual-note note-top"><span class="note-icon"><%- icon('sparkles', { size: 22 }) %></span><strong>New voices</strong><small>are worth finding</small></div><div class="visual-note note-bottom"><span class="note-icon blue"><%- icon('compass', { size: 22 }) %></span><strong>Discovery</strong><small>without the noise</small></div></div>
   </section>
   <section class="trust-strip container"><span>Made for the in-between moments</span><i></i><span>People over popularity</span><i></i><span>Curiosity is the algorithm</span></section>
   <section class="principles container" id="why">
@@ -27,7 +27,7 @@
       <div class="viral-card" style="cursor:default;">
         <div class="post-meta"><span class="avatar tiny"><%= (post.author?.name || '?').charAt(0).toUpperCase() %></span><div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %></strong></div></div>
         <p><%= (post.body || '').slice(0, 140) %><%= (post.body || '').length > 140 ? '…' : '' %></p>
-        <span class="viral-likes">♥ <%= post.likesTotal %> likes</span>
+        <span class="viral-likes"><%- icon('heart', { size: 13 }) %> <%= post.likesTotal %> likes</span>
       </div>
       <% }) %>
     </div>
@@ -42,12 +42,12 @@
       <article class="community-row"><span class="community-index">0<%= index + 1 %></span><div><h4><%= person.name %></h4><p><%= person.bio || 'Active on Crowdwide' %></p></div><span class="community-members"><%= person.followers %> follower<%= person.followers === 1 ? '' : 's' %></span></article>
       <% }) %>
     </div>
-    <p class="section-copy" style="margin-top:20px;"><a class="text-link" href="/auth/register">Join to follow them <span>↗</span></a></p>
+    <p class="section-copy" style="margin-top:20px;"><a class="text-link" href="/auth/register">Join to follow them <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a></p>
   </section>
   <% } %>
 
-  <section class="story-section container"><div class="story-marker">✦</div><div><p class="eyebrow">A better default</p><h2>What if social felt<br><em>like an open door?</em></h2><p>There is more to the internet than the loudest take and the fastest trend. Crowdwide is a place for the slow burn: the person who makes something beautiful, the question that changes how you see a subject, the community that feels like a room you were hoping to find.</p><a class="text-link" href="/about">Read our story <span>↗</span></a></div></section>
-  <section class="cta-band container"><div><p class="eyebrow">The door is open</p><h2>Your next community<br><em>is already here.</em></h2></div><a class="button button-light" href="/auth/register">Step inside <span>↗</span></a></section>
+  <section class="story-section container"><div class="story-marker"><%- icon('sparkles', { size: 24 }) %></div><div><p class="eyebrow">A better default</p><h2>What if social felt<br><em>like an open door?</em></h2><p>There is more to the internet than the loudest take and the fastest trend. Crowdwide is a place for the slow burn: the person who makes something beautiful, the question that changes how you see a subject, the community that feels like a room you were hoping to find.</p><a class="text-link" href="/about">Read our story <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a></div></section>
+  <section class="cta-band container"><div><p class="eyebrow">The door is open</p><h2>Your next community<br><em>is already here.</em></h2></div><a class="button button-light" href="/auth/register">Step inside <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a></section>
 </main>
 <%- include('../partials/site-footer') %>
 <%- include('../partials/foot') %>

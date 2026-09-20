@@ -4,6 +4,7 @@ const Post = require('../models/Post');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople } = require('../services/discovery');
+const { clearFeedCache } = require('../services/feedService');
 
 const moderationOnly = async (req, res, next) => {
   const community = await Community.findById(req.params.id);
@@ -204,6 +205,7 @@ exports.requestJoin = async (req, res) => {
     community.membersCount = community.members.length;
     await community.save();
     await User.findByIdAndUpdate(userId, { $addToSet: { joinedCommunities: community._id } });
+    clearFeedCache(userId);
   }
   res.redirect(req.get('referer') || `/communities/${community.slug}`);
 };

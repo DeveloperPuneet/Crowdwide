@@ -7,7 +7,7 @@
     <div class="panel-heading"><h1>Group conversations</h1><span><%= groups.length %></span></div>
     <% if (!groups.length) { %><div class="empty-feed"><h2>No groups yet.</h2><p>Start a small conversation with people you know.</p></div><% } %>
     <% groups.forEach((group) => { %>
-    <a class="activity-row" href="/groups/<%= group._id %>" style="text-decoration:none;color:inherit;"><span class="community-glyph">◈</span><div><strong><%= group.name %></strong><p><%= group.members.length %> members · <%= group.members.slice(0, 4).map((member) => member.name).join(', ') %></p></div></a>
+    <a class="activity-row" href="/groups/<%= group._id %>" style="text-decoration:none;color:inherit;"><span class="community-glyph"><%- icon('message-circle', { size: 15 }) %></span><div><strong><%= group.name %></strong><p><%= group.members.length %> members · <%= group.members.slice(0, 4).map((member) => member.name).join(', ') %></p></div></a>
     <% }) %>
     <form class="settings-form compact" method="post" action="/groups" style="margin-top:20px;">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">

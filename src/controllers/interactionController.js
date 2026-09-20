@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Report = require('../models/Report');
 const Message = require('../models/Message');
 const { extractHashtags } = require('../utils/hashtags');
+const { clearFeedCache } = require('../services/feedService');
 const { notifyMentionedUsers } = require('../services/mentions');
 const { sendPushToUser } = require('../services/push');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
@@ -400,6 +401,7 @@ exports.toggleFollow = async (req, res) => {
     await notify(target._id, user._id, 'follow', 'started following you.', undefined, undefined, user.name);
   }
   await user.save();
+  clearFeedCache(user._id); // follow changes what "For you" should show
   const followersCount = await User.countDocuments({ following: targetId });
   redirectBack(req, res, { following: !alreadyFollowing, followersCount });
 };

@@ -4,7 +4,7 @@
 <% } else { %>
 <header class="site-nav container">
 	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
-	<a class="button button-small button-ghost" href="/auth/register">Join Crowdwide <span>↗</span></a>
+	<a class="button button-small button-ghost" href="/auth/register">Join Crowdwide <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a>
 </header>
 <% } %>
 <main class="community-detail post-detail-page">
@@ -31,22 +31,22 @@
 		<%- include('../partials/post-media', { post }) %>
 		<% if (currentUser) { %>
 		<div class="post-actions" aria-label="Post activity">
-			<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" aria-label="Like"><%= post.liked ? '♥' : '♡' %> <%= post.likes?.length || 0 %></button></form>
-			<a class="post-stat" href="#replies" aria-label="Comments">◌ <%= post.commentsCount || 0 %></a>
-			<form class="share-form" method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" aria-label="Share">↗ <span data-share-count><%= post.sharesCount || 0 %></span></button></form>
-			<span class="post-stat post-views" aria-label="Views">◉ <%= post.viewsCount || 0 %></span>
-			<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= post.bookmarked ? '▣ Saved' : '▱ Save' %></button></form>
+			<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-label="Like" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 17 }) %><span class="count"><%= post.likes?.length || 0 %></span></button></form>
+			<a class="post-stat" href="#replies" aria-label="Comments"><%- icon('message-circle', { size: 17 }) %><span><%= post.commentsCount || 0 %></span></a>
+			<form class="share-form" method="post" action="/posts/<%= post._id %>/share"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" aria-label="Share"><%- icon('share', { size: 17 }) %><span data-share-count><%= post.sharesCount || 0 %></span></button></form>
+			<span class="post-stat post-views" aria-label="Views"><%- icon('eye', { size: 17 }) %><span><%= post.viewsCount || 0 %></span></span>
+			<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>" aria-pressed="<%= post.bookmarked ? 'true' : 'false' %>"><%- icon('bookmark', { size: 17 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
 		</div>
 		<div class="reaction-bar" aria-label="React to this post">
-			<% [['celebrate', '👏'], ['insightful', '💡'], ['support', '🤝'], ['funny', '😄']].forEach(([reaction, icon]) => { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/reaction"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="reaction" value="<%= reaction %>"><button type="submit" title="<%= reaction %>"><%= icon %> <%= post.reactions?.[reaction]?.length || 0 %></button></form><% }) %>
+			<% [['celebrate', 'award', 'Celebrate'], ['insightful', 'lightbulb', 'Insightful'], ['support', 'thumbs-up', 'Support'], ['funny', 'smile', 'Funny']].forEach(([reaction, glyph, label]) => { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/reaction"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="reaction" value="<%= reaction %>"><button type="submit" title="<%= label %>" aria-label="<%= label %>"><%- icon(glyph, { size: 15 }) %><span class="count"><%= post.reactions?.[reaction]?.length || 0 %></span></button></form><% }) %>
 		</div>
-		<form class="comment-form" data-async-interaction method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input data-mention-input name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required><button type="submit">Comment</button></form>
+		<form class="comment-form" data-async-interaction method="post" action="/posts/<%= post._id %>/comments"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label class="visually-hidden" for="comment-body">Add a comment</label><div class="mention-wrap"><input id="comment-body" data-mention-input autocomplete="off" name="body" maxlength="2000" placeholder="Add a thoughtful comment..." required></div><button type="submit" class="comment-submit"><%- icon('message-circle', { size: 15 }) %><span>Comment</span></button></form>
 		<div class="post-secondary-actions">
-			<details class="post-owner-tools"><summary>Reply with a post</summary><form class="post-reply-form" data-async-interaction method="post" action="/posts/<%= post._id %>/reply"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><textarea data-mention-input name="body" maxlength="4000" placeholder="Write a public reply..." required></textarea><button type="submit">Publish reply</button></form></details>
-			<details class="post-owner-tools"><summary>Quote</summary><form method="post" action="/posts/<%= post._id %>/quote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><textarea data-mention-input name="body" maxlength="4000" placeholder="Add your commentary..." required></textarea><button type="submit">Publish quote</button></form></details>
+			<details class="post-owner-tools"><summary><%- icon('reply', { size: 14 }) %> Reply with a post</summary><form class="post-reply-form" data-async-interaction method="post" action="/posts/<%= post._id %>/reply"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><textarea data-mention-input name="body" maxlength="4000" placeholder="Write a public reply..." required></textarea><button type="submit">Publish reply</button></form></details>
+			<details class="post-owner-tools"><summary><%- icon('message-square', { size: 14 }) %> Quote</summary><form method="post" action="/posts/<%= post._id %>/quote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><textarea data-mention-input name="body" maxlength="4000" placeholder="Add your commentary..." required></textarea><button type="submit">Publish quote</button></form></details>
 			<% if (String(post.author?._id) === String(currentUser.id)) { %>
 			<details class="post-owner-tools">
-				<summary>Edit post</summary>
+				<summary><%- icon('edit', { size: 14 }) %> Edit post</summary>
 				<form method="post" action="/posts/<%= post._id %>/edit">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 					<textarea name="body" maxlength="4000" required><%= post.body %></textarea>
@@ -59,7 +59,7 @@
 			</details>
 			<% } else { %>
 			<details class="post-owner-tools">
-				<summary>Report</summary>
+				<summary><%- icon('flag', { size: 14 }) %> Report</summary>
 				<form class="post-report-form" method="post" action="/posts/<%= post._id %>/report" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" maxlength="500" placeholder="What is wrong with this post?"><label class="report-evidence-label">Evidence (optional)<input type="file" name="evidence" accept="image/*"></label><button type="submit">Send report</button></form>
 			</details>
 			<% } %>
@@ -78,7 +78,7 @@
 		<% } else { %>
 		<div class="public-post-cta">
 			<p>Thoughtful conversations live on Crowdwide.</p>
-			<a class="button button-primary button-small" href="/auth/register">Join the conversation <span>↗</span></a>
+			<a class="button button-primary button-small" href="/auth/register">Join the conversation <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a>
 		</div>
 		<% } %>
 	</article>

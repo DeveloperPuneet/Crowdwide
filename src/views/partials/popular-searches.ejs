@@ -1,0 +1,10 @@
+<%# Popular searches list: real queries, @people and #hashtags people searched for. %>
+<div class="popular-search-list">
+	<% (locals.items || []).forEach((item) => { %>
+	<a href="<%= item.href %>">
+		<%- icon(item.kind === 'hashtag' ? 'hash' : item.kind === 'person' ? 'user' : 'search', { size: 15 }) %>
+		<span class="search-label"><%= item.kind === 'hashtag' ? item.label.replace(/^#/, '') : item.label %></span>
+		<% if (item.suggested) { %><span class="search-meta search-tag-suggested">Suggested</span><% } else { %><span class="search-meta"><%= item.people %> <%= item.people === 1 ? 'person' : 'people' %></span><% } %>
+	</a>
+	<% }) %>
+</div>

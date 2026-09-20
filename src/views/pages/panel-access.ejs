@@ -6,7 +6,7 @@
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <input type="hidden" name="returnTo" value="/<%= panel %>">
   <label>Password<input type="password" name="password" autocomplete="current-password" required autofocus></label>
-  <button class="button button-primary button-full" type="submit">Open panel <span>↗</span></button>
+  <button class="button button-primary button-full" type="submit">Open panel <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 </form>
 <p class="switch-auth"><a href="/dashboard">Return to Crowdwide</a></p>
 <%- include('../partials/auth-shell-end') %>

@@ -14,16 +14,16 @@
       <a class="button button-small button-ghost" href="/notifications">Notifications</a>
     <% } else { %>
       <a class="button button-small button-ghost" href="/auth/login">Sign in</a>
-      <a class="button button-small button-primary" href="/auth/register">Join Crowdwide <span>↗</span></a>
+      <a class="button button-small button-primary" href="/auth/register">Join Crowdwide <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a>
     <% } %>
-    <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false">☰</button>
+    <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false"><%- icon('menu', { size: 20 }) %></button>
   </div>
 </header>
 
 <div class="nav-drawer" id="marketing-nav-drawer">
   <div class="nav-drawer-backdrop" data-drawer-close></div>
   <nav class="nav-drawer-panel">
-    <button class="nav-drawer-close" type="button" data-drawer-close aria-label="Close menu">×</button>
+    <button class="nav-drawer-close" type="button" data-drawer-close aria-label="Close menu"><%- icon('x', { size: 20 }) %></button>
     <a href="#why">Why Crowdwide</a>
     <a href="#communities">Communities</a>
     <a href="/about">About</a>

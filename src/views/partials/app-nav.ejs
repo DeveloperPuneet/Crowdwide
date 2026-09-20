@@ -2,45 +2,45 @@
 <header class="app-nav">
   <a class="brand" href="/dashboard"><img src="/images/Crowdwide_logo_192.png" alt="Crowdwide logo"><span>Crowdwide</span></a>
   <nav>
-    <a class="<%= active === 'home' ? 'app-nav-active' : '' %>" href="/dashboard">Home</a>
-    <a class="<%= active === 'explore' ? 'app-nav-active' : '' %>" href="/explore">Explore</a>
-    <a class="<%= active === 'communities' ? 'app-nav-active' : '' %>" href="/communities">Communities</a>
-    <a class="<%= active === 'messages' ? 'app-nav-active' : '' %>" href="/messages">Messages</a>
-    <a class="<%= active === 'groups' ? 'app-nav-active' : '' %>" href="/groups">Groups</a>
+    <a class="<%= active === 'home' ? 'app-nav-active' : '' %>" href="/dashboard"><%- icon('home', { size: 16 }) %><span>Home</span></a>
+    <a class="<%= active === 'explore' ? 'app-nav-active' : '' %>" href="/explore"><%- icon('compass', { size: 16 }) %><span>Explore</span></a>
+    <a class="<%= active === 'communities' ? 'app-nav-active' : '' %>" href="/communities"><%- icon('users', { size: 16 }) %><span>Communities</span></a>
+    <a class="<%= active === 'messages' ? 'app-nav-active' : '' %>" href="/messages"><%- icon('mail', { size: 16 }) %><span>Messages</span></a>
+    <a class="<%= active === 'groups' ? 'app-nav-active' : '' %>" href="/groups"><%- icon('message-circle', { size: 16 }) %><span>Groups</span></a>
   </nav>
   <form class="nav-search" method="get" action="/search">
-    <span class="nav-search-icon">⌕</span>
+    <span class="nav-search-icon"><%- icon('search', { size: 15 }) %></span>
     <input type="search" name="q" placeholder="Search Crowdwide" aria-label="Search Crowdwide" value="<%= locals.searchQuery || '' %>">
   </form>
   <div class="app-nav-actions">
-    <a class="icon-button" href="/search" aria-label="Search">⌕</a>
-    <a class="notification-button" href="/notifications" aria-label="Notifications"><span>&#128276;</span><b class="notification-badge" hidden>0</b></a>
+    <a class="icon-button" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
+    <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden>0</b></a>
     <% if (locals.currentUser) { %><span class="welcome">Hey, <%= currentUser.name.split(' ')[0] %></span><% } %>
-    <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false">☰</button>
+    <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false"><%- icon('menu', { size: 20 }) %></button>
   </div>
 </header>
 
 <div class="nav-drawer" id="app-nav-drawer">
   <div class="nav-drawer-backdrop" data-drawer-close></div>
   <nav class="nav-drawer-panel">
-    <button class="nav-drawer-close" type="button" data-drawer-close aria-label="Close menu">×</button>
+    <button class="nav-drawer-close" type="button" data-drawer-close aria-label="Close menu"><%- icon('x', { size: 20 }) %></button>
     <form class="nav-drawer-search" method="get" action="/search">
       <input type="search" name="q" placeholder="Search Crowdwide" aria-label="Search Crowdwide">
     </form>
-    <a href="/dashboard">◉ Home feed</a>
-    <a href="/explore">◎ Explore</a>
-    <a href="/communities">⌂ Communities</a>
-    <a href="/messages">✉ Messages</a>
-    <a href="/groups">◈ Groups</a>
-    <a href="/notifications">&#128276; Notifications</a>
+    <a href="/dashboard"><%- icon('home', { size: 18 }) %> Home feed</a>
+    <a href="/explore"><%- icon('compass', { size: 18 }) %> Explore</a>
+    <a href="/communities"><%- icon('users', { size: 18 }) %> Communities</a>
+    <a href="/messages"><%- icon('mail', { size: 18 }) %> Messages</a>
+    <a href="/groups"><%- icon('message-circle', { size: 18 }) %> Groups</a>
+    <a href="/notifications"><%- icon('bell', { size: 18 }) %> Notifications</a>
     <% if (locals.currentUser) { %>
-    <a href="/u/<%= currentUser.id %>">✦ Your profile</a>
-    <a href="/settings/profile">⚙ Settings</a>
-    <% if (currentUser.role === 'admin') { %><a href="/admin">▣ Admin console</a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator">▣ Moderator console</a><% } %>
+    <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Your profile</a>
+    <a href="/settings/profile"><%- icon('settings', { size: 18 }) %> Settings</a>
+    <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>
     <% } %>
     <hr class="nav-drawer-hr">
     <% if (locals.currentUser) { %>
-    <form method="post" action="/auth/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">↩ Sign out</button></form>
+    <form method="post" action="/auth/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%- icon('log-out', { size: 18 }) %> Sign out</button></form>
     <% } else { %>
     <a href="/auth/login">Sign in</a>
     <a href="/auth/register">Join Crowdwide</a>

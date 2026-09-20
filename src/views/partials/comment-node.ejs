@@ -14,11 +14,11 @@
 	<time><%= new Date(node.createdAt).toLocaleString() %></time>
 	<form class="comment-like-form" data-async-interaction method="post" action="/comments/<%= node._id %>/like">
 		<input type="hidden" name="_csrf" value="<%= csrf %>">
-		<button type="submit">♡ <%= node.likes?.length || 0 %></button>
+		<button type="submit" class="action-like" aria-label="Like comment"><%- icon('heart', { size: 14 }) %><span class="count"><%= node.likes?.length || 0 %></span></button>
 	</form>
 	<% if (currentUser && String(node.author?._id) === String(currentUser.id)) { %>
 	<details class="comment-owner-tools">
-		<summary>Edit</summary>
+		<summary><%- icon('edit', { size: 13 }) %> Edit</summary>
 		<form method="post" action="/comments/<%= node._id %>/edit">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
 			<textarea name="body" maxlength="2000" required><%= node.body %></textarea>
@@ -32,12 +32,12 @@
 	<% } %>
 	<% if (canReply) { %>
 	<details class="thread-reply">
-		<summary>Reply</summary>
+		<summary><%- icon('reply', { size: 13 }) %> Reply</summary>
 		<form data-async-interaction method="post" action="/posts/<%= postId %>/comments">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
 			<input type="hidden" name="parent" value="<%= node._id %>">
-			<input data-mention-input name="body" maxlength="2000" placeholder="Reply to <%= node.author?.name || 'this comment' %>" required>
-			<button type="submit">Reply</button>
+			<div class="mention-wrap"><input data-mention-input autocomplete="off" aria-label="Write a reply" name="body" maxlength="2000" placeholder="Reply to <%= node.author?.name || 'this comment' %>" required></div>
+			<button type="submit"><%- icon('reply', { size: 14 }) %><span>Reply</span></button>
 		</form>
 	</details>
 	<% } %>

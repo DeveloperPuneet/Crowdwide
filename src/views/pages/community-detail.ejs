@@ -7,7 +7,7 @@
 	<% if (community.coverImage) { %><div class="profile-banner"><img src="<%= community.coverImage %>" alt=""></div><% } %>
 	<section class="community-detail-hero">
 		<div style="display:flex;align-items:center;gap:14px;">
-			<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:54px;height:54px;border-radius:14px;object-fit:cover;"><% } else { %><span class="community-glyph" style="width:54px;height:54px;font-size:20px;border-radius:14px;">✦</span><% } %>
+			<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:54px;height:54px;border-radius:14px;object-fit:cover;"><% } else { %><span class="community-glyph" style="width:54px;height:54px;font-size:20px;border-radius:14px;"><%- icon('users', { size: 22 }) %></span><% } %>
 			<div><p class="eyebrow" style="margin:0 0 4px;"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p><h1 style="margin:0;"><%= community.name %></h1></div>
 		</div>
 		<p><%= community.description %></p>
@@ -18,7 +18,7 @@
 			<% if (isOwner) { %><a class="button button-small button-ghost" href="/communities/<%= community._id %>/manage">Manage community</a>
 			<% } else if (joined) { %><span class="joined-mark">Joined</span>
 			<% } else if (requested) { %><span class="joined-mark">Request pending</span>
-			<% } else { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%= community.isPrivate ? 'Request to join' : 'Join community' %> <span>↗</span></button></form><% } %>
+			<% } else { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%= community.isPrivate ? 'Request to join' : 'Join community' %> <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button></form><% } %>
 		</div>
 	</section>
 	<section class="community-posts">

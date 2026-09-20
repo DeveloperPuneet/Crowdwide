@@ -3,37 +3,42 @@
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="app-layout">
 	<aside class="app-sidebar">
-		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="true" aria-controls="dashboard-sidebar" aria-label="Close sidebar">×</button>
+		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="true" aria-controls="dashboard-sidebar" aria-label="Close sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
 		<div id="dashboard-sidebar">
 		<div class="sidebar-profile">
 			<%- include('../partials/avatar', { person: currentUser }) %>
 			<div><strong><%= currentUser.name %></strong><span>@<%= currentUser.email.split('@')[0] %></span></div>
 		</div>
 		<nav class="side-links">
-			<a class="side-active" href="/dashboard">◉ <span>Home feed</span></a>
-			<a href="/explore">◎ <span>Explore</span></a>
-			<a href="/communities">⌂ <span>Communities</span></a>
-			<a href="/u/<%= currentUser.id %>">✦ <span>Your profile</span></a>
-			<a href="/notifications">&#128276; <span>Notifications</span></a>
-			<a href="#people">♧ <span>People to follow</span></a>
+			<a class="side-active" href="/dashboard"><%- icon('home') %> <span>Home feed</span></a>
+			<a href="/explore"><%- icon('compass') %> <span>Explore</span></a>
+			<a href="/communities"><%- icon('users') %> <span>Communities</span></a>
+			<a href="/u/<%= currentUser.id %>"><%- icon('user') %> <span>Your profile</span></a>
+			<a href="/notifications"><%- icon('bell') %> <span>Notifications</span></a>
+			<a href="#people"><%- icon('plus') %> <span>People to follow</span></a>
 		</nav>
-		<div class="sidebar-note"><span>✦</span><p><strong>Make room for new voices.</strong><br>Every follow shapes your Crowdwide.<br><a href="/guide" style="color:#8da0ff;">Read tips to grow →</a></p></div>
+		<div class="sidebar-note"><span><%- icon('sparkles', { size: 20 }) %></span><p><strong>Make room for new voices.</strong><br>Every follow shapes your Crowdwide.<br><a href="/guide" style="color:#8da0ff;">Read tips to grow →</a></p></div>
 		</div>
 	</aside>
 	<section class="feed-column">
 		<div class="feed-heading">
 			<div><p class="eyebrow">Your corner of Crowdwide</p><h1>Good to see you, <em><%= currentUser.name.split(' ')[0] %>.</em></h1></div>
-			<button class="button button-primary" type="button" data-composer-open aria-expanded="false" aria-controls="composer">Share something <span>+</span></button>
+			<button class="button button-primary" type="button" data-composer-open aria-expanded="false" aria-controls="composer">Share something <span><%- icon('plus', { size: 16 }) %></span></button>
 		</div>
-		<div class="feed-tabs">
-			<a class="<%= feed.activeTab === 'for-you' ? 'feed-tab-active' : '' %>" href="/dashboard?view=for-you">For you</a>
-			<a class="<%= feed.activeTab === 'my-community' ? 'feed-tab-active' : '' %>" href="/dashboard?view=my-community&feed=personalized">My community</a>
-			<a class="<%= feed.activeTab === 'posts-new' ? 'feed-tab-active' : '' %>" href="/dashboard?view=posts-new">Posts · New</a>
-			<a class="<%= feed.activeTab === 'posts-viral' ? 'feed-tab-active' : '' %>" href="/dashboard?view=posts-viral">Posts · Viral</a>
-			<a class="<%= feed.activeTab === 'articles-new' ? 'feed-tab-active' : '' %>" href="/dashboard?view=articles-new">Articles · New</a>
-			<a class="<%= feed.activeTab === 'articles-viral' ? 'feed-tab-active' : '' %>" href="/dashboard?view=articles-viral">Articles · Viral</a>
-			<span><%= feed.note %></span>
-		</div>
+		<%
+	const feedTabs = [
+		['for-you', '/dashboard?view=for-you', 'For you', 'sparkles'],
+		['my-community', '/dashboard?view=my-community&feed=personalized', 'My community', 'users'],
+		['posts-new', '/dashboard?view=posts-new', 'Posts · New', 'clock'],
+		['posts-viral', '/dashboard?view=posts-viral', 'Posts · Viral', 'flame'],
+		['articles-new', '/dashboard?view=articles-new', 'Articles · New', 'file-text'],
+		['articles-viral', '/dashboard?view=articles-viral', 'Articles · Viral', 'trending-up']
+	];
+%>
+		<nav class="feed-tabs" aria-label="Feed views">
+			<% feedTabs.forEach(([id, href, label, glyph]) => { %><a class="<%= feed.activeTab === id ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- feed.activeTab === id ? 'aria-current="page"' : '' %>><%- icon(glyph, { size: 15 }) %><span><%= label %></span></a><% }) %>
+		</nav>
+		<p class="feed-note"><%= feed.note %></p>
 		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":120,"article":550}'>
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<%- include('../partials/avatar', { person: currentUser, size: 'small', link: false }) %>
@@ -49,7 +54,7 @@
 					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*" multiple></label>
 					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
 					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
-					<button class="button button-primary button-small" type="submit">Publish <span>↗</span></button>
+					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 				</div>
 				<details class="composer-media-details">
 					<summary>Media details · alt text, caption, transcript</summary>
@@ -62,36 +67,45 @@
 				<small class="upload-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files · use **bold**, *italic*, "# heading", and "- list" lines for richer formatting</small>
 			</div>
 		</form>
+		<%
+	const emptyCopy = {
+		'my-community': ['Your community feed is waiting.', 'Join a community to see its posts appear here.'],
+		'posts-viral': ['Nothing is going viral yet.', 'Posts that pick up likes, comments and shares will rise here.'],
+		'articles-viral': ['No articles are trending yet.', 'Articles readers engage with will rise here.'],
+		'articles-new': ['No articles yet.', 'Be the first to publish one - articles can be up to 550 words.']
+	};
+	const [emptyTitle, emptyText] = emptyCopy[feed.activeTab] || ['Your feed starts with curiosity.', 'Follow someone, join a community, or share the first thought that gets the conversation moving.'];
+	%>
 		<% if (!feed.visiblePosts.length) { %>
 		<section class="empty-feed">
 			<div class="empty-orbit"><img src="/images/Crowdwide_logo_192.png" alt=""></div>
-			<h2><%= feed.label === 'Personalized feed' ? 'Your community feed is waiting.' : 'Your feed starts with curiosity.' %></h2>
-			<p><%= feed.label === 'Personalized feed' ? 'Join a community to see its posts appear here.' : 'Follow someone, join a community, or share the first thought that gets the conversation moving.' %></p>
-			<a class="button button-dark button-small" href="/explore">Explore communities <span>↗</span></a>
+			<h2><%= emptyTitle %></h2>
+			<p><%= emptyText %></p>
+			<a class="button button-dark button-small" href="/explore">Explore communities <span><%- icon('arrow-up-right', { size: 14 }) %></span></a>
 		</section>
 		<% } %>
 		<div id="feed-posts"><% feed.visiblePosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div>
-		<% if (feed.visiblePosts.length) { %>
-		<div id="feed-sentinel" data-feed-mode="<%= feed.label === 'Personalized feed' ? 'personalized' : 'normal' %>" data-feed-view="<%= feed.activeTab %>" data-cursor="<%= feed.visiblePosts[feed.visiblePosts.length - 1].createdAt.toISOString ? feed.visiblePosts[feed.visiblePosts.length - 1].createdAt.toISOString() : feed.visiblePosts[feed.visiblePosts.length - 1].createdAt %>"></div>
-		<p id="feed-end-note" class="upload-help" style="display:none;text-align:center;padding:18px 0;">You're all caught up.</p>
+		<% if (feed.visiblePosts.length && feed.hasMore) { %>
+		<div id="feed-sentinel" data-feed-view="<%= feed.activeTab %>" data-page="1"></div>
 		<% } %>
+		<p id="feed-end-note" class="upload-help feed-end-note" style="display:<%= feed.visiblePosts.length && !feed.hasMore ? 'block' : 'none' %>;">You're all caught up.</p>
 	</section>
 	<aside class="discover-column" id="explore">
 		<section class="discover-panel" id="communities">
-			<div class="panel-heading"><h2>Explore communities</h2><a href="/explore">See all ↗</a></div>
+			<div class="panel-heading"><h2>Explore communities</h2><a href="/explore">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
 			<% if (!communities.length) { %>
 			<p style="color:#777a91;font-size:12px;padding:10px 0;">No communities yet — be the first to start one below.</p>
 			<% } %>
 			<% communities.forEach((community) => { %>
 			<div class="discover-row">
-				<a href="/communities/<%= community.slug %>" class="community-glyph" style="color:inherit;">✦</a>
+				<a href="/communities/<%= community.slug %>" class="community-glyph" style="color:inherit;"><%- icon('users', { size: 15 }) %></a>
 				<div><strong><a class="name-link" href="/communities/<%= community.slug %>"><%= community.name %></a></strong><span><%= (community.membersCount || 0).toLocaleString() %> members</span></div>
 				<% if (String(community.owner) === String(currentUser.id)) { %><a class="joined-mark" href="/communities/<%= community._id %>/manage">Manage</a>
-				<% } else if (!joinedCommunities.includes(String(community._id))) { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Join <%= community.name %>">+</button></form>
+				<% } else if (!joinedCommunities.includes(String(community._id))) { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Join <%= community.name %>"><%- icon('plus', { size: 14 }) %></button></form>
 				<% } else { %><span class="joined-mark">Joined</span><% } %>
 			</div>
 			<% }) %>
-			<form class="create-community" method="post" action="/communities"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="name" placeholder="Create a community" required><input name="description" placeholder="What is it about?" required><input name="category" placeholder="Category e.g. design"><label class="privacy-check"><input type="checkbox" name="isPrivate"> Private community</label><button class="button button-dark button-small" type="submit">Create <span>+</span></button></form>
+			<form class="create-community" method="post" action="/communities"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="name" placeholder="Create a community" required><input name="description" placeholder="What is it about?" required><input name="category" placeholder="Category e.g. design"><label class="privacy-check"><input type="checkbox" name="isPrivate"> Private community</label><button class="button button-dark button-small" type="submit">Create <span><%- icon('plus', { size: 14 }) %></span></button></form>
 		</section>
 		<section class="discover-panel" id="people">
 			<div class="panel-heading"><h2>People to follow</h2><span>New</span></div>
@@ -102,7 +116,7 @@
 			<div class="discover-row">
 				<%- include('../partials/avatar', { person, size: 'tiny' }) %>
 				<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span>New voice on Crowdwide</span></div>
-				<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>">+</button></form>
+				<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>"><%- icon('plus', { size: 14 }) %></button></form>
 			</div>
 			<% }) %>
 		</section>

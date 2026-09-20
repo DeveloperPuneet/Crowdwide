@@ -9,15 +9,15 @@
   <% const groups = [['Larger communities', largerCommunities], ['New communities', newCommunities], ['Growing communities', growingCommunities]]; %>
   <% groups.forEach(([heading, items]) => { %>
   <section class="directory-section">
-    <div class="panel-heading"><h2><%= heading %></h2><a href="/explore">Browse all ↗</a></div>
+    <div class="panel-heading"><h2><%= heading %></h2><a href="/explore">Browse all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
     <div class="community-directory-grid">
       <% if (!items.length) { %><p class="directory-empty">No communities in this group yet.</p><% } %>
       <% items.forEach((community) => { %>
       <a class="community-card" href="/communities/<%= community.slug %>">
-        <div class="community-card-top"><span class="community-glyph"><%= community.avatarImage ? '' : '✦' %></span><span class="community-category"><%= community.category || 'general' %></span></div>
+        <div class="community-card-top"><span class="community-glyph"><%- community.avatarImage ? '' : icon('users', { size: 15 }) %></span><span class="community-category"><%= community.category || 'general' %></span></div>
         <h2><%= community.name %></h2>
         <p><%= community.description %></p>
-        <footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span>Open ↗</span></footer>
+        <footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span>Open <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></span></footer>
       </a>
       <% }) %>
     </div>
@@ -25,7 +25,7 @@
   <% }) %>
   <section class="directory-section">
     <div class="panel-heading"><h2>Viral posts</h2><span>Resonating now</span></div>
-    <div class="directory-post-grid"><% viralPosts.forEach((post) => { %><a class="viral-card" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p><span class="viral-likes">♥ <%= post.likesTotal || 0 %></span></a><% }) %></div>
+    <div class="directory-post-grid"><% viralPosts.forEach((post) => { %><a class="viral-card" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p><span class="viral-likes"><%- icon('heart', { size: 13 }) %> <%= post.likesTotal || 0 %></span></a><% }) %></div>
   </section>
   <section class="directory-section">
     <div class="panel-heading"><h2>Latest community posts</h2><span>Fresh conversations</span></div>
@@ -37,7 +37,7 @@
   </section>
   <section class="directory-section">
     <div class="panel-heading"><h2>Viral articles</h2><span>Popular long-form reads</span></div>
-    <div class="directory-post-grid"><% viralArticles.forEach((post) => { %><a class="viral-card" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p><span class="viral-likes">♥ <%= post.likesTotal || 0 %></span></a><% }) %></div>
+    <div class="directory-post-grid"><% viralArticles.forEach((post) => { %><a class="viral-card" href="/posts/<%= post._id %>"><strong><%= post.author?.name || 'Member' %></strong><p><%= (post.body || '').slice(0, 150) %><%= (post.body || '').length > 150 ? '…' : '' %></p><span class="viral-likes"><%- icon('heart', { size: 13 }) %> <%= post.likesTotal || 0 %></span></a><% }) %></div>
   </section>
   <section class="directory-section">
     <div class="panel-heading"><h2>Latest articles</h2><span>New long-form reads</span></div>

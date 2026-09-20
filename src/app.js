@@ -8,6 +8,7 @@ const webRoutes = require('./routes/web');
 const authRoutes = require('./routes/auth');
 const { csrfProtection, generateToken } = require('./middleware/security');
 const { renderMentions, renderRichBody } = require('./services/mentions');
+const { icon } = require('./utils/icons');
 const logger = require('./services/logger');
 const { alertOnCriticalError } = require('./services/alerting');
 
@@ -52,6 +53,7 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     res.locals.appUrl = process.env.APP_URL || `http://localhost:${port}`;
     res.locals.renderMentions = renderMentions;
     res.locals.renderRichBody = renderRichBody;
+    res.locals.icon = icon;
     delete req.session.flash;
     next();
   });
