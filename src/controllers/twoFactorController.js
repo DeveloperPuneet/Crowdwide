@@ -4,7 +4,7 @@ const { generateSecret, generateURI, verify } = require('otplib');
 const QRCode = require('qrcode');
 const User = require('../models/User');
 const { sendSecurityAlert } = require('../services/mailer');
-const { establishSession } = require('./authController');
+const { establishSession, landingPath } = require('./authController');
 const logger = require('../services/logger');
 const { logEvent } = require('../services/accountHistory');
 
@@ -177,7 +177,7 @@ exports.verifyLogin = async (req, res) => {
       const remaining = user.recoveryCodes.filter((entry) => !entry.usedAt).length;
       req.session.flash = { type: 'success', message: `Signed in with a recovery code. ${remaining} recovery code${remaining === 1 ? '' : 's'} left - regenerate them soon from Settings.` };
     }
-    res.redirect('/dashboard');
+    res.redirect(landingPath(req));
   } catch (error) {
     logger.error('Two-factor authentication action failed', error);
     req.session.flash = { type: 'error', message: 'Sign in is temporarily unavailable.' };

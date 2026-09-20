@@ -1,22 +1,15 @@
-<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page chat-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
-<main class="community-detail">
-  <a class="back-link" href="/groups">← Groups</a>
-  <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-  <section class="community-posts">
-    <div class="panel-heading"><div><p class="eyebrow">Group conversation</p><h1><%= group.name %></h1></div><span><%= group.members.length %> members</span></div>
-    <p class="upload-help"><%= group.members.map((member) => member.name).join(' · ') %></p>
-    <div class="message-thread">
-      <% if (!messages.length) { %><p class="upload-help">Start the conversation.</p><% } %>
-      <% messages.forEach((message) => { %>
-      <article class="activity-row <%= String(message.sender?._id) === String(currentUser.id) ? 'message-own' : '' %>"><%- include('../partials/avatar', { person: message.sender, size: 'tiny', link: false }) %><div><strong><%= message.sender?.name || 'Member' %></strong><p><%= message.body %></p><small><%= new Date(message.createdAt).toLocaleString() %></small></div></article>
-      <% }) %>
-    </div>
-    <form class="comment-form" method="post" action="/groups/<%= group._id %>">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input name="body" maxlength="2000" placeholder="Write to the group..." required>
-      <button type="submit">Send</button>
-    </form>
-  </section>
+<main class="chat-main">
+	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
+	<section class="chat-shell" data-chat data-kind="group" data-poll-url="/groups/<%= group._id %>/poll" data-history-url="/groups/<%= group._id %>/history" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>">
+		<header class="chat-header">
+			<a class="chat-back" href="/groups" aria-label="Back to groups"><%- icon('arrow-left', { size: 20 }) %></a>
+			<%- include('../partials/group-avatar', { group, size: 'small' }) %>
+			<div class="chat-title"><strong><%= group.name %></strong><span><%= group.members.length %> member<%= group.members.length === 1 ? '' : 's' %></span></div>
+			<a class="chat-header-action" href="/groups/<%= group._id %>/info" aria-label="Group info and settings"><%- icon('info', { size: 20 }) %></a>
+		</header>
+		<%- include('../partials/chat-body', { sendUrl: '/groups/' + group._id, messagesHtml, hasMore, placeholder: 'Write to the group...', emptyText: 'No messages yet. Say hello to the group.', csrfToken, gifsEnabled: locals.gifsEnabled }) %>
+	</section>
 </main>
-<%- include('../partials/app-footer') %><%- include('../partials/foot') %>
+<%- include('../partials/foot') %>

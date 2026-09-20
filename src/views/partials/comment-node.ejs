@@ -5,42 +5,40 @@
   const csrf = locals.csrfToken;
   const canReply = locals.canReply;
 %>
-	<article class="thread-comment" data-comment-id="<%= node._id %>" data-depth="<%= Math.min(depth, 3) %>">
+<article class="thread-comment" data-comment-id="<%= node._id %>" data-depth="<%= Math.min(depth, 3) %>">
 	<div class="thread-comment-head">
 		<%- include('avatar', { person: node.author || {}, size: 'tiny', link: true }) %>
 		<strong><a class="name-link" href="/u/<%= node.author?._id %>"><%= node.author?.name || 'Member' %></a></strong>
+		<time datetime="<%= new Date(node.createdAt).toISOString() %>"><%= new Date(node.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time>
 	</div>
-	<p><%- renderMentions(node.body) %></p>
-	<time><%= new Date(node.createdAt).toLocaleString() %></time>
-	<form class="comment-like-form" data-async-interaction method="post" action="/comments/<%= node._id %>/like">
-		<input type="hidden" name="_csrf" value="<%= csrf %>">
-		<button type="submit" class="action-like" aria-label="Like comment"><%- icon('heart', { size: 14 }) %><span class="count"><%= node.likes?.length || 0 %></span></button>
-	</form>
-	<% if (currentUser && String(node.author?._id) === String(currentUser.id)) { %>
-	<details class="comment-owner-tools">
-		<summary><%- icon('edit', { size: 13 }) %> Edit</summary>
-		<form method="post" action="/comments/<%= node._id %>/edit">
+	<% if (node.body) { %><p class="thread-comment-text"><%- renderMentions(node.body) %></p><% } %>
+	<% if (node.gif?.url) { %><img class="comment-gif" src="<%= node.gif.url %>" alt="<%= node.gif.title || 'GIF' %>" loading="lazy"<% if (node.gif.width && node.gif.height) { %> width="<%= node.gif.width %>" height="<%= node.gif.height %>"<% } %>><% } %>
+	<div class="thread-comment-actions">
+		<form class="comment-like-form" data-async-interaction method="post" action="/comments/<%= node._id %>/like">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
-			<textarea name="body" maxlength="2000" required><%= node.body %></textarea>
-			<button type="submit">Save</button>
+			<button type="submit" class="action-like" aria-label="Like comment" aria-pressed="false"><%- icon('heart', { size: 15 }) %><span class="count"><%= node.likes?.length || 0 %></span></button>
 		</form>
-		<form method="post" action="/comments/<%= node._id %>/delete" data-confirm="Delete this comment?">
-			<input type="hidden" name="_csrf" value="<%= csrf %>">
-			<button type="submit">Delete</button>
-		</form>
-	</details>
-	<% } %>
-	<% if (canReply) { %>
-	<details class="thread-reply">
-		<summary><%- icon('reply', { size: 13 }) %> Reply</summary>
-		<form data-async-interaction method="post" action="/posts/<%= postId %>/comments">
-			<input type="hidden" name="_csrf" value="<%= csrf %>">
-			<input type="hidden" name="parent" value="<%= node._id %>">
-			<div class="mention-wrap"><input data-mention-input autocomplete="off" aria-label="Write a reply" name="body" maxlength="2000" placeholder="Reply to <%= node.author?.name || 'this comment' %>" required></div>
-			<button type="submit"><%- icon('reply', { size: 14 }) %><span>Reply</span></button>
-		</form>
-	</details>
-	<% } %>
+		<% if (canReply) { %>
+		<details class="thread-reply">
+			<summary><%- icon('reply', { size: 14 }) %> Reply</summary>
+			<%- include('comment-form', { action: '/posts/' + postId + '/comments', parent: node._id, placeholder: 'Reply to ' + (node.author?.name || 'this comment'), compact: true, csrfToken: csrf }) %>
+		</details>
+		<% } %>
+		<% if (currentUser && String(node.author?._id) === String(currentUser.id)) { %>
+		<details class="comment-owner-tools">
+			<summary><%- icon('edit', { size: 14 }) %> Edit</summary>
+			<form method="post" action="/comments/<%= node._id %>/edit">
+				<input type="hidden" name="_csrf" value="<%= csrf %>">
+				<textarea name="body" maxlength="2000" required><%= node.body %></textarea>
+				<button type="submit">Save</button>
+			</form>
+			<form method="post" action="/comments/<%= node._id %>/delete" data-confirm="Delete this comment?">
+				<input type="hidden" name="_csrf" value="<%= csrf %>">
+				<button type="submit">Delete</button>
+			</form>
+		</details>
+		<% } %>
+	</div>
 	<% (node.children || []).forEach((child) => { %>
 		<%- include('comment-node', { node: child, depth: depth + 1, postId, csrfToken: csrf, canReply }) %>
 	<% }) %>

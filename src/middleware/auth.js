@@ -3,6 +3,9 @@ const User = require('../models/User');
 
 function requireAuth(req, res, next) {
   if (!req.session.user) {
+    // Group invite links: remember where the visitor was going so signing in
+    // (or signing up) drops them back on the invite instead of the dashboard.
+    if (req.method === 'GET' && /^\/groups\/join\/[A-Za-z0-9_-]+$/.test(req.path)) req.session.returnTo = req.path;
     req.session.flash = { type: 'error', message: 'Please sign in to continue.' };
     return res.redirect('/auth/login');
   }

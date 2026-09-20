@@ -32,6 +32,14 @@ async function establishSession(req, user) {
 
 exports.establishSession = establishSession;
 
+// Where to go after signing in: a pending group invite if there is one.
+function landingPath(req) {
+  const next = req.session.returnTo;
+  delete req.session.returnTo;
+  return typeof next === 'string' && /^\/groups\/join\/[A-Za-z0-9_-]+$/.test(next) ? next : '/dashboard';
+}
+exports.landingPath = landingPath;
+
 exports.loginPage = (req, res) => res.render('pages/login', { title: 'Sign in' });
 exports.registerPage = (req, res) => res.render('pages/register', { title: 'Create your account', captcha: generateChallenge(req) });
 exports.verifyPage = (req, res) => res.render('pages/verify', { title: 'Verify your email', email: req.query.email || '' });
@@ -112,7 +120,7 @@ exports.login = async (req, res) => {
       return res.redirect('/auth/2fa');
     }
     await establishSession(req, user);
-    res.redirect('/dashboard');
+    res.redirect(landingPath(req));
   } catch (error) {
     logger.error('Sign in failed', error);
     setFlash(req, 'error', 'Sign in is temporarily unavailable.');
@@ -132,7 +140,7 @@ exports.verify = async (req, res) => {
     user.verificationExpires = undefined;
     await user.save();
     await establishSession(req, user);
-    res.redirect('/dashboard');
+    res.redirect(landingPath(req));
   } catch (error) {
     logger.error('Email verification failed', error);
     setFlash(req, 'error', 'We could not verify that code right now.');

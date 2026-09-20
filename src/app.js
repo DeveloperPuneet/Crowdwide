@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const { csrfProtection, generateToken } = require('./middleware/security');
 const { renderMentions, renderRichBody } = require('./services/mentions');
 const { icon } = require('./utils/icons');
+const { gifsEnabled } = require('./services/gif');
 const logger = require('./services/logger');
 const { alertOnCriticalError } = require('./services/alerting');
 
@@ -28,11 +29,23 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
-        scriptSrc: ["'self'", 'https://cdn.jsdelivr.net']
+        scriptSrc: ["'self'"],
+        // GIFs come from GIPHY's CDN; blob: lets upload previews render.
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com']
       }
     }
   }));
   app.use(express.static(path.join(__dirname, '..', 'public')));
+  // Pages and JSON are personal and change constantly: never let a browser or a
+  // shared cache show a stale copy (or another visitor's copy) of them. "no-cache"
+  // still allows the back/forward cache, so Back stays instant.
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/media/')) {
+      res.setHeader('Cache-Control', 'private, no-cache, max-age=0, must-revalidate');
+      res.vary('Cookie');
+    }
+    next();
+  });
   if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
   app.use(session({
     secret: process.env.SESSION_SECRET || 'crowdwide-development-secret',
@@ -54,6 +67,7 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     res.locals.renderMentions = renderMentions;
     res.locals.renderRichBody = renderRichBody;
     res.locals.icon = icon;
+    res.locals.gifsEnabled = gifsEnabled();
     delete req.session.flash;
     next();
   });

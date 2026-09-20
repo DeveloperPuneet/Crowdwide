@@ -1,0 +1,6 @@
+<%# Group picture, or the group's first letter when it has none. %>
+<%
+  const g = locals.group || {};
+  const sizeClass = locals.size ? ' ' + locals.size : '';
+  const initial = (g.name || '?').trim().charAt(0).toUpperCase() || '?';
+%><span class="avatar group-avatar<%= sizeClass %>"><% if (g.avatar) { %><img src="<%= g.avatar %>" alt="" loading="lazy"><% } else { %><%= initial %><% } %></span>

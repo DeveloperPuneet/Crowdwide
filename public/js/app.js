@@ -5,6 +5,20 @@ const markPageReady = () => document.body.classList.add('page-ready');
 markPageReady();
 window.addEventListener('load', markPageReady);
 
+// Web fonts are added after the page is already on screen. A <link> in <head>
+// blocks rendering until the font host answers, so a slow or blocked
+// fonts.googleapis.com used to leave the page blank or half-loaded (text has
+// a system-font fallback and swaps once the fonts arrive).
+const loadWebFonts = () => {
+  if (document.querySelector('link[data-web-fonts]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.dataset.webFonts = '1';
+  link.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap';
+  document.head.append(link);
+};
+loadWebFonts();
+
 document.querySelectorAll('[data-warning-toggle]').forEach((toggle) => {
   toggle.addEventListener('click', () => {
     const card = toggle.closest('.has-content-warning');
@@ -228,6 +242,10 @@ document.querySelectorAll('.post-card img').forEach((image) => {
 // Delegated, so cards added later by infinite scroll behave the same way.
 const cardInteractiveSelector = 'form,button,a,input,select,textarea,video,audio,summary,details,label,.cw-player,.share-menu,.post-poll';
 document.addEventListener('click', (event) => {
+  // Only a plain primary click on the card's own surface opens the post. Links,
+  // buttons, modified clicks (new tab) and clicks another handler already
+  // dealt with must never be turned into a second navigation.
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const card = event.target.closest('.post-card[data-post-url]');
   if (!card || event.target.closest(cardInteractiveSelector)) return;
   if (String(window.getSelection?.() || '').length) return; // don't hijack text selection
@@ -235,11 +253,15 @@ document.addEventListener('click', (event) => {
 });
 
 // Long bodies are clamped in the feed; offer a "Read more" link only when text is really cut off.
+// It runs once at start and again on window load (images and fonts change the
+// height), so it must be idempotent: it reuses the link it already added
+// instead of adding a second "Read more" every time.
 const enhanceCards = (root = document) => {
   root.querySelectorAll('.post-card[data-post-url] .post-body').forEach((body) => {
-    if (body.dataset.moreChecked) return;
-    body.dataset.moreChecked = '1';
-    if (body.scrollHeight <= body.clientHeight + 2) return;
+    const existing = body.nextElementSibling?.classList.contains('post-read-more') ? body.nextElementSibling : null;
+    const clipped = body.scrollHeight > body.clientHeight + 2;
+    if (!clipped) { existing?.remove(); return; }
+    if (existing) return;
     const more = document.createElement('a');
     more.className = 'post-read-more';
     more.href = body.closest('.post-card').dataset.postUrl;
@@ -248,7 +270,7 @@ const enhanceCards = (root = document) => {
   });
 };
 enhanceCards();
-window.addEventListener('load', () => { document.querySelectorAll('.post-body[data-more-checked]').forEach((body) => { delete body.dataset.moreChecked; }); enhanceCards(); });
+window.addEventListener('load', () => enhanceCards());
 
 document.querySelectorAll('.post-card audio').forEach((media) => {
   media.addEventListener('contextmenu', (event) => event.preventDefault());
@@ -293,55 +315,15 @@ document.querySelectorAll('.settings-nav').forEach((sidebar) => {
 });
 
 if (window.axios) {
-  const appUrl = document.querySelector('meta[name="app-url"]')?.content || window.location.origin;
-  const heartbeat = () => window.axios.get(`${appUrl.replace(/\/$/, '')}/health`).catch(() => {});
+  // Same-origin on purpose: the configured APP_URL can differ from the address
+  // people actually use (www vs bare domain), which turned this into a blocked
+  // cross-origin request.
+  const heartbeat = () => window.axios.get('/health').catch(() => {});
   heartbeat();
   window.setInterval(heartbeat, 13 * 60 * 1000);
 }
 
-const closeShareMenus = (except) => {
-  document.querySelectorAll('.share-menu.is-open').forEach((menu) => {
-    if (menu !== except) menu.classList.remove('is-open');
-  });
-};
-
-const showShareMenu = (form, url) => {
-  let menu = form.querySelector('.share-menu');
-  if (!menu) {
-    menu = document.createElement('div');
-    menu.className = 'share-menu';
-    menu.innerHTML = '<button type="button" data-share-action="native">Share...</button><button type="button" data-share-action="copy">Copy link</button><a data-share-action="x" target="_blank" rel="noopener noreferrer">Post to X</a><a data-share-action="whatsapp" target="_blank" rel="noopener noreferrer">Send on WhatsApp</a>';
-    form.append(menu);
-    menu.addEventListener('click', async (event) => {
-      const action = event.target.closest('[data-share-action]')?.dataset.shareAction;
-      if (!action) return;
-      if (action === 'native' && navigator.share) {
-        try { await navigator.share({ title: document.title, url }); } catch (error) { if (error.name !== 'AbortError') event.target.textContent = 'Sharing unavailable'; }
-      }
-      if (action === 'copy') {
-        try {
-          await navigator.clipboard.writeText(url);
-          event.target.textContent = 'Link copied';
-          window.setTimeout(() => { event.target.textContent = 'Copy link'; }, 1600);
-        } catch (error) { event.target.textContent = 'Copy failed'; }
-      }
-      if (action === 'x') window.open(`https://x.com/intent/post?url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
-      if (action === 'whatsapp') window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
-      if (action !== 'copy') closeShareMenus(menu);
-    });
-  }
-  menu.querySelector('[data-share-action="native"]').hidden = !navigator.share;
-  menu.querySelector('[data-share-action="x"]').href = `https://x.com/intent/post?url=${encodeURIComponent(url)}`;
-  menu.querySelector('[data-share-action="whatsapp"]').href = `https://wa.me/?text=${encodeURIComponent(url)}`;
-  closeShareMenus(menu);
-  menu.classList.toggle('is-open');
-};
-
-document.addEventListener('click', (event) => {
-  if (!event.target.closest('.share-form')) closeShareMenus();
-});
-
-const asyncInteractionSelector = '.post-actions form, .follow-form, .block-form, .mute-form, [data-async-interaction]';
+const asyncInteractionSelector = '.post-actions form, .post-view-actions form, .follow-form, .block-form, .mute-form, [data-async-interaction]';
 const showInteractionMessage = (form, text, error = false) => {
   form.parentElement.querySelector('.interaction-message')?.remove();
   const message = document.createElement('span');
@@ -351,20 +333,25 @@ const showInteractionMessage = (form, text, error = false) => {
   if (!error) window.setTimeout(() => message.remove(), 2200);
 };
 
-const appendComment = (form, body) => {
+// Drops a freshly posted comment (server-rendered HTML) into the thread.
+const insertComment = (form, data) => {
   const thread = document.querySelector('.post-detail-thread');
-  if (!thread) return;
-  const parentId = form.querySelector('input[name="parent"]')?.value;
-  const parent = parentId ? thread.querySelector(`[data-comment-id="${parentId}"]`) : null;
-  const comment = document.createElement('article');
-  comment.className = 'thread-comment thread-comment-new';
-  comment.dataset.depth = parent ? '1' : '0';
-  const text = document.createElement('p');
-  text.textContent = body;
-  const time = document.createElement('time');
-  time.textContent = 'Just now';
-  comment.append(text, time);
-  (parent || thread).append(comment);
+  if (!thread || !data.html) return;
+  const holder = document.createElement('div');
+  holder.innerHTML = data.html;
+  const comment = holder.firstElementChild;
+  if (!comment) return;
+  comment.classList.add('thread-comment-new');
+  const parent = data.parent ? thread.querySelector(`[data-comment-id="${data.parent}"]`) : null;
+  if (parent) {
+    parent.append(comment);
+    parent.querySelector(':scope > .thread-comment-actions > .thread-reply')?.removeAttribute('open');
+  } else {
+    thread.append(comment); // top-level comments read oldest-first, so the new one goes last
+    comment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  document.querySelector('[data-no-comments]')?.setAttribute('hidden', '');
+  if (data.commentsCount !== undefined) document.querySelectorAll('[data-comment-total]').forEach((el) => { el.textContent = data.commentsCount; });
 };
 
 document.addEventListener('submit', async (event) => {
@@ -385,17 +372,14 @@ document.addEventListener('submit', async (event) => {
       button.setAttribute('aria-pressed', String(Boolean(data.liked)));
       const likeCount = button.querySelector('.count');
       if (likeCount) likeCount.textContent = data.likes;
+      if (data.liked) { button.classList.remove('just-liked'); void button.offsetWidth; button.classList.add('just-liked'); }
+      if (!form.classList.contains('comment-like-form')) document.querySelectorAll('[data-like-total]').forEach((el) => { el.textContent = data.likes; });
     }
     if (data.bookmarked !== undefined) {
       button.classList.toggle('is-saved', Boolean(data.bookmarked));
       button.setAttribute('aria-pressed', String(Boolean(data.bookmarked)));
       const saveLabel = button.querySelector('.label');
       if (saveLabel) saveLabel.textContent = data.bookmarked ? 'Saved' : 'Save';
-    }
-    if (data.shares !== undefined) {
-      const shareCount = button.querySelector('[data-share-count]');
-      if (shareCount) shareCount.textContent = data.shares;
-      if (data.url) showShareMenu(form, data.url);
     }
     if (data.following !== undefined) {
       button.classList.toggle('is-following', data.following);
@@ -419,11 +403,15 @@ document.addEventListener('submit', async (event) => {
       const reactionBar = form.closest('.reaction-bar');
       reactionBar?.querySelectorAll('button').forEach((reactionButton) => reactionButton.classList.remove('is-selected'));
       if (data.reaction) button.classList.add('is-selected');
+      if (data.counts) reactionBar?.querySelectorAll('[data-reaction]').forEach((reactionButton) => {
+        const count = reactionButton.querySelector('.count');
+        if (count) count.textContent = data.counts[reactionButton.dataset.reaction] ?? count.textContent;
+      });
     }
-    if (data.comment) {
-      appendComment(form, data.comment.body);
+    if (data.html) {
+      insertComment(form, data);
       form.reset();
-      showInteractionMessage(form, 'Comment posted.');
+      form.dispatchEvent(new CustomEvent('gif:clear', { bubbles: true }));
     }
     if (data.reply) {
       form.reset();
@@ -528,3 +516,31 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
   }, { rootMargin: '400px' });
   observer.observe(feedSentinel);
 }
+
+
+// "Copy" buttons next to a read-only field, e.g. the group invite link.
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-copy-target]');
+  if (!button) return;
+  const field = document.querySelector(button.dataset.copyTarget);
+  if (!field) return;
+  const label = button.querySelector('span');
+  try {
+    await navigator.clipboard.writeText(field.value);
+    if (label) { label.textContent = 'Copied'; window.setTimeout(() => { label.textContent = 'Copy'; }, 1600); }
+  } catch (error) {
+    field.select();
+    if (label) label.textContent = 'Press Ctrl+C';
+  }
+});
+
+// The "Comment" action on a post jumps to the comment box and focuses it.
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('[data-focus-comment]');
+  if (!link) return;
+  event.preventDefault();
+  const field = document.getElementById('comment-body');
+  if (!field) return;
+  field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  field.focus({ preventScroll: true });
+});

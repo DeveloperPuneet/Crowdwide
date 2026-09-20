@@ -10,7 +10,7 @@
     <% conversations.forEach((conversation) => { %>
     <a class="activity-row" href="/messages/<%= conversation.person._id %>" style="text-decoration:none;color:inherit;">
       <%- include('../partials/avatar', { person: conversation.person, size: 'small', link: false }) %>
-      <div><strong><%= conversation.person.name %></strong><p><%= conversation.latest.body %></p><small><%= new Date(conversation.latest.createdAt).toLocaleString() %><% if (conversation.unread) { %> · <b><%= conversation.unread %> unread</b><% } %></small></div>
+      <div><strong><%= conversation.person.name %></strong><p><%= conversation.preview %></p><small><%= new Date(conversation.latest.createdAt).toLocaleString() %><% if (conversation.unread) { %> · <b><%= conversation.unread %> unread</b><% } %></small></div>
     </a>
     <% }) %>
   </section>

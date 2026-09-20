@@ -1,24 +1,14 @@
-<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page chat-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'messages', currentUser }) %>
-<main class="community-detail">
-  <a class="back-link" href="/messages">← Inbox</a>
-  <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-  <section class="community-posts">
-    <div class="panel-heading"><h1><%= person.name %></h1><a class="name-link" href="/u/<%= person._id %>">View profile</a></div>
-    <div class="message-thread">
-      <% if (!thread.length) { %><p class="upload-help">Start the conversation.</p><% } %>
-      <% thread.forEach((message) => { %>
-      <article class="activity-row <%= String(message.sender?._id) === String(currentUser.id) ? 'message-own' : '' %>">
-        <%- include('../partials/avatar', { person: message.sender, size: 'tiny', link: false }) %>
-        <div><strong><%= message.sender?.name || 'Member' %></strong><p><%= message.body %></p><small><%= new Date(message.createdAt).toLocaleString() %></small></div>
-      </article>
-      <% }) %>
-    </div>
-    <form class="comment-form" method="post" action="/messages/<%= person._id %>">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input name="body" maxlength="2000" placeholder="Write a message..." required>
-      <button type="submit">Send</button>
-    </form>
-  </section>
+<main class="chat-main">
+	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
+	<section class="chat-shell" data-chat data-kind="dm" data-poll-url="/messages/<%= person._id %>/poll" data-history-url="/messages/<%= person._id %>/history" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>">
+		<header class="chat-header">
+			<a class="chat-back" href="/messages" aria-label="Back to inbox"><%- icon('arrow-left', { size: 20 }) %></a>
+			<%- include('../partials/avatar', { person, size: 'small', link: false }) %>
+			<div class="chat-title"><strong><%= person.name %></strong><a class="name-link" href="/u/<%= person._id %>">View profile</a></div>
+		</header>
+		<%- include('../partials/chat-body', { sendUrl: '/messages/' + person._id, messagesHtml, hasMore, placeholder: 'Message ' + person.name, emptyText: 'Start the conversation with ' + person.name + '.', csrfToken, gifsEnabled: locals.gifsEnabled }) %>
+	</section>
 </main>
-<%- include('../partials/app-footer') %><%- include('../partials/foot') %>
+<%- include('../partials/foot') %>

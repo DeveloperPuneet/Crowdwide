@@ -5,7 +5,9 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Report = require('../models/Report');
 const Message = require('../models/Message');
+const { previewText } = require('../services/chat');
 const { extractHashtags } = require('../utils/hashtags');
+const { gifFromBody } = require('../services/gif');
 const { clearFeedCache } = require('../services/feedService');
 const { notifyMentionedUsers } = require('../services/mentions');
 const { sendPushToUser } = require('../services/push');
@@ -94,19 +96,36 @@ exports.deletePost = async (req, res) => {
   return redirectBack(req, res, { deleted: true });
 };
 
+function renderPartial(res, view, data) {
+  return new Promise((resolve, reject) => res.render(view, data, (error, html) => (error ? reject(error) : resolve(html))));
+}
+
 exports.comment = async (req, res) => {
   const restriction = await checkPostingRestriction(req.session.user.id);
   if (restriction) return redirectBack(req, res, { ok: false, error: restriction });
-  const body = req.body.body?.trim();
+  const body = String(req.body.body || '').trim();
+  const gif = gifFromBody(req.body);
   const post = await Post.findById(req.params.id);
-  if (!(await canAccessPost(post, req.session.user.id)) || !body || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Comment must be between 1 and 2,000 characters.' });
-  const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent: req.body.parent || null });
+  if (!(await canAccessPost(post, req.session.user.id)) || (!body && !gif) || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Add a comment (up to 2,000 characters) or pick a GIF.' });
+  let parent = null;
+  if (req.body.parent) {
+    // A reply's parent must be a comment on this same post.
+    if (!/^[a-f\d]{24}$/i.test(String(req.body.parent)) || !(await Comment.exists({ _id: req.body.parent, post: post._id }))) return redirectBack(req, res, { ok: false, error: 'That comment is no longer available.' });
+    parent = req.body.parent;
+  }
+  const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, ...(gif ? { gif } : {}) });
   post.commentsCount += 1;
   await post.save();
-  await notify(post.author, req.session.user.id, req.body.parent ? 'reply' : 'comment', req.body.parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
-  await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
-  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, comment: { id: comment._id, body: comment.body } });
-  res.redirect(`${req.get('referer') || `/dashboard`}#post-${post._id}`);
+  await notify(post.author, req.session.user.id, parent ? 'reply' : 'comment', parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
+  if (body) await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') {
+    // Send the finished comment back as HTML so the page can drop it into the
+    // thread without reloading.
+    const node = { ...comment.toObject(), author: { _id: req.session.user.id, name: req.session.user.name, profilePicture: req.session.user.profilePicture }, children: [] };
+    const html = await renderPartial(res, 'partials/comment-node', { node, depth: parent ? 1 : 0, postId: post._id, csrfToken: res.locals.csrfToken, canReply: true });
+    return res.json({ ok: true, html: html.trim(), id: comment._id, parent, commentsCount: post.commentsCount });
+  }
+  res.redirect(`${req.get('referer') || '/dashboard'}#post-${post._id}`);
 };
 
 exports.editComment = async (req, res) => {
@@ -153,13 +172,14 @@ exports.toggleBookmark = async (req, res) => {
   redirectBack(req, res, { bookmarked: !exists });
 };
 
+// Copying the link or using the phone's share sheet does NOT count as a share:
+// only sending a post to a person or group inside Crowdwide does (see
+// shareController.send). This endpoint just hands back the public link.
 exports.share = async (req, res) => {
   const existing = await Post.findById(req.params.id).select('author status community sharesCount');
   if (!(await canAccessPost(existing, req.session.user.id))) return redirectBack(req, res, { ok: false });
-  const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { sharesCount: 1 } }, { new: true });
-  if (post) await notify(post.author, req.session.user.id, 'comment', 'shared your post.', post._id, post.community, req.session.user.name);
   if (req.get('X-Requested-With') !== 'XMLHttpRequest') return redirectBack(req, res);
-  res.json({ url: `${process.env.APP_URL || 'http://localhost:3000'}/posts/${req.params.id}`, shares: post?.sharesCount || 0 });
+  res.json({ url: `${process.env.APP_URL || 'http://localhost:3000'}/posts/${req.params.id}`, shares: existing.sharesCount || 0 });
 };
 
 exports.votePoll = async (req, res) => {
@@ -170,18 +190,6 @@ exports.votePoll = async (req, res) => {
   if (!alreadyVoted) post.poll.options[optionIndex].votes.addToSet(req.session.user.id);
   await post.save();
   return redirectBack(req, res, { voted: !alreadyVoted });
-};
-
-exports.quotePost = async (req, res) => {
-  const source = await Post.findById(req.params.id).select('author status body community').lean();
-  const body = req.body.body?.trim();
-  if (!(await canAccessPost(source, req.session.user.id)) || !body || body.length > 4000) {
-    req.session.flash = { type: 'error', message: 'Add commentary before quoting that post.' };
-    return res.redirect(req.get('referer') || '/dashboard');
-  }
-  await Post.create({ author: req.session.user.id, body, type: 'post', quotedPost: source._id, hashtags: extractHashtags(body), status: 'published' });
-  await notify(source.author, req.session.user.id, 'comment', 'quoted your post.', source._id, undefined, req.session.user.name);
-  res.redirect(req.get('referer') || '/dashboard');
 };
 
 exports.toggleReaction = async (req, res) => {
@@ -198,7 +206,8 @@ exports.toggleReaction = async (req, res) => {
   if (!hadReaction) reactions[reaction].push(req.session.user.id);
   post.set('reactions', reactions);
   await post.save();
-  return redirectBack(req, res, { reaction: hadReaction ? null : reaction });
+  const counts = Object.fromEntries(reactionTypes.map((type) => [type, (reactions[type] || []).length]));
+  return redirectBack(req, res, { reaction: hadReaction ? null : reaction, counts });
 };
 
 exports.replyPost = async (req, res) => {
@@ -298,55 +307,13 @@ exports.messages = async (req, res) => {
     messages.forEach((message) => {
       const other = String(message.sender._id) === String(userId) ? message.recipient : message.sender;
       const key = String(other._id);
-      if (!conversations.has(key)) conversations.set(key, { person: other, latest: message, unread: 0 });
+      if (!conversations.has(key)) conversations.set(key, { person: other, latest: message, preview: previewText(message), unread: 0 });
       if (String(message.recipient._id) === String(userId) && !message.readAt) conversations.get(key).unread += 1;
     });
     res.render('pages/messages', { title: 'Messages', pagePath: '/messages', noIndex: true, conversations: Array.from(conversations.values()) });
   } catch (error) {
     logger.error('Loading messages failed', error);
     res.status(500).render('pages/not-found', { title: 'Crowdwide is having trouble' });
-  }
-};
-
-exports.messageThread = async (req, res) => {
-  try {
-    const userId = req.session.user.id;
-    const person = await User.findById(req.params.id).select('name profilePicture blockedUsers').lean();
-    if (!person || String(person._id) === String(userId)) return res.redirect('/messages');
-    const viewer = await User.findById(userId).select('blockedUsers').lean();
-    const blocked = (viewer?.blockedUsers || []).some((id) => String(id) === String(person._id)) || (person.blockedUsers || []).some((id) => String(id) === String(userId));
-    if (blocked) {
-      req.session.flash = { type: 'error', message: 'Messaging is unavailable for this account.' };
-      return res.redirect('/messages');
-    }
-    await Message.updateMany({ sender: person._id, recipient: userId, readAt: null }, { readAt: new Date() });
-    const thread = await Message.find({ $or: [{ sender: userId, recipient: person._id }, { sender: person._id, recipient: userId }] })
-      .sort({ createdAt: 1 }).limit(100).populate('sender', 'name profilePicture').lean();
-    res.render('pages/message-thread', { title: `Messages with ${person.name}`, pagePath: `/messages/${person._id}`, noIndex: true, person, thread });
-  } catch (error) {
-    logger.error('Loading message thread failed', error);
-    res.status(500).render('pages/not-found', { title: 'Crowdwide is having trouble' });
-  }
-};
-
-exports.sendMessage = async (req, res) => {
-  try {
-    const userId = req.session.user.id;
-    const body = req.body.body?.trim();
-    const recipient = await User.findById(req.params.id).select('_id isVerified blockedUsers').lean();
-    const viewer = await User.findById(userId).select('blockedUsers').lean();
-    const blocked = recipient && ((viewer?.blockedUsers || []).some((id) => String(id) === String(recipient._id)) || (recipient.blockedUsers || []).some((id) => String(id) === String(userId)));
-    if (!recipient || !recipient.isVerified || blocked || !body || body.length > 2000) {
-      req.session.flash = { type: 'error', message: 'That message could not be sent.' };
-      return res.redirect(`/messages/${req.params.id}`);
-    }
-    await Message.create({ sender: userId, recipient: recipient._id, body });
-    await notify(recipient._id, userId, 'message', 'sent you a message.', undefined, undefined, req.session.user.name, `/messages/${userId}`);
-    res.redirect(`/messages/${recipient._id}`);
-  } catch (error) {
-    logger.error('Sending message failed', error);
-    req.session.flash = { type: 'error', message: 'That message could not be sent.' };
-    res.redirect(`/messages/${req.params.id}`);
   }
 };
 

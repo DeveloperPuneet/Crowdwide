@@ -11,14 +11,15 @@ test('the hidden composer really is hidden: .composer {display:flex} must not ov
   assert.doesNotMatch(css, /(^|\n)\.composer-hidden\s*\{/);
 });
 
-test('the feed card shows content plus likes/comments/shares/views only; reply, quote, report and edit live on the post page', () => {
+test('the feed card shows content plus likes/comments/shares/views only; reply, report and edit live on the post page', () => {
   const card = read('src', 'views', 'partials', 'post-card.ejs');
   for (const forbidden of ['/reply', '/quote', '/report', '/edit', '/bookmark', '/comments"', 'reaction-bar']) {
     assert.ok(!card.includes(forbidden), `post-card.ejs should not contain ${forbidden}`);
   }
   for (const label of ['Like', 'Comments', 'Share', 'Views']) assert.ok(card.includes(`aria-label="${label}"`));
   const detail = read('src', 'views', 'pages', 'post-detail.ejs');
-  for (const needed of ['/reply', '/quote', '/report', '/edit', '/bookmark']) assert.ok(detail.includes(needed), `post-detail.ejs should contain ${needed}`);
+  for (const needed of ['/reply', '/report', '/edit', '/bookmark']) assert.ok(detail.includes(needed), `post-detail.ejs should contain ${needed}`);
+  assert.ok(!detail.includes('/quote'), 'Quote was removed: it duplicated "Reply with a post"');
 });
 
 test('no inline event-handler attributes (the CSP blocks them, so confirmations silently never ran)', () => {

@@ -13,6 +13,7 @@ const PROFILE_BANNER_LIMIT = 1.5 * 1024 * 1024;
 const COMMUNITY_AVATAR_LIMIT = 1.5 * 1024 * 1024;
 const COMMUNITY_BANNER_LIMIT = 2 * 1024 * 1024;
 const REPORT_EVIDENCE_LIMIT = 2 * 1024 * 1024;
+const GROUP_AVATAR_LIMIT = 1.5 * 1024 * 1024;
 
 function classify(file) {
   if (file.mimetype.startsWith('image/')) return 'image';
@@ -47,6 +48,21 @@ const reportUpload = multer({
   limits: { fileSize: REPORT_EVIDENCE_LIMIT + 1, files: 1 },
   fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
 }).single('evidence');
+
+// Group chat picture (one image), set from the group's info page.
+const groupUpload = multer({
+  storage,
+  limits: { fileSize: GROUP_AVATAR_LIMIT + 1, files: 1 },
+  fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
+}).single('avatar');
+
+function validateGroupUpload(req, res, next) {
+  if (req.file && req.file.size >= GROUP_AVATAR_LIMIT) {
+    req.session.flash = { type: 'error', message: 'Group pictures must be smaller than 1.5MB.' };
+    return res.redirect(req.get('referer') || '/groups');
+  }
+  next();
+}
 
 function validatePostUpload(req, res, next) {
   if (!req.files?.length) return next();
@@ -119,9 +135,10 @@ async function scanUploadsForViruses(req, res, next) {
 function handleUploadError(error, req, res, next) {
   if (!error) return next();
   req.session.flash = { type: 'error', message: error.code === 'LIMIT_FILE_SIZE' ? 'That file is larger than the allowed limit.' : 'We could not process that upload.' };
+  if (req.path.startsWith('/groups')) return res.redirect(req.get('referer') || '/groups');
   if (req.path.startsWith('/settings')) return res.redirect('/settings/profile');
   if (req.path.includes('/manage') || req.path.includes('/report')) return res.redirect(req.get('referer') || '/dashboard');
   res.redirect('/dashboard');
 }
 
-module.exports = { postUpload, profileUpload, communityUpload, reportUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };
+module.exports = { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };

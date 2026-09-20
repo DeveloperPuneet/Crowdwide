@@ -1,0 +1,26 @@
+<%#
+  "Send to" sheet for a post (like Instagram / Facebook): pick people and groups
+  and the post is delivered into those chats as a preview card. Only sending
+  here counts toward a post's share number. Opened by any [data-share-open]
+  button; public/js/share-sheet.js drives it.
+%>
+<div class="share-sheet" data-share-sheet hidden>
+	<div class="share-sheet-backdrop" data-share-close></div>
+	<div class="share-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="share-sheet-title">
+		<header class="share-sheet-head">
+			<h2 id="share-sheet-title">Send post</h2>
+			<button type="button" class="share-sheet-x" data-share-close aria-label="Close"><%- icon('x', { size: 20 }) %></button>
+		</header>
+		<div class="share-sheet-search"><%- icon('search', { size: 16 }) %><input type="search" data-share-search placeholder="Search people and groups" aria-label="Search people and groups" autocomplete="off"></div>
+		<div class="share-sheet-list" data-share-list aria-live="polite"><p class="share-sheet-empty">Loading your chats...</p></div>
+		<div class="share-sheet-foot">
+			<input class="share-sheet-note" data-share-note maxlength="500" placeholder="Add a message (optional)" aria-label="Add a message" autocomplete="off">
+			<button type="button" class="button button-primary button-small share-sheet-send" data-share-send disabled>Send</button>
+		</div>
+		<div class="share-sheet-links">
+			<button type="button" data-share-copy><%- icon('link', { size: 16 }) %> <span>Copy link</span></button>
+			<button type="button" data-share-native hidden><%- icon('share', { size: 16 }) %> <span>Share via...</span></button>
+		</div>
+		<p class="share-sheet-status" data-share-status role="status" hidden></p>
+	</div>
+</div>

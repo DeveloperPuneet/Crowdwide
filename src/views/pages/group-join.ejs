@@ -1,0 +1,19 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
+<main class="group-info-page group-join-page">
+	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
+	<section class="group-panel group-join-card">
+		<%- include('../partials/group-avatar', { group, size: 'group-info-avatar' }) %>
+		<p class="eyebrow">You're invited</p>
+		<h1><%= group.name %></h1>
+		<% if (group.description) { %><p class="upload-help"><%= group.description %></p><% } %>
+		<p class="upload-help"><%= group.members.length %> member<%= group.members.length === 1 ? '' : 's' %> · <%= group.members.slice(0, 4).map((member) => member.name).join(', ') %><%= group.members.length > 4 ? ' and more' : '' %></p>
+		<% if (full) { %>
+		<p class="flash flash-error">This group is full.</p>
+		<% } else { %>
+		<form method="post" action="/groups/join/<%= code %>"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary" type="submit">Join group <span class="btn-arrow"><%- icon('arrow-right', { size: 15 }) %></span></button></form>
+		<% } %>
+		<a class="name-link" href="/groups">Not now</a>
+	</section>
+</main>
+<%- include('../partials/app-footer') %><%- include('../partials/foot') %>

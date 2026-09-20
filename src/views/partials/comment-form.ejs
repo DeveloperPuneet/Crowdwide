@@ -1,0 +1,24 @@
+<%#
+  Comment / reply composer. Submitted in the background (data-async-interaction)
+  and the new comment is inserted into the thread without reloading the page.
+  locals: action, parent (comment id, for replies), placeholder, compact, showAvatar, fieldId
+%>
+<%
+  const compact = locals.compact === true;
+  const fieldId = locals.fieldId || '';
+%>
+<form class="comment-form<%= compact ? ' is-compact' : '' %>" data-async-interaction data-gif-form method="post" action="<%= action %>">
+	<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+	<% if (locals.parent) { %><input type="hidden" name="parent" value="<%= parent %>"><% } %>
+	<input type="hidden" name="gifUrl" value=""><input type="hidden" name="gifPreview" value=""><input type="hidden" name="gifTitle" value=""><input type="hidden" name="gifWidth" value=""><input type="hidden" name="gifHeight" value="">
+	<div class="comment-form-row">
+		<% if (locals.showAvatar && currentUser) { %><%- include('avatar', { person: currentUser, size: 'small', link: false }) %><% } %>
+		<div class="mention-wrap comment-field">
+			<label class="visually-hidden" for="<%= fieldId %>"><%= locals.placeholder || 'Add a comment' %></label>
+			<input <%- fieldId ? `id="${fieldId}"` : '' %> data-mention-input data-comment-input autocomplete="off" name="body" maxlength="2000" placeholder="<%= locals.placeholder || 'Add a comment...' %>">
+		</div>
+		<% if (locals.gifsEnabled) { %><button type="button" class="comment-tool" data-gif-trigger aria-label="Add a GIF"><span class="gif-badge">GIF</span></button><% } %>
+		<button type="submit" class="comment-submit" aria-label="<%= locals.parent ? 'Post reply' : 'Post comment' %>"><%- icon('send', { size: 17 }) %><span><%= locals.parent ? 'Reply' : 'Post' %></span></button>
+	</div>
+	<div class="comment-gif-preview" data-gif-preview hidden><img alt="Selected GIF"><button type="button" data-gif-remove aria-label="Remove GIF"><%- icon('x', { size: 14 }) %></button></div>
+</form>

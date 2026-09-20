@@ -1,0 +1,102 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
+<main class="group-info-page">
+	<a class="back-link" href="/groups/<%= group._id %>"><%- icon('arrow-left', { size: 15 }) %> Back to chat</a>
+	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
+
+	<header class="group-info-head">
+		<%- include('../partials/group-avatar', { group, size: 'group-info-avatar' }) %>
+		<div>
+			<p class="eyebrow">Group info</p>
+			<h1><%= group.name %></h1>
+			<p class="upload-help"><%= group.members.length %> of <%= maxMembers %> members<% if (group.description) { %> · <%= group.description %><% } %></p>
+		</div>
+	</header>
+
+	<% if (isAdmin) { %>
+	<section class="group-panel">
+		<h2>Name, picture &amp; description</h2>
+		<form class="group-form" method="post" action="/groups/<%= group._id %>/rename">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<label>Group name<input name="name" maxlength="80" value="<%= group.name %>" required></label>
+			<label>Description <span class="upload-help">(optional)</span><input name="description" maxlength="240" value="<%= group.description || '' %>" placeholder="What is this group about?"></label>
+			<button class="button button-primary button-small" type="submit">Save details</button>
+		</form>
+		<form class="group-form group-avatar-form" method="post" action="/groups/<%= group._id %>/avatar" enctype="multipart/form-data">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<label>Group picture<input type="file" name="avatar" accept="image/*" required></label>
+			<div class="group-form-row">
+				<button class="button button-ghost button-small" type="submit"><%- icon('camera', { size: 15 }) %> Upload picture</button>
+				<% if (group.avatar) { %><button class="button button-ghost button-small" type="submit" formaction="/groups/<%= group._id %>/avatar/remove" formenctype="application/x-www-form-urlencoded" formnovalidate>Remove picture</button><% } %>
+			</div>
+			<p class="upload-help">JPG, PNG, WebP or GIF, under 1.5MB.</p>
+		</form>
+	</section>
+
+	<section class="group-panel" id="invite">
+		<h2>Invite link</h2>
+		<% if (inviteUrl) { %>
+		<p class="upload-help">Anyone signed in to Crowdwide who opens this link can join the group. Turn it off if it gets shared somewhere you don't want.</p>
+		<div class="invite-box">
+			<input id="invite-url" readonly value="<%= inviteUrl %>" aria-label="Group invite link">
+			<button class="button button-primary button-small" type="button" data-copy-target="#invite-url"><%- icon('copy', { size: 15 }) %> <span>Copy</span></button>
+		</div>
+		<div class="group-form-row">
+			<form method="post" action="/groups/<%= group._id %>/invite" data-confirm="Make a new link? The current one will stop working."><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-ghost button-small" type="submit">Reset link</button></form>
+			<form method="post" action="/groups/<%= group._id %>/invite/revoke"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-ghost button-small" type="submit">Turn off link</button></form>
+		</div>
+		<% } else { %>
+		<p class="upload-help">No invite link yet. Create one to let people join without you adding them by hand.</p>
+		<form method="post" action="/groups/<%= group._id %>/invite"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%- icon('link', { size: 15 }) %> Create invite link</button></form>
+		<% } %>
+	</section>
+
+	<section class="group-panel">
+		<h2>Add members</h2>
+		<form class="group-form" method="post" action="/groups/<%= group._id %>/members">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<label>By email or exact display name<input name="members" placeholder="asha@example.com, Ravi Kumar"></label>
+			<% if (suggestions.length) { %>
+			<fieldset class="group-suggest">
+				<legend>People you follow</legend>
+				<% suggestions.forEach((person) => { %>
+				<label class="group-suggest-item"><input type="checkbox" name="memberIds" value="<%= person._id %>"><%- include('../partials/avatar', { person, size: 'tiny', link: false }) %><span><%= person.name %></span></label>
+				<% }) %>
+			</fieldset>
+			<% } %>
+			<button class="button button-primary button-small" type="submit"><%- icon('user-plus', { size: 15 }) %> Add to group</button>
+		</form>
+	</section>
+	<% } %>
+
+	<section class="group-panel">
+		<h2>Members <span class="upload-help">(<%= group.members.length %>)</span></h2>
+		<ul class="member-list">
+			<% group.members.forEach((member) => { const memberAdmin = adminIds.has(String(member._id)); const memberOwner = String(member._id) === String(group.creator); %>
+			<li class="member-row">
+				<%- include('../partials/avatar', { person: member, size: 'small', link: true }) %>
+				<div class="member-name"><a class="name-link" href="/u/<%= member._id %>"><%= member.name %></a><% if (String(member._id) === String(currentUser.id)) { %> <span class="upload-help">(you)</span><% } %></div>
+				<% if (memberOwner) { %><span class="member-badge">Owner</span><% } else if (memberAdmin) { %><span class="member-badge">Admin</span><% } %>
+				<% if (String(member._id) !== String(currentUser.id) && !memberOwner) { %>
+				<div class="member-actions">
+					<% if (isOwner) { %>
+					<form method="post" action="/groups/<%= group._id %>/members/<%= member._id %>/admin"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="member-action" type="submit"><%= memberAdmin ? 'Remove admin' : 'Make admin' %></button></form>
+					<% } %>
+					<% if (isAdmin && (isOwner || !memberAdmin)) { %>
+					<form method="post" action="/groups/<%= group._id %>/members/<%= member._id %>/remove" data-confirm="Remove <%= member.name %> from this group?"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="member-action is-danger" type="submit"><%- icon('user-minus', { size: 14 }) %> Remove</button></form>
+					<% } %>
+				</div>
+				<% } %>
+			</li>
+			<% }) %>
+		</ul>
+	</section>
+
+	<section class="group-panel group-danger">
+		<form method="post" action="/groups/<%= group._id %>/leave" data-confirm="Leave this group?<%= isOwner && group.members.length > 1 ? ' Ownership will pass to another member.' : '' %>">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<button class="button button-danger button-small" type="submit"><%- icon('log-out', { size: 15 }) %> Leave group</button>
+		</form>
+	</section>
+</main>
+<%- include('../partials/app-footer') %><%- include('../partials/foot') %>
