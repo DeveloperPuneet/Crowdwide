@@ -96,12 +96,9 @@ img, video, audio { max-width: 100%; }
 
 @media (max-width: 700px) {
   .app-layout { padding-top: 20px; }
-  .app-sidebar { display: block; min-height: 0; border: 0; padding: 0; margin-bottom: 24px; }
-  .sidebar-toggle { top: -8px; right: 0; }
-  .sidebar-profile { margin-bottom: 15px; }
-  .side-links { display: flex; overflow: auto; gap: 5px; }
-  .side-links a { white-space: nowrap; }
-  .sidebar-note { display: none; }
+  /* .app-sidebar is already hidden below 900px (style.css) - the hamburger
+     drawer covers the same links, so there's nothing to re-show here. This
+     used to re-enable it as a block, which is what produced the overlap. */
   .composer-actions { align-items: stretch; }
   .composer-actions select, .media-picker { max-width: 100%; font-size: 10px; }
   .feed-heading h1 { max-width: 100%; overflow-wrap: anywhere; }

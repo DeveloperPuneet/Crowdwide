@@ -1,0 +1,78 @@
+<%- include('../partials/head', { title, description, pagePath }) %>
+<div class="info-page"><%- include('../partials/nav') %>
+<main class="info-main container docs-main">
+	<p class="eyebrow">Crowdwide / Developers</p>
+	<h1>Build with the public API.</h1>
+	<p class="info-intro">A small, read-only API for published posts, plus RSS feeds. Both are unauthenticated and CORS-open - no API key, no login. <strong>This is alpha software</strong>: the shape below is what exists today and may change without notice until Crowdwide reaches a stable release. If you build something that depends on it, expect to update it later.</p>
+
+	<section class="docs-endpoint">
+		<div class="docs-endpoint-head"><span class="docs-method">GET</span><code>/api/v1/posts</code></div>
+		<p>Returns recently published posts, newest first.</p>
+
+		<h3>Query parameters</h3>
+		<div class="docs-table-wrap"><table class="docs-table">
+			<thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+			<tbody>
+				<tr><td><code>limit</code></td><td>integer</td><td><code>20</code></td><td>Clamped to 1-50.</td></tr>
+				<tr><td><code>type</code></td><td><code>post</code> | <code>article</code> | <code>poll</code></td><td>(all)</td><td>Filters to one post type.</td></tr>
+				<tr><td><code>community</code></td><td>Mongo ObjectId</td><td>(all)</td><td>Restricts results to one community. A private community's ID always returns an empty page - see Privacy below.</td></tr>
+				<tr><td><code>before</code></td><td>ISO 8601 date string</td><td>(none)</td><td>Returns posts created strictly before this timestamp - use it for pagination (see <code>nextCursor</code>).</td></tr>
+			</tbody>
+		</table></div>
+
+		<h3>Response</h3>
+		<pre class="docs-code"><code>{
+  "data": [
+    {
+      "id": "abc",
+      "url": "<%= appUrl %>/posts/66f1a2b3c4d5e6f7a8b9c0d1",
+      "body": "Post text.",
+      "type": "post",
+      "author": { "_id": "...", "name": "...", "profilePicture": "..." },
+      "community": { "_id": "...", "name": "...", "slug": "..." },
+      "hashtags": ["example"],
+      "media": [{ "url": "...", "kind": "image", "alt": "...", "caption": "..." }],
+      "createdAt": "2026-09-15T03:00:00.000Z"
+    }
+  ],
+  "nextCursor": "2026-09-14T18:22:00.000Z"
+}</code></pre>
+		<p><code>community</code> is <code>null</code> for a post not in a community. <code>nextCursor</code> is the <code>createdAt</code> of the last item in <code>data</code>, or <code>null</code> when there isn't a next page (fewer results came back than <code>limit</code> asked for) - pass it as <code>before</code> on your next request to page through results.</p>
+
+		<h3>Rate limit</h3>
+		<p>120 requests per minute per client (standard <code>RateLimit-*</code> response headers). Exceeding it returns <code>429</code> with <code>{ "error": "Too many API requests. Try again shortly." }</code>.</p>
+
+		<h3>Privacy</h3>
+		<p>Posts in a private community never appear here, for anyone, under any <code>community</code> filter value - there's no way to authenticate this endpoint, so it can't tell members from non-members and treats every private community as fully off-limits. Passing a private community's ID returns <code>{ "data": [], "nextCursor": null }</code>, not an error - the endpoint doesn't reveal whether a given ID belongs to a private community, a nonexistent community, or a community with no posts yet.</p>
+
+		<h3>Errors</h3>
+		<p>A <code>500</code> with <code>{ "error": "Internal server error." }</code> means something broke server-side (most often a database hiccup) - it does not mean your request was malformed. Malformed query parameters are silently ignored (e.g. an invalid <code>community</code> value is treated as "no filter") rather than rejected with a <code>400</code>, so a typo in a param name or value just falls back to the default rather than erroring.</p>
+	</section>
+
+	<section class="docs-endpoint">
+		<h2>RSS feeds</h2>
+		<p>Three RSS 2.0 feeds, all public, all read-only. Each entry links to the post's page on Crowdwide rather than embedding full rendered HTML.</p>
+		<div class="docs-table-wrap"><table class="docs-table">
+			<tbody>
+				<tr><td><span class="docs-method docs-method-small">GET</span> <code>/rss.xml</code></td><td>Every published post site-wide.</td></tr>
+				<tr><td><span class="docs-method docs-method-small">GET</span> <code>/u/:id/rss.xml</code></td><td>One person's public posts - <code>:id</code> is their Mongo ObjectId, visible in their profile URL.</td></tr>
+				<tr><td><span class="docs-method docs-method-small">GET</span> <code>/communities/:slug/rss.xml</code></td><td>One community's posts. Returns <code>404</code> for a private community or a nonexistent slug - both look identical, for the same reason the JSON API doesn't distinguish them.</td></tr>
+			</tbody>
+		</table></div>
+	</section>
+
+	<section class="docs-endpoint">
+		<h2>Also public, not really "the API"</h2>
+		<div class="docs-table-wrap"><table class="docs-table">
+			<tbody>
+				<tr><td><span class="docs-method docs-method-small">GET</span> <code>/sitemap.xml</code></td><td>Static pages only, for search engines.</td></tr>
+				<tr><td><span class="docs-method docs-method-small">GET</span> <code>/robots.txt</code></td><td>Standard crawler directives.</td></tr>
+			</tbody>
+		</table></div>
+		<p>These aren't meant for programmatic consumption of post data - use <code>/api/v1/posts</code> or the RSS feeds for that.</p>
+	</section>
+
+	<p class="docs-footnote">Questions or found a discrepancy between this page and reality? <a href="/contact">Get in touch</a>.</p>
+</main>
+<%- include('../partials/site-footer') %></div>
+<%- include('../partials/foot') %>

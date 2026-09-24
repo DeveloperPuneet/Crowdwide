@@ -89,3 +89,24 @@ test('dashboard still renders with the share button and share sheet in the foote
   assert.match(html, /data-share-sheet/);
   assert.match(html, /feed-sentinel/);
 });
+
+test('docs page renders the API endpoints, and info pages cover help', async () => {
+  const docs = await render('pages/docs.ejs', { title: 'Developer docs', pagePath: '/docs', description: 'API docs' });
+  assert.match(docs, /\/api\/v1\/posts/);
+  assert.match(docs, /rss\.xml/);
+  assert.match(docs, /docs-table/);
+  const help = await render('pages/info.ejs', {
+    title: 'Help center', pagePath: '/help', description: 'Help center', heading: 'Answers, not tickets.',
+    intro: 'Common questions.', sections: [['Why verify?', 'Because spam.']]
+  });
+  assert.match(help, /Answers, not tickets\./);
+  assert.match(help, /Why verify\?/);
+});
+
+test('footers link to the new docs and help pages, and the GitHub link uses a real icon (not a stray glyph)', async () => {
+  const footer = await render('partials/site-footer.ejs');
+  assert.match(footer, /href="\/docs"/);
+  assert.match(footer, /href="\/help"/);
+  assert.doesNotMatch(footer, /aria-label="Crowdwide on GitHub">⌥/);
+  assert.match(footer, /icon-github/);
+});

@@ -129,7 +129,8 @@ router.post('/settings/push/unsubscribe', requireAuth, requireVerified, settings
 router.get('/settings/account/download', requireAuth, requireVerified, settingsController.downloadData);
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
-['/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/premium', '/contact'].forEach((path) => router.get(path, controller.infoPage));
+router.get('/docs', controller.docs);
+['/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/premium', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);
 router.get('/sitemap.xml', controller.sitemap);
 

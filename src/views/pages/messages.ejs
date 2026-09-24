@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'messages', currentUser }) %>
-<main class="community-detail">
+<main class="community-detail" style="width: 100%;">
   <a class="back-link" href="/dashboard">← Back to feed</a>
   <section class="community-posts">
     <div class="panel-heading"><h1>Messages</h1><span><%= conversations.length %></span></div>

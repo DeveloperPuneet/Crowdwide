@@ -4,27 +4,29 @@
   <aside class="settings-nav">
     <p class="eyebrow">Account center</p><h1>Settings</h1>
     <a href="/u/<%= user._id %>" class="settings-link">View your public profile →</a>
-    <a class="<%= section === 'profile' ? 'settings-active' : '' %>" href="/settings/profile">Profile</a>
-    <a class="<%= section === 'security' ? 'settings-active' : '' %>" href="/settings/security">Security & devices</a>
-    <a class="<%= section === 'privacy' ? 'settings-active' : '' %>" href="/settings/privacy">Privacy</a>
-    <a class="<%= section === 'notifications' ? 'settings-active' : '' %>" href="/settings/notifications">Notifications</a>
-    <a class="<%= section === 'history' ? 'settings-active' : '' %>" href="/settings/history">History</a>
-    <% if (user.suspendedUntil || user.postingRestrictedUntil || user.warnings?.length || appeals.length) { %><a class="<%= section === 'moderation' ? 'settings-active' : '' %>" href="/settings/moderation">Moderation</a><% } %>
-    <a class="<%= section === 'account' ? 'settings-active' : '' %>" href="/settings/account">Account</a>
+    <nav class="settings-tabs">
+      <a class="<%= section === 'profile' ? 'settings-active' : '' %>" href="/settings/profile">Profile</a>
+      <a class="<%= section === 'security' ? 'settings-active' : '' %>" href="/settings/security">Security & devices</a>
+      <a class="<%= section === 'privacy' ? 'settings-active' : '' %>" href="/settings/privacy">Privacy</a>
+      <a class="<%= section === 'notifications' ? 'settings-active' : '' %>" href="/settings/notifications">Notifications</a>
+      <a class="<%= section === 'history' ? 'settings-active' : '' %>" href="/settings/history">History</a>
+      <% if (user.suspendedUntil || user.postingRestrictedUntil || user.warnings?.length || appeals.length) { %><a class="<%= section === 'moderation' ? 'settings-active' : '' %>" href="/settings/moderation">Moderation</a><% } %>
+      <a class="<%= section === 'account' ? 'settings-active' : '' %>" href="/settings/account">Account</a>
+    </nav>
   </aside>
   <section class="settings-content"><%- include('../partials/flash') %>
     <% if (section === 'profile') { %>
     <p class="eyebrow">Identity</p><h2>Make your profile yours.</h2>
     <form class="settings-form" method="post" action="/settings/profile" enctype="multipart/form-data">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <label>Banner image<% if (user.bannerImage) { %><img src="<%= user.bannerImage %>" alt="" style="width:100%;max-width:420px;height:110px;object-fit:cover;border-radius:10px;border:1px solid #32354e;margin-bottom:6px;"><% } %><input type="file" name="bannerImage" accept="image/*"><small>Shows at the top of your profile. Up to 1.5MB.</small></label>
+      <label>Banner image<% if (user.bannerImage) { %><img src="<%= user.bannerImage %>" alt="" style="width:100%;object-fit:cover;border-radius:10px;border:1px solid #32354e;margin-bottom:6px;"><% } %><input type="file" name="bannerImage" accept="image/*"><small>Shows at the top of your profile. Up to 1.5MB.</small></label>
       <label>Profile picture<%- include('../partials/avatar', { person: user, size: 'large', link: false }) %><input type="file" name="profilePicture" accept="image/*"><small>Images only, up to 1.5MB.</small></label>
       <label>Display name<input name="name" value="<%= user.name %>" maxlength="80" required></label>
       <label>Bio<textarea name="bio" maxlength="280" placeholder="What should people know about you?"><%= user.bio || '' %></textarea><small><%= (user.bio || '').length %>/280 characters</small></label>
       <label>Profile hashtags<input name="hashtags" value="<%= (user.hashtags || []).map((tag) => `#${tag}`).join(' ') %>" placeholder="#design #music #makers"><small>Add topics people can use to find your profile.</small></label>
       <label>Links<small>Up to 4 - shown on your profile.</small><div class="link-fields"><% for (let i = 0; i < 4; i++) { const existing = (user.links || [])[i] || {}; %><div class="link-field-row"><input name="linkLabel<%= i %>" value="<%= existing.label || '' %>" placeholder="Label, e.g. Portfolio" maxlength="40"><input name="linkUrl<%= i %>" value="<%= existing.url || '' %>" placeholder="https://..." maxlength="300"></div><% } %></div></label>
       <label>Profile privacy<select name="privacy"><option value="public" <%= user.privacy === 'public' ? 'selected' : '' %>>Public profile</option><option value="followers" <%= user.privacy === 'followers' ? 'selected' : '' %>>Followers only</option></select></label>
-      <button class="button button-primary" type="submit">Save profile <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
+      <button class="button button-primary" style="width:100%;" type="submit">Save profile <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
     </form>
     <% } else if (section === 'security') { %>
     <p class="eyebrow">Safety first</p><h2>Password & devices.</h2>

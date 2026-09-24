@@ -602,6 +602,22 @@ exports.infoPage = (req, res) => {
 				['Safety and privacy', 'For account, privacy, or safety concerns, include enough detail for us to locate the issue without sending passwords or private credentials.'],
 				['Response time', 'This is an independently run project, so replies are not instant - but every message is read.']
 			]
+		},
+		'/help': {
+			title: 'Help center',
+			heading: 'Answers, not tickets.',
+			intro: 'Common questions about accounts, posting, communities, messaging, and moderation. For anything not covered here, reach out from the Contact page.',
+			sections: [
+				['Why do I need to verify my email?', 'Posting, following, joining communities, and messaging all require a verified account - it is the main defense against spam and impersonation. Check your inbox (and spam folder) for the verification email, or request a new one from the sign-in screen.'],
+				['How does the "For you" feed decide what to show me?', 'It blends posts from people you follow and communities you have joined with a deliberate share of posts from outside your network - new accounts, small communities, and anything matching your interests - so a good post from someone you have never heard of still has a real chance of reaching you. See the <a href="/guide">Guide & tips</a> page for how to shape it.'],
+				['Can I make my community private?', 'Yes - set this when creating a community, or from its settings afterward if you are the owner. Private community posts never appear in search, the public API, RSS feeds, or to anyone who has not joined.'],
+				['How do moderators review reported posts?', 'A report puts a post in the community\'s (or platform-wide) moderation queue. Moderators can mark it as reviewed, warn or suspend the author, or remove the content, depending on their role. Repeated violations can lead to posting restrictions or account suspension - see the <a href="/community-guidelines">Community Guidelines</a>.'],
+				['What happens if my account is suspended?', 'You will see the reason and duration in Settings → Moderation, along with an appeal option if you believe it was a mistake. A suspension blocks posting and messaging but does not delete your content.'],
+				['Can I get my data out of Crowdwide?', 'Yes - Settings → Account has a "Download your data" option that exports your profile, posts, and comments. You can also delete your account and its content from the same page at any time.'],
+				['Does Crowdwide have GIFs in chat?', 'Yes, in direct messages, group chats, and comments, when the server has GIF search configured. If you don\'t see a GIF button, it has not been enabled on this deployment.'],
+				['How do group invite links work?', 'Any group admin can generate an invite link from the group\'s info page. Anyone with the link who is signed in can join, up to the group\'s member limit - resetting the link invalidates the old one immediately.'],
+				['Is there a mobile app?', 'Crowdwide currently runs as a responsive website that works in any mobile browser; there is no separate native app at this time.']
+			]
 		}
 	};
 	const page = pages[req.path] || pages['/about'];
@@ -609,7 +625,15 @@ exports.infoPage = (req, res) => {
 };
 
 exports.robots = (req, res) => { res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /auth/\nSitemap: ${(process.env.APP_URL || 'http://localhost:3000')}/sitemap.xml`); };
-exports.sitemap = (req, res) => { res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/premium', '/contact', '/auth/login', '/auth/register'].map((path) => `<url><loc>${(process.env.APP_URL || 'http://localhost:3000')}${path}</loc></url>`).join('')}</urlset>`); };
+exports.sitemap = (req, res) => { res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/premium', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'].map((path) => `<url><loc>${(process.env.APP_URL || 'http://localhost:3000')}${path}</loc></url>`).join('')}</urlset>`); };
+
+// Public developer docs (kept in sync by hand with API.md in the repo - this
+// is the same information, laid out for the browser instead of a markdown
+// reader). Nothing here is fetched or templated from a database, so there is
+// no controller logic beyond picking the template.
+exports.docs = (req, res) => {
+	res.render('pages/docs', { title: 'Developer docs', pagePath: '/docs', description: "Crowdwide's public, unauthenticated API for published posts, plus RSS feeds and sitemap - no API key or login required." });
+};
 
 function escapeXml(value = '') {
 	return String(value).replace(/[<>&'"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
