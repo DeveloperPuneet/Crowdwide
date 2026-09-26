@@ -57,6 +57,10 @@ exports.register = async (req, res) => {
       setFlash(req, 'error', 'Add your name, a valid email, and a password of at least 8 characters.');
       return res.redirect('/auth/register');
     }
+    if (!req.body.acceptTerms) {
+      setFlash(req, 'error', 'You need to agree to the Terms of use and Privacy policy to create an account.');
+      return res.redirect('/auth/register');
+    }
     const normalizedEmail = email.toLowerCase().trim();
     let user = await User.findOne({ email: normalizedEmail });
     if (user?.isVerified) {

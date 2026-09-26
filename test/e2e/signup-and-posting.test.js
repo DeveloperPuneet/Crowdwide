@@ -37,7 +37,8 @@ test('signup -> verify -> login -> create a post shows up on the dashboard', asy
     name: 'Pat Example',
     email,
     password: 'a-strong-password-123',
-    captchaAnswer
+    captchaAnswer,
+    acceptTerms: 'on'
   });
   assert.equal(registerRes.status, 302);
   assert.match(registerRes.headers.location, /\/auth\/verify/);

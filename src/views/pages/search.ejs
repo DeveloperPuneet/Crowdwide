@@ -66,6 +66,7 @@
 				<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.community?.name || 'Open Crowdwide' %></span></div>
 			</div>
 			<p class="post-body" style="-webkit-line-clamp:3;max-height:5em;"><%= post.body %></p>
+			<div class="post-stat-row" aria-hidden="true"><span><%- icon('heart', { size: 14 }) %><%= post.likes?.length || 0 %></span><span><%- icon('message-circle', { size: 14 }) %><%= post.commentsCount || 0 %></span><span><%- icon('eye', { size: 14 }) %><%= post.viewsCount || 0 %></span></div>
 			<a class="post-open-link" href="/posts/<%= post._id %>">Open post <%- icon('arrow-right', { size: 13 }) %></a>
 		</article>
 		<% }) %>

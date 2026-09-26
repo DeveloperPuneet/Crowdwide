@@ -5,7 +5,7 @@
 	<div class="post-meta">
 		<%- include('avatar', { person: post.author, size: 'small' }) %>
 		<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %><% if (post.status === 'draft') { %> · Draft<% } else if (post.status === 'scheduled') { %> · Scheduled<% } %></span></div>
-		<span class="post-source"><%= post.feedSource || 'From your communities' %></span>
+		<% if (!locals.hideSource) { %><span class="post-source"><%= post.feedSource || 'From your communities' %></span><% } %>
 	</div>
 	<div class="post-body"><%- renderRichBody(post.body) %></div>
 	<% if (post.poll?.question && post.poll.options?.length) { %>

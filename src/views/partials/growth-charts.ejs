@@ -1,0 +1,79 @@
+<section class="growth-section container">
+  <div class="section-intro">
+    <p class="eyebrow"><%- icon('trending-up', { size: 13 }) %> Why the feed is built this way</p>
+    <h2>New communities don't have<br><em>to wait their turn.</em></h2>
+    <p class="section-copy">Most feeds rank by engagement, so reach compounds toward accounts that are already large and a brand-new community has to claw its way into view. Crowdwide's feed reserves a fixed share of every "For you" page for people and communities outside your existing network, so discovery doesn't depend on already being popular. The charts below model what that difference in mechanics does to growth over time.</p>
+  </div>
+
+  <div class="growth-grid">
+    <div class="growth-card">
+      <div class="growth-card-head">
+        <h3>Reach for a brand-new community</h3>
+        <p>Modeled reach over a community's first 8 weeks, on a popularity-ranked feed vs. Crowdwide's discovery-guaranteed feed.</p>
+      </div>
+      <svg class="growth-chart" viewBox="0 0 620 270" role="img" aria-label="Line chart comparing a new community's reach over 8 weeks on a typical popularity-ranked feed versus Crowdwide's discovery feed. The typical feed line stays low and flat; the Crowdwide line rises steadily and ends far higher.">
+        <line x1="40" y1="230" x2="600" y2="230" class="axis-line"/>
+        <line x1="40" y1="20" x2="40" y2="230" class="axis-line"/>
+        <line x1="40" y1="177.5" x2="600" y2="177.5" class="grid-line"/>
+        <line x1="40" y1="125" x2="600" y2="125" class="grid-line"/>
+        <line x1="40" y1="72.5" x2="600" y2="72.5" class="grid-line"/>
+
+        <polyline class="series series-typical" points="40,225.8 110,223.7 180,221.6 250,217.4 320,213.2 390,209 460,202.7 530,196.4 600,188"/>
+        <polyline class="series series-crowdwide" points="40,225.8 110,200.6 180,179.6 250,158.6 320,137.6 390,118.7 460,101.9 530,87.2 600,74.6"/>
+
+        <g class="dots dots-typical">
+          <circle cx="40" cy="225.8" r="3"/><circle cx="180" cy="221.6" r="3"/><circle cx="320" cy="213.2" r="3"/><circle cx="460" cy="202.7" r="3"/><circle cx="600" cy="188" r="3.5"/>
+        </g>
+        <g class="dots dots-crowdwide">
+          <circle cx="40" cy="225.8" r="3"/><circle cx="180" cy="179.6" r="3"/><circle cx="320" cy="137.6" r="3"/><circle cx="460" cy="101.9" r="3"/><circle cx="600" cy="74.6" r="3.5"/>
+        </g>
+
+        <text x="40" y="250" class="axis-label">Week 0</text>
+        <text x="320" y="250" class="axis-label" text-anchor="middle">Week 4</text>
+        <text x="600" y="250" class="axis-label" text-anchor="end">Week 8</text>
+        <text x="14" y="234" class="axis-label" text-anchor="start">Low</text>
+        <text x="14" y="26" class="axis-label" text-anchor="start">High</text>
+      </svg>
+      <div class="growth-legend">
+        <span><i class="dot dot-crowdwide"></i>Crowdwide's discovery feed</span>
+        <span><i class="dot dot-typical"></i>Typical popularity-ranked feed</span>
+      </div>
+      <p class="growth-caption">Illustrative model, not measured analytics — built from Crowdwide's feed discovery ratio (roughly a third of each feed reserved for accounts and communities outside your network), compared to a feed that ranks purely by existing engagement.</p>
+    </div>
+
+    <div class="growth-card">
+      <div class="growth-card-head">
+        <h3>Growth by community size</h3>
+        <p>Modeled member growth over 6 months for large communities vs. intermediate ones, on Crowdwide's feed.</p>
+      </div>
+      <svg class="growth-chart" viewBox="0 0 620 270" role="img" aria-label="Line chart comparing 6-month member growth of large communities versus intermediate communities on Crowdwide. Both lines rise, with intermediate communities growing at a faster relative rate.">
+        <line x1="40" y1="230" x2="600" y2="230" class="axis-line"/>
+        <line x1="40" y1="20" x2="40" y2="230" class="axis-line"/>
+        <line x1="40" y1="177.5" x2="600" y2="177.5" class="grid-line"/>
+        <line x1="40" y1="125" x2="600" y2="125" class="grid-line"/>
+        <line x1="40" y1="72.5" x2="600" y2="72.5" class="grid-line"/>
+
+        <polyline class="series series-large" points="40,230 133.3,214.7 226.7,197.5 320,178.5 413.3,161.3 506.7,142.2 600,121.2"/>
+        <polyline class="series series-intermediate" points="40,230 133.3,207.1 226.7,180.4 320,149.8 413.3,115.5 506.7,77.3 600,33.3"/>
+
+        <g class="dots dots-large">
+          <circle cx="40" cy="230" r="3"/><circle cx="226.7" cy="197.5" r="3"/><circle cx="413.3" cy="161.3" r="3"/><circle cx="600" cy="121.2" r="3.5"/>
+        </g>
+        <g class="dots dots-intermediate">
+          <circle cx="40" cy="230" r="3"/><circle cx="226.7" cy="180.4" r="3"/><circle cx="413.3" cy="115.5" r="3"/><circle cx="600" cy="33.3" r="3.5"/>
+        </g>
+
+        <text x="40" y="250" class="axis-label">Month 0</text>
+        <text x="320" y="250" class="axis-label" text-anchor="middle">Month 3</text>
+        <text x="600" y="250" class="axis-label" text-anchor="end">Month 6</text>
+        <text x="14" y="234" class="axis-label" text-anchor="start">Baseline</text>
+        <text x="14" y="26" class="axis-label" text-anchor="start">2x+</text>
+      </svg>
+      <div class="growth-legend">
+        <span><i class="dot dot-intermediate"></i>Intermediate communities (100–999 members)</span>
+        <span><i class="dot dot-large"></i>Large communities (1,000+ members)</span>
+      </div>
+      <p class="growth-caption">Illustrative model, not measured analytics — since a fixed slice of feed space goes to discovery regardless of a community's size, mid-size communities keep compounding instead of plateauing once the largest few soak up attention.</p>
+    </div>
+  </div>
+</section>

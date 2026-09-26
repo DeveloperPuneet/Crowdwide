@@ -1,18 +1,65 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'messages', currentUser }) %>
-<main class="community-detail" style="width: 100%;">
-  <a class="back-link" href="/dashboard">← Back to feed</a>
-  <section class="community-posts">
-    <div class="panel-heading"><h1>Messages</h1><span><%= conversations.length %></span></div>
-    <% if (!conversations.length) { %>
-    <div class="empty-feed"><h2>Your inbox is quiet.</h2><p>Start a conversation from someone’s profile.</p></div>
-    <% } %>
-    <% conversations.forEach((conversation) => { %>
-    <a class="activity-row" href="/messages/<%= conversation.person._id %>" style="text-decoration:none;color:inherit;">
-      <%- include('../partials/avatar', { person: conversation.person, size: 'small', link: false }) %>
-      <div><strong><%= conversation.person.name %></strong><p><%= conversation.preview %></p><small><%= new Date(conversation.latest.createdAt).toLocaleString() %><% if (conversation.unread) { %> · <b><%= conversation.unread %> unread</b><% } %></small></div>
-    </a>
-    <% }) %>
-  </section>
+<main class="profile-layout">
+<div>
+	<a class="back-link" href="/dashboard">← Back to feed</a>
+	<header class="conversations-hero">
+		<p class="eyebrow"><%- icon('mail', { size: 13 }) %> Direct messages</p>
+		<h1>Your conversations</h1>
+		<p>Private threads with people you follow or who follow you. Start one from anyone's profile.</p>
+	</header>
+	<% if (conversations.length) { %>
+	<div class="conversations-search"><%- icon('search', { size: 15 }) %><input type="search" data-filter-input placeholder="Search conversations" aria-label="Search conversations"></div>
+	<% } %>
+	<section class="community-posts" data-filter-list>
+		<div class="panel-heading"><h2>Inbox</h2><span><%= conversations.length %></span></div>
+		<% if (!conversations.length) { %>
+		<div class="empty-feed"><div class="empty-orbit"><%- icon('mail', { size: 26 }) %></div><h2>Your inbox is quiet.</h2><p>Start a conversation from someone's profile - look for the "Message" button.</p></div>
+		<% } %>
+		<% conversations.forEach((conversation) => { %>
+		<a class="activity-row message-row <%= conversation.unread ? 'is-unread' : '' %>" data-filter-name="<%= conversation.person.name.toLowerCase() %>" href="/messages/<%= conversation.person._id %>">
+			<%- include('../partials/avatar', { person: conversation.person, size: 'small', link: false }) %>
+			<div>
+				<strong><%= conversation.person.name %></strong>
+				<p><%= conversation.preview %></p>
+				<small><%= new Date(conversation.latest.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %></small>
+			</div>
+			<% if (conversation.unread) { %><span class="unread-badge"><%= conversation.unread %></span><% } %>
+		</a>
+		<% }) %>
+		<p class="filter-empty" data-filter-empty hidden>No conversations match that search.</p>
+	</section>
+</div>
+<aside class="discover-column">
+	<section class="discover-panel">
+		<div class="panel-heading"><h2>Find someone</h2></div>
+		<p style="color:#9295aa;font-size:12px;line-height:1.8;padding:6px 0 12px;">Look someone up and message them straight from their profile.</p>
+		<a class="button button-ghost button-small" href="/search" style="width:100%;justify-content:center;">Search people <span><%- icon('arrow-up-right', { size: 14 }) %></span></a>
+	</section>
+	<section class="discover-panel">
+		<div class="panel-heading"><h2>Group chat instead?</h2></div>
+		<p style="color:#9295aa;font-size:12px;line-height:1.8;padding:6px 0 12px;">Talking to more than one person? Groups keep everyone in one thread.</p>
+		<a class="button button-ghost button-small" href="/groups" style="width:100%;justify-content:center;">Go to groups <span><%- icon('arrow-up-right', { size: 14 }) %></span></a>
+	</section>
+</aside>
 </main>
+<script>
+(function () {
+	var input = document.querySelector('[data-filter-input]');
+	if (!input) return;
+	var list = document.querySelector('[data-filter-list]');
+	var rows = Array.prototype.slice.call(list.querySelectorAll('[data-filter-name]'));
+	var emptyNote = list.querySelector('[data-filter-empty]');
+	input.addEventListener('input', function () {
+		var term = input.value.trim().toLowerCase();
+		var visible = 0;
+		rows.forEach(function (row) {
+			var match = !term || row.getAttribute('data-filter-name').indexOf(term) !== -1;
+			row.hidden = !match;
+			if (match) visible += 1;
+		});
+		if (emptyNote) emptyNote.hidden = visible !== 0 || !term;
+	});
+})();
+</script>
 <%- include('../partials/app-footer') %><%- include('../partials/foot') %>

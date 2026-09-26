@@ -268,14 +268,20 @@ exports.profile = async (req, res) => {
 	if (!isSelf && tab === 'saved') tab = 'posts';
 	const restrictedCommunityIds = await getRestrictedCommunityIds(viewerId);
 	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
-	const [posts, followersCount, viewer, postCount, likedPosts, comments] = await Promise.all([
+	const publishedFilter = { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
+	const [posts, followersCount, viewer, postCount, likedPosts, comments, engagementAgg] = await Promise.all([
 		Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
 		User.findById(viewerId).select('following bookmarks blockedUsers mutedUsers').lean(),
-		Post.countDocuments({ author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }),
+		Post.countDocuments(publishedFilter),
 		Post.find({ likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ updatedAt: -1 }).limit(30).populate('community', 'name slug').lean(),
-		Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt community', populate: { path: 'author', select: 'name' } }).lean()
+		Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt community', populate: { path: 'author', select: 'name' } }).lean(),
+		Post.aggregate([
+			{ $match: publishedFilter },
+			{ $group: { _id: null, totalLikes: { $sum: { $size: { $ifNull: ['$likes', []] } } }, totalComments: { $sum: '$commentsCount' }, totalViews: { $sum: '$viewsCount' }, totalShares: { $sum: '$sharesCount' } } }
+		])
 	]);
+	const profileStats = engagementAgg[0] || { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 };
 	// Comment.find can't filter by its parent post's community in the query
 	// itself (no community field on Comment), so this is filtered in code:
 	// a comment on a private-community post the viewer can't see would
@@ -318,6 +324,7 @@ exports.profile = async (req, res) => {
 		postCount,
 		followersCount,
 		followingCount: (profileUser.following || []).length,
+		profileStats,
 		isSelf,
 		isFollowing: !isSelf && (viewer?.following || []).some((id) => String(id) === String(profileUser._id)),
 		isFollowingBack: !isSelf && (profileUser.following || []).some((id) => String(id) === String(viewerId)),
@@ -513,6 +520,7 @@ exports.infoPage = (req, res) => {
 			title: 'About Crowdwide',
 			heading: 'The internet can feel human again.',
 			intro: 'Crowdwide is a social discovery platform for people who want more signal, more context, and more room for new voices - built around communities and curiosity instead of follower counts.',
+			growthChart: true,
 			sections: [
 				['Our idea', 'The best communities are not built around reach. They are built around recognition: the feeling that someone else is paying attention to the same fascinating thing you are. Crowdwide organizes around communities and hashtags first, so a good post from a brand-new account has the same chance of being found as one from an account with a huge following.'],
 				['How the feed works', 'Your home feed blends posts from people you follow, fresh posts from small and new communities, and a small slice of what is currently resonating widely. New accounts and new communities are deliberately given feed space, not buried under popularity, because a network only stays interesting if new voices can still break through.'],
@@ -534,28 +542,41 @@ exports.infoPage = (req, res) => {
 			title: 'Privacy policy',
 			heading: 'Your data deserves context.',
 			updated: 'Last updated September 2026',
-			intro: 'This policy explains what Crowdwide collects, why it is needed, and the choices available to you. Crowdwide is built to work across your devices, which means some information has to be stored so the service can function.',
+			intro: 'This policy explains what Crowdwide collects, why it is needed, which outside services touch your data, and the choices available to you. Crowdwide is built to work across your devices, which means some information has to be stored so the service can function.',
 			sections: [
-				['What we collect', 'Account details you provide (name, email, password hash, bio, links), content you create (posts, comments, communities, hashtags), media you upload (images, video, audio, avatars, banners), and limited technical information such as IP address, device/browser identifiers, and session activity used to keep accounts secure.'],
-				['How we use it', 'We use this information to authenticate accounts, deliver verification and security emails, operate core features like feeds, search, and notifications, prevent abuse and spam, and improve the product over time.'],
-				['Where it is stored', 'Account data, posts, and community data are stored in MongoDB. Media (images, video, audio, avatars, and community banners) is stored in MongoDB GridFS, optionally distributed across multiple MongoDB clusters for capacity, or in a configured Google Cloud Storage bucket. We do not sell your data to third parties or use it to serve third-party ads.'],
-				['Cookies and sessions', 'Crowdwide uses a single session cookie to keep you signed in. It is required for the app to function and is not used for cross-site advertising tracking.'],
-				['Your choices', 'You can edit or remove your profile details, links, and media at any time from Settings. You can download a copy of your data from Settings → Account, and you can permanently delete your account and its content from the same page. For anything else, contact us at <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a>.'],
-				['Children', 'Crowdwide is not directed at children under 13, and we do not knowingly collect information from children under 13.']
+				['What we collect', 'Account details you provide (name, email, password hash, bio, links), content you create (posts, comments, communities, hashtags), media you upload (images, video, audio, avatars, banners), your social graph (who you follow, block, and which communities/groups you join), messages you send in direct messages and group chats, and limited technical information such as IP address, device/browser identifiers, and session activity used to keep accounts secure.'],
+				['How we use it', 'We use this information to authenticate accounts, deliver verification and security emails, operate core features like feeds, search, notifications, and messaging, rank and personalize your "For you" feed, prevent abuse and spam, enforce our Terms and Community Guidelines, and improve the product over time. We do not sell your data, and we do not use it to serve third-party ads.'],
+				['Where it is stored', 'Account data, posts, comments, communities, and messages are stored in MongoDB. Media (images, video, audio, avatars, and community banners) is stored in MongoDB GridFS - optionally distributed across multiple MongoDB clusters for extra capacity - or, on deployments configured to use it, in a Google Cloud Storage bucket served through a CDN URL. Your session is tracked server-side via connect-mongo so signing out or expiring a session invalidates it immediately.'],
+				['Third-party services we use', 'Crowdwide relies on a small number of outside services to operate, and only sends them what each feature needs: <strong>Google (Gmail API or SMTP, via Nodemailer)</strong> to deliver verification, password-reset, login-alert, and security emails to your inbox; <strong>Google Cloud Storage</strong>, on deployments that enable it, to host uploaded media; <strong>GIPHY</strong> to power GIF search in chats and comments, when a deployment enables it - your search text is sent to GIPHY the way it would be on giphy.com; <strong>a self-hosted ClamAV virus scanner</strong>, on deployments that enable it, to scan uploaded files for malware before they are stored, entirely on infrastructure we control; and <strong>web push (VAPID)</strong> to deliver browser push notifications to devices where you have explicitly turned them on in Settings. We do not use third-party analytics or advertising trackers.'],
+				['Link previews', 'When you post a link, Crowdwide\'s server fetches a small amount of publicly available metadata (title, description, preview image) from that page to build a preview card. This is a short, size-limited request made from our server, guarded against reaching private/internal addresses, and does not send it any of your account information.'],
+				['Cookies and sessions', 'Crowdwide uses a single session cookie to keep you signed in, plus a CSRF token used to protect forms from cross-site attacks. Both are required for the app to function and are not used for cross-site advertising tracking. We do not use third-party tracking or marketing cookies.'],
+				['Security measures', 'Passwords are hashed with bcrypt and never stored in plain text. Optional two-factor authentication (TOTP, with one-time recovery codes) adds a second layer to sign-in. Traffic is protected with security headers (Helmet), CSRF protection on forms, and rate limiting on sign-in, messaging, and API endpoints to slow down automated abuse. Critical server errors can trigger an internal alert email so problems are caught quickly - this alert never includes your password or message content.'],
+				['Data sharing', 'We do not sell or rent your personal information. We only share it: with the service providers listed above, strictly to operate the features they support; with other members, to the extent your privacy settings and normal use of the product make it visible (e.g. a public profile, a post in a community you joined); or where we are legally required to disclose it, such as in response to a valid legal request.'],
+				['Data retention', 'We keep your account data for as long as your account is active. Deleted posts, comments, and messages are removed from normal views immediately and are not recoverable through the product. When you delete your account (see "Your choices" below), your profile, content, and media are removed; some minimal records (such as security or moderation logs) may be retained briefly where needed to prevent abuse or meet legal obligations.'],
+				['Your choices', 'You can edit or remove your profile details, links, and media at any time from Settings. You can download a copy of your data - profile, posts, and comments - from Settings → Account, and you can permanently delete your account and its content from the same page. You can revoke browser push notifications at any time from your browser or from Settings. For anything else, contact us at <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a>.'],
+				['Children', 'Crowdwide is not directed at children under 13, and we do not knowingly collect information from children under 13. If we learn that we have collected information from a child under 13, we will delete it.'],
+				['Changes to this policy', 'If this policy changes in a material way, we will update the date above and make a reasonable effort to let members know, such as through a notice in the product.']
 			]
 		},
 		'/terms': {
 			title: 'Terms of use',
 			heading: 'A few promises in both directions.',
 			updated: 'Last updated September 2026',
-			intro: 'These terms describe the expectations for using Crowdwide and the responsibilities we share as a community. By creating an account, you agree to these terms.',
+			intro: 'These terms describe the expectations for using Crowdwide and the responsibilities we share as a community. By creating an account, you agree to these terms, along with our Privacy Policy and Community Guidelines.',
 			sections: [
-				['Your account', 'You are responsible for the activity on your account and for keeping your password (and two-factor recovery codes, if enabled) secure. You must be old enough to use online services in your country to create an account.'],
-				['Use with care', 'Do not use Crowdwide to harass, deceive, impersonate, exploit, or harm people. Do not upload content you do not have the right to share, and do not attempt to circumvent moderation, rate limits, or security controls.'],
-				['Your content', 'You retain ownership of the content you post. You give Crowdwide permission to store, display, and process it only as needed to operate the service (for example, generating thumbnails or serving it through the feed).'],
-				['Communities', 'Community owners and moderators are responsible for keeping their communities within these terms and Crowdwide\'s Community Guidelines, including reviewing reported content and managing membership.'],
-				['Termination', 'We may suspend or remove accounts or content that clearly violate these terms or the Community Guidelines. You may delete your account at any time from Settings.'],
-				['The service', 'Crowdwide is evolving. Features may change, and we will make a reasonable effort to communicate material changes. The service is provided "as is" without warranties of any kind.']
+				['Eligibility', 'You must be old enough to use online services in your country to create an account (Crowdwide is not directed at children under 13 - see the Privacy Policy). By creating an account, you confirm the information you provide is accurate and that you are not barred from using Crowdwide under applicable law.'],
+				['Your account', 'You are responsible for the activity on your account and for keeping your password (and two-factor recovery codes, if enabled) secure. Tell us right away at <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a> if you suspect unauthorized access. One account per person; impersonation and automated (bot) account creation are not allowed.'],
+				['Use with care', 'Do not use Crowdwide to harass, deceive, impersonate, exploit, or harm people. Do not upload content you do not have the right to share, upload malware, spam communities or direct messages, or attempt to circumvent moderation, rate limits, virus scanning, or other security controls. Do not scrape, reverse-engineer, or overload the service outside of the published API and its rate limits.'],
+				['Your content', 'You retain ownership of the content you post. You give Crowdwide a limited license to store, display, and process it only as needed to operate the service - for example, generating thumbnails, rendering link previews, or serving it through feeds, search, and notifications. You are responsible for having the rights to anything you upload.'],
+				['Copyright', 'If you believe content on Crowdwide infringes your copyright, contact <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a> with a description of the work, the infringing content\'s location, and your contact details, and we will review and act on valid requests, including removing content and, for repeat infringement, removing accounts.'],
+				['Communities and moderation', 'Community owners and moderators are responsible for keeping their communities within these terms and Crowdwide\'s Community Guidelines, including reviewing reported content and managing membership. Platform moderators and admins may review reported content, apply posting restrictions, or suspend accounts that clearly violate these terms.'],
+				['Third-party features', 'Some features rely on outside services - for example GIF search (GIPHY) or push notifications (web push) - and are described in the Privacy Policy. These features are optional or depend on the deployment\'s configuration, and using them means your request also reaches that provider as described there.'],
+				['API access', 'Where Crowdwide exposes a public or developer API (see Developer docs), you agree to respect its rate limits and use it only for legitimate purposes - not to scrape private data, impersonate the service, or degrade it for other members.'],
+				['Termination', 'We may suspend or remove accounts or content that clearly violate these terms or the Community Guidelines, with an appeal option shown in Settings → Moderation where applicable. You may delete your own account at any time from Settings; doing so removes your profile, content, and media as described in the Privacy Policy.'],
+				['Disclaimers', 'Crowdwide is evolving. Features may change, and we will make a reasonable effort to communicate material changes. The service is provided "as is" and "as available," without warranties of any kind, express or implied, including fitness for a particular purpose or uninterrupted availability.'],
+				['Limitation of liability', 'To the fullest extent permitted by law, Crowdwide and its operator are not liable for indirect, incidental, or consequential damages arising from your use of the service. Nothing here limits liability where the law does not allow it to be limited.'],
+				['Changes to these terms', 'We may update these terms as the product evolves. We will update the date above and make a reasonable effort to communicate material changes. Continuing to use Crowdwide after changes take effect means you accept the updated terms.'],
+				['Contact', 'Questions about these terms can be sent to <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a>.']
 			]
 		},
 		'/community-guidelines': {
@@ -567,6 +588,8 @@ exports.infoPage = (req, res) => {
 				['Protect boundaries', 'Respect privacy, consent, and the right of others to leave a conversation or block someone who is bothering them.'],
 				['No harassment or hate', 'Targeted harassment, hate speech, threats, and doxxing are never allowed and will result in account removal.'],
 				['Community-specific rules', 'Individual communities may set their own guidelines, banned words, and review-before-posting policies. Owners and moderators can remove members and posts that break those rules.'],
+				['Spam and manipulation', 'Do not post repetitive or unwanted content, use bots or fake accounts, or upload malware - uploads are scanned for known threats before they are stored. Automated spam is filtered and repeated attempts can lead to posting restrictions.'],
+				['Consequences', 'Depending on severity, a violation can result in content removal, a posting restriction, a timed suspension, or a permanent ban. Suspended accounts can see the reason and duration in Settings → Moderation and can file an appeal if they believe it was a mistake.'],
 				['Report problems', 'If something feels unsafe or clearly violates these guidelines, use the block feature and report it to <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a> so it can be reviewed.']
 			]
 		},
@@ -577,6 +600,8 @@ exports.infoPage = (req, res) => {
 			sections: [
 				['Our approach', 'We use semantic HTML, keyboard-friendly controls, readable contrast, responsive layouts down to small phone screens, and meaningful labels as a baseline.'],
 				['Media', 'Images support alt text, and video/audio use standard browser controls that work with assistive technology.'],
+				['Forms and navigation', 'Sign-in, sign-up, posting, and settings forms use labeled fields and visible focus states so they can be completed with a keyboard alone. Errors are announced next to the field they belong to, not only by color.'],
+				['Known limits', 'Some richer surfaces (live chat, the admin panel) are still being brought up to the same standard as the rest of the product - this is ongoing work, not a finished state.'],
 				['Tell us what is missing', 'Accessibility is ongoing work. Please report a barrier with the page URL and a description of what happened to <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a> so we can investigate.']
 			]
 		},

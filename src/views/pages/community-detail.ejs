@@ -38,6 +38,7 @@
 			</div>
 			<p class="post-body"><%= post.body %></p>
 			<% if ((post.media || [])[0]) { %><div class="post-media count-1"><div class="post-media-frame"><% if (post.media[0].kind === 'image') { %><img src="<%= post.media[0].thumbnailUrl || post.media[0].url %>" alt="" loading="lazy"><% } %></div></div><% } %>
+			<div class="post-stat-row" aria-hidden="true"><span><%- icon('heart', { size: 14 }) %><%= post.likes?.length || 0 %></span><span><%- icon('message-circle', { size: 14 }) %><%= post.commentsCount || 0 %></span><span><%- icon('send', { size: 14 }) %><%= post.sharesCount || 0 %></span><span><%- icon('eye', { size: 14 }) %><%= post.viewsCount || 0 %></span></div>
 		</article>
 		</a>
 		<% }) %>

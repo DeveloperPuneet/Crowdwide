@@ -51,11 +51,11 @@ h1 em, h2 em { color: #7192ff; font-style: normal; }
 /* 2. Base / avatars --------------------------------------------------------*/
 .avatar {
   width: 38px; height: 38px; border-radius: 50%; flex: none;
-  display: grid; place-items: center; overflow: hidden;
+  display: grid; place-items: center; overflow: hidden; position: relative;
   background: linear-gradient(135deg, #f46e66, #5d70ff);
   font: 700 15px 'Space Grotesk', sans-serif; color: #fff;
 }
-.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .avatar.small { width: 32px; height: 32px; font-size: 12px; display:flex; justify-content: center;align-items: center; }
 .avatar.tiny { width: 29px; height: 29px; font-size: 11px; }
 .avatar.large { width: 84px; height: 84px; font-size: 30px; border: 3px solid var(--ink); }
@@ -250,6 +250,11 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .auth-form button { margin-top: 6px; }
 .code-input { text-align: center; font: 700 24px 'Space Grotesk', sans-serif; letter-spacing: 8px; }
 .switch-auth, .terms { text-align: center; color: #85889d; font-size: 12px; margin: 22px 0 0; }
+.consent-check { display: flex !important; flex-direction: row !important; align-items: flex-start; gap: 9px; }
+.consent-check input { width: auto; margin-top: 2px; accent-color: var(--blue); flex: none; }
+.consent-check span { color: #9699ae; line-height: 1.6; }
+.consent-check a { color: #8da0ff; }
+.consent-check a:hover { text-decoration: underline; }
 .switch-auth a { color: #8da0ff; font-weight: 700; }
 .terms { font-size: 11px; }
 .auth-foot { text-align: center; color: #777a91; font-size: 12px; margin: 20px; }
@@ -262,6 +267,32 @@ h1 { font-size: clamp(40px, 5.8vw, 76px); }
 .info-sections h2 { font-size: 21px; letter-spacing: -.5px; margin: 30px 0 14px; }
 .info-sections p { color: #9295aa; font-size: 13px; line-height: 1.8; margin: 0; }
 .info-page .site-footer { margin-top: 0; }
+
+/* Growth comparison charts (illustrative model, used on /about) ------------*/
+.growth-section { padding: 10px 0 110px; }
+.growth-section .section-intro { max-width: 720px; margin-bottom: 46px; }
+.growth-section .section-intro .eyebrow { display: flex; align-items: center; gap: 7px; color: var(--orange); }
+.growth-section h2 { font-size: 42px; margin: 0 0 18px; }
+.section-copy { color: #a1a3b6; font-size: 14px; line-height: 1.8; margin: 0; max-width: 680px; }
+.growth-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.growth-card { background: #111326d9; border: 1px solid var(--line); border-radius: 14px; padding: 26px 26px 22px; }
+.growth-card-head h3 { font: 600 18px 'Space Grotesk', sans-serif; letter-spacing: -.4px; margin: 0 0 8px; color: #fff; }
+.growth-card-head p { color: #8e90a4; font-size: 12.5px; line-height: 1.7; margin: 0 0 18px; }
+.growth-chart { width: 100%; height: auto; display: block; }
+.growth-chart .axis-line { stroke: rgba(255, 255, 255, .28); stroke-width: 1; }
+.growth-chart .grid-line { stroke: rgba(255, 255, 255, .08); stroke-width: 1; }
+.growth-chart .axis-label { fill: #767995; font: 600 11px 'DM Sans', sans-serif; }
+.growth-chart .series { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.growth-chart .series-typical, .growth-chart .series-large { stroke: #565a82; stroke-dasharray: 5 5; }
+.growth-chart .series-crowdwide, .growth-chart .series-intermediate { stroke: var(--orange); filter: drop-shadow(0 0 6px rgba(255, 138, 48, .45)); }
+.growth-chart .dots-typical circle, .growth-chart .dots-large circle { fill: #0d1020; stroke: #7d80a3; stroke-width: 2; }
+.growth-chart .dots-crowdwide circle, .growth-chart .dots-intermediate circle { fill: var(--orange); stroke: #1a0d04; stroke-width: 1; }
+.growth-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px; font-size: 12px; color: #c3c5db; }
+.growth-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.growth-legend .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.growth-legend .dot-crowdwide, .growth-legend .dot-intermediate { background: var(--orange); box-shadow: 0 0 8px rgba(255, 138, 48, .55); }
+.growth-legend .dot-typical, .growth-legend .dot-large { background: transparent; border: 2px solid #7d80a3; }
+.growth-caption { color: #6d6f88; font-size: 11px; line-height: 1.7; margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
 
 /* Developer docs (/docs) - reuses .info-page/.info-main for the header, then
    switches to a single-column technical layout: endpoint cards with method
@@ -372,7 +403,7 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
 
 .app-footer { border-top: 1px solid var(--line); margin-top: auto; }
 .app-footer .footer-top { grid-template-columns: 1.3fr repeat(3, 1fr); }
-.profile-layout { max-width: 1240px; margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; padding: 40px var(--gutter) 70px; }
+.profile-layout { max-width: 1540px; margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; padding: 20px var(--gutter) 20px; width: 100%; }
 .profile-banner { width: 100%; height: 200px; border-radius: 14px; overflow: hidden; background: linear-gradient(120deg, #232a5c, #171a30); margin-bottom: -54px; }
 .profile-banner img { width: 100%; height: 100%; object-fit: cover; }
 .profile-hero { position: relative; z-index: 1; }
@@ -388,6 +419,25 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
 .activity-row p { margin: 0; font-size: 13px; color: #c6c7d6; line-height: 1.6; }
 .activity-row a { color: #8da0ff; }
 .activity-row small { display: block; color: #6f7188; font-size: 10px; margin-top: 4px; }
+
+/* Conversations (Groups / Messages list pages) ------------------------------*/
+.conversations-hero { padding-top: 6px; margin-bottom: 22px; }
+.conversations-hero .eyebrow { display: flex; align-items: center; gap: 7px; }
+.conversations-hero h1 { font-size: clamp(30px, 4vw, 40px); letter-spacing: -1px; margin: 10px 0 8px; }
+.conversations-hero p { color: #9699ae; font-size: 13.5px; line-height: 1.7; max-width: 520px; margin: 0; }
+.conversations-search { display: flex; align-items: center; gap: 10px; background: #101226; border: 1px solid #2c3050; border-radius: 10px; padding: 11px 14px; margin-bottom: 18px; color: #767991; }
+.conversations-search input { flex: 1; background: transparent; border: 0; outline: none; color: #f6f6fa; font-size: 13px; }
+.conversations-search input::placeholder { color: #6f7188; }
+.activity-row.message-row, .activity-row.group-row { align-items: center; }
+.activity-row.message-row > div, .activity-row.group-row > div { min-width: 0; flex: 1; }
+.activity-row.message-row strong, .activity-row.group-row strong { display: block; font-size: 14px; }
+.activity-row.message-row p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.activity-row.is-unread strong { color: #fff; }
+.activity-row.is-unread p { color: #dedfe8; font-weight: 500; }
+.unread-badge, .row-arrow { flex: none; margin-left: 8px; }
+.unread-badge { background: var(--orange); color: #1a0d04; font: 700 11px 'Space Grotesk', sans-serif; min-width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; padding: 0 6px; }
+.row-arrow { color: #575a75; display: grid; place-items: center; }
+.filter-empty { text-align: center; color: #767991; font-size: 12px; padding: 30px 0; }
 
 /* 6. Feed, composer, post cards, media --------------------------------------*/
 .feed-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
@@ -509,6 +559,9 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
 .share-menu button:hover, .share-menu a:hover { background: #252944; color: #fff; }
 .post-open-link { display: inline-flex; margin: -4px 0 14px; color: #92a0ff; font-size: 11px; font-weight: 600; }
 .post-open-link:hover { color: #fff; }
+.post-stat-row { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; display: flex; gap: 16px; color: #767991; font-size: 11px; }
+.post-stat-row span { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.post-stat-row svg { color: #575a75; }
 .interaction-error { color: #ff91a7; font-size: 10px; margin-left: 8px; }
 
 .post-card[data-post-url] { position: relative; cursor: pointer; transition: border-color .15s ease; }
@@ -590,6 +643,14 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
 .profile-stats { display: flex; gap: 22px; margin-top: 18px; font-size: 13px; color: #85889e; }
 .profile-stats strong { color: #fff; }
 .profile-joined { color: #6f7188; font-size: 11px; margin-top: 10px; }
+.profile-engagement { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
+.profile-engagement .panel-heading { margin-bottom: 14px; }
+.engagement-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.engagement-grid div { background: #101226; border: 1px solid var(--line); border-radius: 10px; padding: 14px 12px; display: grid; gap: 5px; }
+.engagement-grid strong { display: flex; align-items: center; gap: 7px; font: 700 20px 'Space Grotesk', sans-serif; color: #fff; letter-spacing: -.5px; }
+.engagement-grid strong svg { color: var(--orange); flex: none; }
+.engagement-grid span { color: #7f8299; font-size: 10px; text-transform: uppercase; letter-spacing: .6px; }
+@media (max-width: 560px) { .engagement-grid { grid-template-columns: repeat(2, 1fr); } }
 .profile-tabs { display: flex; gap: 22px; overflow-x: auto; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
 .profile-tabs a { flex: none; padding: 13px 2px 11px; color: #85889e; font-size: 12px; border-bottom: 2px solid transparent; }
 .profile-tabs a:hover, .profile-tabs .profile-tab-active { color: #fff; border-color: var(--orange); }
@@ -797,6 +858,9 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
   .principle-grid { grid-template-columns: 1fr; gap: 34px; }
   .stats-section { display: block; padding: 20px 0 80px; }
   .stats-section .section-intro { margin-bottom: 40px; }
+  .growth-section { padding: 0 0 70px; }
+  .growth-section h2 { font-size: 32px; }
+  .growth-grid { grid-template-columns: 1fr; gap: 20px; }
   .community-row { grid-template-columns: 24px 1fr; }
   .community-members { grid-column: 2; }
   .story-section { padding: 60px 0; display: block; margin-bottom: 80px; }

@@ -45,6 +45,15 @@
 			<a href="/u/<%= profileUser._id %>/following" style="color:inherit;text-decoration:none;"><strong><%= followingCount %></strong> following</a>
 		</div>
 		<p class="profile-joined">Joined <%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) %></p>
+		<div class="profile-engagement">
+			<div class="panel-heading"><h2>Activity stats</h2><span>All time</span></div>
+			<div class="engagement-grid">
+				<div><strong><%- icon('heart', { size: 15 }) %><%= profileStats.totalLikes.toLocaleString() %></strong><span>Likes received</span></div>
+				<div><strong><%- icon('message-circle', { size: 15 }) %><%= profileStats.totalComments.toLocaleString() %></strong><span>Comments received</span></div>
+				<div><strong><%- icon('eye', { size: 15 }) %><%= profileStats.totalViews.toLocaleString() %></strong><span>Views</span></div>
+				<div><strong><%- icon('send', { size: 15 }) %><%= profileStats.totalShares.toLocaleString() %></strong><span>Shares</span></div>
+			</div>
+		</div>
 	</section>
 	<nav class="profile-tabs" aria-label="Profile sections">
 		<a class="<%= profileTab === 'posts' ? 'profile-tab-active' : '' %>" href="/u/<%= profileUser._id %>?tab=posts">Posts</a>
@@ -86,27 +95,7 @@
 		<div class="empty-feed"><h2><%= profileTab === 'saved' ? 'No saved posts yet.' : 'No posts yet.' %></h2><p><%= isSelf ? 'Posts and conversations you collect will appear here.' : 'This person has not posted yet.' %></p></div>
 		<% } %>
 		<% displayedPosts.forEach((post) => { %>
-		<article class="post-card" id="post-<%= post._id %>">
-			<div class="post-meta"><div><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %><% if (post.status === 'pending') { %> · <b style="color:#ff9850;">Awaiting review</b><% } else if (post.status === 'scheduled') { %> · <b style="color:#ff9850;">Scheduled</b><% } else if (post.status === 'rejected') { %> · <b style="color:#ff8a9d;">Not approved</b><% } %></span></div></div>
-			<p class="post-body"><%= post.body %></p>
-			<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
-			<% if ((post.media || []).length) { %>
-			<div class="post-media <%= post.media.length === 2 ? 'count-2' : 'count-1' %>">
-				<% post.media.forEach((media) => { %>
-				<div class="post-media-frame">
-					<% if (media.kind === 'image') { %><img src="<%= media.thumbnailUrl || media.url %>" alt="<%= media.alt || 'Post image' %>" loading="lazy">
-					<% } else if (media.kind === 'video') { %><video controls preload="none" src="<%= media.url %>"></video>
-					<% } else if (media.kind === 'audio') { %><audio controls preload="none" src="<%= media.url %>"></audio><% } %>
-				</div>
-				<% }) %>
-			</div>
-			<% } %>
-			<div class="post-actions">
-				<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-label="Like"><%- icon('heart', { size: 16 }) %><span class="count"><%= post.likes?.length || 0 %></span></button></form>
-				<form method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>"><%- icon('bookmark', { size: 16 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
-				<a href="/posts/<%= post._id %>" style="color:#85889e;font-size:12px;padding:8px 10px;"><%- icon('message-circle', { size: 16 }) %> <%= post.commentsCount || 0 %></a>
-			</div>
-		</article>
+		<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
 		<% }) %>
 		<% } %>
 	</section>

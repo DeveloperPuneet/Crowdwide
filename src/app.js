@@ -25,13 +25,23 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   app.set('views', path.join(__dirname, 'views'));
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
+  // Profile pictures, banners, and post media can live on a configured CDN
+  // or Google Cloud Storage bucket instead of being served from this app
+  // ('self') - without allowing that origin here, the browser's CSP silently
+  // blocks every one of those images (they just never appear, no console
+  // hint to an end user) even though the <img> tag and URL are both correct.
+  const mediaOrigins = new Set();
+  if (process.env.MEDIA_CDN_URL) {
+    try { mediaOrigins.add(new URL(process.env.MEDIA_CDN_URL).origin); } catch (error) { /* invalid URL - ignore */ }
+  }
+  if (process.env.GCS_BUCKET) mediaOrigins.add('https://storage.googleapis.com');
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
         scriptSrc: ["'self'"],
         // GIFs come from GIPHY's CDN; blob: lets upload previews render.
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com']
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com', ...mediaOrigins]
       }
     }
   }));
