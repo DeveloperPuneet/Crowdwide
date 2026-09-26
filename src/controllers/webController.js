@@ -260,12 +260,13 @@ exports.createCommunity = async (req, res) => {
 };
 
 exports.profile = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links profilePicture bannerImage privacy createdAt isVerified following').lean();
+	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links profilePicture bannerImage privacy createdAt isVerified following profileViews').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
 	const viewerId = req.session.user.id;
 	const isSelf = String(profileUser._id) === String(viewerId);
-	let tab = ['posts', 'activity', 'likes', 'comments', 'saved'].includes(req.query.tab) ? req.query.tab : 'posts';
-	if (!isSelf && tab === 'saved') tab = 'posts';
+	let tab = ['posts', 'activity', 'likes', 'comments', 'saved', 'stats'].includes(req.query.tab) ? req.query.tab : 'posts';
+	if (!isSelf && (tab === 'saved' || tab === 'stats')) tab = 'posts';
+	if (!isSelf) User.findByIdAndUpdate(profileUser._id, { $inc: { profileViews: 1 } }).catch(() => {});
 	const restrictedCommunityIds = await getRestrictedCommunityIds(viewerId);
 	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
 	const publishedFilter = { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
@@ -311,6 +312,43 @@ exports.profile = async (req, res) => {
 		suggestions = await getPopularPeople(5, [...followingIds, profileUser._id]);
 	}
 
+	let statsDetail = null;
+	if (isSelf && tab === 'stats') {
+		const sixMonthsAgo = new Date();
+		sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+		sixMonthsAgo.setDate(1);
+		sixMonthsAgo.setHours(0, 0, 0, 0);
+		const [topPosts, byType, byMonth] = await Promise.all([
+			Post.aggregate([
+				{ $match: publishedFilter },
+				{ $addFields: { likeCount: { $size: { $ifNull: ['$likes', []] } } } },
+				{ $sort: { likeCount: -1, createdAt: -1 } },
+				{ $limit: 5 },
+				{ $project: { body: 1, likeCount: 1, commentsCount: 1, viewsCount: 1, sharesCount: 1, createdAt: 1 } }
+			]),
+			Post.aggregate([{ $match: publishedFilter }, { $group: { _id: '$type', count: { $sum: 1 } } }]),
+			Post.aggregate([
+				{ $match: { ...publishedFilter, createdAt: { $gte: sixMonthsAgo } } },
+				{ $group: { _id: { y: { $year: '$createdAt' }, m: { $month: '$createdAt' } }, count: { $sum: 1 } } }
+			])
+		]);
+		const months = [];
+		for (let i = 5; i >= 0; i -= 1) {
+			const d = new Date(sixMonthsAgo);
+			d.setMonth(d.getMonth() + (5 - i));
+			const match = byMonth.find((row) => row._id.y === d.getFullYear() && row._id.m === d.getMonth() + 1);
+			months.push({ label: d.toLocaleDateString(undefined, { month: 'short' }), count: match ? match.count : 0 });
+		}
+		const typeCounts = { post: 0, article: 0, poll: 0 };
+		byType.forEach((row) => { if (row._id in typeCounts) typeCounts[row._id] = row.count; });
+		statsDetail = {
+			topPosts,
+			months,
+			typeCounts,
+			avgLikes: postCount ? Math.round((profileStats.totalLikes / postCount) * 10) / 10 : 0
+		};
+	}
+
 	res.render('pages/profile', {
 		title: `${profileUser.name} on Crowdwide`,
 		pagePath: `/u/${profileUser._id}`,
@@ -321,6 +359,7 @@ exports.profile = async (req, res) => {
 		profileLikes: populatedLikes,
 		profileComments: visibleComments,
 		savedPosts,
+		statsDetail,
 		postCount,
 		followersCount,
 		followingCount: (profileUser.following || []).length,

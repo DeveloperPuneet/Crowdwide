@@ -1,7 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
-<main class="profile-layout">
-<div>
+<main class="conversations-page">
 	<a class="back-link" href="/dashboard">← Back to feed</a>
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
 	<header class="conversations-hero">
@@ -9,13 +8,24 @@
 		<h1>Group conversations</h1>
 		<p>Keep a running thread with a few people at once - a project circle, a study group, a close crew.</p>
 	</header>
+
+	<section class="discover-panel create-group-panel">
+		<div class="panel-heading"><h2>Start a group</h2><span><%- icon('plus', { size: 12 }) %></span></div>
+		<form class="settings-form compact create-group-form" method="post" action="/groups">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<label>Group name<input name="name" maxlength="80" placeholder="Project circle" required></label>
+			<label>Members<input name="members" placeholder="Email or exact display name, separated by spaces or commas" required></label>
+			<button class="button button-primary button-small" type="submit">Create group <span><%- icon('plus', { size: 14 }) %></span></button>
+		</form>
+	</section>
+
 	<% if (groups.length) { %>
 	<div class="conversations-search"><%- icon('search', { size: 15 }) %><input type="search" data-filter-input placeholder="Search your groups" aria-label="Search groups"></div>
 	<% } %>
 	<section class="community-posts" data-filter-list>
 		<div class="panel-heading"><h2>Your groups</h2><span><%= groups.length %></span></div>
 		<% if (!groups.length) { %>
-		<div class="empty-feed"><div class="empty-orbit"><%- icon('message-circle', { size: 26 }) %></div><h2>No groups yet.</h2><p>Start a small conversation with people you know using the panel on the right.</p></div>
+		<div class="empty-feed"><div class="empty-orbit"><%- icon('message-circle', { size: 26 }) %></div><h2>No groups yet.</h2><p>Start a small conversation with people you know using the form above.</p></div>
 		<% } %>
 		<% groups.forEach((group) => { %>
 		<a class="activity-row group-row" data-filter-name="<%= group.name.toLowerCase() %>" href="/groups/<%= group._id %>">
@@ -26,22 +36,6 @@
 		<% }) %>
 		<p class="filter-empty" data-filter-empty hidden>No groups match that search.</p>
 	</section>
-</div>
-<aside class="discover-column">
-	<section class="discover-panel">
-		<div class="panel-heading"><h2>Start a group</h2><span><%- icon('plus', { size: 12 }) %></span></div>
-		<form class="settings-form compact" method="post" action="/groups">
-			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-			<label>Group name<input name="name" maxlength="80" placeholder="Project circle" required></label>
-			<label>Members<input name="members" placeholder="Email or exact display name, separated by spaces or commas" required></label>
-			<button class="button button-primary button-small" type="submit">Create group <span><%- icon('plus', { size: 14 }) %></span></button>
-		</form>
-	</section>
-	<section class="discover-panel">
-		<div class="panel-heading"><h2>Good to know</h2></div>
-		<p style="color:#9295aa;font-size:12px;line-height:1.8;padding:6px 0 2px;">Anyone in a group can see the full history and invite more people. There's no cap on group size, so keep it to who actually needs to be there.</p>
-	</section>
-</aside>
 </main>
 <script>
 (function () {

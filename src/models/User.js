@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema({
   links: { type: [linkSchema], validate: (value) => value.length <= 4 },
   profilePicture: { type: String, default: '' },
   bannerImage: { type: String, default: '' },
+  profileViews: { type: Number, default: 0 },
   privacy: { type: String, enum: ['public', 'followers'], default: 'public' },
   inactivityLogoutDays: { type: Number, enum: [0, 7, 30, 90], default: 0 },
   notificationPreferences: {
