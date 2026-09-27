@@ -38,6 +38,20 @@ function clearFeedCache(userId) {
   return undefined;
 }
 
+// The interest profile has its own cache (up to 5 minutes) separate from
+// the ranked-feed cache above - clearing feedCache alone still left a like,
+// follow, comment, etc. re-ranking the feed against a stale profile until
+// that TTL passed. Clearing both together is what actually makes the "for
+// you" feed react to what the person just did, not just to the clock.
+function clearInterestProfile(userId) {
+  if (userId) profileCache.delete(String(userId));
+}
+
+function refreshPersonalization(userId) {
+  clearFeedCache(userId);
+  clearInterestProfile(userId);
+}
+
 // Projection shared by every candidate query: only scoring fields and cheap
 // counts, never the heavy arrays (likes, media, comments).
 function candidateProjection() {
@@ -354,4 +368,4 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   };
 }
 
-module.exports = { getFeedPage, getInterestProfile, clearFeedCache, buildRanking, candidateProjection, POOL_LIMIT, NOTES };
+module.exports = { getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, refreshPersonalization, buildRanking, candidateProjection, POOL_LIMIT, NOTES };

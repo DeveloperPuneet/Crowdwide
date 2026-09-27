@@ -69,6 +69,7 @@ router.post('/posts/:id/poll/vote', requireAuth, requireVerified, interactionLim
 router.post('/posts/:id/reaction', requireAuth, requireVerified, interactionLimiter, interactionController.toggleReaction);
 router.post('/posts/:id/reply', requireAuth, requireVerified, interactionLimiter, interactionController.replyPost);
 router.get('/explore', requireAuth, requireVerified, communityController.explore);
+router.get('/people', requireAuth, requireVerified, communityController.peopleToFollow);
 router.get('/communities', requireAuth, requireVerified, communityController.directory);
 router.get('/search', requireAuth, requireVerified, controller.search);
 router.post('/search/history/clear', requireAuth, requireVerified, controller.clearSearchHistory);

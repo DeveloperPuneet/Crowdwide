@@ -3,8 +3,8 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
-const { getViralPosts, getPopularPeople } = require('../services/discovery');
-const { clearFeedCache } = require('../services/feedService');
+const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners } = require('../services/discovery');
+const { getInterestProfile, topInterestTags, refreshPersonalization } = require('../services/feedService');
 
 const moderationOnly = async (req, res, next) => {
   const community = await Community.findById(req.params.id);
@@ -50,6 +50,38 @@ exports.explore = async (req, res) => {
     isBrowsing ? Promise.resolve([]) : getViralPosts(4)
   ]);
   res.render('pages/explore', { title: 'Explore', pagePath: '/explore', noIndex: true, communities, categories, query: query || '', category: category || '', newPeople, popularPeople, viralPosts, isBrowsing });
+};
+
+// A dedicated, always-full-width page for people recommendations - the
+// small "People to follow" panel this replaced lived inside the
+// discover-column aside, which the site's own layout hides between roughly
+// 900-1150px viewport widths (and only reappears stacked far below the
+// feed on narrower screens), so it was effectively unusable on a lot of
+// real devices. This page has no such column to disappear into.
+exports.peopleToFollow = async (req, res) => {
+  const user = await User.findById(req.session.user.id).select('following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt recentViews').lean();
+  const followingIds = (user.following || []).map(String);
+  const excludeIds = [req.session.user.id, ...followingIds, ...(user.blockedUsers || []).map(String)];
+  const profile = await getInterestProfile(user);
+  const tags = Array.from(new Set([...(user.hashtags || []), ...topInterestTags(profile.interests, 10)]));
+
+  const [commonInterests, mutualNetwork, trending, newJoiners] = await Promise.all([
+    getCommonInterestPeople(tags, excludeIds, 8),
+    getMutualNetworkPeople(followingIds, excludeIds, 8),
+    getTrendingCreators(excludeIds, 8),
+    getNewJoiners(excludeIds, 8)
+  ]);
+
+  res.render('pages/people', {
+    title: 'People to follow',
+    pagePath: '/people',
+    noIndex: true,
+    commonInterests,
+    mutualNetwork,
+    trending,
+    newJoiners,
+    hasInterests: tags.length > 0
+  });
 };
 
 exports.directory = async (req, res) => {
@@ -205,7 +237,7 @@ exports.requestJoin = async (req, res) => {
     community.membersCount = community.members.length;
     await community.save();
     await User.findByIdAndUpdate(userId, { $addToSet: { joinedCommunities: community._id } });
-    clearFeedCache(userId);
+    refreshPersonalization(userId);
   }
   res.redirect(req.get('referer') || `/communities/${community.slug}`);
 };

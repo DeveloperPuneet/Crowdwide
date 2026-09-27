@@ -6,7 +6,7 @@ const { uploadBuffer, streamFile, mediaUrl, clusterStatus } = require('../servic
 const Comment = require('../models/Comment');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
-const { getFeedPage, clearFeedCache } = require('../services/feedService');
+const { getFeedPage, refreshPersonalization } = require('../services/feedService');
 const { isFeedTab } = require('../utils/feedRanker');
 const { getPopularSearches, recordSearch } = require('../services/popularSearches');
 const { notifyMentionedUsers } = require('../services/mentions');
@@ -179,7 +179,7 @@ exports.createPost = async (req, res) => {
 	}
 	const isDraft = req.body.saveAsDraft === 'on';
 	const createdPost = await Post.create({ author: req.session.user.id, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
-	clearFeedCache(req.session.user.id); // so the new post shows up on the very next feed load
+	refreshPersonalization(req.session.user.id); // so the new post shows up, and shapes "for you", on the very next feed load
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
 	if (!isDraft && !media.length) {
 		// Fire-and-forget: unfurling a link must never delay or block the

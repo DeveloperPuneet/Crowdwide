@@ -8,7 +8,7 @@ const Message = require('../models/Message');
 const { previewText } = require('../services/chat');
 const { extractHashtags } = require('../utils/hashtags');
 const { gifFromBody } = require('../services/gif');
-const { clearFeedCache } = require('../services/feedService');
+const { refreshPersonalization } = require('../services/feedService');
 const { notifyMentionedUsers } = require('../services/mentions');
 const { sendPushToUser } = require('../services/push');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
@@ -54,6 +54,7 @@ exports.toggleLike = async (req, res) => {
   else {
     post.likes.addToSet(req.session.user.id);
     await notify(post.author, req.session.user.id, 'like', 'liked your post.', post._id, post.community, req.session.user.name);
+    refreshPersonalization(req.session.user.id); // a new like should shape "for you" on the very next load, not up to 5 minutes later
   }
   await post.save();
   redirectBack(req, res, { liked: !alreadyLiked, likes: post.likes.length });
@@ -118,6 +119,7 @@ exports.comment = async (req, res) => {
   const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, ...(gif ? { gif } : {}) });
   post.commentsCount += 1;
   await post.save();
+  refreshPersonalization(req.session.user.id);
   await notify(post.author, req.session.user.id, parent ? 'reply' : 'comment', parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
   if (body) await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
   if (req.get('X-Requested-With') === 'XMLHttpRequest') {
@@ -169,7 +171,7 @@ exports.toggleBookmark = async (req, res) => {
   if (!user) return redirectBack(req, res);
   const exists = user.bookmarks.some((id) => String(id) === req.params.id);
   if (exists) user.bookmarks.pull(req.params.id);
-  else user.bookmarks.addToSet(req.params.id);
+  else { user.bookmarks.addToSet(req.params.id); refreshPersonalization(req.session.user.id); }
   await user.save();
   redirectBack(req, res, { bookmarked: !exists });
 };
@@ -205,7 +207,7 @@ exports.toggleReaction = async (req, res) => {
     reactions[type] = users.filter((id) => id !== String(req.session.user.id));
   });
   const hadReaction = (post.reactions?.[reaction] || []).some((id) => String(id) === String(req.session.user.id));
-  if (!hadReaction) reactions[reaction].push(req.session.user.id);
+  if (!hadReaction) { reactions[reaction].push(req.session.user.id); refreshPersonalization(req.session.user.id); }
   post.set('reactions', reactions);
   await post.save();
   const counts = Object.fromEntries(reactionTypes.map((type) => [type, (reactions[type] || []).length]));
@@ -378,7 +380,7 @@ exports.toggleFollow = async (req, res) => {
     await notify(target._id, user._id, 'follow', 'started following you.', undefined, undefined, user.name);
   }
   await user.save();
-  clearFeedCache(user._id); // follow changes what "For you" should show
+  refreshPersonalization(user._id); // follow changes what "For you" should show
   const followersCount = await User.countDocuments({ following: targetId });
   redirectBack(req, res, { following: !alreadyFollowing, followersCount });
 };

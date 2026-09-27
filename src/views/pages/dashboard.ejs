@@ -16,7 +16,7 @@
 			<a href="/communities"><%- icon('users') %> <span>Communities</span></a>
 			<a href="/u/<%= currentUser.id %>"><%- icon('user') %> <span>Your profile</span></a>
 			<a href="/notifications"><%- icon('bell') %> <span>Notifications</span></a>
-			<a href="#people"><%- icon('plus') %> <span>People to follow</span></a>
+			<a href="/people"><%- icon('plus') %> <span>People to follow</span></a>
 		</nav>
 		<div class="sidebar-note"><span><%- icon('sparkles', { size: 20 }) %></span><p><strong>Make room for new voices.</strong><br>Every follow shapes your Crowdwide.<br><a href="/guide" style="color:#8da0ff;">Read tips to grow →</a></p></div>
 		</div>
@@ -109,7 +109,7 @@
 			<form class="create-community" method="post" action="/communities"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="name" placeholder="Create a community" required><input name="description" placeholder="What is it about?" required><input name="category" placeholder="Category e.g. design"><label class="privacy-check"><input type="checkbox" name="isPrivate"> Private community</label><button class="button button-dark button-small" type="submit">Create <span><%- icon('plus', { size: 14 }) %></span></button></form>
 		</section>
 		<section class="discover-panel" id="people">
-			<div class="panel-heading"><h2>People to follow</h2><span>New</span></div>
+			<div class="panel-heading"><h2>People to follow</h2><a href="/people">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
 			<% if (!people.length) { %>
 			<p style="color:#777a91;font-size:12px;padding:10px 0;">You're following everyone who's joined so far.</p>
 			<% } %>
