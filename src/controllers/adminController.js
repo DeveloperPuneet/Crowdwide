@@ -10,12 +10,14 @@ const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
 const Appeal = require('../models/Appeal');
 const { logEvent } = require('../services/accountHistory');
+const { getSiteConfig, clearSiteConfigCache } = require('../services/siteConfig');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const audit = (req, action, targetType, target, details = {}) => AuditLog.create({ actor: req.roleUser._id, action, targetType, target, details, ipAddress: req.ip, userAgent: req.get('user-agent') });
 const panelRoles = { admin: ['admin'], moderator: ['admin', 'moderator'] };
 const postModerationActions = ['delete-post', 'suspend-user', 'rate-good-post', 'rate-bad-post', 'report-post'];
-const SUSPENSION_MS = 365 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SUSPENSION_MS = 365 * DAY_MS; // fallback used only where a site-config lookup isn't already in hand
 
 async function applyPostModerationAction(req, action, post, reason) {
   if (action === 'delete-post') await Post.deleteOne({ _id: post._id });
@@ -33,16 +35,23 @@ async function applyPostModerationAction(req, action, post, reason) {
   }
 }
 
-exports.panelAccessPage = (req, res) => {
+exports.panelAccessPage = async (req, res) => {
   const panel = req.params.panel;
   if (!panelRoles[panel]) return res.status(404).render('pages/not-found', { title: 'Page not found' });
+  // Only admins/moderators should ever see the panel login itself, not just
+  // be blocked when they try to submit it - a regular user landing on this
+  // page (by guessing the URL, an old bookmark, etc.) should get the same
+  // "not found" any other disallowed page gives them.
+  const user = await User.findById(req.session.user.id).select('role');
+  if (!user || !panelRoles[panel].includes(user.role)) return res.status(403).render('pages/not-found', { title: 'Access denied' });
   res.render('pages/panel-access', { title: `${panel === 'admin' ? 'Admin' : 'Moderator'} panel access`, panel, panelLabel: panel === 'admin' ? 'admin' : 'moderator' });
 };
 
 exports.panelAccess = async (req, res) => {
   const panel = req.params.panel;
+  if (!panelRoles[panel]) return res.status(404).render('pages/not-found', { title: 'Page not found' });
   const user = await User.findById(req.session.user.id).select('password role');
-  if (!user || !panelRoles[panel]?.includes(user.role)) return res.status(403).render('pages/not-found', { title: 'Access denied' });
+  if (!user || !panelRoles[panel].includes(user.role)) return res.status(403).render('pages/not-found', { title: 'Access denied' });
   if (!(await bcrypt.compare(req.body.password || '', user.password))) {
     flash(req, 'error', 'That password is not correct.');
     return res.redirect(`/${panel}/access`);
@@ -126,8 +135,17 @@ exports.updateUser = async (req, res) => {
   }
   changes.isVerified = req.body.isVerified === 'on';
   if (!isSelf) {
-    if (req.body.suspend === 'on') {
-      changes.suspendedUntil = new Date(Date.now() + SUSPENSION_MS);
+    // A custom end date always wins when the admin sets one (any value in
+    // the date field, whether or not "Suspend" was also toggled). Otherwise
+    // "Suspend" falls back to the site's configured default length.
+    const customUntil = req.body.suspendUntil ? new Date(req.body.suspendUntil) : null;
+    if (customUntil && !Number.isNaN(customUntil.getTime())) {
+      changes.suspendedUntil = customUntil;
+      changes.suspensionReason = req.body.suspensionReason?.trim().slice(0, 500) || 'Suspended by admin.';
+    } else if (req.body.suspend === 'on') {
+      const settings = await getSiteConfig();
+      const days = settings.suspensionDefaultDays || 365;
+      changes.suspendedUntil = new Date(Date.now() + days * DAY_MS);
       changes.suspensionReason = req.body.suspensionReason?.trim().slice(0, 500) || 'Suspended by admin.';
     } else if (req.body.suspend === 'off') {
       changes.suspendedUntil = null;
@@ -223,8 +241,15 @@ exports.updateSiteSettings = async (req, res) => {
   settings.maintenanceMessage = req.body.maintenanceMessage?.trim().slice(0, 300) || '';
   settings.announcement = req.body.announcement?.trim().slice(0, 300) || '';
   settings.postApprovalDefault = req.body.postApprovalDefault === 'on';
+  const postWordLimit = Number(req.body.postWordLimit);
+  if (Number.isFinite(postWordLimit) && postWordLimit >= 10) settings.postWordLimit = Math.min(2000, Math.round(postWordLimit));
+  const articleWordLimit = Number(req.body.articleWordLimit);
+  if (Number.isFinite(articleWordLimit) && articleWordLimit >= 50) settings.articleWordLimit = Math.min(20000, Math.round(articleWordLimit));
+  const suspensionDefaultDays = Number(req.body.suspensionDefaultDays);
+  if (Number.isFinite(suspensionDefaultDays) && suspensionDefaultDays >= 1) settings.suspensionDefaultDays = Math.min(3650, Math.round(suspensionDefaultDays));
   settings.updatedBy = req.roleUser._id;
   await settings.save();
+  clearSiteConfigCache();
   await audit(req, 'edit-site-settings', 'site', settings._id, {});
   flash(req, 'success', 'Site settings saved.');
   res.redirect('/admin#settings');

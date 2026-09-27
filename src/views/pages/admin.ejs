@@ -55,13 +55,17 @@
               </select></label>
               <label class="checkbox-field"><input type="checkbox" name="isVerified" <%= user.isVerified ? 'checked' : '' %>> Verified</label>
               <% if (String(user._id) !== String(currentUser.id)) { %>
+              <% if (user.suspendedUntil && new Date(user.suspendedUntil) > new Date()) { %>
+              <p class="full-width" style="margin:0;font-size:11px;color:#ff9850;">Currently suspended until <%= new Date(user.suspendedUntil).toLocaleString() %>.</p>
+              <% } %>
               <label>Suspension
                 <select name="suspend">
                   <option value="">No change</option>
-                  <option value="on">Suspend (1 year)</option>
+                  <option value="on">Suspend (default length)</option>
                   <option value="off">Lift suspension</option>
                 </select>
               </label>
+              <label>Custom suspension end date<input type="datetime-local" name="suspendUntil" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
               <label class="full-width">Suspension reason (shown to admins only)<input type="text" name="suspensionReason" value="<%= user.suspensionReason || '' %>"></label>
               <label>Posting restriction
                 <select name="postingRestriction">
@@ -258,6 +262,9 @@
         <label class="checkbox-field"><input type="checkbox" name="maintenanceMode" <%= siteSettings.maintenanceMode ? 'checked' : '' %>> Maintenance mode</label>
         <label class="full-width">Maintenance message<input type="text" name="maintenanceMessage" value="<%= siteSettings.maintenanceMessage %>"></label>
         <label class="full-width">Site-wide announcement banner<input type="text" name="announcement" value="<%= siteSettings.announcement %>"></label>
+        <label>Post word limit<input type="number" name="postWordLimit" min="10" max="2000" value="<%= siteSettings.postWordLimit %>"></label>
+        <label>Article word limit<input type="number" name="articleWordLimit" min="50" max="20000" value="<%= siteSettings.articleWordLimit %>"></label>
+        <label>Default suspension length (days)<input type="number" name="suspensionDefaultDays" min="1" max="3650" value="<%= siteSettings.suspensionDefaultDays %>"></label>
         <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save settings</button></div>
       </form>
     </section>

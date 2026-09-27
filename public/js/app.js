@@ -50,7 +50,7 @@ if (composer) {
   const progressFill = composer.querySelector('[data-word-progress]');
   const suggestions = composer.querySelector('[data-hashtag-suggestions]');
   const pollFields = composer.querySelector('.poll-composer');
-  const limits = JSON.parse(composer.dataset.wordLimits || '{"post":120,"article":550,"poll":120}');
+  const limits = JSON.parse(composer.dataset.wordLimits || '{"post":60,"article":300,"poll":60}');
   const words = () => textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
   const updateCount = () => {
     const limit = limits[typeSelect.value] || limits.post;
@@ -71,7 +71,21 @@ if (composer) {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = `#${tag}`;
-      button.addEventListener('click', () => { textarea.value += `${textarea.value && !/\s$/.test(textarea.value) ? ' ' : ''}#${tag} `; suggestions.replaceChildren(); updateCount(); textarea.focus(); });
+      // Replace the partial "#tag" the person is currently typing (at the
+      // caret) instead of appending a new one at the end of the textarea -
+      // appending was the bug: picking a suggestion left the half-typed
+      // hashtag in place and tacked a second, complete one on afterward.
+      button.addEventListener('click', () => {
+        const caret = textarea.selectionStart;
+        const before = textarea.value.slice(0, caret);
+        const match = before.match(/#([a-z0-9_]*)$/i);
+        const tokenStart = match ? caret - match[0].length : caret;
+        textarea.focus();
+        textarea.setSelectionRange(tokenStart, caret);
+        textarea.setRangeText(`#${tag} `, tokenStart, caret, 'end');
+        suggestions.replaceChildren();
+        updateCount();
+      });
       return button;
     }));
   };

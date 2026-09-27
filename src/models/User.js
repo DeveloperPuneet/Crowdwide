@@ -68,6 +68,13 @@ const userSchema = new mongoose.Schema({
     query: { type: String, trim: true, maxlength: 200 },
     searchedAt: { type: Date, default: Date.now }
   }],
+  // Lightweight post-open log used only to personalize the feed (what this
+  // person actually stops to read, not just what they like/comment on).
+  // Most-recent-first, capped at 60 by the $slice in interactionController.
+  recentViews: [{
+    post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
+    viewedAt: { type: Date, default: Date.now }
+  }],
   warnings: [{
     reason: { type: String, trim: true, maxlength: 500 },
     issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

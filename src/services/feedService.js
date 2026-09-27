@@ -101,13 +101,13 @@ function fetchMostEngaged(match, limit) {
 }
 
 async function loadUser(userId) {
-  return User.findById(userId).select('following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt').lean();
+  return User.findById(userId).select('following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt recentViews').lean();
 }
 
 // What this person is interested in, learned from what they actually do:
-// likes, comments, saves, their own posts, profile/community hashtags and
-// recent searches. Cached briefly - it changes slowly and costs a handful of
-// queries.
+// likes, reactions, comments, saves, posts they opened, their own posts,
+// profile/community hashtags and recent searches. Cached briefly - it
+// changes slowly and costs a handful of queries.
 async function getInterestProfile(user) {
   const key = String(user._id);
   const cached = profileCache.get(key);
@@ -115,12 +115,20 @@ async function getInterestProfile(user) {
 
   const joined = user.joinedCommunities || [];
   const bookmarkIds = (user.bookmarks || []).slice(-40);
-  const [liked, ownPosts, commentRows, saved, communities] = await Promise.all([
+  // Most-recent-first already (see interactionController.postDetail); only
+  // look at a recent slice so an old browsing kick doesn't dominate forever.
+  const viewedIds = (user.recentViews || []).slice(0, 40).map((entry) => entry.post).filter(Boolean);
+  const [liked, reacted, ownPosts, commentRows, saved, communities, viewed] = await Promise.all([
     Post.find({ likes: user._id, status: 'published' }).sort({ createdAt: -1 }).limit(60).select('hashtags author').lean(),
+    Post.find({
+      status: 'published',
+      $or: [{ 'reactions.celebrate': user._id }, { 'reactions.insightful': user._id }, { 'reactions.support': user._id }, { 'reactions.funny': user._id }]
+    }).sort({ createdAt: -1 }).limit(60).select('hashtags author').lean(),
     Post.find({ author: user._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).select('hashtags').lean(),
     Comment.find({ author: user._id }).sort({ createdAt: -1 }).limit(40).select('post').lean(),
     bookmarkIds.length ? Post.find({ _id: { $in: bookmarkIds } }).select('hashtags author').lean() : [],
-    joined.length ? Community.find({ _id: { $in: joined } }).select('hashtags').lean() : []
+    joined.length ? Community.find({ _id: { $in: joined } }).select('hashtags').lean() : [],
+    viewedIds.length ? Post.find({ _id: { $in: viewedIds } }).select('hashtags author').lean() : []
   ]);
   const commented = commentRows.length ? await Post.find({ _id: { $in: commentRows.map((row) => row.post) } }).select('hashtags author').lean() : [];
 
@@ -128,10 +136,12 @@ async function getInterestProfile(user) {
   const interests = ranker.buildInterestMap([
     { tags: user.hashtags || [], weight: 3 },
     ...liked.map((post) => ({ tags: post.hashtags || [], weight: 1 })),
+    ...reacted.map((post) => ({ tags: post.hashtags || [], weight: 1.2 })),
     ...saved.map((post) => ({ tags: post.hashtags || [], weight: 2.5 })),
     ...commented.map((post) => ({ tags: post.hashtags || [], weight: 2 })),
     ...ownPosts.map((post) => ({ tags: post.hashtags || [], weight: 1.5 })),
     ...communities.map((community) => ({ tags: community.hashtags || [], weight: 1.5 })),
+    ...viewed.map((post) => ({ tags: post.hashtags || [], weight: 0.6 })),
     { tags: searchTags, weight: 1.2 }
   ]);
 
@@ -141,8 +151,10 @@ async function getInterestProfile(user) {
     rawAffinity.set(author, (rawAffinity.get(author) || 0) + weight);
   });
   addAffinity(liked, 1);
+  addAffinity(reacted, 1.2);
   addAffinity(commented, 2);
   addAffinity(saved, 2);
+  addAffinity(viewed, 0.5);
   const maxAffinity = Math.max(0, ...rawAffinity.values());
   const authorAffinity = new Map(Array.from(rawAffinity, ([author, value]) => [author, maxAffinity ? Math.sqrt(value / maxAffinity) : 0]));
 

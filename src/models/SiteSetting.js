@@ -12,6 +12,13 @@ const siteSettingSchema = new mongoose.Schema({
   maintenanceMessage: { type: String, trim: true, maxlength: 300, default: '' },
   announcement: { type: String, trim: true, maxlength: 300, default: '' },
   postApprovalDefault: { type: Boolean, default: false },
+  // Content limits - configurable so the admin panel controls them instead
+  // of them being buried as constants in controller code.
+  postWordLimit: { type: Number, default: 60, min: 10, max: 2000 },
+  articleWordLimit: { type: Number, default: 300, min: 50, max: 20000 },
+  // Default length of a "Suspend" action when the admin does not pick a
+  // custom end date for that user.
+  suspensionDefaultDays: { type: Number, default: 365, min: 1, max: 3650 },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

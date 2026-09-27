@@ -14,6 +14,7 @@ const { extractFirstUrl, fetchLinkPreview } = require('../services/linkPreview')
 const { checkPostingRestriction } = require('../utils/postingRestriction');
 const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const { isRepeatPost } = require('../utils/spamDetection');
+const { getWordLimits } = require('../services/siteConfig');
 const logger = require('../services/logger');
 
 async function getLiveStats() {
@@ -79,10 +80,11 @@ exports.dashboard = async (req, res) => {
 		const user = await User.findById(req.session.user.id).lean();
 		const activeTab = resolveFeedView(req.query);
 		const followingIds = (user.following || []).map(String);
-		const [feed, communities, people] = await Promise.all([
+		const [feed, communities, people, wordLimits] = await Promise.all([
 			getFeedPage({ userId: user._id, view: activeTab, page: 1, user }),
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
-			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean()
+			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean(),
+			getWordLimits()
 		]);
 		res.render('pages/dashboard', {
 			title: 'Your Crowdwide',
@@ -92,7 +94,15 @@ exports.dashboard = async (req, res) => {
 			communities,
 			people,
 			joinedCommunities: (user.joinedCommunities || []).map(String),
-			following: followingIds
+			following: followingIds,
+			wordLimits,
+			// The sidebar avatar/name used to read only the session copy of the
+			// user, which is only updated by the settings-save handler - any
+			// other path that touches profilePicture would leave the sidebar
+			// showing a stale (or missing) photo until the next login. Using
+			// the record we already fetched for this request keeps it correct
+			// no matter which code path last changed it.
+			profileUser: user
 		});
 	} catch (error) {
 		logger.error('Unable to load dashboard', error);
@@ -108,7 +118,8 @@ exports.createPost = async (req, res) => {
 	}
 	const body = req.body.body?.trim();
 	const type = ['article', 'poll'].includes(req.body.type) ? req.body.type : 'post';
-	const wordLimit = type === 'article' ? 550 : 120;
+	const wordLimits = await getWordLimits();
+	const wordLimit = type === 'article' ? wordLimits.article : wordLimits.post;
 	const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
 	if (!body || wordCount > wordLimit) {
 		req.session.flash = { type: 'error', message: `${type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` };

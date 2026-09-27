@@ -13,6 +13,7 @@ const { notifyMentionedUsers } = require('../services/mentions');
 const { sendPushToUser } = require('../services/push');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
+const { getWordLimits } = require('../services/siteConfig');
 const logger = require('../services/logger');
 
 const redirectBack = (req, res, payload = {}) => {
@@ -81,7 +82,8 @@ exports.editPost = async (req, res) => {
   const body = req.body.body?.trim();
   const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id });
   if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
-  const wordLimit = post.type === 'article' ? 550 : 120;
+  const wordLimits = await getWordLimits();
+  const wordLimit = post.type === 'article' ? wordLimits.article : wordLimits.post;
   const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
   if (!body || wordCount > wordLimit) return redirectBack(req, res, { ok: false, error: `${post.type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` });
   post.body = body;
@@ -255,6 +257,14 @@ exports.postDetail = async (req, res) => {
     post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
     post.bookmarked = (viewer?.bookmarks || []).some((id) => String(id) === String(post._id));
     blockedIds = (viewer?.blockedUsers || []).map(String);
+    // Log the open for feed personalization (what this person reads, not
+    // just what they like/comment on) - skip their own posts, those don't
+    // tell us anything about outside interests. Most-recent-first, capped
+    // at 60 so the array never grows unbounded. Fire-and-forget: a slow or
+    // failed write here should never hold up or break the page render.
+    if (String(post.author?._id || post.author) !== String(viewerId)) {
+      User.updateOne({ _id: viewerId }, { $push: { recentViews: { $each: [{ post: post._id, viewedAt: new Date() }], $position: 0, $slice: 60 } } }).catch(() => {});
+    }
   }
   const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean())
     .filter((comment) => !blockedIds.includes(String(comment.author?._id)));
