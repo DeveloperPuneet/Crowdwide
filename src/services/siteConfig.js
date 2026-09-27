@@ -32,4 +32,9 @@ async function getWordLimits() {
   };
 }
 
-module.exports = { getSiteConfig, clearSiteConfigCache, getWordLimits };
+async function getPostReviewThreshold() {
+  const settings = await getSiteConfig();
+  return settings.postReviewThreshold || 5;
+}
+
+module.exports = { getSiteConfig, clearSiteConfigCache, getWordLimits, getPostReviewThreshold };

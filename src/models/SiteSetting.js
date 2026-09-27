@@ -19,6 +19,10 @@ const siteSettingSchema = new mongoose.Schema({
   // Default length of a "Suspend" action when the admin does not pick a
   // custom end date for that user.
   suspensionDefaultDays: { type: Number, default: 365, min: 1, max: 3650 },
+  // Once this many distinct moderators have looked at a post, it drops out
+  // of everyone's moderation queue - no point re-showing something 5+
+  // people already judged.
+  postReviewThreshold: { type: Number, default: 5, min: 1, max: 50 },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

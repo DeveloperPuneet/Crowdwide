@@ -10,7 +10,7 @@ const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
 const Appeal = require('../models/Appeal');
 const { logEvent } = require('../services/accountHistory');
-const { getSiteConfig, clearSiteConfigCache } = require('../services/siteConfig');
+const { getSiteConfig, clearSiteConfigCache, getPostReviewThreshold } = require('../services/siteConfig');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const audit = (req, action, targetType, target, details = {}) => AuditLog.create({ actor: req.roleUser._id, action, targetType, target, details, ipAddress: req.ip, userAgent: req.get('user-agent') });
@@ -82,6 +82,31 @@ exports.moderatePost = async (req, res) => {
   res.redirect(`/posts/${req.params.id}`);
 };
 
+// The approval queue used to show only a raw target ObjectId, which meant
+// an admin had to go dig up the report/post/user themselves before they
+// could judge a pending action. Attaching a short snippet of what's
+// actually being acted on makes "approve or reject" a real decision
+// instead of a guess.
+async function attachActionContext(actions) {
+  const reportIds = actions.filter((a) => a.targetType === 'report').map((a) => a.target);
+  const postIds = actions.filter((a) => a.targetType === 'post').map((a) => a.target);
+  const userIds = actions.filter((a) => a.targetType === 'user').map((a) => a.target);
+  const [reports, posts, users] = await Promise.all([
+    reportIds.length ? Report.find({ _id: { $in: reportIds } }).select('targetType target reason status').lean() : [],
+    postIds.length ? Post.find({ _id: { $in: postIds } }).select('body').populate('author', 'name').lean() : [],
+    userIds.length ? User.find({ _id: { $in: userIds } }).select('name email').lean() : []
+  ]);
+  const reportMap = new Map(reports.map((r) => [String(r._id), r]));
+  const postMap = new Map(posts.map((p) => [String(p._id), p]));
+  const userMap = new Map(users.map((u) => [String(u._id), u]));
+  actions.forEach((a) => {
+    if (a.targetType === 'report') a.reportContext = reportMap.get(String(a.target));
+    if (a.targetType === 'post') a.postContext = postMap.get(String(a.target));
+    if (a.targetType === 'user') a.userContext = userMap.get(String(a.target));
+  });
+  return actions;
+}
+
 exports.admin = async (req, res) => {
   const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, siteSettings] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason warnings').lean(),
@@ -95,6 +120,7 @@ exports.admin = async (req, res) => {
     SiteSetting.getSingleton()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
+  await attachActionContext(pendingActions);
   res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, siteSettings, pinnedPostIds, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
@@ -247,6 +273,8 @@ exports.updateSiteSettings = async (req, res) => {
   if (Number.isFinite(articleWordLimit) && articleWordLimit >= 50) settings.articleWordLimit = Math.min(20000, Math.round(articleWordLimit));
   const suspensionDefaultDays = Number(req.body.suspensionDefaultDays);
   if (Number.isFinite(suspensionDefaultDays) && suspensionDefaultDays >= 1) settings.suspensionDefaultDays = Math.min(3650, Math.round(suspensionDefaultDays));
+  const postReviewThreshold = Number(req.body.postReviewThreshold);
+  if (Number.isFinite(postReviewThreshold) && postReviewThreshold >= 1) settings.postReviewThreshold = Math.min(50, Math.round(postReviewThreshold));
   settings.updatedBy = req.roleUser._id;
   await settings.save();
   clearSiteConfigCache();
@@ -323,7 +351,10 @@ async function applyApprovedAction(req, action) {
     }
     if (Object.keys(update).length) await Community.findByIdAndUpdate(action.target, update);
   }
-  if (action.action === 'resolve-report') await Report.findByIdAndUpdate(action.target, { status: 'resolved', reviewedBy: req.roleUser._id, reviewedAt: new Date(), resolution: action.reason });
+  if (action.action === 'resolve-report') {
+    const decision = payload.decision === 'dismissed' ? 'dismissed' : 'resolved';
+    await Report.findByIdAndUpdate(action.target, { status: decision, reviewedBy: req.roleUser._id, reviewedAt: new Date(), resolution: action.reason });
+  }
   if (['rate-good-post', 'rate-bad-post'].includes(action.action)) {
     const scoreChange = action.action === 'rate-good-post' ? 1 : -1;
     await Post.findByIdAndUpdate(action.target, { $inc: { moderationScore: scoreChange }, $set: { moderationStatus: scoreChange > 0 ? 'good' : 'needs-review' } });
@@ -339,6 +370,9 @@ exports.reviewAction = async (req, res) => {
   if (!action) return res.redirect('/admin#queue');
   const approved = req.body.decision === 'approve';
   if (approved) await applyApprovedAction(req, action);
+  // A rejected report recommendation shouldn't leave the report stuck in
+  // "reviewing" forever with no way for anyone to act on it again.
+  else if (action.action === 'resolve-report') await Report.updateOne({ _id: action.target, status: 'reviewing' }, { status: 'open' });
   action.status = approved ? 'approved' : 'rejected';
   action.reviewedBy = req.roleUser._id;
   action.reviewedAt = new Date();
@@ -350,23 +384,49 @@ exports.reviewAction = async (req, res) => {
 };
 
 exports.moderator = async (req, res) => {
+  const reviewThreshold = await getPostReviewThreshold();
+  const reportedOnly = req.query.filter === 'reported';
   const [reports, actions, communities, moderationFeed] = await Promise.all([
-    Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(60).select('targetType target reason evidenceUrl status createdAt').lean(),
+    Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ status: 1, createdAt: -1 }).limit(60).select('targetType target reason evidenceUrl status createdAt').populate('reporter', 'name').lean(),
     ModerationAction.find({ moderator: req.roleUser._id }).sort({ createdAt: -1 }).limit(60).select('action targetType target reason status createdAt reviewNote').lean(),
     Community.find().sort({ membersCount: -1 }).limit(60).select('name slug description guidelines category membersCount requireApproval bannedWords createdAt').lean(),
-    Post.find({ status: 'published', author: { $ne: req.roleUser._id } }).sort({ moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus').populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+    // Excludes posts this moderator has already looked at, and posts enough
+    // other moderators have already cleared - see moderatorReviews on Post
+    // and postReviewThreshold in site settings. ?filter=reported narrows to
+    // just posts someone has actually flagged, for a moderator who wants to
+    // clear the backlog of real reports before the general queue.
+    Post.find({
+      status: 'published',
+      author: { $ne: req.roleUser._id },
+      moderatorReviews: { $ne: req.roleUser._id },
+      $expr: { $lt: [{ $size: { $ifNull: ['$moderatorReviews', []] } }, reviewThreshold] },
+      ...(reportedOnly ? { moderationStatus: 'reported' } : {})
+    }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean()
   ]);
-  res.render('pages/moderator', { title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser });
+  const myOpenReportRecommendations = new Set(actions.filter((a) => a.action === 'resolve-report' && a.status === 'pending').map((a) => String(a.target)));
+  res.render('pages/moderator', { title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly });
 };
 
 exports.submitAction = async (req, res) => {
+  // A pure "I looked at this, nothing to flag" - it doesn't change anything
+  // user-facing, so it doesn't need admin approval or even a reason. It
+  // just records that this moderator has reviewed the post, so it stops
+  // showing up in their queue (and drops out of everyone's queue once
+  // enough moderators have done the same - see the feed query below).
+  if (req.body.action === 'mark-reviewed') {
+    if (!req.body.target) return res.redirect('/moderator');
+    const post = await Post.findOneAndUpdate({ _id: req.body.target, author: { $ne: req.roleUser._id } }, { $addToSet: { moderatorReviews: req.roleUser._id } }, { new: true }).select('_id').lean();
+    if (post) flash(req, 'success', 'Marked reviewed.');
+    return res.redirect('/moderator');
+  }
+
   const allowed = ['delete-post', 'edit-post', 'suspend-user', 'unsuspend-user', 'warn-user', 'edit-community', 'resolve-report', 'rate-good-post', 'rate-bad-post', 'report-post'];
   if (!allowed.includes(req.body.action) || !req.body.target || !req.body.reason?.trim()) return res.redirect('/moderator');
   const postActions = ['delete-post', 'edit-post', 'rate-good-post', 'rate-bad-post', 'report-post'];
   const userActions = ['suspend-user', 'unsuspend-user', 'warn-user'];
   const targetType = postActions.includes(req.body.action) ? 'post' : userActions.includes(req.body.action) ? 'user' : req.body.action === 'edit-community' ? 'community' : 'report';
   if (postActions.includes(req.body.action)) {
-    const post = await Post.findOne({ _id: req.body.target, author: { $ne: req.roleUser._id } }).select('_id').lean();
+    const post = await Post.findOneAndUpdate({ _id: req.body.target, author: { $ne: req.roleUser._id } }, { $addToSet: { moderatorReviews: req.roleUser._id } }).select('_id').lean();
     if (!post) {
       flash(req, 'error', 'Moderators cannot review or influence their own posts.');
       return res.redirect('/moderator');
@@ -380,6 +440,20 @@ exports.submitAction = async (req, res) => {
       guidelines: req.body.payload?.guidelines?.trim().slice(0, 4000) || '',
       bannedWords: req.body.payload?.bannedWords?.trim().slice(0, 1000) || ''
     };
+  }
+  if (req.body.action === 'resolve-report') {
+    // Reports go to moderators first: they leave a recommendation here,
+    // which puts the report into "reviewing" right away so other
+    // moderators can see it's being handled, then an admin makes the
+    // actual call (see applyApprovedAction / reviewAction).
+    const report = await Report.findOne({ _id: req.body.target, status: 'open' });
+    if (!report) {
+      flash(req, 'error', 'That report is already under review or has been closed.');
+      return res.redirect('/moderator');
+    }
+    payload = { decision: req.body.payload?.decision === 'dismissed' ? 'dismissed' : 'resolved' };
+    report.status = 'reviewing';
+    await report.save();
   }
   await ModerationAction.create({ moderator: req.roleUser._id, action: req.body.action, targetType, target: req.body.target, reason: req.body.reason.trim(), payload });
   await audit(req, 'submit-moderation-action', targetType, req.body.target, { action: req.body.action });

@@ -49,7 +49,12 @@ const postSchema = new mongoose.Schema({
   viewsCount: { type: Number, default: 0 },
   sharesCount: { type: Number, default: 0 },
   moderationScore: { type: Number, default: 0, index: true },
-  moderationStatus: { type: String, enum: ['unreviewed', 'good', 'needs-review', 'reported'], default: 'unreviewed', index: true }
+  moderationStatus: { type: String, enum: ['unreviewed', 'good', 'needs-review', 'reported'], default: 'unreviewed', index: true },
+  // Which moderators have already looked at this post in the moderation
+  // feed - lets a moderator's queue skip what they've personally already
+  // reviewed, and lets everyone's queue skip a post once enough distinct
+  // moderators have weighed in (see SiteSetting.postReviewThreshold).
+  moderatorReviews: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 }, { timestamps: true });
 
 postSchema.index({ status: 1, createdAt: -1 });

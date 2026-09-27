@@ -231,6 +231,9 @@
     <% pendingActions.forEach((item) => { %>
     <div class="device-row" style="flex-direction:column;align-items:stretch;">
       <div><strong><%= item.action %></strong><span> requested by <%= item.moderator?.name || 'Moderator' %> (<%= item.moderator?.moderatorId %>) · target <%= item.targetType %> <%= item.target %></span></div>
+      <% if (item.targetType === 'report' && item.reportContext) { %><div class="admin-diff"><strong>Reported <%= item.reportContext.targetType %></strong> — <%= item.reportContext.reason %></div><% } %>
+      <% if (item.targetType === 'post' && item.postContext) { %><div class="admin-diff"><strong>Post by <%= item.postContext.author?.name || 'Member' %></strong><%= (item.postContext.body || '').slice(0, 180) %></div><% } %>
+      <% if (item.targetType === 'user' && item.userContext) { %><div class="admin-diff"><strong>Account</strong> <%= item.userContext.name %> (<%= item.userContext.email %>)</div><% } %>
       <div class="admin-diff"><strong>Reason</strong><%= item.reason %><% if (item.payload && Object.keys(item.payload).length) { %><strong style="margin-top:8px;">Proposed change</strong><% Object.entries(item.payload).forEach(([k, v]) => { %><%= k %>: <%= v %>
 <% }) %><% } %></div>
       <form method="post" action="/admin/moderation/<%= item._id %>/review" style="display:flex;gap:8px;">
@@ -265,6 +268,7 @@
         <label>Post word limit<input type="number" name="postWordLimit" min="10" max="2000" value="<%= siteSettings.postWordLimit %>"></label>
         <label>Article word limit<input type="number" name="articleWordLimit" min="50" max="20000" value="<%= siteSettings.articleWordLimit %>"></label>
         <label>Default suspension length (days)<input type="number" name="suspensionDefaultDays" min="1" max="3650" value="<%= siteSettings.suspensionDefaultDays %>"></label>
+        <label>Moderators needed to clear a post<input type="number" name="postReviewThreshold" min="1" max="50" value="<%= siteSettings.postReviewThreshold %>"></label>
         <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save settings</button></div>
       </form>
     </section>
