@@ -327,11 +327,22 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
 .two-factor-qr { display: block; width: 200px; height: 200px; margin: 6px auto 24px; border-radius: 10px; background: #fff; padding: 10px; }
 
 /* 5. App shell: header / sidebar / layout / footer -------------------------*/
+/* Keep the page width identical whether or not the page needs a scrollbar, so
+   switching between a short and a long settings/profile section never nudges
+   the centred layout sideways. */
+html { scrollbar-gutter: stable; }
+
 .dashboard-page {
   background: radial-gradient(circle at 80% 0%, #1c2250, transparent 28%), var(--ink);
   color: #f6f6fa; min-height: 100vh; display: flex; flex-direction: column;
 }
 .dashboard-page .brand { color: #f6f6fa; }
+/* .dashboard-page is a flex column. Children with `margin: auto` (settings,
+   profile, explore, community pages...) then shrink-to-fit their CONTENT instead
+   of stretching, so the layout - and the sidebar/nav inside it - resized every
+   time the content changed. Force full width; max-width + margin:auto on each
+   layout still centres it. */
+.dashboard-page > main, .dashboard-page > .container, .dashboard-page > section { width: 100%; }
 
 .app-nav {
   height: var(--header-h); padding: 0 max(20px, calc((100% - 1400px) / 2));
@@ -403,6 +414,7 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
 
 .app-footer { border-top: 1px solid var(--line); margin-top: auto; }
 .app-footer .footer-top { grid-template-columns: 1.3fr repeat(3, 1fr); }
+.profile-layout > div { min-width: 0; }
 .profile-layout { max-width: 1240px; margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; padding: 40px var(--gutter) 70px; }
 .profile-banner { width: 100%; height: 200px; border-radius: 14px; overflow: hidden; background: linear-gradient(120deg, #232a5c, #171a30); margin-bottom: 20px; }
 .profile-banner img { width: 100%; height: 100%; object-fit: cover; }
@@ -788,13 +800,22 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
 .settings-content h2 { font-size: 34px; margin-bottom: 28px; }
 .settings-form { display: grid; gap: 18px; width: 100%; }
 .settings-form.compact { width: 100%; }
+/* Fixed navigation column + flexible content column. The nav never resizes or
+   moves between sections; only the content pane changes, and it always fills
+   the remaining space (min-width:0 stops long text such as user-agent strings
+   from stretching the grid, min-height keeps short sections from making the
+   footer jump). Every section shares one readable max width. */
+.settings-layout > .settings-nav { width: 100%; min-width: 0; }
+.settings-content { min-width: 0; min-height: 60vh; }
+.settings-content > .settings-form, .settings-content > .settings-block, .settings-content > .settings-form.compact { width: 100%; max-width: 820px; }
+.settings-content .device-row strong { overflow-wrap: anywhere; }
 .settings-form label, .settings-block label { display: grid; gap: 8px; color: #bfc0cc; font-size: 12px; }
 .link-fields { display: grid; gap: 8px; }
 .link-field-row { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
 .link-field-row input { font-size: 12px; }
 .settings-form textarea, .settings-block textarea { min-height: 110px; resize: vertical; }
 .settings-form small, .settings-block p { color: #777a91; font-size: 11px; }
-.settings-block { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 24px; margin-top: 26px; max-width: 880px; }
+.settings-block { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 24px; margin-top: 26px; max-width: 820px; }
 .settings-block h3, .settings-block h2 { font-size: 17px; margin: 0 0 8px; }
 .settings-block-heading { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; }
 .device-row { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding: 15px 0; }
