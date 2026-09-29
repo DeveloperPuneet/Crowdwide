@@ -5,6 +5,8 @@ rough edges, features that are still being hardened, and the occasional
 bug that hasn't surfaced yet. If something breaks, that's useful
 information, not an inconvenience.
 
+[![Signalcrest signal](https://www.signalcrest.app/api/badge/dev%3A4644319)](https://www.signalcrest.app/topic/dev%3A4644319)
+
 **Live:** the deployed instance runs at the URL set in `APP_URL` (see
 `.env.example`) - typically something like `https://www.crowdwide.run.place`.
 If you're reading this from the repo and aren't sure what the current
