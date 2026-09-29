@@ -40,11 +40,225 @@
 - Sign-in/sign-up speed, mail delivery and feed UI pass: mail now goes out over the Gmail API (HTTPS) by default and is never awaited in the request path; sign-in no longer fails on duplicate LoginSession; bcrypt cost is configurable (default 10); DB fails fast; media supports HTTP Range (video seek / iOS playback); feed cards show content + likes/comments/shares/views only with reply/quote/report/edit on the post page; media frames keep each item's aspect ratio; composer is hidden until "Share something"; wider layouts for notifications, messages, settings, profile; CSP-blocked inline confirm() handlers replaced with data-confirm. Not verified in a real browser or against live Gmail/MongoDB - see `npm run mail:test`.
 
 ## Next Priorities
+1. STABLE RELEASE
 
-1. Evaluate monetization only after safety, reliability, and accessibility work is complete - see the new `/premium` page, which explains this publicly instead of just being a backlog note.
-2. full check if any feature is not working or broken (ongoing - admin, group chat, auth, posting/media/articles, link previews, settings/notifications, moderation/suspension/appeals, ops/infra, communities, DMs, and search have now had a close pass, including the severe private-community finding below. Group chat message notifications specifically have not been rechecked since the original group-chat fix earlier this session.)
-3. PUBLIC TEST: done by the developers
-4. STABLE RELEASE
+## Comming soon!!
+The following features are planned for future Crowdwide updates. They are intended to improve community discovery, encourage meaningful participation, strengthen collaboration, and give communities more opportunities to grow.
+
+These features are planned, not yet implemented. Their implementation order may change depending on user feedback, platform stability, and development priorities.
+
+1. Community Galaxy — Interactive Community Discovery Map 🌐
+
+Goal: Create an interactive world map that allows users to discover communities based on their geographic location, interests, and activity.
+
+Instead of discovering communities only through lists, search results, or recommendation feeds, users will be able to explore communities visually on a world map.
+
+Planned functionality:
+
+Display communities on an interactive world map according to their selected city, region, or country.
+Represent each community with a circular map marker.
+Scale marker sizes according to community size, using membership and follower statistics where applicable. Larger communities will have larger markers, while smaller communities will remain discoverable.
+When a user hovers over or selects a marker, display a compact information card containing:
+Community name and profile image.
+Short description.
+Main interests, topics, or hashtags.
+Number of members and followers, where available.
+Basic activity or engagement statistics.
+A link to open the community page.
+Allow users to zoom and pan around the map and explore communities in different regions.
+Provide filters for interests, categories, and other useful community attributes.
+Allow users to open a community directly from its map marker.
+Make the map responsive and usable on desktop, tablet, and mobile devices.
+
+Privacy and accessibility requirements:
+
+Community location must be optional and controlled by the community owner.
+Display only the general location intentionally provided by the community, never a creator's precise personal location.
+Support communities that operate entirely online without a physical location.
+Ensure smaller communities remain visible and are not overshadowed by larger markers.
+
+Expected outcome: A visual discovery experience that helps users find communities they might never have discovered through a conventional feed.
+
+2. Rising Communities Radar — Discover Growing Communities 📡
+
+Goal: Help emerging and smaller communities gain visibility by identifying communities experiencing meaningful growth.
+
+Crowdwide's discovery system should not depend exclusively on total membership, follower counts, or lifetime popularity. This feature will introduce a dedicated discovery area for communities whose activity and participation are increasing.
+
+Planned functionality:
+
+Introduce a dedicated Rising Communities section, including a Rising This Week view.
+Evaluate communities using multiple signals, such as:
+Recent member and follower growth.
+Growth in meaningful posts and discussions.
+Active participation from existing and new members.
+Comment and reply activity.
+Consistency of activity over time.
+Content relevance and community health.
+Measure growth relative to a community's previous activity, rather than relying only on absolute numbers.
+Give smaller communities an opportunity to appear when they show meaningful progress, even if their total membership is low.
+Allow users to open a community directly from the results and join or follow it.
+Refresh rankings periodically using a defined measurement window.
+Provide appropriate handling for communities that have insufficient activity or historical data to calculate reliable growth.
+
+Anti-spam and fairness safeguards:
+
+Detect suspicious activity and artificial engagement.
+Reduce the influence of repetitive posts, fake accounts, spam, and coordinated engagement manipulation.
+Avoid allowing raw likes, comments, or membership totals to determine rankings by themselves.
+Apply appropriate eligibility thresholds and safeguards against sudden artificial spikes.
+Prevent communities from gaining an advantage simply by generating large volumes of low-quality content.
+
+Expected outcome: A discovery system that rewards genuine community development and helps promising communities reach new audiences.
+
+3. Your Community Journey — Personal Activity Recap 🏆
+
+Goal: Give users a personalized, shareable summary of their participation and contributions across Crowdwide.
+
+The feature should help users reflect on their activity and recognize meaningful contributions without encouraging excessive posting or unhealthy competition.
+
+Planned functionality:
+
+Generate a personal recap for a selected period, such as a month or year.
+Show communities the user discovered or joined during that period.
+Highlight discussions the user participated in.
+Summarize helpful answers, useful contributions, and other meaningful interactions where these can be measured reliably.
+Show collaborative projects or community activities the user participated in, when supported by the relevant features.
+Highlight the growth of communities the user owns or helps manage.
+Include relevant milestones, such as joining a first community or contributing to a collaborative guide.
+Present the recap in a visually appealing format with cards and statistics.
+Allow users to share a recap externally or save it as an image.
+Provide privacy controls so users can choose whether to generate and share their recap.
+
+Implementation considerations:
+
+Use reliable activity records and clearly defined counting rules.
+Avoid treating raw post volume or reaction counts as a measure of a user's worth.
+Do not expose private-community information or another user's private activity in a shared recap.
+Ensure that users with lower activity still receive a useful, respectful experience.
+
+Expected outcome: A personal reflection feature that makes participation more rewarding and gives users a reason to celebrate their community involvement.
+
+4. Community Co-Authored Posts — Collaborative Publishing ✍️
+
+Goal: Allow multiple community members to collaborate on a single article, guide, tutorial, or other supported long-form post.
+
+Instead of requiring one person to write an entire guide, community members will be able to contribute to a shared piece of content while retaining attribution for their work.
+
+Planned functionality:
+
+Allow an eligible post author or community moderator to initiate a collaborative post.
+Invite other users to contribute, subject to the permissions configured for the feature.
+Provide a clear interface for accepting, declining, and managing contributor invitations.
+Display the post's contributors and identify the original creator.
+Maintain an edit history showing previous revisions and the contributors responsible for changes.
+Allow authorized users to review, edit, approve, or revert revisions according to their permissions.
+Support a defined publishing workflow, including drafts and publication of the completed post.
+Allow the post to appear in the appropriate community feed and author profiles.
+Clearly distinguish collaborative posts from ordinary posts.
+
+Permissions and safety:
+
+Only authorized users should be able to edit or manage a collaborative post.
+Contributors must not automatically receive community administrator or moderator permissions.
+Preserve attribution when revisions are made.
+Prevent unauthorized edits and provide a way to recover earlier versions.
+Define how contributor removal, post deletion, and community moderation affect collaborative content.
+
+Expected outcome: Communities can collaboratively maintain tutorials, documentation, FAQs, educational resources, and other content that benefits from multiple contributors.
+
+5. Community Quests — Challenges and Shared Goals 🎯
+
+Goal: Help communities become more active through organized activities that encourage members to participate together.
+
+Community Quests will allow eligible community owners and moderators to organize challenges, events, and collaborative goals.
+
+Planned functionality:
+
+Allow authorized community staff to create a quest with a title, description, instructions, and participation period.
+Support different quest types, such as:
+Weekly coding challenges.
+Reading clubs and book discussions.
+Creative prompts and art challenges.
+Learning goals and educational activities.
+Community improvement projects.
+Collaborative content creation.
+Define start and end dates, eligibility rules, and completion requirements.
+Allow members to join a quest and view its progress.
+Provide a dedicated quest page with instructions, participating members, updates, and relevant discussions.
+Support individual or collective goals, depending on the quest type.
+Track completion using clearly defined criteria.
+Display community milestones when a shared goal is achieved.
+Allow completed quests to be archived and revisited.
+Provide notifications for new quests, approaching deadlines, and completed milestones.
+
+Anti-abuse and moderation:
+
+Allow community moderators to remove inappropriate quest content and address rule violations.
+Avoid awarding milestones purely for posting large quantities of content.
+Define completion rules that discourage spam and artificial engagement.
+Ensure participation is optional and does not interfere with normal community use.
+
+Expected outcome: Communities gain a practical way to organize activities, encourage collaboration, and give members a reason to return regularly.
+
+6. Messaging System — Remaining Improvements 💬
+
+Goal: Complete the remaining messaging capabilities and strengthen protection against unwanted messages.
+
+Crowdwide already has direct messages and group conversations. The following improvements are planned to make messaging more complete and manageable.
+
+A. Message requests
+
+Introduce a separate message-request area for messages from people with whom the recipient has not established an accepted conversation.
+Allow recipients to accept, decline, or block requests.
+Avoid treating unaccepted requests as ordinary conversations.
+Apply privacy settings and rate limits to prevent unsolicited messaging.
+
+B. Messaging spam controls
+
+Detect repetitive, excessive, or suspicious message activity.
+Apply appropriate rate limits to message sending.
+Prevent repeated unwanted messages from bypassing recipient controls.
+Provide reporting and blocking options within conversations.
+Give administrators or moderators appropriate tools for investigating reported abuse, subject to privacy and access controls.
+
+C. Search within conversations
+
+Allow users to search the messages in an individual conversation or group chat.
+Support relevant text matching and navigation to the matching message.
+Provide clear empty states when no results are found.
+Respect conversation membership and message visibility permissions.
+Avoid exposing messages from conversations the current user cannot access.
+
+D. Image and file sharing
+
+Allow users to attach supported images and files to direct and group messages.
+Validate file types, file sizes, and upload permissions.
+Display image previews and appropriate file information.
+Provide clear upload progress and failure messages.
+Apply appropriate access controls so attachments are available only to authorized conversation participants.
+Apply security scanning and safe-download protections where supported by the deployment.
+
+Expected outcome: A more complete messaging experience with better discoverability, safer communication, and convenient media sharing.
+
+7. Continued Improvements and Post-Launch Refinement 🔧
+
+Alongside the larger features, Crowdwide will continue receiving smaller improvements based on actual usage.
+
+Planned areas include:
+
+Improving SEO, metadata, and discoverability of public content.
+Refining layouts and responsive behavior across devices.
+Improving loading performance and perceived responsiveness.
+Fixing bugs discovered through real-world usage.
+Improving feed relevance and interest detection.
+Refining accessibility and customization options.
+Improving moderation tools as communities grow.
+Reviewing user feedback and prioritizing frequently reported problems.
+Monitoring performance, error rates, and infrastructure reliability.
+Testing backup restoration and disaster-recovery procedures against the actual production deployment.
+
+Expected outcome: A platform that becomes more reliable and useful through measured, continuous improvement rather than adding features without validating them.
 
 ## Known Gaps
 
