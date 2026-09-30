@@ -6,13 +6,14 @@ const communityController = require('../controllers/communityController');
 const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
-const { interactionLimiter, apiLimiter, pollLimiter, gifLimiter, csrfSynchronisedProtection } = require('../middleware/security');
+const { interactionLimiter, apiLimiter, pollLimiter, gifLimiter, translateLimiter, csrfSynchronisedProtection } = require('../middleware/security');
 const chatController = require('../controllers/chatController');
 const shareController = require('../controllers/shareController');
 const gifController = require('../controllers/gifController');
 const twoFactorController = require('../controllers/twoFactorController');
 const appealController = require('../controllers/appealController');
 const adminController = require('../controllers/adminController');
+const translateController = require('../controllers/translateController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
 
 router.get('/', controller.home);
@@ -31,6 +32,7 @@ router.get('/messages', requireAuth, requireVerified, interactionController.mess
 router.get('/messages/:id', requireAuth, requireVerified, chatController.dmThread);
 router.get('/messages/:id/poll', requireAuth, requireVerified, pollLimiter, chatController.dmPoll);
 router.post('/messages/:id', requireAuth, requireVerified, interactionLimiter, chatController.dmSend);
+router.post('/messages/:id/react', requireAuth, requireVerified, interactionLimiter, chatController.dmReact);
 router.get('/groups', requireAuth, requireVerified, groupController.list);
 router.post('/groups', requireAuth, requireVerified, interactionLimiter, groupController.create);
 router.get('/groups/join/:code', requireAuth, requireVerified, groupController.joinPreview);
@@ -38,6 +40,7 @@ router.post('/groups/join/:code', requireAuth, requireVerified, interactionLimit
 router.get('/groups/:id', requireAuth, requireVerified, chatController.groupThread);
 router.get('/groups/:id/poll', requireAuth, requireVerified, pollLimiter, chatController.groupPoll);
 router.post('/groups/:id', requireAuth, requireVerified, interactionLimiter, chatController.groupSend);
+router.post('/groups/:id/messages/:messageId/react', requireAuth, requireVerified, interactionLimiter, chatController.groupReact);
 router.get('/groups/:id/info', requireAuth, requireVerified, groupController.info);
 router.post('/groups/:id/rename', requireAuth, requireVerified, interactionLimiter, groupController.rename);
 router.post('/groups/:id/avatar', requireAuth, requireVerified, interactionLimiter, groupUpload, csrfSynchronisedProtection, handleUploadError, validateGroupUpload, scanUploadsForViruses, groupController.setAvatar);
@@ -63,11 +66,15 @@ router.post('/posts/:id/comments', requireAuth, requireVerified, interactionLimi
 router.post('/comments/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editComment);
 router.post('/comments/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deleteComment);
 router.post('/comments/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleCommentLike);
+router.post('/comments/:id/author-heart', requireAuth, requireVerified, interactionLimiter, interactionController.toggleAuthorHeart);
+router.post('/comments/:id/react', requireAuth, requireVerified, interactionLimiter, interactionController.toggleCommentReaction);
 router.post('/posts/:id/bookmark', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBookmark);
 router.post('/posts/:id/share', requireAuth, requireVerified, interactionLimiter, interactionController.share);
 router.post('/posts/:id/poll/vote', requireAuth, requireVerified, interactionLimiter, interactionController.votePoll);
 router.post('/posts/:id/reaction', requireAuth, requireVerified, interactionLimiter, interactionController.toggleReaction);
 router.post('/posts/:id/reply', requireAuth, requireVerified, interactionLimiter, interactionController.replyPost);
+router.get('/translate/languages', requireAuth, requireVerified, translateController.languages);
+router.post('/translate', requireAuth, requireVerified, translateLimiter, translateController.translate);
 router.get('/explore', requireAuth, requireVerified, communityController.explore);
 router.get('/people', requireAuth, requireVerified, communityController.peopleToFollow);
 router.get('/communities', requireAuth, requireVerified, communityController.directory);
@@ -131,7 +138,7 @@ router.get('/settings/account/download', requireAuth, requireVerified, settingsC
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
 router.get('/docs', controller.docs);
-['/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/premium', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
+['/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);
 router.get('/sitemap.xml', controller.sitemap);
 

@@ -14,6 +14,7 @@ const { sendPushToUser } = require('../services/push');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { getWordLimits } = require('../services/siteConfig');
+const { toggleReaction } = require('../utils/reactions');
 const logger = require('../services/logger');
 
 const redirectBack = (req, res, payload = {}) => {
@@ -126,7 +127,7 @@ exports.comment = async (req, res) => {
     // Send the finished comment back as HTML so the page can drop it into the
     // thread without reloading.
     const node = { ...comment.toObject(), author: { _id: req.session.user.id, name: req.session.user.name, profilePicture: req.session.user.profilePicture }, children: [] };
-    const html = await renderPartial(res, 'partials/comment-node', { node, depth: parent ? 1 : 0, postId: post._id, csrfToken: res.locals.csrfToken, canReply: true });
+    const html = await renderPartial(res, 'partials/comment-node', { node, depth: parent ? 1 : 0, postId: post._id, postAuthorId: post.author, csrfToken: res.locals.csrfToken, canReply: true });
     return res.json({ ok: true, html: html.trim(), id: comment._id, parent, commentsCount: post.commentsCount });
   }
   res.redirect(`${req.get('referer') || '/dashboard'}#post-${post._id}`);
@@ -162,6 +163,30 @@ exports.toggleCommentLike = async (req, res) => {
   else comment.likes.addToSet(req.session.user.id);
   await comment.save();
   return redirectBack(req, res, { liked: !alreadyLiked, likes: comment.likes.length });
+};
+
+// The post author's own "special like" on a comment - like a creator heart on
+// YouTube. Only the post's author can set it; it is separate from ordinary
+// likes and notifies the comment's author.
+exports.toggleAuthorHeart = async (req, res) => {
+  const comment = await Comment.findById(req.params.id).populate('post', 'author status community');
+  if (!comment || !comment.post || !(await canAccessPost(comment.post, req.session.user.id))) return redirectBack(req, res, { ok: false });
+  if (String(comment.post.author) !== String(req.session.user.id)) return redirectBack(req, res, { ok: false, error: 'Only the post author can heart a comment.' });
+  comment.heartedByAuthor = !comment.heartedByAuthor;
+  await comment.save();
+  if (comment.heartedByAuthor) await notify(comment.author, req.session.user.id, 'comment', 'hearted your comment.', comment.post._id, comment.post.community, req.session.user.name, `/posts/${comment.post._id}`);
+  return redirectBack(req, res, { hearted: comment.heartedByAuthor });
+};
+
+exports.toggleCommentReaction = async (req, res) => {
+  const comment = await Comment.findById(req.params.id).populate('post', 'author status community');
+  if (!comment || !comment.post || !(await canAccessPost(comment.post, req.session.user.id))) return redirectBack(req, res, { ok: false });
+  const result = toggleReaction(comment.reactions.map((entry) => entry.toObject()), req.body.emoji, req.session.user.id);
+  if (!result) return redirectBack(req, res, { ok: false, error: 'Unsupported reaction.' });
+  comment.set('reactions', result.reactions);
+  await comment.save();
+  if (result.reacted) await notify(comment.author, req.session.user.id, 'comment', `reacted ${req.body.emoji} to your comment.`, comment.post._id, comment.post.community, req.session.user.name, `/posts/${comment.post._id}`);
+  return redirectBack(req, res, { ok: true, reactions: result.summary });
 };
 
 exports.toggleBookmark = async (req, res) => {

@@ -3,10 +3,8 @@
 Crowdwide exposes a small, read-only public API for published posts, plus
 RSS feeds. Both are unauthenticated and CORS-open - no API key, no login.
 
-This is alpha software. The shape below is what exists today; it may
-change without a version bump until Crowdwide reaches a stable release
-(see `todo.txt`). If you're building something that depends on this,
-expect to need to update it later.
+The API is versioned under `/api/v1`. Breaking changes will ship under a
+new version prefix, so existing integrations keep working.
 
 ## `GET /api/v1/posts`
 

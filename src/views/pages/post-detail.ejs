@@ -22,7 +22,7 @@
 				<span><%= post.community?.name || 'Open Crowdwide' %> · <time datetime="<%= new Date(post.createdAt).toISOString() %>"><%= new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time></span>
 			</div>
 		</header>
-		<div class="post-view-body"><%- renderRichBody(post.body) %></div>
+		<div class="post-view-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
 		<% if (post.poll?.question && post.poll.options?.length) { %>
 		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %></section>
 		<% } %>
@@ -48,6 +48,7 @@
 		<div class="post-view-actions" aria-label="Post activity">
 			<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-label="Like" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 24 }) %><span class="label">Like</span></button></form>
 			<a class="action-link" href="#comment-body" data-focus-comment aria-label="Comment"><%- icon('message-circle', { size: 24 }) %><span class="label">Comment</span></a>
+			<button type="button" class="action-link action-translate" data-translate-trigger aria-label="Translate"><%- icon('globe', { size: 24 }) %><span class="label">Translate</span></button>
 			<button type="button" class="action-share" data-share-open data-post-id="<%= post._id %>" data-post-url="/posts/<%= post._id %>" aria-label="Share"><%- icon('send', { size: 24 }) %><span class="label">Share</span></button>
 			<form class="post-view-save" method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>" aria-label="Save" aria-pressed="<%= post.bookmarked ? 'true' : 'false' %>"><%- icon('bookmark', { size: 24 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
 		</div>
@@ -107,7 +108,7 @@
 		<p class="no-comments" data-no-comments<%- comments.length ? ' hidden' : '' %>>No comments yet. Start the conversation.</p>
 		<div class="post-detail-thread">
 			<% commentTree.forEach((node) => { %>
-				<%- include('../partials/comment-node', { node, depth: 0, postId: post._id, csrfToken, canReply: !!currentUser }) %>
+				<%- include('../partials/comment-node', { node, depth: 0, postId: post._id, postAuthorId: post.author?._id, csrfToken, canReply: !!currentUser }) %>
 			<% }) %>
 		</div>
 	</section>

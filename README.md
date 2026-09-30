@@ -1,26 +1,110 @@
 # Crowdwide
 
-**Status: Alpha.** Crowdwide is live and usable, but still early - expect
-rough edges, features that are still being hardened, and the occasional
-bug that hasn't surfaced yet. If something breaks, that's useful
-information, not an inconvenience.
+Crowdwide is a social discovery platform built around communities and
+curiosity instead of follower counts. Post, publish articles, run polls,
+join open or private communities, chat one-to-one or in groups, and get a
+"For you" feed that deliberately makes room for new voices and new
+communities.
 
-[![Signalcrest signal](https://www.signalcrest.app/api/badge/dev%3A4644319)](https://www.signalcrest.app/topic/dev%3A4644319)
+It is an Express MVC app with EJS views and MongoDB, using session-based
+authentication, optional TOTP two-factor, and email through the Gmail API.
 
 **Live:** the deployed instance runs at the URL set in `APP_URL` (see
-`.env.example`) - typically something like `https://www.crowdwide.run.place`.
-If you're reading this from the repo and aren't sure what the current
-live URL is, check your hosting dashboard; this file doesn't hardcode it
-so it can't go stale.
+`.env.example`).
 
-Crowdwide is a social platform built with an Express MVC stack, EJS
-views, and MongoDB: posts, articles, and polls; communities (open and
-private); direct messages and group chat; follows and a personalized
-feed; moderation tools including reports, appeals, suspensions, and
-temporary posting restrictions; browser push notifications; and a small
-public read-only API. Session-based auth, with optional TOTP two-factor
-and email verification via a Google Cloud Gmail OAuth2 setup (not a raw
-app password).
+## Features
+
+### Posting and content
+- Posts, articles and polls, with drafts and scheduled publishing.
+- Word limits set by admins (defaults: 60 words for a post, 300 for an
+  article).
+- Up to two media files per post (images, video, audio) with **alt text,
+  a caption and a transcript for each file**; images keep their aspect
+  ratio, and video seeks smoothly (HTTP range support).
+- Rich formatting in the body: `**bold**`, `*italic*`, `# headings`,
+  `- lists`, paragraph breaks.
+- Hashtags and @mentions with autocomplete, content warnings with
+  click-to-reveal, quote posts and linked post replies.
+- Link previews for the first link in a post (title, description, image).
+- Edit and delete controls on your own posts and comments.
+
+### Feed and discovery
+- A "For you" feed that blends people you follow, communities you have
+  joined, and a deliberate share (35-40%) of posts from outside your
+  network, so new accounts and communities get real reach.
+- The feed learns from what you do: likes, reactions, comments, saves,
+  posts you open, hashtags you post, and searches.
+- Feed tabs for your community, posts (new and viral) and articles (new
+  and viral).
+- `/explore` for communities, viral posts, popular people and new members;
+  `/people` for people to follow (shared interests, mutual network,
+  trending creators, new joiners).
+- Search across people, communities, hashtags and posts, with recent and
+  popular searches.
+- Trending hashtags, RSS feeds for the site, profiles and communities.
+
+### Communities
+- Open or private communities with banners, avatars, hashtags, guidelines,
+  member lists and owner/moderator roles.
+- Join requests for private communities, banned-word lists, optional
+  review-before-posting, pinned posts and per-community feeds.
+- **Private communities are private everywhere**: their posts, members and
+  RSS feed are visible only to members across the community page, feeds,
+  search, profiles, the public API and every RSS feed.
+
+### Profiles
+- Banner, avatar, bio, links, hashtags and privacy controls.
+- Followers and following, saved posts, likes, comments and activity.
+- Activity stats on every profile, plus a private Stats tab with posts per
+  month, post mix, average likes and top posts.
+
+### Messaging and notifications
+- Direct messages and group chat (up to 50 members) with GIFs, sharing of
+  posts and articles into chats, group admin tools (add/remove members,
+  rename, group picture, invite links).
+- In-app notifications with grouping, per-type preferences, and opt-in
+  browser push notifications per device.
+- Security emails for new sign-ins, password changes and 2FA changes.
+
+### Accounts and security
+- Email verification, password reset, five-attempt login lockouts, 75-day
+  session/device records with remote log-out, and TOTP two-factor with
+  recovery codes.
+- Registration bot protection: an arithmetic challenge (or Cloudflare
+  Turnstile when configured), an invisible honeypot and a minimum-fill-time
+  check.
+- CSRF protection, Helmet security headers, rate limits, upload
+  validation and optional ClamAV virus scanning.
+- Data export and account deletion from Settings.
+
+### Moderation and safety
+- Reports with optional evidence screenshots, moderator review with
+  recommendations, and admin approval.
+- Warnings, temporary posting restrictions and suspensions, each with
+  reasons and durations; suspensions cannot be shortened by unrelated
+  login lockouts.
+- Appeals for suspensions (public form), restrictions and warnings
+  (Settings > Moderation); admins approve or deny, and approval lifts the
+  action automatically.
+- Spam detection, an audit log, and a per-user account history timeline.
+- An admin console at `/admin` (users, communities, posts, reports,
+  appeals, audit log, site settings including word limits, suspension
+  defaults and review thresholds) and a moderator console at `/moderator`.
+
+### Public pages and API
+- `/about` (with live community charts), `/about/developer`, `/privacy`,
+  `/terms`, `/community-guidelines`, `/accessibility`, `/contact`, `/help`,
+  `/guide` and `/docs`.
+- A read-only public API at `/api/v1/posts` plus RSS feeds - see
+  [`API.md`](./API.md).
+- Every page has a title, description, canonical URL, Open Graph and
+  Twitter metadata; `robots.txt` and `sitemap.xml` are generated by the
+  app.
+
+### Operations
+- Structured JSON logging, error alert emails, database-aware `/health`,
+  backup and restore verification scripts, CI, staging mode, and a
+  free-tier keep-alive ping. See [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 ## Run locally
 
@@ -81,11 +165,16 @@ for the full walkthrough)
 - `MONGO_DB_URL_0`, `MONGO_DB_URL_1`, ... - additional MongoDB clusters
   to spread media storage across. See **Extended media storage** below.
 - `TRUST_PROXY_HOPS` - see **Run locally** above.
+- `GIPHY_API_KEY` (and optional `GIF_RATING`) - GIF search in chat, group chat and comments. Without a key the GIF buttons are hidden.
+- `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` - use Cloudflare Turnstile for the sign-up CAPTCHA instead of the built-in arithmetic question.
+- `APP_ENV=staging`, `STAGING_MAIL_ALLOWLIST` - staging mode for a second deployment. See `DEPLOYMENT.md`.
+- `KEEP_ALIVE_*` - free-tier keep-alive ping (on by default in production).
+- `FEED_DISCOVERY_RATIO`, `POPULAR_SEARCH_MIN_USERS`, `STATS_MID_COMMUNITY_MIN`, `STATS_LARGE_COMMUNITY_MIN` - feed and stats tuning.
 - `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` - see `DEPLOYMENT.md`.
 
 Nothing in `.env.example` needs a paid service to get a working local
 setup - MongoDB Atlas, Google Cloud, and web-push key generation are all
-free. Mail, push, alerting, virus scanning, and extended storage are all
+free. Mail, push, GIFs, alerting, virus scanning, and extended storage are all
 independently optional; the app runs and every core feature works
 without any of them configured.
 
@@ -154,8 +243,9 @@ code anywhere.
   limits, virus scanning hook)
 - `src/models` - MongoDB/Mongoose schemas
 - `src/routes` - web and auth route definitions
-- `src/services` - mail, push notifications, link previews, structured
-  logging, error alerting, virus scanning, publication scheduling
+- `src/services` - mail, push notifications, link previews, GIFs, feed
+  ranking, public stats, structured logging, error alerting, virus
+  scanning, publication scheduling, keep-alive, environment/staging
 - `src/utils` - small shared helpers (hashtags, spam detection, posting
   restrictions, private-community visibility)
 - `src/views` - EJS pages and partials
@@ -163,141 +253,6 @@ code anywhere.
 - `test` - DB-free unit tests (`npm test`) and end-to-end tests requiring
   MongoDB (`npm run test:e2e`) - see **Testing** below
 - `scripts` - operational scripts (backup, restore verification)
-
-## Public pages and SEO
-
-`/about`, `/about/developer`, `/privacy`, `/terms`, `/community-guidelines`,
-`/accessibility`, `/premium`, and `/contact`. Every page gets a title,
-description, canonical URL, Open Graph and Twitter metadata, favicon, and
-responsive layout. The homepage emits WebSite JSON-LD; `/robots.txt` and
-`/sitemap.xml` are generated by the application.
-
-`/premium` is a placeholder, not a product: it explains that monetization
-is intentionally deferred until the safety/moderation systems have real
-usage behind them, reliability holds up under real traffic, and there's
-an actual community using Crowdwide day to day - and that the core
-experience won't go behind a paywall regardless of what comes later.
-
-Homepage member, post, and community totals are queried from MongoDB on
-each request; if the database is empty or briefly unavailable, the
-homepage shows an honest starter/degraded state rather than inventing
-numbers.
-
-## Dashboard feed
-
-The authenticated dashboard has two feed modes. The normal feed mixes
-posts from people you follow, a second-degree "extended network" (people
-your follows follow, and people who follow your followers), new voices
-and recently-active communities, posts from the largest communities, and
-viral content ranked by likes - so growing accounts aren't permanently
-buried under popularity. The personalized feed returns posts from
-communities you've joined plus posts sharing hashtags you've liked. Both
-modes correctly exclude posts from private communities you haven't
-joined (see **Private communities** below).
-
-The dashboard supports publishing posts, articles, or polls; attaching
-up to two media files with alt text, a caption, and (for audio/video) a
-transcript; assigning a post to a community; saving drafts and scheduling
-future publication; and basic rich formatting in the post body
-(`**bold**`, `*italic*`, `# headings`, `- lists`, paragraph breaks). A
-link-only post automatically gets an Open Graph preview card fetched in
-the background. Repeat-posting the same text within ten minutes is
-blocked as spam.
-
-Posts are limited to 5,000 characters (120 words for a plain post, 550
-for an article); media is limited to images under 1.5MB, video under
-4MB, and audio under 2MB.
-
-## Community discovery and moderation
-
-`/explore` is a discovery hub: a searchable, category- and
-hashtag-filterable community grid, plus viral posts, popular people, and
-newly joined members. Communities have hashtags, an optional banner
-(under 2MB) and profile picture (under 1.5MB), and public guidelines
-shown on their `/communities/:slug` page along with a member list
-(owner/moderator/member roles visible to everyone) - unless the
-community is private, in which case none of that is visible to
-non-members (see below).
-
-Communities can be open or private. Open communities accept members
-immediately; private communities create a join request an owner or
-moderator must approve. Owners can edit details/hashtags/guidelines,
-maintain a banned-word list, require posts to be reviewed before they
-appear, add moderators, and remove members.
-
-### Private communities
-
-**A private community's posts, member list, and RSS feed are visible
-only to its members** - not to other logged-in users, and never to
-anonymous visitors. This is enforced consistently everywhere a post
-could otherwise surface: the community page, direct post links, the
-dashboard feed (all modes and tabs), search, profile pages, the public
-`/api/v1/posts` API, and every RSS feed. Interacting with a post you
-can't see (liking, commenting, reacting, replying, quoting, sharing,
-voting, reporting) is blocked the same way. This is covered by unit
-tests (`test/can-access-post.test.js`, `test/community-privacy.test.js`)
-and an end-to-end regression test
-(`test/e2e/private-community-privacy.test.js`) that proves the leak
-paths are closed while confirming actual members still see everything
-normally.
-
-## Moderation and safety
-
-- **Reports** on posts, optionally with an evidence screenshot (2MB
-  limit), reviewed by moderators/admins.
-- **Warnings**, **temporary posting restrictions** (a moderator-imposed,
-  time-limited block on creating new posts/comments - distinct from a
-  full suspension and from the separate personal "muted users"
-  preference), and **suspensions** (blocks login entirely, with its own
-  field so it can't be accidentally shortened by unrelated failed-login
-  lockout logic).
-- **Appeals**: a suspended user (who can't log in to reach Settings)
-  appeals from a public page linked off the login screen; a
-  restricted/warned user appeals from Settings > Moderation. Admins
-  review appeals in a dedicated tab; approving automatically lifts the
-  underlying action.
-- **Spam detection**: blocks posting the exact same text twice within
-  ten minutes.
-- **Registration CAPTCHA**: a lightweight built-in arithmetic challenge
-  (not a managed service - see `DEPLOYMENT.md`/`todo.txt` for the
-  trade-off) to deter naive scripted signups.
-- **Account history**: every security-relevant self-event (logins,
-  password/2FA changes, suspensions and restrictions applied or lifted,
-  warnings, appeals) is logged to a per-user timeline in Settings >
-  History.
-- Admins have a full console at `/admin` (users, communities, posts,
-  reports, appeals, audit log, site settings); moderators have a lighter
-  review surface at `/moderator`.
-
-## Social interactions, messaging, and notifications
-
-Likes, bookmarks, nested/threaded comments, reactions, share counts,
-hashtags, and follows/blocks are all standard. `/search?q=` searches
-people, communities, hashtags, and post text, saves recent searches per
-user (clearable in Settings), and respects private-community visibility.
-Direct messages (`/messages`) and group chat (`/groups`, up to 20
-members) both notify the recipient(s) in-app and via push when a message
-arrives, gated by the same per-user notification preferences as likes/
-comments/follows/security alerts.
-
-**Browser push notifications** are opt-in per device (nothing is sent
-until a user explicitly enables it in Settings > Notifications) and
-degrade to a no-op if `VAPID_*` isn't configured. **Security emails**
-(new sign-in, password changed, 2FA enabled/disabled, recovery codes
-regenerated, suspension/restriction outcomes) are sent through the same
-Gmail/Google Cloud setup as verification codes, and are never allowed to
-block or hang the action that triggered them - a mail-provider hiccup
-degrades to "the email didn't send," never to "login doesn't work."
-
-## Auth and account security
-
-Email verification (six-digit code), password reset, five-attempt login
-lockouts (separate from suspensions, see above), 75-day device/session
-records, and TOTP two-factor authentication with eight downloadable
-one-time recovery codes are all built in. Every auth handler - login,
-register, verify, forgot/reset password, 2FA - has its own error
-handling, so a database or mail hiccup shows an error message instead of
-hanging the request indefinitely.
 
 ## Extended media storage (multi-cluster MongoDB)
 
@@ -361,8 +316,9 @@ scanned through a ClamAV daemon before it's accepted - see
   `history`, `account`
 - `/admin` (admin console), `/moderator` (moderator review)
 - `/rss.xml`; `/api/v1/posts` (see `API.md`)
+- `/people` people to follow: common interests, mutual network, trending creators, new joiners
 - `/guide` tips for growing a profile, a community, and staying secure
-- `/premium`
+- `/docs` public API reference; `/help` frequently asked questions
 - `/about`, `/about/developer`, `/privacy`, `/terms`,
   `/community-guidelines`, `/accessibility`, `/contact`
 
@@ -375,10 +331,6 @@ error alerting are covered in [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 `/api/v1/posts` and the RSS feeds are documented in [`API.md`](./API.md).
 
-## Project status
+## Roadmap
 
-`todo.txt` is the running log of what's been built, what's been audited
-and fixed, and what's known to still be missing or unverified - it's
-worth reading before assuming a feature works exactly as described here,
-since `todo.txt`'s Known Gaps section tracks exactly what hasn't been
-proven against real infrastructure or a real browser yet.
+`todo.txt` lists what has been built and what is planned next.

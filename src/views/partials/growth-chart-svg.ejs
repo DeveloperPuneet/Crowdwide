@@ -1,0 +1,25 @@
+<%# Renders one chart built by utils/lineChart. locals: chart, label, unit %>
+<% if (!chart.hasData) { %>
+<p class="growth-empty">Not enough activity in the last <%= weeks %> weeks to draw this chart yet.</p>
+<% } else { %>
+<svg class="growth-chart" viewBox="0 0 <%= chart.width %> <%= chart.height %>" role="img" aria-label="<%= label %>">
+  <line x1="<%= chart.left %>" y1="<%= chart.yBottom %>" x2="<%= chart.xEnd %>" y2="<%= chart.yBottom %>" class="axis-line"/>
+  <line x1="<%= chart.left %>" y1="<%= chart.yTop %>" x2="<%= chart.left %>" y2="<%= chart.yBottom %>" class="axis-line"/>
+  <% chart.ticks.slice(1).forEach((tick) => { %>
+  <line x1="<%= chart.left %>" y1="<%= tick.y %>" x2="<%= chart.xEnd %>" y2="<%= tick.y %>" class="grid-line"/>
+  <% }) %>
+  <% chart.ticks.forEach((tick) => { %>
+  <text x="<%= chart.left - 6 %>" y="<%= tick.y + 4 %>" class="axis-label" text-anchor="end"><%= tick.value %></text>
+  <% }) %>
+  <% chart.series.forEach((s) => { %>
+    <% s.segments.forEach((segment) => { %><polyline class="series series-<%= s.key %>" points="<%= segment %>"/><% }) %>
+    <g class="dots dots-<%= s.key %>"><% s.points.forEach((p) => { %><circle cx="<%= p.x %>" cy="<%= p.y %>" r="3"><title><%= s.name %> · week of <%= p.label %>: <%= p.value %> <%= unit %></title></circle><% }) %></g>
+  <% }) %>
+  <% chart.xLabels.forEach((l, i) => { %>
+  <text x="<%= l.x %>" y="<%= chart.yBottom + 20 %>" class="axis-label" text-anchor="<%= i === 0 ? 'start' : (i === chart.xLabels.length - 1 ? 'end' : 'middle') %>"><%= l.text %></text>
+  <% }) %>
+</svg>
+<div class="growth-legend">
+  <% chart.series.forEach((s) => { %><span><i class="dot dot-<%= s.key %>"></i><%= s.name %></span><% }) %>
+</div>
+<% } %>

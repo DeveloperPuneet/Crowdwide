@@ -487,7 +487,9 @@ html { scrollbar-gutter: stable; }
 .poll-option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .composer-media-details { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
 .composer-media-details summary { cursor: pointer; color: #92a0ff; font-size: 11px; font-weight: 600; padding: 4px 0; }
-.composer-media-meta { display: grid; gap: 8px; margin-top: 10px; }
+.composer-media-meta { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; border: 0; min-width: 0; }
+.composer-media-meta[hidden] { display: none; }
+.composer-media-meta legend { padding: 0; color: #c6c8d4; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
 .composer-media-meta label { display: grid; gap: 4px; font-size: 11px; color: #85889e; }
 .composer-media-meta input, .composer-media-meta textarea { background: #171a30; border: 1px solid #2c3050; border-radius: 6px; padding: 8px 10px; color: #f6f6fa; font-size: 12px; font-family: inherit; }
 .composer-media-meta textarea { min-height: 50px; resize: vertical; }
@@ -1256,3 +1258,45 @@ body.no-scroll { overflow: hidden; }
   .comment-form .comment-submit { width: 44px; padding: 0; justify-content: center; }
   .group-info-head { flex-direction: column; text-align: center; }
 }
+.hp-field { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+.staging-banner { background: #f0b429; color: #1a1300; text-align: center; font: 600 12px 'DM Sans', sans-serif; padding: 6px 12px; position: relative; z-index: 50; }
+
+.growth-empty { color: #8e90a4; font-size: 13px; padding: 40px 10px; text-align: center; border: 1px dashed var(--line); border-radius: 10px; }
+
+/* ---- Emoji reactions (comments, DMs, group chats) ---------------------- */
+.reaction-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.chat-msg .reaction-row { margin: 4px 8px 0; }
+.chat-msg.is-own .reaction-row { justify-content: flex-end; }
+.reaction-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, .03); color: #c9cbe0; font-size: 12px; cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.reaction-pill:hover { border-color: #4d65ff; }
+.reaction-pill.is-selected { border-color: #586aff; background: rgba(77, 101, 255, .18); color: #fff; }
+.reaction-pill .reaction-emoji { font-size: 13px; line-height: 1; }
+.reaction-pill .count { font-variant-numeric: tabular-nums; }
+.reaction-add { position: relative; }
+.reaction-add-trigger { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px dashed var(--line); border-radius: 999px; background: transparent; color: #85889e; cursor: pointer; transition: color .15s ease, border-color .15s ease; }
+.reaction-add-trigger:hover { color: #fff; border-color: #4d65ff; }
+.reaction-picker { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 20; display: flex; gap: 2px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+.reaction-picker[hidden] { display: none; }
+.chat-msg.is-own .reaction-picker { left: auto; right: 0; }
+.reaction-picker-option { padding: 4px 6px; border: 0; border-radius: 8px; background: transparent; font-size: 17px; line-height: 1; cursor: pointer; transition: background .12s ease, transform .12s ease; }
+.reaction-picker-option:hover { background: rgba(255, 255, 255, .08); transform: scale(1.15); }
+
+/* ---- Post-author "heart" on a comment (like a creator heart) ----------- */
+.action-author-heart { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #85889e; cursor: pointer; transition: color .15s ease; }
+.action-author-heart:hover { color: #ff5f8a; }
+.action-author-heart.is-selected { color: #ff5f8a; }
+.action-author-heart.is-selected svg { fill: currentColor; }
+.author-heart-badge { display: inline-flex; align-items: center; color: #ff5f8a; margin-left: 2px; }
+.author-heart-badge svg { fill: currentColor; }
+.thread-comment.is-hearted { border-left-color: #ff5f8a; }
+
+/* ---- Translate ----------------------------------------------------------- */
+.action-translate { display: inline-flex; align-items: center; gap: 5px; background: transparent; border: 0; color: #85889e; font-size: 12px; cursor: pointer; padding: 0; }
+.action-translate:hover { color: #fff; }
+.action-translate.is-translated { color: #7e8dff; }
+.action-translate.is-busy { opacity: .6; cursor: wait; }
+.action-translate-inline { margin: 6px 0 0; font-size: 12.5px; }
+.post-view-actions .action-translate.is-translated { color: #7e8dff; }
+.translate-lang-select { margin-left: 8px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: #c9cbe0; font-size: 11px; }
+.translate-note { display: block; margin-top: 4px; color: #ff8da2; font-size: 11px; }

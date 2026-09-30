@@ -1,4 +1,7 @@
 const User = require('../models/User');
+const { getGrowthStats } = require('../services/publicStats');
+const { isStaging } = require('../services/environment');
+const { mediaDetailsFor } = require('../utils/mediaDetails');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
 const { createSignedUpload, createImageThumbnail, getImageSize } = require('../services/storage');
@@ -165,9 +168,9 @@ exports.createPost = async (req, res) => {
 		status = 'scheduled';
 	}
 	const media = [];
-	for (const file of req.files || []) {
+	for (const [fileIndex, file] of (req.files || []).entries()) {
 		const stored = await uploadBuffer(file.buffer, file.originalname, file.mimetype, { kind: file.mediaKind, owner: req.session.user.id });
-		const item = { url: mediaUrl(stored), storageKey: stored.id, kind: file.mediaKind, alt: req.body.mediaAlt?.trim() || '', caption: req.body.mediaCaption?.trim().slice(0, 280) || '', transcript: req.body.mediaTranscript?.trim().slice(0, 4000) || '' };
+		const item = { url: mediaUrl(stored), storageKey: stored.id, kind: file.mediaKind, ...mediaDetailsFor(req.body, fileIndex) };
 		if (file.mediaKind === 'image') {
 			const thumbnail = await createImageThumbnail(file.buffer);
 			const thumbnailFile = await uploadBuffer(thumbnail, `${file.originalname}.thumb.webp`, 'image/webp', { kind: 'thumbnail', parent: stored.id, owner: req.session.user.id });
@@ -564,7 +567,7 @@ exports.moreFeedPosts = async (req, res) => {
 	}
 };
 
-exports.infoPage = (req, res) => {
+exports.infoPage = async (req, res) => {
 	const pages = {
 		'/about': {
 			title: 'About Crowdwide',
@@ -655,17 +658,6 @@ exports.infoPage = (req, res) => {
 				['Tell us what is missing', 'Accessibility is ongoing work. Please report a barrier with the page URL and a description of what happened to <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a> so we can investigate.']
 			]
 		},
-		'/premium': {
-			title: 'Crowdwide Premium',
-			heading: 'Something worth paying for - eventually.',
-			intro: "Crowdwide isn't selling anything yet, and we're not in a hurry to. This page exists so the plan is visible, not so you can buy something today.",
-			sections: [
-				['Why nothing is for sale yet', "Alpha software with a small userbase and moderation tools it's still stress-testing is the wrong place to introduce billing. Charging people, or their attention via ads, before the basics are solid gets the incentives backwards - we'd be optimizing for revenue instead of for the product being worth using."],
-				['What has to be true first', 'Three things, in order: (1) the safety and moderation systems (reporting, appeals, suspensions, spam detection) need real usage behind them, not just tests; (2) reliability and accessibility need to hold up under real traffic, not just a demo; (3) there needs to be an actual community using Crowdwide day to day - premium features should make an already-good experience better, not be the reason to show up.'],
-				['What it might look like', "Nothing is committed yet, but the likely shape is optional and additive: things like extended media limits, profile customization, or community tools for owners running larger communities. Whatever it becomes, the core experience - posting, communities, feeds, messaging - is not going behind a paywall."],
-				['Want to know when it exists', "There's no waitlist to join yet either - when there's something real to offer, it will show up here and be announced through the usual channels. For now, this page is a promise about sequencing, not a product."]
-			]
-		},
 		'/contact': {
 			title: 'Contact Crowdwide',
 			heading: 'Bring us a thought.',
@@ -696,11 +688,18 @@ exports.infoPage = (req, res) => {
 		}
 	};
 	const page = pages[req.path] || pages['/about'];
-	res.render('pages/info', { ...page, pagePath: req.path, description: page.intro });
+	let growthStats = null;
+	if (page.growthChart) {
+		try { growthStats = await getGrowthStats(); } catch (error) { logger.error('Growth stats failed', error); }
+	}
+	res.render('pages/info', { ...page, growthChart: Boolean(growthStats), growthStats, pagePath: req.path, description: page.intro });
 };
 
-exports.robots = (req, res) => { res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /auth/\nSitemap: ${(process.env.APP_URL || 'http://localhost:3000')}/sitemap.xml`); };
-exports.sitemap = (req, res) => { res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/premium', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'].map((path) => `<url><loc>${(process.env.APP_URL || 'http://localhost:3000')}${path}</loc></url>`).join('')}</urlset>`); };
+exports.robots = (req, res) => {
+	if (isStaging()) return res.type('text/plain').send('User-agent: *\nDisallow: /');
+	res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /auth/\nSitemap: ${(process.env.APP_URL || 'http://localhost:3000')}/sitemap.xml`);
+};
+exports.sitemap = (req, res) => { res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'].map((path) => `<url><loc>${(process.env.APP_URL || 'http://localhost:3000')}${path}</loc></url>`).join('')}</urlset>`); };
 
 // Public developer docs (kept in sync by hand with API.md in the repo - this
 // is the same information, laid out for the browser instead of a markdown

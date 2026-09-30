@@ -7,7 +7,8 @@ const groupMessageSchema = new mongoose.Schema({
   kind: { type: String, enum: ['message', 'system'], default: 'message' },
   body: { type: String, trim: true, maxlength: 2000, default: '' },
   gif: { url: String, preview: String, title: String, width: Number, height: Number },
-  sharedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' }
+  sharedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
+  reactions: [{ emoji: { type: String, required: true }, users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] }]
 }, { timestamps: true });
 
 groupMessageSchema.pre('validate', function requireContent(next) {

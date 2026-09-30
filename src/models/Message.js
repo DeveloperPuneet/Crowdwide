@@ -7,7 +7,8 @@ const messageSchema = new mongoose.Schema({
   body: { type: String, trim: true, maxlength: 2000, default: '' },
   gif: { url: String, preview: String, title: String, width: Number, height: Number },
   sharedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
-  readAt: Date
+  readAt: Date,
+  reactions: [{ emoji: { type: String, required: true }, users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] }]
 }, { timestamps: true });
 
 messageSchema.pre('validate', function requireContent(next) {

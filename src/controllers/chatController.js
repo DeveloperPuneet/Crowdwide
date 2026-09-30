@@ -20,6 +20,7 @@ const logger = require('../services/logger');
 const { gifFromBody } = require('../services/gif');
 const { PAGE_SIZE, isObjectId, previewText, attachPostPreviews } = require('../services/chat');
 const { notify } = require('./interactionController');
+const { toggleReaction } = require('../utils/reactions');
 
 const NOTIFY_QUIET_MS = 10 * 60 * 1000;
 const isXhr = (req) => req.get('X-Requested-With') === 'XMLHttpRequest';
@@ -28,11 +29,11 @@ function renderPartial(res, view, data) {
   return new Promise((resolve, reject) => res.render(view, data, (error, html) => (error ? reject(error) : resolve(html))));
 }
 
-async function renderMessages(res, messages, { group, viewerId }) {
+async function renderMessages(res, messages, { group, viewerId, groupId }) {
   return Promise.all(messages.map(async (message) => ({
     id: String(message._id),
     createdAt: message.createdAt,
-    html: (await renderPartial(res, 'partials/chat-message', { message, group, viewerId })).trim()
+    html: (await renderPartial(res, 'partials/chat-message', { message, group, viewerId, groupId })).trim()
   })));
 }
 
@@ -152,6 +153,22 @@ exports.dmSend = async (req, res) => {
   }
 };
 
+exports.dmReact = async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const message = await Message.findById(req.params.id);
+    if (!message || ![String(message.sender), String(message.recipient)].includes(String(userId))) return res.status(404).json({ ok: false, error: 'Message not found.' });
+    const result = toggleReaction(message.reactions.map((entry) => entry.toObject()), req.body.emoji, userId);
+    if (!result) return res.status(400).json({ ok: false, error: 'Unsupported reaction.' });
+    message.set('reactions', result.reactions);
+    await message.save();
+    res.json({ ok: true, reactions: result.summary });
+  } catch (error) {
+    logger.error('Reacting to a message failed', error);
+    res.status(500).json({ ok: false, error: 'Could not react to that message.' });
+  }
+};
+
 // ---- group chats ----------------------------------------------------------
 
 async function loadGroup(req) {
@@ -167,7 +184,7 @@ exports.groupThread = async (req, res) => {
     const userId = req.session.user.id;
     const { rows, hasMore } = await pageOfMessages(GroupMessage, { group: group._id }, {});
     await attachPostPreviews(rows, userId);
-    const rendered = await renderMessages(res, rows, { group: true, viewerId: userId });
+    const rendered = await renderMessages(res, rows, { group: true, viewerId: userId, groupId: String(group._id) });
     res.render('pages/group-thread', {
       title: group.name,
       pagePath: `/groups/${group._id}`,
@@ -192,7 +209,7 @@ exports.groupPoll = async (req, res) => {
     const before = isObjectId(req.query.before) ? req.query.before : null;
     const { rows, hasMore } = await pageOfMessages(GroupMessage, { group: group._id }, { after, before });
     await attachPostPreviews(rows, userId);
-    res.json({ messages: await renderMessages(res, rows, { group: true, viewerId: userId }), hasMore });
+    res.json({ messages: await renderMessages(res, rows, { group: true, viewerId: userId, groupId: String(group._id) }), hasMore });
   } catch (error) {
     logger.error('Polling group messages failed', error);
     res.status(500).json({ messages: [], error: 'Could not load messages.' });
@@ -214,11 +231,29 @@ exports.groupSend = async (req, res) => {
       .catch((error) => logger.error('Group message notification failed', error));
     if (!isXhr(req)) return res.redirect(fallback);
     const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture } };
-    const [item] = await renderMessages(res, [shaped], { group: true, viewerId: userId });
+    const [item] = await renderMessages(res, [shaped], { group: true, viewerId: userId, groupId: String(group._id) });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
     logger.error('Sending group message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
+  }
+};
+
+exports.groupReact = async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const group = await GroupConversation.findById(req.params.id).select('members').lean();
+    if (!memberOf(group, userId)) return res.status(404).json({ ok: false, error: 'Message not found.' });
+    const message = await GroupMessage.findOne({ _id: req.params.messageId, group: req.params.id });
+    if (!message) return res.status(404).json({ ok: false, error: 'Message not found.' });
+    const result = toggleReaction(message.reactions.map((entry) => entry.toObject()), req.body.emoji, userId);
+    if (!result) return res.status(400).json({ ok: false, error: 'Unsupported reaction.' });
+    message.set('reactions', result.reactions);
+    await message.save();
+    res.json({ ok: true, reactions: result.summary });
+  } catch (error) {
+    logger.error('Reacting to a group message failed', error);
+    res.status(500).json({ ok: false, error: 'Could not react to that message.' });
   }
 };
 

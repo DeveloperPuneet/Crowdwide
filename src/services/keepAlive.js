@@ -46,6 +46,7 @@ function isEnabled(env = process.env) {
   const flag = String(env.KEEP_ALIVE_ENABLED || '').toLowerCase();
   if (flag === 'false' || flag === '0' || flag === 'off') return false;
   if (flag === 'true' || flag === '1' || flag === 'on') return true;
+  if (String(env.APP_ENV || '').toLowerCase() === 'staging') return false;
   return env.NODE_ENV === 'production';
 }
 

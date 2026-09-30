@@ -2,12 +2,7 @@
 
 This covers the pieces of running Crowdwide that aren't part of the app
 itself: continuous integration, a staging environment, backups, upload
-virus scanning, and error alerting. None of this was exercised against
-live infrastructure while building it (this development environment has
-no internet access beyond a small allowlist of package registries, no
-Docker, and no MongoDB server reachable from outside the sandbox) - treat
-everything below as correct-by-review, not confirmed-by-running, until
-you've tried it yourself. See `todo.txt`'s Known Gaps for specifics.
+virus scanning, and error alerting.
 
 ## Continuous integration
 
@@ -28,21 +23,36 @@ against, update the `branches:` lists in the workflow.
 
 ## Staging
 
-There's no staging-specific code - "staging" here means a second deployed
-instance with its own environment variables, kept separate from
-production:
+Staging is a second deployed instance of the same app with its own
+environment variables, kept separate from production. Set `APP_ENV=staging`
+on that instance and the app switches to safe staging behaviour on its own:
 
-1. Deploy a second instance of the same app (e.g. a second Render service,
-   or a second app on whatever host you use) from the same repo/branch.
-2. Give it its own `MONGODB_URI` pointing at a separate database (never
-   point staging at the production database - a bug in a staging-only
-   test could delete real user data).
-3. Give it its own `SESSION_SECRET`, and if you use them, its own
-   `VAPID_*` keys and `ADMIN_ALERT_EMAIL` (you don't want staging traffic
-   paging whoever's on call for production).
-4. Optionally set `NODE_ENV=staging` if you want to branch behavior on it
-   later (nothing currently does; `NODE_ENV=production` and
-   `NODE_ENV=test` are the two values the app currently checks for).
+- Every response carries `X-Robots-Tag: noindex, nofollow` and
+  `/robots.txt` disallows everything, so the staging copy never shows up in
+  search results.
+- A visible "Staging environment" banner is shown on every page, so nobody
+  mistakes it for the live site.
+- Outbound email is restricted to `STAGING_MAIL_ALLOWLIST` - a
+  comma-separated list of addresses and/or `@domain` entries (for example
+  `qa@yourteam.com,@yourcompany.com`). Anything else is logged and skipped,
+  so a staging copy can never email real users. With no allowlist set, no
+  email is sent at all.
+- The free-tier keep-alive ping stays off unless you set
+  `KEEP_ALIVE_ENABLED=true`.
+
+Setup:
+
+1. Deploy a second instance from the same repo/branch (e.g. a second Render
+   service).
+2. Give it its own `MONGODB_URI` pointing at a separate database. Never
+   point staging at the production database.
+3. Give it its own `SESSION_SECRET`, and its own `VAPID_*` keys and
+   `ADMIN_ALERT_EMAIL` if you use them, so staging traffic doesn't notify
+   production users or whoever is on call.
+4. Set `APP_ENV=staging` and, optionally, `STAGING_MAIL_ALLOWLIST`.
+
+Production needs no extra setting: leave `APP_ENV` unset (or set it to
+`production`) and none of the above applies.
 
 ## Backups
 
@@ -88,11 +98,11 @@ upload anything." If you'd rather fail closed, that's a one-line change
 in `scanUploadsForViruses` in `src/middleware/uploads.js` (the catch
 block that currently calls `next()` on scan failure).
 
-Test it against a real clamd with the standard, harmless
+Scanning is optional and off by default. When you add a ClamAV daemon
+later, confirm it with the standard, harmless
 [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/)
-before relying on it - the protocol implementation is unit-tested against
-a mocked socket in `test/virus-scan.test.js`, but that's not the same as
-having scanned a real infected (test) file through a real daemon.
+- the protocol implementation is unit-tested against a mocked socket in
+`test/virus-scan.test.js`.
 
 ## Error alerting
 

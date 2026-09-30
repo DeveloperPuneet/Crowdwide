@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { mailAllowed } = require('./environment');
 const MailComposer = require('nodemailer/lib/mail-composer');
 const logger = require('./logger');
 
@@ -170,6 +171,10 @@ async function sendViaSmtp(mail) {
 // (logging them with a hint) instead of throwing, and callers in the request
 // path do not await it.
 async function deliver(mail, previewLabel) {
+  if (!mailAllowed(mail.to)) {
+    logger.warn(`Staging: email to ${mail.to} skipped (not in STAGING_MAIL_ALLOWLIST). ${previewLabel}`);
+    return false;
+  }
   if (!mailConfigured()) {
     logger.warn(`Mail is not configured - nothing was emailed. ${previewLabel}`);
     return false;

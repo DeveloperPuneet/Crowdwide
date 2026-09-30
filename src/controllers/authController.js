@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
 const { sendVerificationCode, sendNewDeviceAlert, sendPasswordResetLink, sendSecurityAlert } = require('../services/mailer');
-const { generateChallenge, verifyChallenge } = require('../services/captcha');
+const { generateChallenge, verifyChallenge, looksAutomated, verifyTurnstile, turnstileEnabled, turnstileSiteKey } = require('../services/captcha');
 const logger = require('../services/logger');
 const { logEvent } = require('../services/accountHistory');
 const { hashPassword } = require('../utils/passwords');
@@ -41,7 +41,11 @@ function landingPath(req) {
 exports.landingPath = landingPath;
 
 exports.loginPage = (req, res) => res.render('pages/login', { title: 'Sign in' });
-exports.registerPage = (req, res) => res.render('pages/register', { title: 'Create your account', captcha: generateChallenge(req) });
+exports.registerPage = (req, res) => {
+  const managed = turnstileEnabled();
+  if (managed) req.session.registerFormShownAt = Date.now();
+  res.render('pages/register', { title: 'Create your account', captcha: managed ? null : generateChallenge(req), turnstileSiteKey: managed ? turnstileSiteKey() : '' });
+};
 exports.verifyPage = (req, res) => res.render('pages/verify', { title: 'Verify your email', email: req.query.email || '' });
 exports.forgotPage = (req, res) => res.render('pages/forgot-password', { title: 'Reset your password' });
 exports.resetPage = (req, res) => res.render('pages/reset-password', { title: 'Choose a new password', token: req.query.token || '' });
@@ -49,7 +53,12 @@ exports.resetPage = (req, res) => res.render('pages/reset-password', { title: 'C
 exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    if (!verifyChallenge(req, req.body.captchaAnswer)) {
+    const automated = looksAutomated(req);
+    delete req.session.registerFormShownAt;
+    const humanVerified = turnstileEnabled()
+      ? await verifyTurnstile(req.body['cf-turnstile-response'], req.ip)
+      : verifyChallenge(req, req.body.captchaAnswer);
+    if (automated || !humanVerified) {
       setFlash(req, 'error', 'That verification answer was not correct. Try again.');
       return res.redirect('/auth/register');
     }

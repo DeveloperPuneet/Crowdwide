@@ -58,12 +58,15 @@
 					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 				</div>
 				<details class="composer-media-details">
-					<summary>Media details · alt text, caption, transcript</summary>
-					<div class="composer-media-meta">
-						<label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe the media"></label>
-						<label>Caption (shown under the media)<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
+					<summary>Media details · alt text, caption, transcript (per file)</summary>
+					<% [1, 2].forEach((n) => { %>
+					<fieldset class="composer-media-meta" data-media-meta="<%= n %>">
+						<legend>File <%= n %><%= n === 2 ? ' (if you attach a second file)' : '' %></legend>
+						<label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe this file"></label>
+						<label>Caption (shown under it)<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
 						<label>Transcript (for audio/video)<textarea name="mediaTranscript" maxlength="4000" placeholder="Optional transcript"></textarea></label>
-					</div>
+					</fieldset>
+					<% }) %>
 				</details>
 				<small class="upload-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files · use **bold**, *italic*, "# heading", and "- list" lines for richer formatting</small>
 			</div>

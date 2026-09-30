@@ -21,7 +21,7 @@
 
   <% if (viralPosts.length) { %>
   <section class="container landing-highlight">
-    <div class="section-intro"><p class="eyebrow">What's resonating</p><h2>Viral right now.</h2></div>
+    <div class="section-intro"><p class="eyebrow">What's resonating</p><h2 style="margin-bottom: 30px;">Viral right now.</h2></div>
     <div class="explore-viral-grid">
       <% viralPosts.forEach((post) => { %>
       <div class="viral-card" style="cursor:default;">
@@ -36,7 +36,7 @@
 
   <% if (popularPeople.length) { %>
   <section class="container landing-highlight">
-    <div class="section-intro"><p class="eyebrow">Who people follow</p><h2>Most popular right now.</h2></div>
+    <div class="section-intro"><p class="eyebrow">Who people follow</p><h2 style="margin-bottom: 30px;">Most popular right now.</h2></div>
     <div class="community-list">
       <% popularPeople.forEach((person, index) => { %>
       <article class="community-row"><span class="community-index">0<%= index + 1 %></span><div><h4><%= person.name %></h4><p><%= person.bio || 'Active on Crowdwide' %></p></div><span class="community-members"><%= person.followers %> follower<%= person.followers === 1 ? '' : 's' %></span></article>

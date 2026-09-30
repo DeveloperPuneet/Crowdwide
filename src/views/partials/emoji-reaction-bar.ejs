@@ -1,0 +1,16 @@
+<%# Shared emoji reaction row: existing reaction pills + an "add reaction" picker.
+    locals: reactions (array of {emoji,count,reacted}), targetType ('comment'|'dm'|'group'),
+    targetId, groupId (for 'group' only). Rendered server-side on first paint; kept in sync
+    client-side afterwards by public/js/reactions.js so a reaction never needs a full reload. %>
+<% const reactions = locals.reactions || []; %>
+<div class="reaction-row" data-reaction-target="<%= targetType %>" data-target-id="<%= targetId %>"<% if (locals.groupId) { %> data-group-id="<%= groupId %>"<% } %>>
+	<% reactions.forEach((r) => { %>
+	<button type="button" class="reaction-pill<%= r.reacted ? ' is-selected' : '' %>" data-emoji="<%= r.emoji %>" aria-pressed="<%= r.reacted ? 'true' : 'false' %>"><span class="reaction-emoji"><%= r.emoji %></span><span class="count"><%= r.count %></span></button>
+	<% }) %>
+	<div class="reaction-add">
+		<button type="button" class="reaction-add-trigger" aria-label="Add a reaction" aria-haspopup="true" aria-expanded="false"><%- icon('smile', { size: 14 }) %></button>
+		<div class="reaction-picker" hidden role="menu">
+			<% ['👍','❤️','😂','😮','😢','🙏','🔥','🎉'].forEach((emoji) => { %><button type="button" class="reaction-picker-option" data-emoji="<%= emoji %>" role="menuitem"><%= emoji %></button><% }) %>
+		</div>
+	</div>
+</div>

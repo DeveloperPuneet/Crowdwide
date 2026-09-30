@@ -12,6 +12,7 @@ const { renderMentions, renderRichBody } = require('./services/mentions');
 const { icon } = require('./utils/icons');
 const { gifsEnabled } = require('./services/gif');
 const logger = require('./services/logger');
+const { stagingMiddleware } = require('./services/environment');
 const { alertOnCriticalError } = require('./services/alerting');
 
 function createApp({ port = process.env.PORT || 3000 } = {}) {
@@ -36,16 +37,22 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     try { mediaOrigins.add(new URL(process.env.MEDIA_CDN_URL).origin); } catch (error) { /* invalid URL - ignore */ }
   }
   if (process.env.GCS_BUCKET) mediaOrigins.add('https://storage.googleapis.com');
+  // Cloudflare Turnstile (optional managed CAPTCHA) needs its script, iframe
+  // and verification origin allowed - only when it is actually configured.
+  const turnstileOrigins = process.env.TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY ? ['https://challenges.cloudflare.com'] : [];
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", ...turnstileOrigins],
+        frameSrc: ["'self'", ...turnstileOrigins],
+        connectSrc: ["'self'", ...turnstileOrigins],
         // GIFs come from GIPHY's CDN; blob: lets upload previews render.
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com', ...mediaOrigins]
       }
     }
   }));
+  app.use(stagingMiddleware);
   app.use(express.static(path.join(__dirname, '..', 'public')));
   // Pages and JSON are personal and change constantly: never let a browser or a
   // shared cache show a stale copy (or another visitor's copy) of them. "no-cache"

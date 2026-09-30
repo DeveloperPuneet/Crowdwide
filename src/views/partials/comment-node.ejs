@@ -2,22 +2,33 @@
   const node = locals.node;
   const depth = locals.depth || 0;
   const postId = locals.postId;
+  const postAuthorId = locals.postAuthorId;
   const csrf = locals.csrfToken;
   const canReply = locals.canReply;
+  const isPostAuthor = currentUser && postAuthorId && String(postAuthorId) === String(currentUser.id);
+  const reactions = (node.reactions || []).map((r) => ({ emoji: r.emoji, count: (r.users || []).length, reacted: currentUser ? (r.users || []).some((id) => String(id) === String(currentUser.id)) : false }));
 %>
-<article class="thread-comment" data-comment-id="<%= node._id %>" data-depth="<%= Math.min(depth, 3) %>">
+<article class="thread-comment<%= node.heartedByAuthor ? ' is-hearted' : '' %>" data-comment-id="<%= node._id %>" data-depth="<%= Math.min(depth, 3) %>">
 	<div class="thread-comment-head">
 		<%- include('avatar', { person: node.author || {}, size: 'tiny', link: true }) %>
 		<strong><a class="name-link" href="/u/<%= node.author?._id %>"><%= node.author?.name || 'Member' %></a></strong>
 		<time datetime="<%= new Date(node.createdAt).toISOString() %>"><%= new Date(node.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time>
+		<% if (node.heartedByAuthor) { %><span class="author-heart-badge" title="Hearted by the post author"><%- icon('heart', { size: 12 }) %></span><% } %>
 	</div>
-	<% if (node.body) { %><p class="thread-comment-text"><%- renderMentions(node.body) %></p><% } %>
+	<% if (node.body) { %><p class="thread-comment-text" data-translatable data-original="<%= node.body %>"><%- renderMentions(node.body) %></p><% } %>
 	<% if (node.gif?.url) { %><img class="comment-gif" src="<%= node.gif.url %>" alt="<%= node.gif.title || 'GIF' %>" loading="lazy"<% if (node.gif.width && node.gif.height) { %> width="<%= node.gif.width %>" height="<%= node.gif.height %>"<% } %>><% } %>
 	<div class="thread-comment-actions">
 		<form class="comment-like-form" data-async-interaction method="post" action="/comments/<%= node._id %>/like">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
 			<button type="submit" class="action-like" aria-label="Like comment" aria-pressed="false"><%- icon('heart', { size: 15 }) %><span class="count"><%= node.likes?.length || 0 %></span></button>
 		</form>
+		<% if (node.body) { %><button type="button" class="action-translate" data-translate-trigger><%- icon('globe', { size: 14 }) %> <span class="label">Translate</span></button><% } %>
+		<% if (isPostAuthor && String(node.author?._id) !== String(currentUser.id)) { %>
+		<form class="comment-author-heart-form" data-async-interaction method="post" action="/comments/<%= node._id %>/author-heart">
+			<input type="hidden" name="_csrf" value="<%= csrf %>">
+			<button type="submit" class="action-author-heart<%= node.heartedByAuthor ? ' is-selected' : '' %>" aria-pressed="<%= node.heartedByAuthor ? 'true' : 'false' %>" title="<%= node.heartedByAuthor ? 'Remove your heart' : 'Heart this comment as the post author' %>"><%- icon('heart', { size: 14 }) %></button>
+		</form>
+		<% } %>
 		<% if (canReply) { %>
 		<details class="thread-reply">
 			<summary><%- icon('reply', { size: 14 }) %> Reply</summary>
@@ -39,7 +50,8 @@
 		</details>
 		<% } %>
 	</div>
+	<%- include('emoji-reaction-bar', { reactions, targetType: 'comment', targetId: node._id }) %>
 	<% (node.children || []).forEach((child) => { %>
-		<%- include('comment-node', { node: child, depth: depth + 1, postId, csrfToken: csrf, canReply }) %>
+		<%- include('comment-node', { node: child, depth: depth + 1, postId, postAuthorId, csrfToken: csrf, canReply }) %>
 	<% }) %>
 </article>

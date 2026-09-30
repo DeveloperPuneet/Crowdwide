@@ -225,8 +225,13 @@ document.querySelectorAll('.media-picker input[type="file"]').forEach((input) =>
       preview.append(item);
     });
     setStatus(valid.length ? `${valid.length} file${valid.length === 1 ? '' : 's'} ready to upload.` : 'No media selected.');
+    // Per-file details: only offer a second set of fields when a second file is attached.
+    const secondDetails = input.closest('form')?.querySelector('[data-media-meta="2"]');
+    if (secondDetails) secondDetails.hidden = valid.length < 2;
   };
 
+  const initialSecond = input.closest('form')?.querySelector('[data-media-meta="2"]');
+  if (initialSecond) initialSecond.hidden = true;
   input.addEventListener('change', () => syncFiles(input.files));
   ['dragenter', 'dragover'].forEach((eventName) => label.addEventListener(eventName, (event) => {
     event.preventDefault();
@@ -421,6 +426,17 @@ document.addEventListener('submit', async (event) => {
         const count = reactionButton.querySelector('.count');
         if (count) count.textContent = data.counts[reactionButton.dataset.reaction] ?? count.textContent;
       });
+    }
+    if (data.hearted !== undefined) {
+      button.classList.toggle('is-selected', Boolean(data.hearted));
+      button.setAttribute('aria-pressed', String(Boolean(data.hearted)));
+      button.title = data.hearted ? 'Remove your heart' : 'Heart this comment as the post author';
+      form.closest('.thread-comment')?.classList.toggle('is-hearted', Boolean(data.hearted));
+      let badge = form.closest('.thread-comment-head')?.querySelector('.author-heart-badge');
+      if (data.hearted && !badge) {
+        const head = form.closest('article.thread-comment')?.querySelector(':scope > .thread-comment-head');
+        if (head) { badge = document.createElement('span'); badge.className = 'author-heart-badge'; badge.title = 'Hearted by the post author'; badge.innerHTML = button.querySelector('svg')?.outerHTML || ''; head.append(badge); }
+      } else if (!data.hearted && badge) badge.remove();
     }
     if (data.html) {
       insertComment(form, data);

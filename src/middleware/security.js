@@ -47,9 +47,19 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many API requests. Try again shortly.' }
 });
 
+// Translation hits a paid/metered external API, so it gets its own tighter
+// limit rather than sharing interactionLimiter's generous 60/min.
+const translateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many translation requests. Try again shortly.' }
+});
+
 function csrfProtection(req, res, next) {
   if (req.is('multipart/form-data')) return next();
   return csrfSynchronisedProtection(req, res, next);
 }
 
-module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, interactionLimiter, apiLimiter, pollLimiter, gifLimiter };
+module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, interactionLimiter, apiLimiter, pollLimiter, gifLimiter, translateLimiter };

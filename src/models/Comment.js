@@ -6,7 +6,11 @@ const commentSchema = new mongoose.Schema({
   body: { type: String, trim: true, maxlength: 2000, default: '' },
   gif: { url: String, preview: String, title: String, width: Number, height: Number },
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null },
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // The post author's own "special like" on a comment (like a creator heart on
+  // YouTube) - distinct from ordinary likes, settable only by the post's author.
+  heartedByAuthor: { type: Boolean, default: false },
+  reactions: [{ emoji: { type: String, required: true }, users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] }]
 }, { timestamps: true });
 
 commentSchema.pre('validate', function requireContent(next) {

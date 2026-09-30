@@ -10,6 +10,7 @@
   const senderId = String(m.sender?._id || m.sender);
   const mine = senderId === String(locals.viewerId);
   const iso = new Date(m.createdAt).toISOString();
+  const reactions = (m.reactions || []).map((r) => ({ emoji: r.emoji, count: (r.users || []).length, reacted: (r.users || []).some((id) => String(id) === String(locals.viewerId)) }));
 %>
 <% if (m.kind === 'system') { %>
 <div class="chat-system" data-id="<%= m._id %>" data-time="<%= iso %>"><span><strong><%= m.sender?.name || 'Someone' %></strong> <%= m.body %></span></div>
@@ -33,6 +34,7 @@
 			<% if (m.body) { %><p class="chat-text"><%= m.body %></p><% } %>
 		</div>
 		<time class="chat-time" datetime="<%= iso %>"></time>
+		<%- include('emoji-reaction-bar', { reactions, targetType: inGroup ? 'group' : 'dm', targetId: m._id, groupId: inGroup ? locals.groupId : null }) %>
 	</div>
 </div>
 <% } %>
