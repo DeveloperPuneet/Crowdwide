@@ -9,8 +9,7 @@ communities.
 It is an Express MVC app with EJS views and MongoDB, using session-based
 authentication, optional TOTP two-factor, and email through the Gmail API.
 
-**Live:** the deployed instance runs at the URL set in `APP_URL` (see
-`.env.example`).
+**Live:** https://www.crowdwide.run.place
 
 ## Features
 
