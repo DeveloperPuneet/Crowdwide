@@ -14,7 +14,10 @@
 		<p class="community-map-count" data-map-count><%= mapCommunities.length %> mapped communities</p>
 	</section>
 	<section class="community-map-layout">
-		<div class="community-map-canvas" data-community-discovery-map aria-label="Map of public communities"></div>
+		<div>
+			<div class="community-map-canvas" data-community-discovery-map data-map-api-key="<%= locals.mapApiKey || '' %>" aria-label="Map of public communities"></div>
+			<p class="community-map-tile-error" data-map-tile-error role="status" hidden>Map tiles are blocked on this connection. You can still search and open communities from the list.</p>
+		</div>
 		<div class="community-map-results" aria-label="Mapped communities">
 			<div class="community-map-results-heading"><h2>Mapped communities</h2><span><%= mapCommunities.length %></span></div>
 			<div class="community-map-list" data-map-list>
@@ -34,7 +37,7 @@
 			</div>
 		</div>
 	</section>
-	<p class="community-map-attribution">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a></p>
+	<p class="community-map-attribution">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a><% if (locals.mapApiKey) { %> © <a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener noreferrer">MapTiler</a><% } %></p>
 </main>
 <%- include('../partials/app-footer') %>
 <%- include('../partials/foot') %>

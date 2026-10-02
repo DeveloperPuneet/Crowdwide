@@ -52,71 +52,7 @@ The following features are planned for future Crowdwide updates. They are intend
 
 Remaining features are planned; completed subsections are marked DONE. Their implementation order may change depending on user feedback, platform stability, and development priorities.
 
-1. Community Galaxy — Interactive Community Discovery Map 🌐
-
-Goal: Create an interactive world map that allows users to discover communities based on their geographic location, interests, and activity.
-
-Instead of discovering communities only through lists, search results, or recommendation feeds, users will be able to explore communities visually on a world map.
-
-Planned functionality:
-
-Display communities on an interactive world map according to their selected city, region, or country.
-Represent each community with a circular map marker.
-Scale marker sizes according to community size, using membership and follower statistics where applicable. Larger communities will have larger markers, while smaller communities will remain discoverable.
-When a user hovers over or selects a marker, display a compact information card containing:
-Community name and profile image.
-Short description.
-Main interests, topics, or hashtags.
-Number of members and followers, where available.
-Basic activity or engagement statistics.
-A link to open the community page.
-Allow users to zoom and pan around the map and explore communities in different regions.
-Provide filters for interests, categories, and other useful community attributes.
-Allow users to open a community directly from its map marker.
-Make the map responsive and usable on desktop, tablet, and mobile devices.
-
-Privacy and accessibility requirements:
-
-Community location must be optional and controlled by the community owner.
-Display only the general location intentionally provided by the community, never a creator's precise personal location.
-Support communities that operate entirely online without a physical location.
-Ensure smaller communities remain visible and are not overshadowed by larger markers.
-
-Expected outcome: A visual discovery experience that helps users find communities they might never have discovered through a conventional feed.
-
-2. Rising Communities Radar — Discover Growing Communities 📡
-
-Goal: Help emerging and smaller communities gain visibility by identifying communities experiencing meaningful growth.
-
-Crowdwide's discovery system should not depend exclusively on total membership, follower counts, or lifetime popularity. This feature will introduce a dedicated discovery area for communities whose activity and participation are increasing.
-
-Planned functionality:
-
-Introduce a dedicated Rising Communities section, including a Rising This Week view.
-Evaluate communities using multiple signals, such as:
-Recent member and follower growth.
-Growth in meaningful posts and discussions.
-Active participation from existing and new members.
-Comment and reply activity.
-Consistency of activity over time.
-Content relevance and community health.
-Measure growth relative to a community's previous activity, rather than relying only on absolute numbers.
-Give smaller communities an opportunity to appear when they show meaningful progress, even if their total membership is low.
-Allow users to open a community directly from the results and join or follow it.
-Refresh rankings periodically using a defined measurement window.
-Provide appropriate handling for communities that have insufficient activity or historical data to calculate reliable growth.
-
-Anti-spam and fairness safeguards:
-
-Detect suspicious activity and artificial engagement.
-Reduce the influence of repetitive posts, fake accounts, spam, and coordinated engagement manipulation.
-Avoid allowing raw likes, comments, or membership totals to determine rankings by themselves.
-Apply appropriate eligibility thresholds and safeguards against sudden artificial spikes.
-Prevent communities from gaining an advantage simply by generating large volumes of low-quality content.
-
-Expected outcome: A discovery system that rewards genuine community development and helps promising communities reach new audiences.
-
-3. Your Community Journey — Personal Activity Recap 🏆
+1. Your Community Journey — Personal Activity Recap 🏆
 
 Goal: Give users a personalized, shareable summary of their participation and contributions across Crowdwide.
 

@@ -776,6 +776,7 @@ html { scrollbar-gutter: stable; }
 .community-map-count { flex: none; margin: 0; color: #9b9eb2; font-size: 11px; }
 .community-map-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, .8fr); gap: 14px; align-items: start; }
 .community-map-canvas { width: 100%; height: min(72vh, 720px); min-height: 440px; border: 1px solid var(--line); border-radius: 10px; background: #d9e4df; overflow: hidden; z-index: 0; }
+.community-map-tile-error { margin: 8px 0 0; padding: 10px 12px; border: 1px solid rgba(255, 183, 106, .3); border-radius: 7px; background: rgba(255, 183, 106, .08); color: #f4c38f; font-size: 11px; line-height: 1.5; }
 .community-map-results { min-width: 0; }
 .community-map-results-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .community-map-results-heading h2 { font-size: 15px; }

@@ -171,6 +171,21 @@ test('community detail renders a quest board with member actions', async () => {
   assert.match(html, /href="\/dashboard\?quest=q3"/);
 });
 
+test('community map gives users a usable fallback when map tile access is blocked', async () => {
+  const html = await render('pages/community-map.ejs', {
+    title: 'Community Galaxy', description: 'Map communities', pagePath: '/community-map', noIndex: true, includeLeaflet: true,
+    mapApiKey: 'test-map-key',
+    mapCommunities: [], categories: []
+  });
+  assert.match(html, /data-community-discovery-map/);
+  assert.match(html, /data-map-tile-error/);
+  assert.match(html, /You can still search and open communities from the list/);
+  assert.match(html, /OpenStreetMap contributors/);
+  assert.match(html, /CARTO/);
+  assert.match(html, /data-map-api-key="test-map-key"/);
+  assert.match(html, /MapTiler/);
+});
+
 test('ended quests show the winner and reward state', async () => {
   const html = await render('pages/community-detail.ejs', {
     title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,

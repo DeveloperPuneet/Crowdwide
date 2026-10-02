@@ -48,11 +48,17 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
         frameSrc: ["'self'", ...turnstileOrigins],
         connectSrc: ["'self'", ...turnstileOrigins],
         // GIFs come from GIPHY's CDN; blob: lets upload previews render.
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com', 'https://*.tile.openstreetmap.org', ...mediaOrigins]
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com', 'https://*.tile.openstreetmap.org', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://api.maptiler.com', ...mediaOrigins]
       }
     }
   }));
   app.use(stagingMiddleware);
+  app.use((req, res, next) => {
+    if (req.path === '/community-map' || /^\/communities\/[^/]+\/manage$/.test(req.path)) {
+      res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    }
+    next();
+  });
   app.use('/vendor/leaflet', express.static(path.join(__dirname, '..', 'node_modules', 'leaflet', 'dist')));
   app.use(express.static(path.join(__dirname, '..', 'public')));
   // Pages and JSON are personal and change constantly: never let a browser or a

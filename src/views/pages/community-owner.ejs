@@ -27,7 +27,8 @@
 				<legend>Community map location</legend>
 				<label class="privacy-check"><input type="checkbox" name="showOnMap" data-show-on-map <%= community.showOnMap ? 'checked' : '' %>> Show this public community on the discovery map</label>
 				<label>General location<input name="locationLabel" data-location-label maxlength="100" value="<%= community.locationLabel || '' %>" placeholder="City, region, country"><small>Use a broad city or region center, never a home or personal address.</small></label>
-				<div class="community-location-map" data-owner-location-map data-lat="<%= community.locationLat ?? '' %>" data-lng="<%= community.locationLng ?? '' %>" aria-label="Choose a general community location by clicking the map"></div>
+				<div class="community-location-map" data-owner-location-map data-map-api-key="<%= locals.mapApiKey || '' %>" data-lat="<%= community.locationLat ?? '' %>" data-lng="<%= community.locationLng ?? '' %>" aria-label="Choose a general community location by clicking the map"></div>
+				<p class="community-map-tile-error" data-map-tile-error role="status" hidden>Map tiles are blocked on this connection. Try again on another network to place the location pin.</p>
 				<input type="hidden" name="locationLat" data-location-lat value="<%= community.locationLat ?? '' %>">
 				<input type="hidden" name="locationLng" data-location-lng value="<%= community.locationLng ?? '' %>">
 				<div class="community-location-actions"><small>Click the map to place or move the community pin.</small><button type="button" class="button button-small button-ghost" data-clear-community-location>Clear location</button></div>

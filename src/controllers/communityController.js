@@ -108,6 +108,7 @@ exports.communityMap = async (req, res) => {
     pagePath: '/community-map',
     noIndex: true,
     includeLeaflet: true,
+    mapApiKey: process.env.MAPTILER_API_KEY || '',
     mapCommunities,
     categories: categories.filter(Boolean).sort()
   });
@@ -235,7 +236,7 @@ exports.manage = async (req, res) => {
     User.find({ _id: { $in: req.community.moderators } }).select('name email').lean(),
     Quest.find({ community: req.community._id }).sort({ createdAt: -1 }).populate('creator', 'name').populate('participants', 'name').populate('completedBy', 'name').populate('winner', 'name').lean()
   ]);
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, community: req.community, members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
 };
 
 exports.createQuest = async (req, res) => {
