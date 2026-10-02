@@ -115,8 +115,11 @@ providers are supported:
   (free, self-hosted)** - open-source, no API key, no per-character
   billing. It still needs compute and memory, so run it as a separate
   service; do not launch it from the app's Render build/start command.
-  Set `LIBRETRANSLATE_URL` to its reachable HTTPS base URL, and configure
-  `LIBRETRANSLATE_API_KEY` if the instance requires one. Avoid an
+  Set `LIBRETRANSLATE_URL` to the LibreTranslate service's reachable base
+  URL, not Crowdwide's `APP_URL` or public website URL; the app appends
+  `/translate`. For services on Render, use the LibreTranslate service's
+  private hostname and port when private networking is available.
+  Configure `LIBRETRANSLATE_API_KEY` if the instance requires one. Avoid an
   unauthenticated public endpoint, which can be abused for resource
   exhaustion.
 

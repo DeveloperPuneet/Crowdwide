@@ -2,11 +2,16 @@
 <%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
 <main class="chat-main">
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
-	<section class="chat-shell" data-chat data-kind="group" data-poll-url="/groups/<%= group._id %>/poll" data-history-url="/groups/<%= group._id %>/history" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>">
+	<section class="chat-shell" data-chat data-kind="group" data-poll-url="/groups/<%= group._id %>/poll" data-history-url="/groups/<%= group._id %>/history" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>" data-focus-id="<%= locals.focusId || '' %>">
 		<header class="chat-header">
 			<a class="chat-back" href="/groups" aria-label="Back to groups"><%- icon('arrow-left', { size: 20 }) %></a>
 			<%- include('../partials/group-avatar', { group, size: 'small' }) %>
 			<div class="chat-title"><strong><%= group.name %></strong><span><%= group.members.length %> member<%= group.members.length === 1 ? '' : 's' %></span></div>
+			<form class="chat-search" data-message-search-form action="/groups/<%= group._id %>/search" role="search" aria-label="Search this conversation">
+				<input type="search" name="q" maxlength="100" placeholder="Search messages" aria-label="Search messages">
+				<button type="submit" aria-label="Search"><%- icon('search', { size: 17 }) %></button>
+			</form>
+			<div class="chat-search-results" data-message-search-results role="status" aria-live="polite" hidden></div>
 			<a class="chat-header-action" href="/groups/<%= group._id %>/info" aria-label="Group info and settings"><%- icon('info', { size: 20 }) %></a>
 		</header>
 		<%- include('../partials/chat-body', { sendUrl: '/groups/' + group._id, messagesHtml, hasMore, placeholder: 'Write to the group...', emptyText: 'No messages yet. Say hello to the group.', csrfToken, gifsEnabled: locals.gifsEnabled }) %>

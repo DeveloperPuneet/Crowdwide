@@ -10,6 +10,8 @@
   const empty = shell.querySelector('[data-chat-empty]');
   const form = shell.querySelector('[data-chat-form]');
   const input = shell.querySelector('[data-chat-input]');
+  const searchForm = shell.querySelector('[data-message-search-form]');
+  const searchResults = shell.querySelector('[data-message-search-results]');
   const errorBox = shell.querySelector('[data-chat-error]');
   const jump = shell.querySelector('[data-chat-jump]');
   const pollUrl = shell.dataset.pollUrl;
@@ -151,6 +153,48 @@
     errorBox.hidden = !text;
   };
 
+  searchForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const query = new FormData(searchForm).get('q')?.toString().trim() || '';
+    searchResults.replaceChildren();
+    searchResults.hidden = false;
+    if (query.length < 2) {
+      searchResults.textContent = 'Enter at least 2 characters.';
+      return;
+    }
+    searchResults.textContent = 'Searching…';
+    const button = searchForm.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    try {
+      const { data } = await window.axios.get(searchForm.action, { params: { q: query } });
+      searchResults.replaceChildren();
+      if (!data.results?.length) {
+        searchResults.textContent = 'No matching messages.';
+        return;
+      }
+      data.results.forEach((result) => {
+        const link = document.createElement('a');
+        link.className = 'chat-search-result';
+        link.href = result.href;
+        const sender = document.createElement('strong');
+        sender.textContent = result.sender;
+        const snippet = document.createElement('span');
+        snippet.textContent = result.excerpt;
+        const time = document.createElement('time');
+        time.textContent = new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(result.createdAt));
+        link.append(sender, snippet, time);
+        searchResults.append(link);
+      });
+    } catch (error) {
+      searchResults.textContent = error.response?.data?.error || 'Could not search this conversation.';
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+  searchForm?.querySelector('input[type="search"]')?.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && searchResults) searchResults.hidden = true;
+  });
+
   const pendingBubble = ({ body, gif }) => {
     const wrap = document.createElement('div');
     wrap.className = 'chat-msg is-own is-pending';
@@ -257,7 +301,12 @@
   // ---- start ----
   trackIds();
   decorate();
-  toBottom(false);
+  const focusMessage = shell.dataset.focusId && list.querySelector(`[data-id="${shell.dataset.focusId}"]`);
+  if (focusMessage) {
+    pinned = false;
+    focusMessage.classList.add('is-search-match');
+    focusMessage.scrollIntoView({ block: 'center' });
+  } else toBottom(false);
   window.addEventListener('load', () => { decorate(); if (pinned) toBottom(false); });
   if (!isTouch) input.focus({ preventScroll: true }); // don't pop the phone keyboard open on arrival
   schedule(delay);

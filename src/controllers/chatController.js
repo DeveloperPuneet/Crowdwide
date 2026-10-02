@@ -18,7 +18,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const logger = require('../services/logger');
 const { gifFromBody } = require('../services/gif');
-const { PAGE_SIZE, isObjectId, previewText, attachPostPreviews, isPendingRequest, tooManyNewDmRequests } = require('../services/chat');
+const { PAGE_SIZE, isObjectId, escapeRegex, excerpt, previewText, attachPostPreviews, isPendingRequest, tooManyNewDmRequests } = require('../services/chat');
 const { notify } = require('./interactionController');
 const { toggleReaction } = require('../utils/reactions');
 
@@ -58,6 +58,36 @@ async function pageOfMessages(Model, filter, { after, before }) {
   const query = before ? { ...filter, _id: { $lt: before } } : filter;
   const rows = await Model.find(query).sort({ _id: -1 }).limit(PAGE_SIZE + 1).populate('sender', 'name profilePicture').lean();
   return { rows: rows.slice(0, PAGE_SIZE).reverse(), hasMore: rows.length > PAGE_SIZE };
+}
+
+async function pageAroundMessage(Model, filter, focusId) {
+  const target = await Model.findOne({ ...filter, _id: focusId }).select('_id').lean();
+  if (!target) return pageOfMessages(Model, filter, {});
+  const halfPage = Math.ceil(PAGE_SIZE / 2);
+  const [before, fromTarget] = await Promise.all([
+    Model.find({ ...filter, _id: { $lt: target._id } }).sort({ _id: -1 }).limit(halfPage + 1).populate('sender', 'name profilePicture').lean(),
+    Model.find({ ...filter, _id: { $gte: target._id } }).sort({ _id: 1 }).limit(halfPage).populate('sender', 'name profilePicture').lean()
+  ]);
+  return { rows: [...before.slice(0, halfPage).reverse(), ...fromTarget], hasMore: before.length > halfPage };
+}
+
+function searchQuery(req, res) {
+  const query = String(req.query.q || '').trim().slice(0, 100);
+  if (query.length < 2) {
+    res.status(400).json({ ok: false, error: 'Enter at least 2 characters to search.' });
+    return null;
+  }
+  return new RegExp(escapeRegex(query), 'i');
+}
+
+function shapeSearchResults(rows, href) {
+  return rows.map((row) => ({
+    id: String(row._id),
+    sender: row.sender?.name || 'Member',
+    excerpt: excerpt(row.body, 180),
+    createdAt: row.createdAt,
+    href: `${href}?focus=${row._id}`
+  }));
 }
 
 function sanitizedContent(req) {
@@ -106,7 +136,10 @@ exports.dmThread = async (req, res) => {
     }
     const pending = await pendingRequestFlag(viewer, userId, person._id);
     await Message.updateMany({ sender: person._id, recipient: userId, readAt: null }, { readAt: new Date() });
-    const { rows, hasMore } = await pageOfMessages(Message, dmFilter(userId, person._id), {});
+    const focusId = isObjectId(req.query.focus) ? req.query.focus : null;
+    const { rows, hasMore } = focusId
+      ? await pageAroundMessage(Message, dmFilter(userId, person._id), focusId)
+      : await pageOfMessages(Message, dmFilter(userId, person._id), {});
     await attachPostPreviews(rows, userId);
     const rendered = await renderMessages(res, rows, { group: false, viewerId: userId });
     res.render('pages/message-thread', {
@@ -117,11 +150,28 @@ exports.dmThread = async (req, res) => {
       messagesHtml: rendered.map((item) => item.html).join('\n'),
       lastId: rows.length ? String(rows[rows.length - 1]._id) : '',
       hasMore,
+      focusId,
       pending
     });
   } catch (error) {
     logger.error('Loading message thread failed', error);
     res.status(500).render('pages/not-found', { title: 'Crowdwide is having trouble' });
+  }
+};
+
+exports.dmSearch = async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ ok: false, results: [] });
+    const regex = searchQuery(req, res);
+    if (!regex) return;
+    const { person, blocked, userId } = await loadDmPerson(req);
+    if (!person || blocked) return res.status(404).json({ ok: false, results: [] });
+    const rows = await Message.find({ ...dmFilter(userId, person._id), body: regex })
+      .sort({ createdAt: -1 }).limit(20).select('body sender createdAt').populate('sender', 'name').lean();
+    res.json({ ok: true, results: shapeSearchResults(rows, `/messages/${person._id}`) });
+  } catch (error) {
+    logger.error('Searching direct messages failed', error);
+    res.status(500).json({ ok: false, error: 'Could not search this conversation.', results: [] });
   }
 };
 
@@ -140,6 +190,20 @@ exports.dmPoll = async (req, res) => {
   } catch (error) {
     logger.error('Polling direct messages failed', error);
     res.status(500).json({ messages: [], error: 'Could not load messages.' });
+  }
+};
+
+exports.dmHistory = async (req, res) => {
+  try {
+    const { person, blocked, userId } = await loadDmPerson(req);
+    const before = isObjectId(req.query.before) ? req.query.before : null;
+    if (!person || blocked || !before) return res.status(404).json({ messages: [], hasMore: false });
+    const { rows, hasMore } = await pageOfMessages(Message, dmFilter(userId, person._id), { before });
+    await attachPostPreviews(rows, userId);
+    res.json({ messages: await renderMessages(res, rows, { group: false, viewerId: userId }), hasMore });
+  } catch (error) {
+    logger.error('Loading earlier direct messages failed', error);
+    res.status(500).json({ messages: [], hasMore: false, error: 'Could not load earlier messages.' });
   }
 };
 
@@ -228,7 +292,10 @@ exports.groupThread = async (req, res) => {
     const group = await loadGroup(req);
     if (!group) return res.status(404).render('pages/not-found', { title: 'Group not found' });
     const userId = req.session.user.id;
-    const { rows, hasMore } = await pageOfMessages(GroupMessage, { group: group._id }, {});
+    const focusId = isObjectId(req.query.focus) ? req.query.focus : null;
+    const { rows, hasMore } = focusId
+      ? await pageAroundMessage(GroupMessage, { group: group._id }, focusId)
+      : await pageOfMessages(GroupMessage, { group: group._id }, {});
     await attachPostPreviews(rows, userId);
     const rendered = await renderMessages(res, rows, { group: true, viewerId: userId, groupId: String(group._id) });
     res.render('pages/group-thread', {
@@ -238,11 +305,28 @@ exports.groupThread = async (req, res) => {
       group,
       messagesHtml: rendered.map((item) => item.html).join('\n'),
       lastId: rows.length ? String(rows[rows.length - 1]._id) : '',
-      hasMore
+      hasMore,
+      focusId
     });
   } catch (error) {
     logger.error('Loading group thread failed', error);
     res.status(500).render('pages/not-found', { title: 'Crowdwide is having trouble' });
+  }
+};
+
+exports.groupSearch = async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ ok: false, results: [] });
+    const regex = searchQuery(req, res);
+    if (!regex) return;
+    const group = await loadGroup(req);
+    if (!group) return res.status(404).json({ ok: false, results: [] });
+    const rows = await GroupMessage.find({ group: group._id, kind: { $ne: 'system' }, body: regex })
+      .sort({ createdAt: -1 }).limit(20).select('body sender createdAt').populate('sender', 'name').lean();
+    res.json({ ok: true, results: shapeSearchResults(rows, `/groups/${group._id}`) });
+  } catch (error) {
+    logger.error('Searching group messages failed', error);
+    res.status(500).json({ ok: false, error: 'Could not search this conversation.', results: [] });
   }
 };
 
@@ -259,6 +343,20 @@ exports.groupPoll = async (req, res) => {
   } catch (error) {
     logger.error('Polling group messages failed', error);
     res.status(500).json({ messages: [], error: 'Could not load messages.' });
+  }
+};
+
+exports.groupHistory = async (req, res) => {
+  try {
+    const group = await GroupConversation.findById(req.params.id).select('members').lean();
+    const before = isObjectId(req.query.before) ? req.query.before : null;
+    if (!memberOf(group, req.session.user.id) || !before) return res.status(404).json({ messages: [], hasMore: false });
+    const { rows, hasMore } = await pageOfMessages(GroupMessage, { group: group._id }, { before });
+    await attachPostPreviews(rows, req.session.user.id);
+    res.json({ messages: await renderMessages(res, rows, { group: true, viewerId: req.session.user.id, groupId: String(group._id) }), hasMore });
+  } catch (error) {
+    logger.error('Loading earlier group messages failed', error);
+    res.status(500).json({ messages: [], hasMore: false, error: 'Could not load earlier messages.' });
   }
 };
 

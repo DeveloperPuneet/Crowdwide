@@ -117,6 +117,16 @@ test('a non-ok response from either provider throws', async () => {
   });
 });
 
+test('LibreTranslate 403 errors explain URL and API-key configuration', async () => {
+  await withEnv({ GOOGLE_TRANSLATE_API_KEY: undefined, LIBRETRANSLATE_URL: 'https://crowdwide.example' }, async () => {
+    const translate = freshTranslate();
+    await assert.rejects(
+      () => translate.translateText('hi', 'es', { fetchImpl: async () => ({ ok: false, status: 403 }) }),
+      /check LIBRETRANSLATE_API_KEY and confirm LIBRETRANSLATE_URL points to LibreTranslate, not the Crowdwide website/
+    );
+  });
+});
+
 test('LANGUAGES is a non-empty, code/name curated list', () => {
   const translate = freshTranslate();
   assert.ok(translate.LANGUAGES.length > 10);

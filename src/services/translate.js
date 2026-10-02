@@ -55,7 +55,12 @@ async function translateViaLibre(text, target, source, fetchImpl) {
     body: JSON.stringify({ q: text, source: source || 'auto', target, format: 'text', ...(process.env.LIBRETRANSLATE_API_KEY ? { api_key: process.env.LIBRETRANSLATE_API_KEY } : {}) }),
     signal: AbortSignal.timeout(TIMEOUT_MS)
   });
-  if (!response.ok) throw new Error(`LibreTranslate responded ${response.status}`);
+  if (!response.ok) {
+    const authHint = response.status === 401 || response.status === 403
+      ? '; check LIBRETRANSLATE_API_KEY and confirm LIBRETRANSLATE_URL points to LibreTranslate, not the Crowdwide website'
+      : '';
+    throw new Error(`LibreTranslate responded ${response.status}${authHint}`);
+  }
   const data = await response.json();
   if (!data?.translatedText) throw new Error('LibreTranslate returned no translation');
   return { translatedText: data.translatedText, detectedSourceLanguage: data.detectedLanguage?.language || (source !== 'auto' ? source : null) };

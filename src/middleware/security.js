@@ -31,6 +31,14 @@ const pollLimiter = rateLimit({
   message: { messages: [], error: 'Slow down a little.' }
 });
 
+const messageSearchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { ok: false, error: 'Message search is busy right now. Try again shortly.', results: [] }
+});
+
 const gifLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 40,
@@ -62,4 +70,4 @@ function csrfProtection(req, res, next) {
   return csrfSynchronisedProtection(req, res, next);
 }
 
-module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, interactionLimiter, apiLimiter, pollLimiter, gifLimiter, translateLimiter };
+module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter };

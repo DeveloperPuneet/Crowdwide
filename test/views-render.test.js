@@ -40,9 +40,12 @@ test('direct message and group pages render a chat panel with no full-page form 
   assert.match(dm, /data-chat-form/);
   assert.match(dm, /data-gif-trigger/);
   assert.match(dm, /data-chat-more/);
+  assert.match(dm, /data-message-search-form/);
+  assert.match(dm, /aria-live="polite"/);
   const group = await render('pages/group-thread.ejs', { ...shared, title: 'G', group: { _id: 'g1', name: 'Crew', avatar: '', members: [{ _id: 'u1', name: 'Me' }, { _id: 'u2', name: 'Asha' }] } });
   assert.match(group, /data-kind="group"/);
   assert.match(group, /\/groups\/g1\/info/);
+  assert.match(group, /data-message-search-form/);
   const noGifs = await render('pages/message-thread.ejs', { ...shared, title: 'DM', person: { _id: 'u2', name: 'Asha' }, gifsEnabled: false });
   assert.doesNotMatch(noGifs, /data-gif-trigger/, 'no GIF button when GIPHY_API_KEY is not set');
 });

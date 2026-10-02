@@ -2,11 +2,16 @@
 <%- include('../partials/app-nav', { active: 'messages', currentUser }) %>
 <main class="chat-main">
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
-	<section class="chat-shell" data-chat data-kind="dm" data-poll-url="/messages/<%= person._id %>/poll" data-history-url="/messages/<%= person._id %>/history" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>">
+	<section class="chat-shell" data-chat data-kind="dm" data-poll-url="/messages/<%= person._id %>/poll" data-history-url="/messages/<%= person._id %>/history" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>" data-focus-id="<%= locals.focusId || '' %>">
 		<header class="chat-header">
 			<a class="chat-back" href="/messages" aria-label="Back to inbox"><%- icon('arrow-left', { size: 20 }) %></a>
 			<%- include('../partials/avatar', { person, size: 'small', link: false }) %>
 			<div class="chat-title"><strong><%= person.name %></strong><a class="name-link" href="/u/<%= person._id %>">View profile</a></div>
+			<form class="chat-search" data-message-search-form action="/messages/<%= person._id %>/search" role="search" aria-label="Search this conversation">
+				<input type="search" name="q" maxlength="100" placeholder="Search messages" aria-label="Search messages">
+				<button type="submit" aria-label="Search"><%- icon('search', { size: 17 }) %></button>
+			</form>
+			<div class="chat-search-results" data-message-search-results role="status" aria-live="polite" hidden></div>
 		</header>
 		<%- include('../partials/chat-body', { sendUrl: '/messages/' + person._id, messagesHtml, hasMore, placeholder: 'Message ' + person.name, emptyText: 'Start the conversation with ' + person.name + '.', csrfToken, gifsEnabled: locals.gifsEnabled, pending: locals.pending, requestPersonId: person._id, requestPersonName: person.name }) %>
 	</section>

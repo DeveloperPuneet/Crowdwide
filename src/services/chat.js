@@ -10,6 +10,10 @@ function isObjectId(value) {
   return typeof value === 'string' && OBJECT_ID.test(value);
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function excerpt(text, max = 140) {
   const clean = String(text || '').replace(/\s+/g, ' ').trim();
   return clean.length > max ? `${clean.slice(0, max - 1).trimEnd()}…` : clean;
@@ -85,4 +89,4 @@ async function tooManyNewDmRequests(Message, senderId) {
   return newCount >= MAX_NEW_DM_REQUESTS_PER_WINDOW;
 }
 
-module.exports = { PAGE_SIZE, isObjectId, excerpt, previewText, buildPostPreview, attachPostPreviews, isPendingRequest, tooManyNewDmRequests, NEW_DM_REQUEST_WINDOW_MS, MAX_NEW_DM_REQUESTS_PER_WINDOW };
+module.exports = { PAGE_SIZE, isObjectId, escapeRegex, excerpt, previewText, buildPostPreview, attachPostPreviews, isPendingRequest, tooManyNewDmRequests, NEW_DM_REQUEST_WINDOW_MS, MAX_NEW_DM_REQUESTS_PER_WINDOW };
