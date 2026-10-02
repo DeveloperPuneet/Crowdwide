@@ -44,6 +44,86 @@ const ownerOnly = async (req, res, next) => {
 exports.ownerOnly = ownerOnly;
 exports.moderationOnly = moderationOnly;
 exports.loadCommunity = loadCommunity;
+
+const getRisingCommunities = async (limit = 12) => {
+  const now = new Date();
+  const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const communities = await Community.find({ isPrivate: false, membersCount: { $gte: 1 } })
+    .select('name slug description category hashtags membersCount avatarImage createdAt')
+    .sort({ membersCount: -1, createdAt: -1 })
+    .lean();
+
+  if (!communities.length) return [];
+
+  const communityIds = communities.map((community) => community._id);
+  const recentActivity = await Post.aggregate([
+    { $match: { status: 'published', community: { $in: communityIds }, createdAt: { $gte: lastWeek } } },
+    { $group: {
+        _id: '$community',
+        count: { $sum: 1 },
+        likes: { $sum: { $size: '$likes' } },
+        commentSignals: { $sum: '$commentsCount' },
+        shares: { $sum: '$sharesCount' },
+        views: { $sum: '$viewsCount' }
+      }
+    }
+  ]);
+
+  const activityByCommunity = new Map(recentActivity.map((entry) => [String(entry._id), entry]));
+
+  return communities
+    .map((community) => {
+      const stats = activityByCommunity.get(String(community._id)) || { count: 0, likes: 0, commentSignals: 0, shares: 0, views: 0 };
+      const communityScore = ((stats.count * 12) + (stats.likes * 1.3) + (stats.commentSignals * 2.5) + (stats.shares * 3.2) + (stats.views * 0.1) + ((community.membersCount || 0) * 0.18));
+      return {
+        ...community,
+        recentPosts: stats.count,
+        recentLikes: stats.likes,
+        recentComments: stats.commentSignals,
+        recentShares: stats.shares,
+        recentViews: stats.views,
+        score: Number(communityScore.toFixed(2))
+      };
+    })
+    .filter((community) => community.recentPosts > 0 || (community.membersCount || 0) >= 25)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+};
+
+exports.communityMap = async (req, res) => {
+  const filter = {
+    isPrivate: false,
+    showOnMap: true,
+    locationLabel: { $type: 'string', $ne: '' },
+    locationLat: { $gte: -90, $lte: 90 },
+    locationLng: { $gte: -180, $lte: 180 }
+  };
+  const [mapCommunities, categories] = await Promise.all([
+    Community.find(filter).sort({ membersCount: -1, name: 1 }).limit(500).select('name slug description category hashtags membersCount avatarImage locationLabel locationLat locationLng').lean(),
+    Community.distinct('category', filter)
+  ]);
+  res.render('pages/community-map', {
+    title: 'Community Galaxy',
+    description: 'Explore public Crowdwide communities by location, interests, and category.',
+    pagePath: '/community-map',
+    noIndex: true,
+    includeLeaflet: true,
+    mapCommunities,
+    categories: categories.filter(Boolean).sort()
+  });
+};
+
+exports.risingCommunities = async (req, res) => {
+  const risingCommunities = await getRisingCommunities();
+  res.render('pages/rising-communities', {
+    title: 'Rising communities',
+    description: 'Discover communities growing fastest this week on Crowdwide.',
+    pagePath: '/communities/rising',
+    noIndex: true,
+    risingCommunities
+  });
+};
+
 exports.explore = async (req, res) => {
   const query = req.query.q?.trim();
   const category = req.query.category?.trim().toLowerCase();
@@ -54,14 +134,15 @@ exports.explore = async (req, res) => {
   }
   if (category) filter.category = category;
   const isBrowsing = Boolean(query || category);
-  const [communities, categories, newPeople, popularPeople, viralPosts] = await Promise.all([
+  const [communities, categories, newPeople, popularPeople, viralPosts, risingCommunities] = await Promise.all([
     Community.find(filter).sort({ membersCount: -1, createdAt: -1 }).limit(30).lean(),
     Community.distinct('category'),
     isBrowsing ? Promise.resolve([]) : User.find({ _id: { $ne: req.session.user.id }, isVerified: true }).sort({ createdAt: -1 }).limit(6).select('name bio profilePicture createdAt').lean(),
     isBrowsing ? Promise.resolve([]) : getPopularPeople(6, [req.session.user.id]),
-    isBrowsing ? Promise.resolve([]) : getViralPosts(4)
+    isBrowsing ? Promise.resolve([]) : getViralPosts(4),
+    isBrowsing ? Promise.resolve([]) : getRisingCommunities(4)
   ]);
-  res.render('pages/explore', { title: 'Explore', pagePath: '/explore', noIndex: true, communities, categories, query: query || '', category: category || '', newPeople, popularPeople, viralPosts, isBrowsing });
+  res.render('pages/explore', { title: 'Explore', pagePath: '/explore', noIndex: true, communities, categories, query: query || '', category: category || '', newPeople, popularPeople, viralPosts, risingCommunities, isBrowsing });
 };
 
 // A dedicated, always-full-width page for people recommendations - the
@@ -154,7 +235,7 @@ exports.manage = async (req, res) => {
     User.find({ _id: { $in: req.community.moderators } }).select('name email').lean(),
     Quest.find({ community: req.community._id }).sort({ createdAt: -1 }).populate('creator', 'name').populate('participants', 'name').populate('completedBy', 'name').populate('winner', 'name').lean()
   ]);
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, community: req.community, members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, community: req.community, members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
 };
 
 exports.createQuest = async (req, res) => {
@@ -279,11 +360,27 @@ exports.rewardQuestWinner = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
+  const showOnMap = req.body.showOnMap === 'on';
+  const locationLabel = req.body.locationLabel?.trim().slice(0, 100) || '';
+  const rawLocationLat = String(req.body.locationLat || '').trim();
+  const rawLocationLng = String(req.body.locationLng || '').trim();
+  const parsedLocationLat = Number(rawLocationLat);
+  const parsedLocationLng = Number(rawLocationLng);
+  if (showOnMap && (!locationLabel || !rawLocationLat || !rawLocationLng || !Number.isFinite(parsedLocationLat) || parsedLocationLat < -90 || parsedLocationLat > 90 || !Number.isFinite(parsedLocationLng) || parsedLocationLng < -180 || parsedLocationLng > 180)) {
+    req.session.flash = { type: 'error', message: 'Choose a general location on the map and enter its city or region before listing this community.' };
+    return res.redirect(`/communities/${req.community._id}/manage`);
+  }
+  const locationLat = Number.isFinite(parsedLocationLat) ? Number(parsedLocationLat.toFixed(2)) : undefined;
+  const locationLng = Number.isFinite(parsedLocationLng) ? Number(parsedLocationLng.toFixed(2)) : undefined;
   req.community.name = req.body.name?.trim() || req.community.name;
   req.community.description = req.body.description?.trim() || req.community.description;
   req.community.guidelines = req.body.guidelines?.trim().slice(0, 4000) || req.community.guidelines;
   req.community.category = req.body.category?.trim().toLowerCase() || req.community.category;
   req.community.isPrivate = req.body.isPrivate === 'on';
+  req.community.showOnMap = showOnMap;
+  req.community.locationLabel = showOnMap ? locationLabel : '';
+  req.community.locationLat = showOnMap ? locationLat : undefined;
+  req.community.locationLng = showOnMap ? locationLng : undefined;
   req.community.requireApproval = req.body.requireApproval === 'on';
   req.community.bannedWords = (req.body.bannedWords || '').split(',').map((word) => word.trim().toLowerCase()).filter(Boolean).slice(0, 100);
   if (req.body.hashtags !== undefined) req.community.hashtags = parseHashtagList(req.body.hashtags);

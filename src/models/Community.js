@@ -19,6 +19,10 @@ const communitySchema = new mongoose.Schema({
   category: { type: String, trim: true, lowercase: true, default: 'general' },
   hashtags: [{ type: String, trim: true, lowercase: true }],
   isPrivate: { type: Boolean, default: false },
+  showOnMap: { type: Boolean, default: false },
+  locationLabel: { type: String, trim: true, maxlength: 100, default: '' },
+  locationLat: { type: Number, min: -90, max: 90 },
+  locationLng: { type: Number, min: -180, max: 180 },
   requireApproval: { type: Boolean, default: false },
   membersCount: { type: Number, default: 0 },
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
@@ -30,5 +34,7 @@ const communitySchema = new mongoose.Schema({
   coverImage: String,
   avatarImage: String
 }, { timestamps: true });
+
+communitySchema.index({ isPrivate: 1, showOnMap: 1, locationLat: 1, locationLng: 1 });
 
 module.exports = mongoose.model('Community', communitySchema);

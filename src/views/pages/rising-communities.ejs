@@ -1,0 +1,46 @@
+<%- include('../partials/head', { title, description, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="community-radar-page">
+	<header class="community-radar-heading">
+		<a class="back-link" href="/explore">← Explore</a>
+		<p class="eyebrow">Momentum watch</p>
+		<h1>Rising communities</h1>
+		<p>These public communities are growing fastest this week, based on fresh posts, replies, and member activity.</p>
+	</header>
+
+	<% if (!risingCommunities.length) { %>
+	<div class="empty-feed">
+		<h2>No communities are rising just yet.</h2>
+		<p>New communities tend to appear here as they collect posts and meaningful engagement.</p>
+	</div>
+	<% } else { %>
+	<div class="community-radar-grid">
+		<% risingCommunities.forEach((community, index) => { %>
+		<article class="community-radar-card">
+			<div class="community-radar-top">
+				<span class="community-radar-rank">#<%= index + 1 %></span>
+				<span class="community-radar-score"><%= community.score %> score</span>
+			</div>
+			<div class="community-radar-name-row">
+				<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-radar-avatar" style="object-fit:cover;"><% } else { %><span class="community-radar-avatar"><%- icon('users', { size: 16 }) %></span><% } %>
+				<div>
+					<a href="/communities/<%= community.slug %>"><%= community.name %></a>
+					<span><%= community.category || 'general' %></span>
+				</div>
+			</div>
+			<p class="community-radar-description"><%= community.description %></p>
+			<% if ((community.hashtags || []).length) { %><div class="hashtag-row"><% community.hashtags.slice(0, 4).forEach((tag) => { %><span class="hashtag-chip">#<%= tag %></span><% }) %></div><% } %>
+			<div class="community-radar-metrics">
+				<span><%= community.recentPosts %> recent posts</span>
+				<span><%= community.recentComments %> comments</span>
+				<span><%= (community.membersCount || 0).toLocaleString() %> members</span>
+			</div>
+			<a class="button button-primary button-small community-radar-link" href="/communities/<%= community.slug %>">Visit community</a>
+		</article>
+		<% }) %>
+	</div>
+	<% } %>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

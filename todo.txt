@@ -2,6 +2,8 @@
 
 ## Completed
 
+- Community Galaxy — Interactive Community Discovery Map 🌐
+- Rising Communities Radar — Discover Growing Communities 📡
 - Posts, articles, polls, drafts, scheduled publishing, media uploads, alt text, hashtags, mentions, quote posts, and linked post replies.
 - Edit/delete controls for owned posts and comments.
 - Likes, comment likes, reactions, bookmarks, sharing, nested replies, and no-reload AJAX interactions.

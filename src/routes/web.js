@@ -86,9 +86,11 @@ router.post('/posts/:id/reaction', requireAuth, requireVerified, interactionLimi
 router.post('/posts/:id/reply', requireAuth, requireVerified, interactionLimiter, interactionController.replyPost);
 router.get('/translate/languages', requireAuth, requireVerified, translateController.languages);
 router.post('/translate', requireAuth, requireVerified, translateLimiter, translateController.translate);
+router.get('/community-map', requireAuth, requireVerified, communityController.communityMap);
 router.get('/explore', requireAuth, requireVerified, communityController.explore);
 router.get('/people', requireAuth, requireVerified, communityController.peopleToFollow);
 router.get('/communities', requireAuth, requireVerified, communityController.directory);
+router.get('/communities/rising', requireAuth, requireVerified, communityController.risingCommunities);
 router.get('/search', requireAuth, requireVerified, controller.search);
 router.post('/search/history/clear', requireAuth, requireVerified, controller.clearSearchHistory);
 router.get('/hashtags/suggest', requireAuth, requireVerified, controller.hashtagSuggestions);

@@ -23,6 +23,15 @@
 			<label>Description<textarea name="description" maxlength="280" required><%= community.description %></textarea></label>
 			<label>Category<input name="category" value="<%= community.category || 'general' %>" required></label>
 			<label>Hashtags<input name="hashtags" value="<%= (community.hashtags || []).join(', ') %>" placeholder="woodworking, diy, makers"><small>Comma separated - helps people find this community.</small></label>
+			<fieldset class="community-location-settings">
+				<legend>Community map location</legend>
+				<label class="privacy-check"><input type="checkbox" name="showOnMap" data-show-on-map <%= community.showOnMap ? 'checked' : '' %>> Show this public community on the discovery map</label>
+				<label>General location<input name="locationLabel" data-location-label maxlength="100" value="<%= community.locationLabel || '' %>" placeholder="City, region, country"><small>Use a broad city or region center, never a home or personal address.</small></label>
+				<div class="community-location-map" data-owner-location-map data-lat="<%= community.locationLat ?? '' %>" data-lng="<%= community.locationLng ?? '' %>" aria-label="Choose a general community location by clicking the map"></div>
+				<input type="hidden" name="locationLat" data-location-lat value="<%= community.locationLat ?? '' %>">
+				<input type="hidden" name="locationLng" data-location-lng value="<%= community.locationLng ?? '' %>">
+				<div class="community-location-actions"><small>Click the map to place or move the community pin.</small><button type="button" class="button button-small button-ghost" data-clear-community-location>Clear location</button></div>
+			</fieldset>
 			<label>Community guidelines<textarea name="guidelines" maxlength="4000" placeholder="What's expected from members here?"><%= community.guidelines || '' %></textarea></label>
 			<label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community <small>(new members must be approved to join)</small></label>
 			<label class="privacy-check"><input type="checkbox" name="requireApproval" <%= community.requireApproval ? 'checked' : '' %>> Review posts before they appear <small>(moderation queue below)</small></label>

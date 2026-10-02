@@ -32,6 +32,11 @@
   <link rel="stylesheet" href="/css/responsive-media.css">
   <link rel="stylesheet" href="/css/media-player.css">
   <link rel="stylesheet" href="/css/admin-panel.css">
+  <% if (locals.includeLeaflet) { %>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <script defer src="/vendor/leaflet/leaflet.js"></script>
+  <script defer src="/js/community-map.js"></script>
+  <% } %>
 </head>
 <body class="<%= locals.bodyClass || '' %>">
 <% if (locals.isStaging) { %><div class="staging-banner" role="status">Staging environment · not the live site · emails are restricted</div><% } %>

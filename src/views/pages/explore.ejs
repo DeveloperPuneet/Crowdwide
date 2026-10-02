@@ -10,9 +10,31 @@
 			<select name="category"><option value="">All categories</option><% categories.forEach((item) => { %><option value="<%= item %>" <%= category === item ? 'selected' : '' %>><%= item %></option><% }) %></select>
 			<button class="button button-primary" type="submit">Search <span><%- icon('search', { size: 16 }) %></span></button>
 		</form>
+		<a class="community-map-entry" href="/community-map"><%- icon('map', { size: 16 }) %><span>Explore communities on the map</span><%- icon('arrow-up-right', { size: 14 }) %></a>
 	</section>
 
 	<% if (!isBrowsing) { %>
+	<% if (risingCommunities.length) { %>
+	<section class="explore-section">
+		<div class="panel-heading"><h2>Rising this week</h2><a href="/communities/rising">View radar</a></div>
+		<div class="explore-rising-grid">
+			<% risingCommunities.forEach((community) => { %>
+			<a class="community-radar-preview" href="/communities/<%= community.slug %>">
+				<div class="community-radar-preview-top">
+					<span class="community-radar-score"><%= community.score %> pts</span>
+					<span class="community-radar-trend">+<%= community.recentPosts %> posts</span>
+				</div>
+				<div class="community-radar-name-row">
+					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph"><%- icon('users', { size: 15 }) %></span><% } %>
+					<strong><%= community.name %></strong>
+				</div>
+				<p><%= community.description %></p>
+				<footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span><%= community.recentComments %> comments</span></footer>
+			</a>
+			<% }) %>
+		</div>
+	</section>
+	<% } %>
 	<% if (viralPosts.length) { %>
 	<section class="explore-section">
 		<div class="panel-heading"><h2>Viral right now</h2><span>Most liked</span></div>
