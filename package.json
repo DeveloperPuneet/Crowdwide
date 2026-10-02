@@ -19,7 +19,7 @@
     "csrf-sync": "^4.2.1",
     "docker": "^1.0.0",
     "dotenv": "^16.4.5",
-    "ejs": "^3.1.10",
+    "ejs": "^4.0.1",
     "express": "^4.22.3",
     "express-rate-limit": "^8.7.0",
     "express-session": "^1.18.1",
