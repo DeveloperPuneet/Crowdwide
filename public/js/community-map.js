@@ -18,7 +18,14 @@ function addResilientTiles(map, mapContainer) {
   let layer;
   const loadProvider = () => {
     handlingFailure = false;
-    layer = L.tileLayer(providers[providerIndex].url, { maxZoom: 19, attribution: providers[providerIndex].attribution });
+    layer = L.tileLayer(providers[providerIndex].url, {
+      maxZoom: 19,
+      attribution: providers[providerIndex].attribution,
+      updateWhenIdle: true,
+      updateWhenZooming: false,
+      keepBuffer: 0,
+      detectRetina: false
+    });
     layer.on('tileerror', () => {
       if (handlingFailure) return;
       handlingFailure = true;
@@ -29,7 +36,7 @@ function addResilientTiles(map, mapContainer) {
       } else if (tileError) {
         tileError.textContent = apiKey
           ? 'Map tiles could not be loaded. Check your MAPTILER_API_KEY and network access. The community list remains available.'
-          : 'The no-key map services are unavailable on this network. Add a browser-restricted MAPTILER_API_KEY to enable the fallback; the community list remains available.';
+          : 'OpenStreetMap and CARTO tiles are unavailable on this network. Add a browser-restricted MAPTILER_API_KEY to enable the fallback; the community list remains available.';
         tileError.hidden = false;
       }
     });

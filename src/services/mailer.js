@@ -48,6 +48,38 @@ function fromAddress() {
   return env('MAIL_FROM') || env('GMAIL_USER') || 'Crowdwide <hello@crowdwide.com>';
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+function safeEmailUrl(value) {
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function brandedEmail({ heading, message, preheader, code, actionUrl, actionLabel }) {
+  const safeActionUrl = safeEmailUrl(actionUrl);
+  const safeMessage = escapeHtml(message).replace(/\r?\n/g, '<br>');
+  const action = safeActionUrl && actionLabel
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 18px;"><tr><td bgcolor="#ff9850" style="border-radius:8px;"><a href="${escapeHtml(safeActionUrl)}" style="display:inline-block;padding:14px 22px;color:#111426;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;text-decoration:none;border-radius:8px;">${escapeHtml(actionLabel)}</a></td></tr></table><p style="margin:0;color:#70758a;font-family:Arial,sans-serif;font-size:12px;line-height:1.6;">If the button does not work, open this link:<br><a href="${escapeHtml(safeActionUrl)}" style="color:#d8732e;word-break:break-all;">${escapeHtml(safeActionUrl)}</a></p>`
+    : '';
+  const codeBlock = code !== undefined
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0;"><tr><td bgcolor="#fff3e8" style="padding:16px 24px;border:1px solid #ffd6b3;border-radius:10px;color:#a34d13;font-family:Arial,sans-serif;font-size:28px;font-weight:bold;letter-spacing:6px;text-align:center;">${escapeHtml(code)}</td></tr></table>`
+    : '';
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(heading)}</title></head><body style="margin:0;padding:0;background-color:#f2f4f7;color:#25283a;font-family:Arial,Helvetica,sans-serif;"><span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;color:transparent;">${escapeHtml(preheader || heading)}</span><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f2f4f7" style="width:100%;background-color:#f2f4f7;"><tr><td align="center" style="padding:32px 14px;"><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;border-spacing:0;"><tr><td bgcolor="#111426" style="padding:26px 32px;border-radius:14px 14px 0 0;background-color:#111426;"><div style="color:#ffffff;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;">Crowdwide<span style="color:#ff9850;">.</span></div><div style="margin-top:5px;color:#aeb2c8;font-family:Arial,sans-serif;font-size:12px;">A fair chance at discovery</div></td></tr><tr><td bgcolor="#ffffff" style="padding:34px 32px;background-color:#ffffff;border-left:1px solid #e4e6ed;border-right:1px solid #e4e6ed;"><div style="display:inline-block;padding:6px 9px;border-radius:999px;background-color:#fff3e8;color:#b75e1c;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1px;">ACCOUNT SECURITY</div><h1 style="margin:18px 0 12px;color:#171a2b;font-family:Arial,sans-serif;font-size:25px;line-height:1.25;">${escapeHtml(heading)}</h1><p style="margin:0;color:#555a6d;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;">${safeMessage}</p>${codeBlock}${action}</td></tr><tr><td bgcolor="#f8f9fb" style="padding:18px 32px;border:1px solid #e4e6ed;border-top:0;border-radius:0 0 14px 14px;background-color:#f8f9fb;color:#85899a;font-family:Arial,sans-serif;font-size:11px;line-height:1.6;">This message was sent by Crowdwide to help keep your account secure.<br>If you did not request this, you can ignore this email.<br><span style="color:#b0b3bf;">Crowdwide · curiosity brings us together</span></td></tr></table></td></tr></table></body></html>`;
+}
+
 function getSmtpTransporter() {
   const timeouts = { connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 12000 };
   if (provider() === 'gmail') {
@@ -212,7 +244,7 @@ async function sendTestEmail(to) {
     to,
     subject: 'Crowdwide test email',
     text: 'If you can read this, Crowdwide can send email.',
-    html: '<p>If you can read this, Crowdwide can send email.</p>'
+    html: brandedEmail({ heading: 'Your email is connected', message: 'If you can read this, Crowdwide can send email.', preheader: 'Crowdwide mail setup test' })
   };
   try {
     if (usesGmailApi()) await sendViaGmailApi(mail);
@@ -224,12 +256,13 @@ async function sendTestEmail(to) {
 }
 
 async function sendVerificationCode(user, code) {
+  const bodyText = 'Use this verification code to finish setting up your Crowdwide account. It expires in 15 minutes.';
   const message = {
     from: fromAddress(),
     to: user.email,
     subject: 'Your Crowdwide verification code',
-    text: `Your Crowdwide verification code is ${code}. It expires in 15 minutes.`,
-    html: `<h2>Welcome to Crowdwide</h2><p>Your verification code is <strong>${code}</strong>.</p><p>This code expires in 15 minutes.</p>`
+    text: `${bodyText}\n\nYour verification code is ${code}`,
+    html: brandedEmail({ heading: 'Welcome to Crowdwide', message: bodyText, preheader: 'Your email verification code', code })
   };
   await deliver(message, `Verification code for ${user.email}: ${code}`);
 }
@@ -240,7 +273,7 @@ async function sendSecurityAlert(user, { subject, heading, message }) {
     to: user.email,
     subject,
     text: message,
-    html: `<h2>${heading}</h2><p>${message}</p>`
+    html: brandedEmail({ heading, message, preheader: subject })
   };
   await deliver(mail, `${subject} for ${user.email}: ${message}`);
 }
@@ -254,11 +287,15 @@ async function sendNewDeviceAlert(user, details) {
 }
 
 async function sendPasswordResetLink(user, resetUrl) {
-  return sendSecurityAlert(user, {
+  const message = 'We received a request to reset your Crowdwide password. This link expires in 30 minutes. If you did not request this, you can safely ignore this email and your password will stay the same.';
+  const mail = {
+    from: fromAddress(),
+    to: user.email,
     subject: 'Reset your Crowdwide password',
-    heading: 'Reset your password',
-    message: `We received a request to reset your Crowdwide password. This link expires in 30 minutes: ${resetUrl}. If you did not request this, you can safely ignore this email and your password will stay the same.`
-  });
+    text: `${message}\n\nReset password: ${resetUrl}`,
+    html: brandedEmail({ heading: 'Reset your password', message, preheader: 'Your Crowdwide password reset link', actionUrl: resetUrl, actionLabel: 'Reset password' })
+  };
+  await deliver(mail, `Password reset email for ${user.email} (reset link omitted)`);
 }
 
 module.exports = {

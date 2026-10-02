@@ -181,9 +181,22 @@ test('community map gives users a usable fallback when map tile access is blocke
   assert.match(html, /data-map-tile-error/);
   assert.match(html, /You can still search and open communities from the list/);
   assert.match(html, /OpenStreetMap contributors/);
+  assert.match(html, /Report a map issue/);
+  assert.match(html, /community-map\.js\?v=4/);
   assert.match(html, /CARTO/);
   assert.match(html, /data-map-api-key="test-map-key"/);
   assert.match(html, /MapTiler/);
+});
+
+test('community owner location picker offers current location with permission status', async () => {
+  const html = await render('pages/community-owner.ejs', {
+    title: 'Community controls', pagePath: '/communities/c1/manage', noIndex: true,
+    community: { _id: 'c1', slug: 'sketch-club', name: 'Sketch Club', description: 'Draw together', owner: 'u1', membersCount: 1, members: [], moderators: [], joinRequests: [], pinnedPosts: [], hashtags: [], bannedWords: [] },
+    members: [], posts: [], pendingPosts: [], requests: [], moderators: [], quests: [], isOwner: true
+  });
+  assert.match(html, /data-use-current-location/);
+  assert.match(html, /Use current location/);
+  assert.match(html, /data-location-status/);
 });
 
 test('ended quests show the winner and reward state', async () => {

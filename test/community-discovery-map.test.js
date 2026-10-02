@@ -69,11 +69,12 @@ test('community radar route is registered and ranks communities by recent activi
 
 test('Leaflet map assets are served locally and CSP permits both tile providers', async () => {
   const app = createApp({ port: 3000 });
-  const [script, stylesheet, mapScript, mapPage] = await Promise.all([
+  const [script, stylesheet, mapScript, mapPage, communitySettings] = await Promise.all([
     request(app).get('/vendor/leaflet/leaflet.js'),
     request(app).get('/vendor/leaflet/leaflet.css'),
     request(app).get('/js/community-map.js'),
-    request(app).get('/community-map')
+    request(app).get('/community-map'),
+    request(app).get('/communities/test-community/manage')
   ]);
 
   assert.equal(script.status, 200);
@@ -81,15 +82,17 @@ test('Leaflet map assets are served locally and CSP permits both tile providers'
   assert.equal(mapScript.status, 200);
   const policy = mapScript.headers['content-security-policy'];
   assert.match(policy, /https:\/\/\*\.basemaps\.cartocdn\.com/);
-  assert.match(policy, /https:\/\/\*\.tile\.openstreetmap\.org/);
+  assert.match(policy, /https:\/\/tile\.openstreetmap\.org/);
   assert.match(policy, /https:\/\/api\.maptiler\.com/);
   assert.equal(mapPage.headers['referrer-policy'], 'strict-origin-when-cross-origin');
+  assert.equal(communitySettings.headers['referrer-policy'], 'strict-origin-when-cross-origin');
 });
 
-test('map tile loading sends OSM tiles first then falls back to CARTO and optional MapTiler', () => {
+test('map tile loading follows OSM policy and falls back to CARTO and optional MapTiler', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'community-map.js'), 'utf8');
   const mountMap = (apiKey) => {
     const urls = [];
+    const options = [];
     const handlers = [];
     const warning = { hidden: true, textContent: '' };
     const mapContainer = { dataset: { mapApiKey: apiKey }, parentElement: { querySelector: () => warning } };
@@ -101,8 +104,9 @@ test('map tile loading sends OSM tiles first then falls back to CARTO and option
     };
     const L = {
       map: () => map,
-      tileLayer(url) {
+      tileLayer(url, layerOptions) {
         urls.push(url);
+        options.push(layerOptions);
         return {
           addTo() { return this; },
           on(event, handler) { if (event === 'tileerror') handlers.push(handler); return this; }
@@ -115,20 +119,25 @@ test('map tile loading sends OSM tiles first then falls back to CARTO and option
     };
     vm.runInNewContext(source, { document, L, encodeURIComponent, Math });
     const failCurrentProvider = () => handlers.at(-1)();
-    return { urls, warning, failCurrentProvider };
+    return { urls, options, warning, failCurrentProvider };
   };
 
   const noKey = mountMap('');
-  assert.match(noKey.urls[0], /tile\.openstreetmap\.org/);
+  assert.match(noKey.urls[0], /^https:\/\/tile\.openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png$/);
+  assert.match(noKey.options[0].attribution, /OpenStreetMap contributors/);
+  assert.equal(noKey.options[0].updateWhenIdle, true);
+  assert.equal(noKey.options[0].updateWhenZooming, false);
+  assert.equal(noKey.options[0].keepBuffer, 0);
   noKey.failCurrentProvider();
   assert.match(noKey.urls[1], /basemaps\.cartocdn\.com/);
   noKey.failCurrentProvider();
   assert.equal(noKey.urls.length, 2);
   assert.equal(noKey.warning.hidden, false);
-  assert.match(noKey.warning.textContent, /no-key map services are unavailable/);
+  assert.match(noKey.warning.textContent, /OpenStreetMap and CARTO tiles are unavailable/);
 
   const withKey = mountMap('test-key');
   withKey.failCurrentProvider();
+  assert.match(withKey.urls[1], /basemaps\.cartocdn\.com/);
   withKey.failCurrentProvider();
   assert.match(withKey.urls[2], /api\.maptiler\.com/);
   assert.match(withKey.urls[2], /key=test-key/);

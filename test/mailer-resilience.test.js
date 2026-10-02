@@ -51,3 +51,26 @@ test('mail still actually sends normally when the provider is healthy', async (t
   assert.equal(sendMailCalls[0].to, 'pat@example.com');
   assert.match(sendMailCalls[0].text, /654321/);
 });
+
+test('auth emails use branded layouts and escape user-controlled content', async (t) => {
+  const sendMailCalls = mockWorkingTransport(t);
+  await sendVerificationCode({ email: 'pat@example.com' }, '<img src=x>');
+  await sendSecurityAlert({ email: 'pat@example.com' }, {
+    subject: 'Security notice',
+    heading: '<script>alert(1)</script>',
+    message: 'A browser named <img src=x> signed in.'
+  });
+  await sendPasswordResetLink({ email: 'pat@example.com' }, 'https://crowdwide.test/reset?token=abc&next=profile');
+
+  const [verification, security, reset] = sendMailCalls;
+  for (const mail of sendMailCalls) {
+    assert.match(mail.html, /Crowdwide/);
+    assert.match(mail.html, /background-color:#111426/);
+    assert.match(mail.html, /#ff9850/);
+  }
+  assert.match(verification.html, /&lt;img src=x&gt;/);
+  assert.doesNotMatch(security.html, /<script>alert\(1\)<\/script>/);
+  assert.match(security.html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.match(reset.html, /href="https:\/\/crowdwide\.test\/reset\?token=abc&amp;next=profile"/);
+  assert.match(reset.html, /Reset password/);
+});
