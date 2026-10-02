@@ -155,8 +155,12 @@ for the full walkthrough)
   notifications. Generate a pair with `npx web-push generate-vapid-keys`.
 - `ADMIN_ALERT_EMAIL` - unhandled server errors email this address
   (rate-limited). Any address you actually check.
-- `CLAMAV_HOST`/`CLAMAV_PORT` or `CLAMAV_SOCKET` - upload virus scanning
-  against a ClamAV daemon. See `DEPLOYMENT.md`.
+- `CLAMAV_HOST`/`CLAMAV_PORT` or `CLAMAV_SOCKET`, plus optional
+  `CLAMAV_REQUIRED`/`CLAMAV_FAIL_OPEN` - upload virus scanning against a
+  ClamAV daemon. See `DEPLOYMENT.md`.
+- `LIBRETRANSLATE_URL` and optional `LIBRETRANSLATE_API_KEY` - post/comment
+  translation via a self-hosted LibreTranslate service. An optional
+  `GOOGLE_TRANSLATE_API_KEY` enables paid fallback translation.
 - `GCS_PROJECT_ID`, `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`,
   `MEDIA_CDN_URL` - direct-to-cloud media uploads via Google Cloud
   Storage, instead of (or alongside) MongoDB GridFS. See **Extended
@@ -276,7 +280,8 @@ expires after 15 minutes.
 If `CLAMAV_HOST`/`CLAMAV_PORT` or `CLAMAV_SOCKET` is set, every upload
 (post media, profile pictures, community banners, report evidence) is
 scanned through a ClamAV daemon before it's accepted - see
-`DEPLOYMENT.md` for setup and the fail-open trade-off.
+`DEPLOYMENT.md` for setup. Scanner outages block uploads by default;
+`CLAMAV_FAIL_OPEN=true` opts into allowing uploads without a completed scan.
 
 ## Testing
 

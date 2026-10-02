@@ -1300,3 +1300,12 @@ body.no-scroll { overflow: hidden; }
 .post-view-actions .action-translate.is-translated { color: #7e8dff; }
 .translate-lang-select { margin-left: 8px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: #c9cbe0; font-size: 11px; }
 .translate-note { display: block; margin-top: 4px; color: #ff8da2; font-size: 11px; }
+
+/* ---- Message requests ---------------------------------------------------- */
+.request-inbox-link { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 18px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: #d7d8e2; font-size: 13px; font-weight: 600; width: fit-content; transition: border-color .15s ease; }
+.request-inbox-link:hover { border-color: #4d65ff; }
+.request-row { gap: 12px; }
+.request-row .request-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.chat-request-gate { padding: 14px 16px; border-top: 1px solid var(--line); background: rgba(77, 101, 255, .06); }
+.chat-request-gate p { margin: 0 0 10px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c9cbe0; }
+.chat-request-gate .request-actions { display: flex; gap: 8px; }

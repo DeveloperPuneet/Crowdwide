@@ -44,6 +44,12 @@ const userSchema = new mongoose.Schema({
   bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   mutedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // Message requests: a DM from someone the recipient has never messaged
+  // shows in a separate requests inbox instead of the ordinary one, until the
+  // recipient accepts (or declines) it. Replying to someone auto-accepts
+  // them, so these lists only need to track the explicit decisions.
+  acceptedDmFrom: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  declinedDmFrom: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorSecret: String,
   recoveryCodes: [recoveryCodeSchema],

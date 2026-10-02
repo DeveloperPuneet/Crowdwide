@@ -8,7 +8,7 @@
 			<%- include('../partials/avatar', { person, size: 'small', link: false }) %>
 			<div class="chat-title"><strong><%= person.name %></strong><a class="name-link" href="/u/<%= person._id %>">View profile</a></div>
 		</header>
-		<%- include('../partials/chat-body', { sendUrl: '/messages/' + person._id, messagesHtml, hasMore, placeholder: 'Message ' + person.name, emptyText: 'Start the conversation with ' + person.name + '.', csrfToken, gifsEnabled: locals.gifsEnabled }) %>
+		<%- include('../partials/chat-body', { sendUrl: '/messages/' + person._id, messagesHtml, hasMore, placeholder: 'Message ' + person.name, emptyText: 'Start the conversation with ' + person.name + '.', csrfToken, gifsEnabled: locals.gifsEnabled, pending: locals.pending, requestPersonId: person._id, requestPersonName: person.name }) %>
 	</section>
 </main>
 <%- include('../partials/foot') %>

@@ -7,6 +7,10 @@
 		<h1>Your conversations</h1>
 		<p>Private threads with people you follow or who follow you. Start one from anyone's profile, or <a href="/groups">start a group</a> if it's more than one person.</p>
 	</header>
+	<a class="request-inbox-link" href="/messages/requests">
+		<%- icon('user-plus', { size: 16 }) %>
+		<span>Message requests<% if (requestCount) { %> <span class="unread-badge"><%= requestCount %></span><% } %></span>
+	</a>
 	<% if (conversations.length) { %>
 	<div class="conversations-search"><%- icon('search', { size: 15 }) %><input type="search" data-filter-input placeholder="Search conversations" aria-label="Search conversations"></div>
 	<% } %>

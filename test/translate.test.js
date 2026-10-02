@@ -55,13 +55,46 @@ test('Google provider: sends the right request and parses the response', async (
   });
 });
 
-test('Google provider is preferred over LibreTranslate when both are configured', async () => {
+test('LibreTranslate (the free, self-hosted provider) is preferred over Google when both are configured', async () => {
   await withEnv({ GOOGLE_TRANSLATE_API_KEY: 'k', LIBRETRANSLATE_URL: 'https://libre.example' }, async () => {
     const translate = freshTranslate();
-    let hitGoogle = false;
-    const fetchImpl = async (url) => { hitGoogle = url.includes('googleapis'); return { ok: true, json: async () => ({ data: { translations: [{ translatedText: 'x' }] } }) }; };
+    let hitLibre = false;
+    const fetchImpl = async (url) => { hitLibre = url.includes('libre.example'); return { ok: true, json: async () => ({ translatedText: 'x' }) }; };
     await translate.translateText('hi', 'fr', { fetchImpl });
-    assert.equal(hitGoogle, true);
+    assert.equal(hitLibre, true);
+  });
+});
+
+test('Google Translate is used when LibreTranslate fails and Google is configured', async () => {
+  await withEnv({ GOOGLE_TRANSLATE_API_KEY: 'google-key', LIBRETRANSLATE_URL: 'https://libre.example' }, async () => {
+    const translate = freshTranslate();
+    const requestedUrls = [];
+    const fetchImpl = async (url) => {
+      requestedUrls.push(url);
+      if (url.includes('libre.example')) return { ok: false, status: 503 };
+      return { ok: true, json: async () => ({ data: { translations: [{ translatedText: 'Hola' }] } }) };
+    };
+    const result = await translate.translateText('Hello', 'es', { fetchImpl });
+    assert.deepEqual(result, { translatedText: 'Hola', detectedSourceLanguage: null });
+    assert.deepEqual(requestedUrls, [
+      'https://libre.example/translate',
+      'https://translation.googleapis.com/language/translate2?key=google-key'
+    ]);
+  });
+});
+
+test('translationIsFree is true only when the free, self-hosted LibreTranslate provider is configured', async () => {
+  await withEnv({ GOOGLE_TRANSLATE_API_KEY: undefined, LIBRETRANSLATE_URL: undefined }, async () => {
+    assert.equal(freshTranslate().translationIsFree(), false);
+  });
+  await withEnv({ GOOGLE_TRANSLATE_API_KEY: 'k', LIBRETRANSLATE_URL: undefined }, async () => {
+    assert.equal(freshTranslate().translationIsFree(), false);
+  });
+  await withEnv({ GOOGLE_TRANSLATE_API_KEY: undefined, LIBRETRANSLATE_URL: 'https://libre.example' }, async () => {
+    assert.equal(freshTranslate().translationIsFree(), true);
+  });
+  await withEnv({ GOOGLE_TRANSLATE_API_KEY: 'k', LIBRETRANSLATE_URL: 'https://libre.example' }, async () => {
+    assert.equal(freshTranslate().translationIsFree(), false);
   });
 });
 

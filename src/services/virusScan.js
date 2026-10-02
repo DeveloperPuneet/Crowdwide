@@ -20,6 +20,10 @@ function isConfigured() {
   return Boolean(process.env.CLAMAV_HOST || process.env.CLAMAV_SOCKET);
 }
 
+function isRequired() {
+  return process.env.CLAMAV_REQUIRED === 'true';
+}
+
 function connect() {
   if (process.env.CLAMAV_SOCKET) return net.createConnection(process.env.CLAMAV_SOCKET);
   return net.createConnection({ host: process.env.CLAMAV_HOST, port: Number(process.env.CLAMAV_PORT || 3310) });
@@ -28,7 +32,7 @@ function connect() {
 // Resolves { clean: boolean, signature?: string } for a configured scanner,
 // or rejects if the scan itself could not be completed (timeout, connection
 // refused, malformed response) - callers decide what "could not scan"
-// should mean for the request (see uploads.js: this app fails open).
+// should mean for the request.
 function scanBuffer(buffer) {
   return new Promise((resolve, reject) => {
     const socket = connect();
@@ -77,7 +81,6 @@ function scanBuffer(buffer) {
 // Returns the name of the first infected file, or null if everything is
 // clean or scanning isn't configured.
 async function scanRequestFiles(req) {
-  if (!isConfigured()) return null;
   const files = req.file
     ? [req.file]
     : Array.isArray(req.files)
@@ -85,6 +88,11 @@ async function scanRequestFiles(req) {
       : req.files
         ? Object.values(req.files).flat()
         : [];
+  if (!files.length) return null;
+  if (!isConfigured()) {
+    if (isRequired()) throw new Error('ClamAV is required but not configured');
+    return null;
+  }
   for (const file of files) {
     // eslint-disable-next-line no-await-in-loop
     const result = await scanBuffer(file.buffer);
@@ -96,4 +104,4 @@ async function scanRequestFiles(req) {
   return null;
 }
 
-module.exports = { isConfigured, scanBuffer, scanRequestFiles };
+module.exports = { isConfigured, isRequired, scanBuffer, scanRequestFiles };

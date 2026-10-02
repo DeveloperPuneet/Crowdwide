@@ -66,5 +66,20 @@
   </form>
   <% } %>
   </div><% }) %></section>
+  <section class="settings-block" id="appeals"><h2>Pending appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></h2><p>Appeals of a suspension, posting restriction or warning. Approving lifts the action immediately.</p><% if (!pendingAppeals.length) { %><p>No pending appeals.</p><% } %><% pendingAppeals.forEach((appeal) => { %>
+  <div class="device-row">
+    <div>
+      <strong><%= appeal.actionType %> · <%= appeal.user?.name || 'member' %> (<%= appeal.user?.email || 'unknown' %>)</strong>
+      <span>Filed <%= new Date(appeal.createdAt).toLocaleString() %><% if (appeal.reasonSnapshot) { %> · original reason: <%= appeal.reasonSnapshot %><% } %></span>
+      <p><%= appeal.message %></p>
+    </div>
+    <form method="post" action="/moderator/appeals/<%= appeal._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:#d7d8e2;border-radius:7px;padding:7px 9px;font-size:11px;">
+      <button name="decision" value="approve" class="button button-small button-primary">Approve &amp; lift</button>
+      <button name="decision" value="deny" class="button button-small button-ghost">Deny</button>
+    </form>
+  </div>
+  <% }) %></section>
   <section class="settings-block"><h2>Your action history</h2><% actions.forEach((item) => { %><div class="device-row"><div><strong><%= item.action %></strong><span><%= item.targetType %> <%= item.target %> · <%= item.status %> · <%= item.reason %><% if (item.reviewNote) { %> · admin note: <%= item.reviewNote %><% } %></span></div></div><% }) %><% if (!actions.length) { %><p>No actions submitted yet.</p><% } %></section>
 </main><%- include('../partials/app-footer') %><%- include('../partials/foot') %>

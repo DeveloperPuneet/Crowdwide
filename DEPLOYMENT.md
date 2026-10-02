@@ -84,25 +84,66 @@ being restorable.
 Uploads (post media, profile pictures, community banners, report
 evidence) are scanned through a [ClamAV](https://www.clamav.net/) daemon
 if one is configured - `src/services/virusScan.js` speaks clamd's
-`INSTREAM` protocol directly, no paid API required. Set either:
+`INSTREAM` protocol directly, no paid API required. ClamAV is free
+software, but the daemon needs a separate host with enough memory and disk
+for signature updates. Render's Node build shell does not provide a Docker
+daemon; do not put `docker run` in the app's build or start command. Run
+ClamAV on a separate host/service reachable over a private network.
+clamd's TCP protocol has no authentication, so never expose port 3310
+publicly.
 
-- `CLAMAV_HOST` + `CLAMAV_PORT` (defaults to `3310`) for a TCP-reachable
-  clamd, or
-- `CLAMAV_SOCKET` for a Unix socket path (takes priority if both are set).
+Set `CLAMAV_HOST` to the private hostname and `CLAMAV_PORT` (default
+`3310`), or set `CLAMAV_SOCKET` when the app and daemon share a host.
+Set `CLAMAV_REQUIRED=true` to reject uploads if scanning is not configured.
+When scanning is configured, an outage blocks uploads by default;
+`CLAMAV_FAIL_OPEN=true` explicitly opts into allowing unscanned uploads.
+For production, keep fail-open disabled and required scanning enabled.
 
-Leave both unset and scanning is skipped entirely - uploads work exactly
-as before. If scanning is configured but the scan itself fails (clamd is
-down, times out, etc.), the upload is **allowed through** rather than
-blocked - a scanner outage degrades to "not scanned," not "nobody can
-upload anything." If you'd rather fail closed, that's a one-line change
-in `scanUploadsForViruses` in `src/middleware/uploads.js` (the catch
-block that currently calls `next()` on scan failure).
-
-Scanning is optional and off by default. When you add a ClamAV daemon
-later, confirm it with the standard, harmless
+When available, confirm the daemon with the standard, harmless
 [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/)
 - the protocol implementation is unit-tested against a mocked socket in
 `test/virus-scan.test.js`.
+
+## Translation
+
+Posts and comments have a "Translate" button, backed by
+`src/services/translate.js`. With no provider configured it just tells
+the viewer translation isn't available - nothing else breaks. Two
+providers are supported:
+
+- **[LibreTranslate](https://github.com/LibreTranslate/LibreTranslate)
+  (free, self-hosted)** - open-source, no API key, no per-character
+  billing. It still needs compute and memory, so run it as a separate
+  service; do not launch it from the app's Render build/start command.
+  Set `LIBRETRANSLATE_URL` to its reachable HTTPS base URL, and configure
+  `LIBRETRANSLATE_API_KEY` if the instance requires one. Avoid an
+  unauthenticated public endpoint, which can be abused for resource
+  exhaustion.
+
+- **Google Cloud Translation API v2 (paid)** - set
+  `GOOGLE_TRANSLATE_API_KEY` if you'd rather use Google's engine. Billed
+  per character by Google; not free.
+
+When both are set, LibreTranslate is tried first and Google is used if
+LibreTranslate fails. Google is billed per character. See
+`test/translate.test.js` for the provider logic and `.env.example` for
+the exact variable names.
+
+## Render commands
+
+For the Crowdwide app service, select the Node runtime and use:
+
+- **Build Command:** `npm ci`
+- **Start Command:** `npm start`
+
+Remove any `docker run ...` command from Render's Build Command. Build
+commands prepare the app; they are not a place to start long-running
+sidecar daemons. Configure ClamAV and LibreTranslate as separate services
+on hosts/network plans that support them, then add their connection
+details as Render environment variables. Use private networking for
+ClamAV; if your Render plan cannot privately reach a scanner, host the
+app and scanner on a network that can. The software is free, but reliable
+production hosting for these resource-heavy services may not be.
 
 ## Error alerting
 

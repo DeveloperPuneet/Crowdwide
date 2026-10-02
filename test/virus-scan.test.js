@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const net = require('net');
 const EventEmitter = require('events');
-const { isConfigured, scanBuffer, scanRequestFiles } = require('../src/services/virusScan');
+const { isConfigured, isRequired, scanBuffer, scanRequestFiles } = require('../src/services/virusScan');
+const { scanUploadsForViruses } = require('../src/middleware/uploads');
 
 function fakeSocket() {
   const socket = new EventEmitter();
@@ -35,6 +36,14 @@ test('isConfigured is true once CLAMAV_HOST is set', () => {
   process.env.CLAMAV_HOST = 'localhost';
   assert.equal(isConfigured(), true);
   delete process.env.CLAMAV_HOST;
+});
+
+test('isRequired is true only when CLAMAV_REQUIRED is enabled', () => {
+  const previous = process.env.CLAMAV_REQUIRED;
+  process.env.CLAMAV_REQUIRED = 'true';
+  assert.equal(isRequired(), true);
+  if (previous === undefined) delete process.env.CLAMAV_REQUIRED;
+  else process.env.CLAMAV_REQUIRED = previous;
 });
 
 test('scanBuffer sends the zINSTREAM command and completes cleanly against a well-behaved server', async (t) => {
@@ -109,6 +118,77 @@ test('scanRequestFiles returns null without scanning anything when not configure
   const result = await scanRequestFiles({ file: { buffer: Buffer.from('x'), originalname: 'x.png' } });
   assert.equal(result, null);
   assert.equal(createConnectionCalls.mock.callCount(), 0);
+});
+
+test('scanRequestFiles rejects uploads when ClamAV is required but not configured', async () => {
+  delete process.env.CLAMAV_HOST;
+  delete process.env.CLAMAV_SOCKET;
+  const previous = process.env.CLAMAV_REQUIRED;
+  process.env.CLAMAV_REQUIRED = 'true';
+  try {
+    await assert.rejects(
+      scanRequestFiles({ file: { buffer: Buffer.from('x'), originalname: 'x.png' } }),
+      /ClamAV is required but not configured/
+    );
+  } finally {
+    if (previous === undefined) delete process.env.CLAMAV_REQUIRED;
+    else process.env.CLAMAV_REQUIRED = previous;
+  }
+});
+
+test('scanUploadsForViruses blocks uploads when a configured scanner is unavailable', async (t) => {
+  const previous = { host: process.env.CLAMAV_HOST, socket: process.env.CLAMAV_SOCKET, failOpen: process.env.CLAMAV_FAIL_OPEN };
+  process.env.CLAMAV_HOST = 'clamav.invalid';
+  delete process.env.CLAMAV_SOCKET;
+  delete process.env.CLAMAV_FAIL_OPEN;
+  t.mock.method(net, 'createConnection', () => {
+    const socket = fakeSocket();
+    process.nextTick(() => socket.emit('error', new Error('ECONNREFUSED')));
+    return socket;
+  });
+  const req = { file: { buffer: Buffer.from('x'), originalname: 'x.png' }, session: {}, get: () => '/upload' };
+  const res = { redirect: (url) => { res.redirectedTo = url; } };
+  let nextCalled = false;
+  try {
+    await scanUploadsForViruses(req, res, () => { nextCalled = true; });
+    assert.equal(nextCalled, false);
+    assert.equal(res.redirectedTo, '/upload');
+    assert.match(req.session.flash.message, /security scanning could not be completed/);
+  } finally {
+    if (previous.host === undefined) delete process.env.CLAMAV_HOST;
+    else process.env.CLAMAV_HOST = previous.host;
+    if (previous.socket === undefined) delete process.env.CLAMAV_SOCKET;
+    else process.env.CLAMAV_SOCKET = previous.socket;
+    if (previous.failOpen === undefined) delete process.env.CLAMAV_FAIL_OPEN;
+    else process.env.CLAMAV_FAIL_OPEN = previous.failOpen;
+  }
+});
+
+test('scanUploadsForViruses allows an outage only with explicit fail-open setting', async (t) => {
+  const previous = { host: process.env.CLAMAV_HOST, socket: process.env.CLAMAV_SOCKET, failOpen: process.env.CLAMAV_FAIL_OPEN };
+  process.env.CLAMAV_HOST = 'clamav.invalid';
+  delete process.env.CLAMAV_SOCKET;
+  process.env.CLAMAV_FAIL_OPEN = 'true';
+  t.mock.method(net, 'createConnection', () => {
+    const socket = fakeSocket();
+    process.nextTick(() => socket.emit('error', new Error('ECONNREFUSED')));
+    return socket;
+  });
+  const req = { file: { buffer: Buffer.from('x'), originalname: 'x.png' }, session: {}, get: () => '/upload' };
+  const res = { redirect: () => { res.redirected = true; } };
+  let nextCalled = false;
+  try {
+    await scanUploadsForViruses(req, res, () => { nextCalled = true; });
+    assert.equal(nextCalled, true);
+    assert.equal(res.redirected, undefined);
+  } finally {
+    if (previous.host === undefined) delete process.env.CLAMAV_HOST;
+    else process.env.CLAMAV_HOST = previous.host;
+    if (previous.socket === undefined) delete process.env.CLAMAV_SOCKET;
+    else process.env.CLAMAV_SOCKET = previous.socket;
+    if (previous.failOpen === undefined) delete process.env.CLAMAV_FAIL_OPEN;
+    else process.env.CLAMAV_FAIL_OPEN = previous.failOpen;
+  }
 });
 
 test('scanRequestFiles scans req.file (single-file route) and returns null when clean', async (t) => {

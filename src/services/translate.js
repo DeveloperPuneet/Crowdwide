@@ -2,12 +2,16 @@
 // provider is configured and degrade to "unavailable" with none set, rather
 // than failing the page.
 //
-//   GOOGLE_TRANSLATE_API_KEY   - Google Cloud Translation API v2 (simple API
-//                                key, no OAuth). https://cloud.google.com/translate
-//   LIBRETRANSLATE_URL         - a self-hosted or public LibreTranslate
-//                                instance (https://github.com/LibreTranslate/LibreTranslate),
-//                                optionally with LIBRETRANSLATE_API_KEY.
-// Google is tried first when both are set.
+//   LIBRETRANSLATE_URL         - a self-hosted LibreTranslate base URL
+//                                (https://github.com/LibreTranslate/LibreTranslate).
+//                                Free and open-source; hosting still requires
+//                                compute resources. See DEPLOYMENT.md. Add
+//                                LIBRETRANSLATE_API_KEY if the instance requires it.
+//   GOOGLE_TRANSLATE_API_KEY   - Google Cloud Translation API v2, as a paid
+//                                fallback. Billed per character by Google -
+//                                not free. https://cloud.google.com/translate
+//
+// LibreTranslate is tried first; Google is used only if it fails and a key is set.
 const TIMEOUT_MS = 8000;
 
 // Curated list for the language picker in the UI - not exhaustive, but covers
@@ -25,6 +29,8 @@ const LANGUAGES = [
 function googleConfigured() { return Boolean(process.env.GOOGLE_TRANSLATE_API_KEY); }
 function libreConfigured() { return Boolean(process.env.LIBRETRANSLATE_URL); }
 function translationConfigured() { return googleConfigured() || libreConfigured(); }
+// True only when configured translation cannot fall back to the paid provider.
+function translationIsFree() { return libreConfigured() && !googleConfigured(); }
 
 async function translateViaGoogle(text, target, source, fetchImpl) {
   const url = `https://translation.googleapis.com/language/translate2?key=${encodeURIComponent(process.env.GOOGLE_TRANSLATE_API_KEY)}`;
@@ -60,9 +66,15 @@ async function translateViaLibre(text, target, source, fetchImpl) {
 async function translateText(text, target, { source, fetchImpl = fetch } = {}) {
   const trimmed = String(text || '').trim();
   if (!trimmed || !target) return null;
+  if (libreConfigured()) {
+    try {
+      return await translateViaLibre(trimmed, target, source, fetchImpl);
+    } catch (error) {
+      if (!googleConfigured()) throw error;
+    }
+  }
   if (googleConfigured()) return translateViaGoogle(trimmed, target, source, fetchImpl);
-  if (libreConfigured()) return translateViaLibre(trimmed, target, source, fetchImpl);
   return null;
 }
 
-module.exports = { translateText, translationConfigured, googleConfigured, libreConfigured, LANGUAGES };
+module.exports = { translateText, translationConfigured, translationIsFree, googleConfigured, libreConfigured, LANGUAGES };

@@ -1,0 +1,39 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'messages', currentUser }) %>
+<main class="conversations-page">
+	<a class="back-link" href="/messages">← Back to messages</a>
+	<header class="conversations-hero">
+		<p class="eyebrow"><%- icon('user-plus', { size: 13 }) %> Message requests</p>
+		<h1>Requests</h1>
+		<p>Messages from people you haven't messaged before. Accept to start chatting, or decline to dismiss it - declining doesn't block them, it just keeps it out of your inbox.</p>
+	</header>
+	<section class="community-posts">
+		<div class="panel-heading"><h2>Pending</h2><span><%= requests.length %></span></div>
+		<% if (!requests.length) { %>
+		<div class="empty-feed"><div class="empty-orbit"><%- icon('user-plus', { size: 26 }) %></div><h2>No pending requests.</h2><p>New message requests from people you haven't chatted with will show up here.</p></div>
+		<% } %>
+		<% requests.forEach((r) => { %>
+		<div class="activity-row message-row request-row">
+			<a href="/messages/<%= r.person._id %>"><%- include('../partials/avatar', { person: r.person, size: 'small', link: false }) %></a>
+			<div>
+				<a class="name-link" href="/u/<%= r.person._id %>"><strong><%= r.person.name %></strong></a>
+				<p><%= r.preview %></p>
+				<small><%= new Date(r.latest.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %></small>
+			</div>
+			<div class="request-actions">
+				<form method="post" action="/messages/requests/<%= r.person._id %>/respond">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<input type="hidden" name="decision" value="accept">
+					<button type="submit" class="button button-small button-primary">Accept</button>
+				</form>
+				<form method="post" action="/messages/requests/<%= r.person._id %>/respond">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<input type="hidden" name="decision" value="decline">
+					<button type="submit" class="button button-small button-ghost">Decline</button>
+				</form>
+			</div>
+		</div>
+		<% }) %>
+	</section>
+</main>
+<%- include('../partials/app-footer') %><%- include('../partials/foot') %>

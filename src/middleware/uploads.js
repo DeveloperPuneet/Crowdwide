@@ -122,13 +122,10 @@ async function scanUploadsForViruses(req, res, next) {
     }
     next();
   } catch (error) {
-    // Fails OPEN: a scanner outage (timeout, connection refused) blocks
-    // the scan, not the upload - consistent with how mailer/push/link
-    // preview degrade elsewhere in this app. A stricter deployment that
-    // wants to fail closed instead should treat this catch block as the
-    // place to change - see Known Gaps in todo.txt for the trade-off.
-    logger.error('Virus scan could not be completed; allowing the upload through', error);
-    next();
+    logger.error('Virus scan could not be completed', error);
+    if (process.env.CLAMAV_FAIL_OPEN === 'true') return next();
+    req.session.flash = { type: 'error', message: 'Uploads are temporarily unavailable because security scanning could not be completed.' };
+    res.redirect(req.get('referer') || '/dashboard');
   }
 }
 

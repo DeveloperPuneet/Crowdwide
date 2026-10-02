@@ -124,11 +124,16 @@ exports.admin = async (req, res) => {
   res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, siteSettings, pinnedPostIds, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
+// Resolving an appeal lifts (or upholds) a moderation action on a user's
+// account, so it carries the same weight as a report resolution - moderators
+// can handle it same as admins, not just admins. req.roleUser.role decides
+// where to send them back to afterwards.
 exports.resolveAppeal = async (req, res) => {
   const appeal = await Appeal.findById(req.params.id);
+  const backTo = req.roleUser.role === 'admin' ? '/admin#appeals' : '/moderator#appeals';
   if (!appeal || appeal.status !== 'pending') {
     flash(req, 'error', 'That appeal is no longer pending.');
-    return res.redirect('/admin#appeals');
+    return res.redirect(backTo);
   }
   const approve = req.body.decision === 'approve';
   if (approve) {
@@ -144,7 +149,7 @@ exports.resolveAppeal = async (req, res) => {
   logEvent(appeal.user, approve ? 'appeal-approved' : 'appeal-denied', appeal.reviewNote);
   await audit(req, approve ? 'approve-appeal' : 'deny-appeal', 'user', appeal.user, { actionType: appeal.actionType });
   flash(req, 'success', `Appeal ${approve ? 'approved' : 'denied'}.`);
-  res.redirect('/admin#appeals');
+  res.redirect(backTo);
 };
 
 exports.updateUser = async (req, res) => {
@@ -386,7 +391,7 @@ exports.reviewAction = async (req, res) => {
 exports.moderator = async (req, res) => {
   const reviewThreshold = await getPostReviewThreshold();
   const reportedOnly = req.query.filter === 'reported';
-  const [reports, actions, communities, moderationFeed] = await Promise.all([
+  const [reports, actions, communities, moderationFeed, pendingAppeals] = await Promise.all([
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ status: 1, createdAt: -1 }).limit(60).select('targetType target reason evidenceUrl status createdAt').populate('reporter', 'name').lean(),
     ModerationAction.find({ moderator: req.roleUser._id }).sort({ createdAt: -1 }).limit(60).select('action targetType target reason status createdAt reviewNote').lean(),
     Community.find().sort({ membersCount: -1 }).limit(60).select('name slug description guidelines category membersCount requireApproval bannedWords createdAt').lean(),
@@ -401,10 +406,11 @@ exports.moderator = async (req, res) => {
       moderatorReviews: { $ne: req.roleUser._id },
       $expr: { $lt: [{ $size: { $ifNull: ['$moderatorReviews', []] } }, reviewThreshold] },
       ...(reportedOnly ? { moderationStatus: 'reported' } : {})
-    }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+    }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean(),
+    Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean()
   ]);
   const myOpenReportRecommendations = new Set(actions.filter((a) => a.action === 'resolve-report' && a.status === 'pending').map((a) => String(a.target)));
-  res.render('pages/moderator', { title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly });
+  res.render('pages/moderator', { title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals });
 };
 
 exports.submitAction = async (req, res) => {

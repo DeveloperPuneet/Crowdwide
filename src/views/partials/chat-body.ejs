@@ -7,9 +7,27 @@
 </div>
 <button class="chat-jump" data-chat-jump type="button" hidden><%- icon('arrow-right', { size: 14, className: 'chat-jump-arrow' }) %> New messages</button>
 <p class="chat-error" data-chat-error role="alert" hidden></p>
+<% if (locals.pending) { %>
+<div class="chat-request-gate">
+	<p><%- icon('user-plus', { size: 16 }) %> <%= locals.requestPersonName %> isn't in your messages yet. Accept to reply, or decline to dismiss this request.</p>
+	<div class="request-actions">
+		<form method="post" action="/messages/requests/<%= requestPersonId %>/respond">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<input type="hidden" name="decision" value="accept">
+			<button type="submit" class="button button-small button-primary">Accept</button>
+		</form>
+		<form method="post" action="/messages/requests/<%= requestPersonId %>/respond">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<input type="hidden" name="decision" value="decline">
+			<button type="submit" class="button button-small button-ghost">Decline</button>
+		</form>
+	</div>
+</div>
+<% } else { %>
 <form class="chat-composer" data-chat-form method="post" action="<%= sendUrl %>" autocomplete="off">
 	<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 	<% if (locals.gifsEnabled) { %><button class="chat-tool" type="button" data-gif-trigger aria-label="Send a GIF"><span class="gif-badge">GIF</span></button><% } %>
 	<textarea name="body" rows="1" maxlength="2000" placeholder="<%= locals.placeholder || 'Write a message...' %>" data-chat-input aria-label="Message"></textarea>
 	<button class="chat-send" type="submit" aria-label="Send message"><%- icon('send', { size: 18 }) %></button>
 </form>
+<% } %>

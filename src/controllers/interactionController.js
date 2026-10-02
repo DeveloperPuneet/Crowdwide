@@ -337,19 +337,63 @@ exports.unreadCount = async (req, res) => {
 exports.messages = async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const messages = await Message.find({ $or: [{ sender: userId }, { recipient: userId }] })
-      .sort({ createdAt: -1 }).limit(300)
-      .populate('sender', 'name profilePicture').populate('recipient', 'name profilePicture').lean();
+    const [messages, viewer] = await Promise.all([
+      Message.find({ $or: [{ sender: userId }, { recipient: userId }] })
+        .sort({ createdAt: -1 }).limit(300)
+        .populate('sender', 'name profilePicture').populate('recipient', 'name profilePicture').lean(),
+      User.findById(userId).select('acceptedDmFrom declinedDmFrom').lean()
+    ]);
+    const accepted = new Set((viewer?.acceptedDmFrom || []).map(String));
+    const declined = new Set((viewer?.declinedDmFrom || []).map(String));
     const conversations = new Map();
     messages.forEach((message) => {
-      const other = String(message.sender._id) === String(userId) ? message.recipient : message.sender;
+      const senderId = String(message.sender._id);
+      const other = senderId === String(userId) ? message.recipient : message.sender;
       const key = String(other._id);
-      if (!conversations.has(key)) conversations.set(key, { person: other, latest: message, preview: previewText(message), unread: 0 });
-      if (String(message.recipient._id) === String(userId) && !message.readAt) conversations.get(key).unread += 1;
+      if (!conversations.has(key)) conversations.set(key, { person: other, latest: message, preview: previewText(message), unread: 0, viewerHasSent: false, otherHasSent: false });
+      const entry = conversations.get(key);
+      if (senderId === String(userId)) entry.viewerHasSent = true; else entry.otherHasSent = true;
+      if (String(message.recipient._id) === String(userId) && !message.readAt) entry.unread += 1;
     });
-    res.render('pages/messages', { title: 'Messages', pagePath: '/messages', noIndex: true, conversations: Array.from(conversations.values()) });
+    const all = Array.from(conversations.values());
+    // A thread is a pending request only while the OTHER person started it,
+    // the viewer hasn't replied, and the viewer hasn't already decided on it.
+    const requests = all.filter((c) => c.otherHasSent && !c.viewerHasSent && !accepted.has(String(c.person._id)) && !declined.has(String(c.person._id)));
+    const requestIds = new Set(requests.map((c) => String(c.person._id)));
+    const conversationList = all.filter((c) => !requestIds.has(String(c.person._id)) && !declined.has(String(c.person._id)));
+    res.render('pages/messages', { title: 'Messages', pagePath: '/messages', noIndex: true, conversations: conversationList, requestCount: requests.length });
   } catch (error) {
     logger.error('Loading messages failed', error);
+    res.status(500).render('pages/not-found', { title: 'Crowdwide is having trouble' });
+  }
+};
+
+exports.messageRequests = async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const [messages, viewer] = await Promise.all([
+      Message.find({ $or: [{ sender: userId }, { recipient: userId }] })
+        .sort({ createdAt: -1 }).limit(300)
+        .populate('sender', 'name profilePicture').populate('recipient', 'name profilePicture').lean(),
+      User.findById(userId).select('acceptedDmFrom declinedDmFrom blockedUsers').lean()
+    ]);
+    const accepted = new Set((viewer?.acceptedDmFrom || []).map(String));
+    const declined = new Set((viewer?.declinedDmFrom || []).map(String));
+    const blocked = new Set((viewer?.blockedUsers || []).map(String));
+    const conversations = new Map();
+    messages.forEach((message) => {
+      const senderId = String(message.sender._id);
+      const other = senderId === String(userId) ? message.recipient : message.sender;
+      const key = String(other._id);
+      if (!conversations.has(key)) conversations.set(key, { person: other, latest: message, preview: previewText(message), viewerHasSent: false, otherHasSent: false });
+      const entry = conversations.get(key);
+      if (senderId === String(userId)) entry.viewerHasSent = true; else entry.otherHasSent = true;
+    });
+    const requests = Array.from(conversations.values())
+      .filter((c) => c.otherHasSent && !c.viewerHasSent && !accepted.has(String(c.person._id)) && !declined.has(String(c.person._id)) && !blocked.has(String(c.person._id)));
+    res.render('pages/message-requests', { title: 'Message requests', pagePath: '/messages/requests', noIndex: true, requests });
+  } catch (error) {
+    logger.error('Loading message requests failed', error);
     res.status(500).render('pages/not-found', { title: 'Crowdwide is having trouble' });
   }
 };

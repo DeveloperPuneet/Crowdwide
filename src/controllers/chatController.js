@@ -18,7 +18,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const logger = require('../services/logger');
 const { gifFromBody } = require('../services/gif');
-const { PAGE_SIZE, isObjectId, previewText, attachPostPreviews } = require('../services/chat');
+const { PAGE_SIZE, isObjectId, previewText, attachPostPreviews, isPendingRequest, tooManyNewDmRequests } = require('../services/chat');
 const { notify } = require('./interactionController');
 const { toggleReaction } = require('../utils/reactions');
 
@@ -80,19 +80,31 @@ async function loadDmPerson(req) {
   const userId = req.session.user.id;
   const person = await User.findById(req.params.id).select('name profilePicture blockedUsers isVerified').lean();
   if (!person || String(person._id) === String(userId)) return { person: null };
-  const viewer = await User.findById(userId).select('blockedUsers').lean();
+  const viewer = await User.findById(userId).select('blockedUsers acceptedDmFrom declinedDmFrom').lean();
   const blocked = (viewer?.blockedUsers || []).some((id) => String(id) === String(person._id)) || (person.blockedUsers || []).some((id) => String(id) === String(userId));
-  return { person, blocked, userId };
+  return { person, blocked, userId, viewer };
+}
+
+// See src/services/chat.js#isPendingRequest for what "pending" means.
+async function pendingRequestFlag(viewer, viewerId, otherId) {
+  const [viewerHasSent, otherHasSent] = await Promise.all([
+    Message.exists({ sender: viewerId, recipient: otherId }),
+    Message.exists({ sender: otherId, recipient: viewerId })
+  ]);
+  const accepted = (viewer?.acceptedDmFrom || []).some((id) => String(id) === String(otherId));
+  const declined = (viewer?.declinedDmFrom || []).some((id) => String(id) === String(otherId));
+  return Boolean(otherHasSent) && isPendingRequest({ viewerHasSent: Boolean(viewerHasSent), accepted, declined });
 }
 
 exports.dmThread = async (req, res) => {
   try {
-    const { person, blocked, userId } = await loadDmPerson(req);
+    const { person, blocked, userId, viewer } = await loadDmPerson(req);
     if (!person) return res.redirect('/messages');
     if (blocked) {
       req.session.flash = { type: 'error', message: 'Messaging is unavailable for this account.' };
       return res.redirect('/messages');
     }
+    const pending = await pendingRequestFlag(viewer, userId, person._id);
     await Message.updateMany({ sender: person._id, recipient: userId, readAt: null }, { readAt: new Date() });
     const { rows, hasMore } = await pageOfMessages(Message, dmFilter(userId, person._id), {});
     await attachPostPreviews(rows, userId);
@@ -104,7 +116,8 @@ exports.dmThread = async (req, res) => {
       person,
       messagesHtml: rendered.map((item) => item.html).join('\n'),
       lastId: rows.length ? String(rows[rows.length - 1]._id) : '',
-      hasMore
+      hasMore,
+      pending
     });
   } catch (error) {
     logger.error('Loading message thread failed', error);
@@ -137,10 +150,22 @@ exports.dmSend = async (req, res) => {
     const { body, gif } = sanitizedContent(req);
     if ((!body && !gif) || body.length > 2000) return sendFailure(req, res, 400, 'Write a message (up to 2,000 characters) or pick a GIF.', fallback);
     const recipient = await User.findById(req.params.id).select('_id isVerified blockedUsers').lean();
-    const viewer = await User.findById(userId).select('blockedUsers').lean();
+    const viewer = await User.findById(userId).select('blockedUsers acceptedDmFrom').lean();
     const blocked = recipient && ((viewer?.blockedUsers || []).some((id) => String(id) === String(recipient._id)) || (recipient.blockedUsers || []).some((id) => String(id) === String(userId)));
     if (!recipient || !recipient.isVerified || blocked || String(recipient._id) === String(userId)) return sendFailure(req, res, 403, 'That message could not be sent.', '/messages');
+    // Rate-limit brand-new threads only (never a reply in an existing one),
+    // so this can't be used to mass-DM strangers.
+    const everMessagedBefore = await Message.exists({ sender: userId, recipient: recipient._id });
+    if (!everMessagedBefore && await tooManyNewDmRequests(Message, userId)) {
+      return sendFailure(req, res, 429, "You've started a lot of new conversations recently. Try again later.", fallback);
+    }
     const message = await Message.create({ sender: userId, recipient: recipient._id, body, ...(gif ? { gif } : {}) });
+    // Replying to someone (including replying to a pending request from
+    // them) is an explicit signal of acceptance - no separate click needed.
+    const alreadyAccepted = (viewer?.acceptedDmFrom || []).some((id) => String(id) === String(recipient._id));
+    if (!alreadyAccepted) {
+      await User.updateOne({ _id: userId }, { $addToSet: { acceptedDmFrom: recipient._id }, $pull: { declinedDmFrom: recipient._id } });
+    }
     notifyMessage({ recipient: recipient._id, actor: userId, text: gif && !body ? 'sent you a GIF.' : 'sent you a message.', actorName: req.session.user.name, url: `/messages/${userId}` })
       .catch((error) => logger.error('Message notification failed', error));
     if (!isXhr(req)) return res.redirect(fallback);
@@ -166,6 +191,27 @@ exports.dmReact = async (req, res) => {
   } catch (error) {
     logger.error('Reacting to a message failed', error);
     res.status(500).json({ ok: false, error: 'Could not react to that message.' });
+  }
+};
+
+// ---- message requests ------------------------------------------------------
+
+exports.dmRequestRespond = async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const otherId = req.params.id;
+    if (!isObjectId(otherId)) return res.redirect('/messages/requests');
+    const decision = req.body.decision === 'accept' ? 'accept' : 'decline';
+    if (decision === 'accept') {
+      await User.updateOne({ _id: userId }, { $addToSet: { acceptedDmFrom: otherId }, $pull: { declinedDmFrom: otherId } });
+      return res.redirect(`/messages/${otherId}`);
+    }
+    await User.updateOne({ _id: userId }, { $addToSet: { declinedDmFrom: otherId }, $pull: { acceptedDmFrom: otherId } });
+    req.session.flash = { type: 'success', message: 'Request declined.' };
+    res.redirect('/messages/requests');
+  } catch (error) {
+    logger.error('Responding to a message request failed', error);
+    res.redirect('/messages/requests');
   }
 };
 

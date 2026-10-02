@@ -42,6 +42,8 @@
 - Async route errors are forwarded to the error handler (Express 4 previously left the request hanging on a rejected promise).
 - Settings and profile layouts keep a fixed navigation column and stable width when switching sections.
 - Monetization pages and links removed from the frontend for now.
+- Translation (posts/comments) now prefers the free, self-hosted LibreTranslate provider over the paid Google Translate API when both are configured, and `.env.example`/`DEPLOYMENT.md` lead with a zero-cost Docker setup for it. ClamAV was already free - docs now spell out a free one-command Docker setup for it too, right next to the translation setup. Unit-tested.
+- Moderators (not just admins) can now resolve appeals, from a new "Pending appeals" section on `/moderator`. Same approve/lift-or-deny logic as the admin console, same audit log and account-history entry. Unit-tested.
 
 ## Comming soon!!
 The following features are planned for future Crowdwide updates. They are intended to improve community discovery, encourage meaningful participation, strengthen collaboration, and give communities more opportunities to grow.
@@ -208,12 +210,9 @@ Goal: Complete the remaining messaging capabilities and strengthen protection ag
 
 Crowdwide already has direct messages and group conversations. The following improvements are planned to make messaging more complete and manageable.
 
-A. Message requests
+A. Message requests — DONE
 
-Introduce a separate message-request area for messages from people with whom the recipient has not established an accepted conversation.
-Allow recipients to accept, decline, or block requests.
-Avoid treating unaccepted requests as ordinary conversations.
-Apply privacy settings and rate limits to prevent unsolicited messaging.
+A separate "Message requests" area (/messages/requests, linked with a count badge from /messages) for DMs from someone the recipient has never messaged. Accept moves it into the ordinary inbox; decline dismisses it without blocking; Block (existing feature) is also available. Replying is itself treated as accepting - no separate click needed. While pending, the thread shows an accept/decline prompt instead of the normal composer, so it's never presented as an ordinary conversation. New (first-ever-contact) requests are capped per sender in a rolling 24h window, separate from the general per-route rate limit, so one account can't mass-DM strangers; replies within an existing thread are never limited by this. Unit-tested (18 tests across test/dm-requests.test.js and test/dm-requests-inbox.test.js).
 
 B. Messaging spam controls
 
@@ -263,6 +262,4 @@ Expected outcome: A platform that becomes more reliable and useful through measu
 
 ## Planned
 
-1. Upload virus scanning with a ClamAV daemon (support is built in - set `CLAMAV_HOST`/`CLAMAV_PORT` or `CLAMAV_SOCKET`; see `DEPLOYMENT.md`).
-2. Monetization, to be designed and added back later.
-3. Let moderators resolve appeals (currently admin-only).
+1. Monetization, to be designed and added back later.
