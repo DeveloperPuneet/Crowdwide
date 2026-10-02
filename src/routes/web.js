@@ -65,6 +65,8 @@ router.post('/groups/:id/invite/revoke', requireAuth, requireVerified, interacti
 router.get('/gifs/search', requireAuth, requireVerified, gifLimiter, gifController.search);
 router.get('/share/targets', requireAuth, requireVerified, pollLimiter, shareController.targets);
 router.post('/posts/:id/share/send', requireAuth, requireVerified, interactionLimiter, shareController.send);
+router.get('/posts/:id/edit', requireAuth, requireVerified, interactionController.editPostPage);
+router.get('/posts/:id/reply', requireAuth, requireVerified, interactionController.replyPostPage);
 router.get('/posts/:id', interactionController.postDetail);
 router.post('/posts/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editPost);
 router.post('/posts/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deletePost);
@@ -83,13 +85,14 @@ router.post('/posts/:id/bookmark', requireAuth, requireVerified, interactionLimi
 router.post('/posts/:id/share', requireAuth, requireVerified, interactionLimiter, interactionController.share);
 router.post('/posts/:id/poll/vote', requireAuth, requireVerified, interactionLimiter, interactionController.votePoll);
 router.post('/posts/:id/reaction', requireAuth, requireVerified, interactionLimiter, interactionController.toggleReaction);
-router.post('/posts/:id/reply', requireAuth, requireVerified, interactionLimiter, interactionController.replyPost);
+router.post('/posts/:id/reply', requireAuth, requireVerified, postUpload, csrfSynchronisedProtection, handleUploadError, validatePostUpload, scanUploadsForViruses, interactionLimiter, interactionController.replyPost);
 router.get('/translate/languages', requireAuth, requireVerified, translateController.languages);
 router.post('/translate', requireAuth, requireVerified, translateLimiter, translateController.translate);
 router.get('/community-map', requireAuth, requireVerified, communityController.communityMap);
 router.get('/explore', requireAuth, requireVerified, communityController.explore);
 router.get('/people', requireAuth, requireVerified, communityController.peopleToFollow);
 router.get('/communities', requireAuth, requireVerified, communityController.directory);
+router.get('/communities/mine', requireAuth, requireVerified, communityController.mine);
 router.get('/communities/rising', requireAuth, requireVerified, communityController.risingCommunities);
 router.get('/search', requireAuth, requireVerified, controller.search);
 router.post('/search/history/clear', requireAuth, requireVerified, controller.clearSearchHistory);
@@ -149,6 +152,7 @@ router.post('/settings/security/devices/:id/logout', requireAuth, requireVerifie
 router.post('/settings/security/devices/logout-all', requireAuth, requireVerified, settingsController.logoutAll);
 router.post('/settings/privacy', requireAuth, requireVerified, settingsController.setInactivity);
 router.post('/settings/notifications', requireAuth, requireVerified, settingsController.setNotifications);
+router.post('/settings/theme', requireAuth, requireVerified, settingsController.setTheme);
 router.post('/settings/appeals', requireAuth, requireVerified, appealController.submitAppeal);
 router.get('/settings/push/public-key', requireAuth, requireVerified, settingsController.pushPublicKey);
 router.post('/settings/push/subscribe', requireAuth, requireVerified, settingsController.pushSubscribe);

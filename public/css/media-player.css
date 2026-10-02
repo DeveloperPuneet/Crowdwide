@@ -267,6 +267,20 @@
   box-shadow: 0 12px 30px rgba(0,0,0,.45);
   z-index: 4;
 }
+
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio {
+  background: var(--theme-surface);
+  border-color: var(--theme-border);
+  color: var(--theme-fg);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio :is(.cw-btn, .cw-time, .cw-speed-btn) { color: var(--theme-fg); }
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio :is(.cw-btn:hover, .cw-speed-btn:hover) { background: var(--theme-soft); }
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio :is(.cw-seek-track, .cw-volume-range) { background: var(--theme-border); }
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio .cw-seek-buffered { background: #b8c2d1; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio .cw-seek-fill { background: var(--theme-accent); }
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio .cw-seek-handle { background: var(--theme-accent); }
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio .cw-volume-range::-webkit-slider-thumb { background: var(--theme-accent); }
+:is(body[data-theme="light"], body[data-theme="pink"]) .cw-player--audio .cw-volume-range::-moz-range-thumb { background: var(--theme-accent); }
 .cw-speed.is-open .cw-speed-menu { display: flex; }
 .cw-speed-menu button {
   background: none;

@@ -7,6 +7,7 @@ const ejs = require('ejs');
 const { icon } = require('../src/utils/icons');
 const { renderMentions, renderRichBody } = require('../src/services/mentions');
 const { sendMessageAttachment } = require('../src/controllers/chatController');
+const Post = require('../src/models/Post');
 
 const views = path.join(__dirname, '..', 'src', 'views');
 const currentUser = { id: 'u1', name: 'Puneet K', email: 'p@x.com', role: 'user', profilePicture: '' };
@@ -154,6 +155,21 @@ test('docs page renders the API endpoints, and info pages cover help', async () 
   assert.match(help, /Why verify\?/);
 });
 
+test('landing page applies the member theme and renders real profile avatars', async () => {
+  const html = await render('pages/home.ejs', {
+    title: 'Home', pagePath: '/',
+    currentUser: { ...currentUser, theme: 'pink' },
+    stats: { members: 2, posts: 1, communities: 0, communitiesAreLive: true, topCommunities: [] },
+    viralPosts: [{ author: { _id: 'u2', name: 'Nia', profilePicture: '/media/nia.webp' }, body: 'A bright idea', likesTotal: 3 }],
+    popularPeople: [{ _id: 'u2', name: 'Nia', profilePicture: '/media/nia.webp', followers: 3 }]
+  });
+
+  assert.match(html, /data-theme="pink"/);
+  assert.match(html, /avatar-stack/);
+  assert.match(html, /src="\/media\/nia\.webp"/);
+  assert.doesNotMatch(html, /style="color:#f6f6fa;/);
+});
+
 test('community detail renders a quest board with member actions', async () => {
   const html = await render('pages/community-detail.ejs', {
     title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
@@ -225,6 +241,48 @@ test('profiles show community roles and quest-winner achievements', async () => 
   assert.match(html, /Member/);
   assert.match(html, /Community Artist/);
   assert.match(html, /Quest winner/);
+});
+
+test('post edit and reply render as separate full-page composition flows', async () => {
+  const sourcePost = post(1, { _id: 'p1', author: { _id: 'u2', name: 'Asha' }, body: 'Original post text', community: { _id: 'c1', name: 'Sketch Club', slug: 'sketch-club' } });
+  const edit = await render('pages/post-compose.ejs', {
+    title: 'Edit post', pagePath: '/posts/p1/edit', editorMode: 'edit', post: sourcePost, sourcePost, wordLimit: 60
+  });
+  assert.match(edit, /action="\/posts\/p1\/edit"/);
+  assert.match(edit, /<textarea[^>]*>Original post text<\/textarea>/);
+  const reply = await render('pages/post-compose.ejs', {
+    title: 'Reply with a post', pagePath: '/posts/p1/reply', editorMode: 'reply', post: null, sourcePost, wordLimit: 50
+  });
+  assert.match(reply, /action="\/posts\/p1\/reply"/);
+  assert.match(reply, /Original post text/);
+  assert.match(reply, /Reply with a post/);
+  assert.match(reply, /name="media"/);
+  assert.match(reply, /name="mediaAlt"/);
+  assert.match(reply, /name="mediaCaption"/);
+  assert.match(reply, /name="mediaTranscript"/);
+  assert.match(reply, /name="contentWarning"/);
+  assert.match(reply, /data-word-limit="50"/);
+  assert.match(reply, /0 \/ 50 words/);
+  assert.doesNotMatch(reply, /name="body"[^>]*maxlength="4000"/);
+});
+
+test('reply post schema uses a word limit instead of the generic character limit', () => {
+  const longReply = new Post({ body: 'word '.repeat(1000), replyTo: '507f1f77bcf86cd799439011' });
+  const regularPost = new Post({ body: 'x'.repeat(4001) });
+
+  assert.equal(longReply.validateSync()?.errors?.body, undefined);
+  assert.ok(regularPost.validateSync()?.errors?.body);
+});
+
+test('community workspace renders its create form and owned community controls', async () => {
+  const html = await render('pages/my-communities.ejs', {
+    title: 'Your communities', pagePath: '/communities/mine', noIndex: true,
+    communities: [{ _id: 'c1', name: 'Sketch Club', slug: 'sketch-club', description: 'Draw together', category: 'art', membersCount: 12, isPrivate: false, avatarImage: '' }]
+  });
+  assert.match(html, /name="description"/);
+  assert.match(html, /Sketch Club/);
+  assert.match(html, /href="\/communities\/c1\/manage"/);
+  assert.match(html, /12 members/);
 });
 
 test('personal recap renders activity totals and a monthly timeline', async () => {

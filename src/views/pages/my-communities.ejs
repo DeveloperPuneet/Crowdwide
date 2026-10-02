@@ -1,0 +1,42 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'communities', currentUser }) %>
+<main class="community-workspace">
+  <header class="community-workspace-header">
+    <div>
+      <a class="back-link" href="/communities"><%- icon('arrow-left', { size: 14 }) %> Communities</a>
+      <p class="eyebrow">Community workspace</p>
+      <h1>Your communities</h1>
+    </div>
+    <div class="community-workspace-count"><strong><%= communities.length %></strong><span>owned</span></div>
+  </header>
+  <div class="community-workspace-layout">
+    <section class="community-workspace-create" aria-labelledby="community-create-heading">
+      <div class="community-workspace-section-heading"><span class="community-workspace-icon"><%- icon('plus', { size: 17 }) %></span><div><h2 id="community-create-heading">Create a community</h2></div></div>
+      <form class="community-workspace-form" method="post" action="/communities">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Name<input name="name" maxlength="80" required placeholder="Independent makers"></label>
+        <label>Description<textarea name="description" maxlength="1000" required placeholder="What brings members together?"></textarea></label>
+        <label>Category<input name="category" maxlength="40" placeholder="Design, music, gardening..."></label>
+        <label class="community-workspace-private"><input type="checkbox" name="isPrivate"><span>Private community</span></label>
+        <button class="button button-primary" type="submit"><%- icon('plus', { size: 15 }) %> Create community</button>
+      </form>
+    </section>
+    <section class="community-workspace-owned" aria-labelledby="owned-communities-heading">
+      <div class="community-workspace-section-heading"><span class="community-workspace-icon"><%- icon('users', { size: 17 }) %></span><div><h2 id="owned-communities-heading">Manage your spaces</h2></div></div>
+      <% if (!communities.length) { %>
+      <div class="community-workspace-empty"><%- icon('users', { size: 22 }) %><strong>No communities yet</strong><span>Your spaces will appear here after you create one.</span></div>
+      <% } else { %>
+      <div class="community-owned-list">
+        <% communities.forEach((community) => { %>
+        <article class="community-owned-row">
+          <span class="community-owned-mark"><% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt=""><% } else { %><%- icon('users', { size: 18 }) %><% } %></span>
+          <div class="community-owned-copy"><div class="community-owned-title"><h3><%= community.name %></h3><span><%= community.isPrivate ? 'Private' : 'Public' %></span></div><p><%= community.description || 'No description yet.' %></p><small><%= (community.membersCount || 0).toLocaleString() %> members<% if (community.category) { %> · <%= community.category %><% } %></small></div>
+          <div class="community-owned-actions"><a class="button button-ghost button-small" href="/communities/<%= community.slug %>">View</a><a class="button button-primary button-small" href="/communities/<%= community._id %>/manage"><%- icon('settings', { size: 14 }) %><span>Manage</span></a></div>
+        </article>
+        <% }) %>
+      </div>
+      <% } %>
+    </section>
+  </div>
+</main>
+<%- include('../partials/app-footer') %><%- include('../partials/foot') %>

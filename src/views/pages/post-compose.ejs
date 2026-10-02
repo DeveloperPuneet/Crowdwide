@@ -1,0 +1,43 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex: true }) %>
+<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<main class="post-compose-page">
+  <header class="post-compose-heading">
+    <a class="back-link" href="/posts/<%= sourcePost._id %>"><%- icon('arrow-left', { size: 15 }) %> Back to post</a>
+    <p class="eyebrow"><%= editorMode === 'edit' ? 'Your post' : 'Continue the conversation' %></p>
+    <h1><%= editorMode === 'edit' ? 'Edit post' : 'Reply with a post' %></h1>
+  </header>
+  <% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
+  <% if (editorMode === 'reply') { %>
+  <article class="post-compose-source">
+    <header><%- include('../partials/avatar', { person: sourcePost.author, size: 'small' }) %><div><strong><%= sourcePost.author?.name || 'Crowdwide member' %></strong><span><%= sourcePost.community?.name || 'Open Crowdwide' %></span></div></header>
+    <div class="post-compose-source-body"><%- renderRichBody(sourcePost.body || '') %></div>
+  </article>
+  <% } else { %>
+  <div class="post-compose-context"><%- icon('edit', { size: 16 }) %><span>Editing your <%= post.type === 'article' ? 'article' : 'post' %><% if (post.community?.name) { %> in <strong><%= post.community.name %></strong><% } %></span></div>
+  <% } %>
+  <form class="post-compose-form" method="post" enctype="multipart/form-data" action="/posts/<%= sourcePost._id %>/<%= editorMode === 'edit' ? 'edit' : 'reply' %>">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="post-compose-form-heading"><%- include('../partials/avatar', { person: currentUser, size: 'small', link: false }) %><div><strong><%= currentUser.name %></strong><span><%= editorMode === 'edit' ? 'Update your post' : 'Public reply post' %></span></div></div>
+    <label class="post-compose-field" for="post-compose-body"><span><%= editorMode === 'edit' ? 'Post text' : 'Your reply' %></span><textarea id="post-compose-body" data-mention-input name="body"<% if (editorMode !== 'reply' && !(editorMode === 'edit' && post.replyTo)) { %> maxlength="4000"<% } %> required aria-describedby="post-compose-limit"<% if (editorMode === 'reply' || (editorMode === 'edit' && post.replyTo)) { %> data-word-limit="<%= wordLimit %>"<% } %>><%= editorMode === 'edit' ? post.body : '' %></textarea></label>
+    <% if (editorMode === 'reply') { %>
+    <div class="post-compose-reply-options">
+      <label class="post-compose-warning">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
+      <label class="media-picker"><%- icon('image', { size: 15 }) %> Add media<input type="file" name="media" accept="image/*,video/*,audio/*" multiple></label>
+    </div>
+    <details class="composer-media-details post-compose-media-details">
+      <summary>Media details · alt text, caption, transcript</summary>
+      <% [1, 2].forEach((index) => { %>
+      <fieldset class="composer-media-meta" data-media-meta="<%= index %>">
+        <legend>File <%= index %></legend>
+        <label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe this file"></label>
+        <label>Caption<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
+        <label>Transcript (for audio/video)<textarea name="mediaTranscript" maxlength="4000" placeholder="Optional transcript"></textarea></label>
+      </fieldset>
+      <% }) %>
+    </details>
+    <small class="upload-help post-compose-upload-help">Images under 1.5 MB · video under 4 MB · audio under 2 MB · up to 2 files</small>
+    <% } %>
+    <div class="post-compose-footer"><small id="post-compose-limit"<% if (editorMode === 'reply' || (editorMode === 'edit' && post.replyTo)) { %> data-word-count<% } %>><%= editorMode === 'edit' && !(post.replyTo) ? `${wordLimit} words maximum` : `0 / ${wordLimit} words` %></small><div><a class="button button-ghost button-small" href="/posts/<%= sourcePost._id %>">Cancel</a><button class="button button-primary" type="submit"><%- icon(editorMode === 'edit' ? 'check' : 'send', { size: 15 }) %><%= editorMode === 'edit' ? 'Save changes' : 'Publish reply' %></button></div></div>
+  </form>
+</main>
+<%- include('../partials/app-footer') %><%- include('../partials/foot') %>

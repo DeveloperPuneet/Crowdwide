@@ -121,11 +121,21 @@ exports.setNotifications = async (req, res) => {
       comments: req.body.notifyComments === 'on',
       follows: req.body.notifyFollows === 'on',
       messages: req.body.notifyMessages === 'on',
-      security: req.body.notifySecurity === 'on'
+      security: req.body.notifySecurity === 'on',
+      emailNewsletter: req.body.emailNewsletter === 'on',
+      emailUnreadSummary: req.body.emailUnreadSummary === 'on'
     }
   });
   flash(req, 'success', 'Notification preferences saved.');
   res.redirect('/settings/notifications');
+};
+
+exports.setTheme = async (req, res) => {
+  const theme = ['default', 'light', 'dark', 'violet', 'pink'].includes(req.body.theme) ? req.body.theme : 'default';
+  await User.findByIdAndUpdate(req.session.user.id, { theme });
+  req.session.user.theme = theme;
+  flash(req, 'success', 'Theme preference saved.');
+  res.redirect('/settings/account');
 };
 
 exports.downloadData = async (req, res) => {

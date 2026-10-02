@@ -56,6 +56,7 @@ exports.home = async (req, res) => {
 			title: 'A fair chance at discovery',
 			description: 'Crowdwide gives every voice a fair chance at discovery through thoughtful communities and real conversation.',
 			pagePath: '/',
+			currentUser: req.session?.user || null,
 			stats,
 			viralPosts,
 			popularPeople,
@@ -69,7 +70,7 @@ exports.home = async (req, res) => {
 		});
 	} catch (error) {
 		logger.error('Unable to load live homepage stats', error);
-		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] }, viralPosts: [], popularPeople: [] });
+		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', currentUser: req.session?.user || null, stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] }, viralPosts: [], popularPeople: [] });
 	}
 };
 
@@ -432,7 +433,10 @@ exports.profile = async (req, res) => {
 	const isSelf = String(profileUser._id) === String(viewerId);
 	let tab = ['posts', 'activity', 'likes', 'comments', 'saved', 'stats'].includes(req.query.tab) ? req.query.tab : 'posts';
 	if (!isSelf && (tab === 'saved' || tab === 'stats')) tab = 'posts';
-	if (!isSelf) User.findByIdAndUpdate(profileUser._id, { $inc: { profileViews: 1 } }).catch(() => {});
+	if (!isSelf) {
+		const updatedProfile = await User.findByIdAndUpdate(profileUser._id, { $inc: { profileViews: 1 } }, { new: true }).select('profileViews').lean();
+		if (updatedProfile) profileUser.profileViews = updatedProfile.profileViews;
+	}
 	const restrictedCommunityIds = await getRestrictedCommunityIds(viewerId);
 	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
 	const publishedFilter = { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };

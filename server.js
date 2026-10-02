@@ -4,6 +4,7 @@ const logger = require('./src/services/logger');
 const createApp = require('./src/app');
 const connectDatabase = require('./src/config/database');
 const { startPublicationWorker } = require('./src/services/publicationWorker');
+const { startNewsletterWorker, stopNewsletterWorker } = require('./src/services/newsletterWorker');
 const { verifyMailConfig } = require('./src/services/mailer');
 const { startKeepAlive, stopKeepAlive } = require('./src/services/keepAlive');
 
@@ -15,12 +16,13 @@ process.on('unhandledRejection', (reason) => logger.error('Unhandled promise rej
 async function start() {
   await connectDatabase();
   startPublicationWorker();
+  startNewsletterWorker();
   const server = app.listen(port, () => logger.info(`Crowdwide is live at http://localhost:${port}`));
 
   // Free-tier hosts put idle services to sleep; a node-cron job pings our own
   // /health URL every few minutes so the instance stays warm.
   startKeepAlive();
-  const shutdown = () => { stopKeepAlive(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); };
+  const shutdown = () => { stopKeepAlive(); stopNewsletterWorker(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); };
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);
 

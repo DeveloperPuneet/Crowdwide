@@ -15,7 +15,7 @@
 		<% if (locals.showAvatar && currentUser) { %><%- include('avatar', { person: currentUser, size: 'small', link: false }) %><% } %>
 		<div class="mention-wrap comment-field">
 			<label class="visually-hidden" for="<%= fieldId %>"><%= locals.placeholder || 'Add a comment' %></label>
-			<input <%- fieldId ? `id="${fieldId}"` : '' %> data-mention-input data-comment-input autocomplete="off" name="body" maxlength="2000" placeholder="<%= locals.placeholder || 'Add a comment...' %>">
+			<textarea <%- fieldId ? `id="${fieldId}"` : '' %> data-mention-input data-comment-input autocomplete="off" name="body" maxlength="2000" placeholder="<%= locals.placeholder || 'Add a comment...' %>" required></textarea>
 		</div>
 		<% if (locals.gifsEnabled) { %><button type="button" class="comment-tool" data-gif-trigger aria-label="Add a GIF"><span class="gif-badge">GIF</span></button><% } %>
 		<button type="submit" class="comment-submit" aria-label="<%= locals.parent ? 'Post reply' : 'Post comment' %>"><%- icon('send', { size: 17 }) %><span><%= locals.parent ? 'Reply' : 'Post' %></span></button>

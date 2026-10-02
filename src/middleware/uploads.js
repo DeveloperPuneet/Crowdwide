@@ -104,7 +104,7 @@ function validatePostUpload(req, res, next) {
     const kind = classify(file);
     if (file.size >= mediaLimits[kind]) {
       req.session.flash = { type: 'error', message: `${kind} files must be smaller than ${kind === 'image' ? '1.5MB' : kind === 'video' ? '4MB' : '2MB'}.` };
-      return res.redirect('/dashboard');
+      return res.redirect(req.get('referer') || req.uploadReturnTo || '/dashboard');
     }
     file.mediaKind = kind;
   }

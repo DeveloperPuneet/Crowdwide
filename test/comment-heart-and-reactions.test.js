@@ -9,7 +9,7 @@ const interactionController = require('../src/controllers/interactionController'
 // which looks up the recipient's notification preferences and writes a
 // Notification - stub both so these stay unit tests, not integration tests.
 function mockNotifyDependencies(t) {
-  t.mock.method(User, 'findById', () => ({ select: () => ({ lean: () => Promise.resolve({ notificationPreferences: {} }) }) }));
+  t.mock.method(User, 'findById', () => ({ select: () => ({ lean: () => Promise.resolve({ notificationPreferences: { emailUnreadSummary: false } }) }) }));
   t.mock.method(Notification, 'create', () => Promise.resolve({}));
 }
 

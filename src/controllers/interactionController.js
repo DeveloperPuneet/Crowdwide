@@ -13,9 +13,14 @@ const { notifyMentionedUsers } = require('../services/mentions');
 const { sendPushToUser } = require('../services/push');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
+const { createImageThumbnail, getImageSize } = require('../services/storage');
+const { mediaDetailsFor } = require('../utils/mediaDetails');
 const { getWordLimits } = require('../services/siteConfig');
 const { toggleReaction } = require('../utils/reactions');
 const logger = require('../services/logger');
+const { sendUnreadNotificationSummary } = require('../services/mailer');
+
+const MAX_REPLY_POST_WORDS = 50;
 
 const redirectBack = (req, res, payload = {}) => {
   if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, ...payload });
@@ -35,10 +40,24 @@ exports.canAccessPost = canAccessPost;
 
 async function notify(recipient, actor, type, message, post, community, actorName, url) {
   if (!recipient || String(recipient) === String(actor)) return;
-  const recipientUser = await User.findById(recipient).select('notificationPreferences').lean();
+  const recipientUser = await User.findById(recipient).select('name email notificationPreferences').lean();
   const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : type === 'message' ? 'messages' : ['comment', 'reply', 'mention'].includes(type) ? 'comments' : 'security';
   if (recipientUser?.notificationPreferences && recipientUser.notificationPreferences[preferenceKey] === false) return;
   await Notification.create({ recipient, actor, type, message, post, community });
+  if (recipientUser?.notificationPreferences?.emailUnreadSummary !== false) {
+    const unread = await Notification.countDocuments({ recipient, readAt: null });
+    if (unread >= 5) {
+      const claim = await User.updateOne({
+        _id: recipient,
+        'notificationPreferences.emailUnreadSummary': { $ne: false },
+        $or: [{ unreadSummarySentAt: null }, { unreadSummarySentAt: { $exists: false } }]
+      }, { $set: { unreadSummarySentAt: new Date() } });
+      if (claim.modifiedCount) {
+        const summary = await Notification.find({ recipient, readAt: null }).sort({ createdAt: -1 }).limit(5).populate('actor', 'name').lean();
+        sendUnreadNotificationSummary(recipientUser, summary).catch((error) => logger.error('Unread notification email failed', error));
+      }
+    }
+  }
   sendPushToUser(recipient, {
     title: 'Crowdwide',
     body: actorName ? `${actorName} ${message}` : message,
@@ -85,12 +104,38 @@ exports.editPost = async (req, res) => {
   const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id });
   if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
   const wordLimits = await getWordLimits();
-  const wordLimit = post.type === 'article' ? wordLimits.article : wordLimits.post;
+  const wordLimit = post.replyTo ? MAX_REPLY_POST_WORDS : post.type === 'article' ? wordLimits.article : wordLimits.post;
   const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
-  if (!body || wordCount > wordLimit) return redirectBack(req, res, { ok: false, error: `${post.type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` });
+  if (!body || wordCount > wordLimit) {
+    const error = `${post.type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.`;
+    req.session.flash = { type: 'error', message: error };
+    return redirectBack(req, res, { ok: false, error });
+  }
   post.body = body;
   await post.save();
-  return redirectBack(req, res, { edited: true });
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, edited: true });
+  return res.redirect(`/posts/${post._id}`);
+};
+
+exports.editPostPage = async (req, res) => {
+  const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id })
+    .populate('author', 'name profilePicture')
+    .populate('community', 'name slug')
+    .lean();
+  if (!post) {
+    req.session.flash = { type: 'error', message: 'Post not found or you do not own it.' };
+    return res.redirect(`/posts/${req.params.id}`);
+  }
+  const limits = await getWordLimits();
+  res.render('pages/post-compose', {
+    title: 'Edit post',
+    pagePath: `/posts/${post._id}/edit`,
+    noIndex: true,
+    editorMode: 'edit',
+    post,
+    sourcePost: post,
+    wordLimit: post.replyTo ? MAX_REPLY_POST_WORDS : post.type === 'article' ? limits.article : limits.post
+  });
 };
 
 exports.deletePost = async (req, res) => {
@@ -242,16 +287,66 @@ exports.toggleReaction = async (req, res) => {
 exports.replyPost = async (req, res) => {
   const source = await Post.findById(req.params.id).select('author status community body').lean();
   const body = req.body.body?.trim();
-  if (!(await canAccessPost(source, req.session.user.id)) || !body || body.length > 4000) return redirectBack(req, res, { ok: false, error: 'Replies must include 1 to 4,000 characters.' });
+  const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
+  if (!(await canAccessPost(source, req.session.user.id)) || !body || wordCount > MAX_REPLY_POST_WORDS) {
+    const error = `Reply posts are limited to ${MAX_REPLY_POST_WORDS} words.`;
+    req.session.flash = { type: 'error', message: error };
+    return redirectBack(req, res, { ok: false, error });
+  }
   if (source.community) {
     const community = await Community.findById(source.community).select('members bannedWords');
-    if (!community?.members.some((id) => String(id) === String(req.session.user.id))) return redirectBack(req, res, { ok: false, error: 'Join the community before replying to this post.' });
+    if (!community?.members.some((id) => String(id) === String(req.session.user.id))) {
+      const error = 'Join the community before replying to this post.';
+      req.session.flash = { type: 'error', message: error };
+      return redirectBack(req, res, { ok: false, error });
+    }
     const bodyLower = body.toLowerCase();
-    if ((community.bannedWords || []).some((word) => word && bodyLower.includes(word))) return redirectBack(req, res, { ok: false, error: 'That reply contains a word this community has blocked.' });
+    if ((community.bannedWords || []).some((word) => word && bodyLower.includes(word))) {
+      const error = 'That reply contains a word this community has blocked.';
+      req.session.flash = { type: 'error', message: error };
+      return redirectBack(req, res, { ok: false, error });
+    }
   }
-  const reply = await Post.create({ author: req.session.user.id, body, type: 'post', community: source.community, replyTo: source._id, hashtags: extractHashtags(body), status: 'published' });
+  const media = [];
+  for (const [fileIndex, file] of (req.files || []).entries()) {
+    const stored = await uploadBuffer(file.buffer, file.originalname, file.mimetype, { kind: file.mediaKind, owner: req.session.user.id });
+    const item = { url: mediaUrl(stored), storageKey: stored.id, kind: file.mediaKind, ...mediaDetailsFor(req.body, fileIndex) };
+    if (file.mediaKind === 'image') {
+      const thumbnail = await createImageThumbnail(file.buffer);
+      const thumbnailFile = await uploadBuffer(thumbnail, `${file.originalname}.thumb.webp`, 'image/webp', { kind: 'thumbnail', parent: stored.id, owner: req.session.user.id });
+      item.thumbnailUrl = mediaUrl(thumbnailFile);
+      const size = await getImageSize(file.buffer);
+      if (size) Object.assign(item, size);
+    }
+    media.push(item);
+  }
+  const reply = await Post.create({ author: req.session.user.id, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', media, type: 'post', community: source.community, replyTo: source._id, hashtags: extractHashtags(body), status: 'published' });
+  refreshPersonalization(req.session.user.id);
+  await notifyMentionedUsers(body, req.session.user.id, reply._id, reply.community);
   await notify(source.author, req.session.user.id, 'comment', 'replied to your post.', source._id, source.community, req.session.user.name);
-  return redirectBack(req, res, { reply: { id: reply._id, body: reply.body } });
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, reply: { id: reply._id, body: reply.body } });
+  return res.redirect(`/posts/${source._id}`);
+};
+
+exports.replyPostPage = async (req, res) => {
+  const sourcePost = await Post.findById(req.params.id)
+    .populate('author', 'name profilePicture')
+    .populate('community', 'name slug')
+    .lean();
+  const accessPost = sourcePost && { ...sourcePost, community: sourcePost.community?._id || sourcePost.community };
+  if (!(await canAccessPost(accessPost, req.session.user.id))) {
+    req.session.flash = { type: 'error', message: 'That post is not available for a reply.' };
+    return res.redirect('/dashboard');
+  }
+  res.render('pages/post-compose', {
+    title: 'Reply with a post',
+    pagePath: `/posts/${sourcePost._id}/reply`,
+    noIndex: true,
+    editorMode: 'reply',
+    post: null,
+    sourcePost,
+    wordLimit: MAX_REPLY_POST_WORDS
+  });
 };
 
 function buildCommentTree(comments) {
@@ -401,6 +496,7 @@ exports.messageRequests = async (req, res) => {
 
 exports.readNotifications = async (req, res) => {
   await Notification.updateMany({ recipient: req.session.user.id, readAt: null }, { readAt: new Date() });
+  await User.updateOne({ _id: req.session.user.id }, { $unset: { unreadSummarySentAt: 1 } });
   res.redirect('/notifications');
 };
 

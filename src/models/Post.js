@@ -6,7 +6,14 @@ const postSchema = new mongoose.Schema({
   community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community' },
   quest: { type: mongoose.Schema.Types.ObjectId, ref: 'Quest' },
   questTitle: { type: String, trim: true, maxlength: 80, default: '' },
-  body: { type: String, trim: true, maxlength: 4000 },
+  body: {
+    type: String,
+    trim: true,
+    validate: {
+      validator(value) { return Boolean(this.replyTo) || !value || value.length <= 4000; },
+      message: 'Post body cannot exceed 4000 characters.'
+    }
+  },
   contentWarning: { type: String, trim: true, maxlength: 120, default: '' },
   hashtags: [{ type: String, trim: true, lowercase: true }],
   type: { type: String, enum: ['post', 'article', 'poll'], default: 'post' },

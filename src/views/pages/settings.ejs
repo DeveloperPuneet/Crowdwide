@@ -49,6 +49,8 @@
       <label><span><input type="checkbox" name="notifyFollows" <%= user.notificationPreferences?.follows !== false ? 'checked' : '' %>> New followers</span></label>
       <label><span><input type="checkbox" name="notifyMessages" <%= user.notificationPreferences?.messages !== false ? 'checked' : '' %>> Direct messages</span></label>
       <label><span><input type="checkbox" name="notifySecurity" <%= user.notificationPreferences?.security !== false ? 'checked' : '' %>> Security alerts</span></label>
+      <label><span><input type="checkbox" name="emailUnreadSummary" <%= user.notificationPreferences?.emailUnreadSummary !== false ? 'checked' : '' %>> Email me a summary when I have 5 unread notifications</span></label>
+      <label><span><input type="checkbox" name="emailNewsletter" <%= user.notificationPreferences?.emailNewsletter !== false ? 'checked' : '' %>> Weekly email newsletter</span><small>Five highly engaged posts and up to seven posts matched to your interests. A post is only sent once.</small></label>
       <button class="button button-primary" type="submit">Save notification settings <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
     </form>
     <div class="settings-block">
@@ -98,6 +100,13 @@
     <% } %>
     <% } else { %>
     <p class="eyebrow">Your account</p><h2>Take your data with you.</h2>
+    <div class="settings-block">
+      <h3>Appearance</h3><p>Choose how Crowdwide looks on this device and your other signed-in sessions.</p>
+      <form class="settings-form compact settings-theme-form" method="post" action="/settings/theme"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Theme<select name="theme"><option value="default" <%= (user.theme || 'default') === 'default' ? 'selected' : '' %>>Default</option><option value="light" <%= user.theme === 'light' ? 'selected' : '' %>>Light</option><option value="dark" <%= user.theme === 'dark' ? 'selected' : '' %>>Dark</option><option value="violet" <%= user.theme === 'violet' ? 'selected' : '' %>>Violet · high contrast</option><option value="pink" <%= user.theme === 'pink' ? 'selected' : '' %>>Light pink</option></select></label>
+        <button class="button button-primary" type="submit">Save theme</button>
+      </form>
+    </div>
     <div class="settings-block"><h3>Download your activity</h3><p>Get a JSON copy of your profile, posts, and communities you own.</p><a class="button button-small button-ghost" href="/settings/account/download">Request data download <span>↓</span></a></div>
     <div class="settings-block danger-zone"><h3>Delete account</h3><p>This permanently removes your account, posts, sessions, and communities you own.</p><form method="post" action="/settings/account/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="confirm" placeholder="Type DELETE to confirm" required><button class="button button-small button-danger" type="submit">Delete account</button></form></div>
     <form method="post" action="/auth/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit">Sign out this device</button></form>

@@ -38,5 +38,5 @@
   <script defer src="/js/community-map.js?v=4"></script>
   <% } %>
 </head>
-<body class="<%= locals.bodyClass || '' %>">
+<body class="<%= locals.bodyClass || '' %>" data-theme="<%= locals.currentUser?.theme || 'default' %>">
 <% if (locals.isStaging) { %><div class="staging-banner" role="status">Staging environment · not the live site · emails are restricted</div><% } %>

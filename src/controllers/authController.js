@@ -13,7 +13,7 @@ const token = () => crypto.randomBytes(24).toString('hex');
 const setFlash = (req, type, message) => { req.session.flash = { type, message }; };
 
 async function establishSession(req, user) {
-  req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '' };
+  req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '', theme: user.theme || 'default' };
   const existingSession = await LoginSession.exists({ user: user._id });
   // Upsert rather than create: signing in again from a browser that already
   // has a LoginSession for this session id used to hit the unique index and

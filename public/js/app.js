@@ -5,6 +5,42 @@ const markPageReady = () => document.body.classList.add('page-ready');
 markPageReady();
 window.addEventListener('load', markPageReady);
 
+const removeBrokenAvatar = (image) => {
+  const avatar = image.closest('.avatar');
+  if (!avatar) return;
+  image.remove();
+  avatar.classList.remove('has-image');
+};
+document.querySelectorAll('.avatar img').forEach((image) => {
+  if (image.complete && image.naturalWidth === 0) removeBrokenAvatar(image);
+  else image.addEventListener('error', () => removeBrokenAvatar(image), { once: true });
+});
+document.addEventListener('error', (event) => {
+  if (event.target instanceof HTMLImageElement) removeBrokenAvatar(event.target);
+}, true);
+
+document.querySelectorAll('textarea[data-word-limit]').forEach((textarea) => {
+  const limit = Number(textarea.dataset.wordLimit);
+  const counter = textarea.form?.querySelector('[data-word-count]');
+  const countWords = () => textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
+  const updateWordCount = () => {
+    const count = countWords();
+    if (counter) {
+      counter.textContent = `${count} / ${limit} words`;
+      counter.classList.toggle('is-over', count > limit);
+    }
+    textarea.setAttribute('aria-invalid', String(count > limit));
+  };
+  textarea.addEventListener('input', updateWordCount);
+  textarea.form?.addEventListener('submit', (event) => {
+    if (countWords() <= limit) return;
+    event.preventDefault();
+    updateWordCount();
+    textarea.focus();
+  });
+  updateWordCount();
+});
+
 // Web fonts are added after the page is already on screen. A <link> in <head>
 // blocks rendering until the font host answers, so a slow or blocked
 // fonts.googleapis.com used to leave the page blank or half-loaded (text has

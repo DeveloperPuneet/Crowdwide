@@ -8,11 +8,11 @@
       <h1>Find your people.<br><em>Not just your audience.</em></h1>
       <p class="hero-lede">Crowdwide gives every voice a fair chance at discovery. Follow your curiosity, meet the people who get it, and make space for something new.</p>
       <div class="hero-actions"><a class="button button-primary" href="/auth/register">Create your account <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a><a class="text-link" href="#why">See how it works <span>↓</span></a></div>
-      <div class="hero-proof"><div class="avatar-stack"><span>J</span><span>M</span><span>R</span><span>+</span></div><p><strong>Built for curious people</strong><br><span>and the communities they create</span></p></div>
+      <div class="hero-proof"><div class="avatar-stack" aria-label="Crowdwide members"><% const visibleMembers = (popularPeople || []).slice(0, 3); %><% if (visibleMembers.length) { %><% visibleMembers.forEach((person) => { %><%- include('../partials/avatar', { person, size: 'tiny', link: false }) %><% }) %><% if (popularPeople.length > 3) { %><span class="avatar-stack-more" aria-hidden="true">+</span><% } %><% } else { %><span class="avatar-stack-fallback"><img src="/images/Crowdwide_logo_192.png" alt="" aria-hidden="true"></span><% } %></div><p><strong>Built for curious people</strong><br><span>and the communities they create</span></p></div>
     </div>
     <div class="hero-visual reveal reveal-delay"><div class="orbit-card"><img src="/images/Crowdwide_cover.png" alt="Crowdwide network illustration"></div><div class="visual-note note-top"><span class="note-icon"><%- icon('sparkles', { size: 22 }) %></span><strong>New voices</strong><small>are worth finding</small></div><div class="visual-note note-bottom"><span class="note-icon blue"><%- icon('compass', { size: 22 }) %></span><strong>Discovery</strong><small>without the noise</small></div></div>
   </section>
-  <section class="trust-strip container"><span>Made for the in-between moments</span><i></i><span>People over popularity</span><i></i><span>Curiosity is the algorithm</span></section>
+  <section class="trust-strip container" style="margin-top: 30px;"><span>Made for the in-between moments</span><i></i><span>People over popularity</span><i></i><span>Curiosity is the algorithm</span></section>
   <section class="principles container" id="why">
     <div class="section-intro"><p class="eyebrow">A different kind of social</p><h2>More signal.<br><em>More serendipity.</em></h2></div>
     <div class="principle-grid" id="principles"><article><span class="principle-number">01</span><h3>Find your people</h3><p>Meet communities around the ideas, crafts, and small obsessions that make you feel most like yourself.</p></article><article><span class="principle-number">02</span><h3>See what matters</h3><p>A calmer feed that puts thoughtful posts and fresh perspectives ahead of empty volume.</p></article><article><span class="principle-number">03</span><h3>Make an impact</h3><p>Share work that matters to you and let the right people find it, no popularity contest required.</p></article></div>
@@ -25,7 +25,7 @@
     <div class="explore-viral-grid">
       <% viralPosts.forEach((post) => { %>
       <div class="viral-card" style="cursor:default;">
-        <div class="post-meta"><span class="avatar tiny"><%= (post.author?.name || '?').charAt(0).toUpperCase() %></span><div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %></strong></div></div>
+        <div class="post-meta"><%- include('../partials/avatar', { person: post.author, size: 'tiny', link: false }) %><div><strong><%= post.author?.name || 'Member' %></strong></div></div>
         <p><%= (post.body || '').slice(0, 140) %><%= (post.body || '').length > 140 ? '…' : '' %></p>
         <span class="viral-likes"><%- icon('heart', { size: 13 }) %> <%= post.likesTotal %> likes</span>
       </div>

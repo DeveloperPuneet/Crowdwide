@@ -62,15 +62,11 @@
 		<details class="post-more">
 			<summary><%- icon('more-horizontal', { size: 18 }) %> More options</summary>
 			<div class="post-secondary-actions">
-				<details class="post-owner-tools"><summary><%- icon('reply', { size: 14 }) %> Reply with a post</summary><form class="post-reply-form" data-async-interaction method="post" action="/posts/<%= post._id %>/reply"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><div class="mention-wrap"><textarea data-mention-input name="body" maxlength="4000" placeholder="Write a public reply..." required></textarea></div><button type="submit">Publish reply</button></form></details>
+				<a class="post-tool-link" href="/posts/<%= post._id %>/reply"><%- icon('reply', { size: 14 }) %> Reply with a post</a>
 				<% if (String(post.author?._id) === String(currentUser.id)) { %>
+				<a class="post-tool-link" href="/posts/<%= post._id %>/edit"><%- icon('edit', { size: 14 }) %> Edit post</a>
 				<details class="post-owner-tools">
-					<summary><%- icon('edit', { size: 14 }) %> Edit post</summary>
-					<form method="post" action="/posts/<%= post._id %>/edit">
-						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-						<textarea name="body" maxlength="4000" required><%= post.body %></textarea>
-						<button type="submit">Save changes</button>
-					</form>
+					<summary><%- icon('trash', { size: 14 }) %> Delete post</summary>
 					<form method="post" action="/posts/<%= post._id %>/delete" data-confirm="Delete this post? This cannot be undone.">
 						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 						<button type="submit">Delete post</button>

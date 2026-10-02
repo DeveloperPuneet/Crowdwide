@@ -27,8 +27,14 @@ const userSchema = new mongoose.Schema({
     comments: { type: Boolean, default: true },
     follows: { type: Boolean, default: true },
     messages: { type: Boolean, default: true },
-    security: { type: Boolean, default: true }
+    security: { type: Boolean, default: true },
+    emailNewsletter: { type: Boolean, default: true },
+    emailUnreadSummary: { type: Boolean, default: true }
   },
+  theme: { type: String, enum: ['default', 'light', 'dark', 'violet', 'pink'], default: 'default' },
+  newsletterSentPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+  newsletterLastSentAt: Date,
+  unreadSummarySentAt: Date,
   // Push is opt-in and off by default -- a user only gets an entry here
   // (and pushNotificationsEnabled flips to true) after they explicitly
   // click "Enable" in Settings and their browser grants permission.

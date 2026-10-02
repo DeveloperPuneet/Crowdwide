@@ -67,9 +67,10 @@ function safeEmailUrl(value) {
   }
 }
 
-function brandedEmail({ heading, message, preheader, eyebrow = 'ACCOUNT SECURITY', code, steps = [], details = [], actionUrl, actionLabel, note }) {
+function brandedEmail({ heading, message, preheader, eyebrow = 'ACCOUNT SECURITY', code, steps = [], details = [], actionUrl, actionLabel, note, contentHtml = '', greeting }) {
   const safeActionUrl = safeEmailUrl(actionUrl);
-  const safeMessage = String(message || '').split(/\n\s*\n/).map((paragraph) => `<p style="margin:0 0 14px;color:#555a6d;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;">${escapeHtml(paragraph).replace(/\r?\n/g, '<br>')}</p>`).join('');
+  const greetingBlock = greeting ? `<p style="margin:0 0 10px;color:#282c3e;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;line-height:1.6;">Hello ${escapeHtml(greeting)},</p>` : '';
+  const safeMessage = greetingBlock + String(message || '').split(/\n\s*\n/).map((paragraph) => `<p style="margin:0 0 14px;color:#555a6d;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;">${escapeHtml(paragraph).replace(/\r?\n/g, '<br>')}</p>`).join('') + contentHtml;
   const detailRows = details.length
     ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;border-collapse:collapse;">${details.map(({ label, value }) => `<tr><td style="padding:10px 12px;border-bottom:1px solid #e7e9ef;color:#777d8f;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(label)}</td><td style="padding:10px 12px;border-bottom:1px solid #e7e9ef;color:#282c3e;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;overflow-wrap:anywhere;">${escapeHtml(value)}</td></tr>`).join('')}</table>`
     : '';
@@ -276,6 +277,7 @@ async function sendVerificationCode(user, code) {
       message: bodyText,
       preheader: 'One quick step to join the Crowdwide community',
       eyebrow: 'WELCOME',
+      greeting: user.name,
       steps: ['Return to your verification screen.', 'Enter the one-time code below.'],
       code,
       actionUrl: verifyUrl,
@@ -292,7 +294,7 @@ async function sendSecurityAlert(user, { subject, heading, message, details = []
     to: user.email,
     subject,
     text: [message, ...details.map(({ label, value }) => `${label}: ${value}`), note].filter(Boolean).join('\n\n'),
-    html: brandedEmail({ heading, message, preheader: subject, details, note })
+    html: brandedEmail({ heading, message, preheader: subject, details, note, greeting: user.name })
   };
   await deliver(mail, `${subject} for ${user.email}: ${message}`);
 }
@@ -322,6 +324,7 @@ async function sendPasswordResetLink(user, resetUrl) {
       message: 'We received a request to reset your Crowdwide password. Use the button below to choose a new password.',
       preheader: 'Your Crowdwide password reset link',
       eyebrow: 'PASSWORD RESET',
+      greeting: user.name,
       steps: ['Choose a new password you do not use elsewhere.', 'Return to sign in after the reset is complete.'],
       actionUrl: resetUrl,
       actionLabel: 'Choose a new password',
@@ -331,11 +334,73 @@ async function sendPasswordResetLink(user, resetUrl) {
   await deliver(mail, `Password reset email for ${user.email} (reset link omitted)`);
 }
 
+function postEmailCard(post, appUrl) {
+  const url = safeEmailUrl(`${appUrl}/posts/${post._id}`);
+  if (!url) return '';
+  const body = String(post.body || '').slice(0, 260);
+  const author = post.author?.name || 'Crowdwide member';
+  return `<tr><td style="padding:14px 16px;border:1px solid #e7e9ef;border-radius:8px;"><div style="margin-bottom:6px;color:#777d8f;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(author)}</div><p style="margin:0 0 10px;color:#282c3e;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;">${escapeHtml(body)}${String(post.body || '').length > 260 ? '…' : ''}</p><a href="${escapeHtml(url)}" style="color:#b95e1d;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read post &rarr;</a></td></tr><tr><td height="10" style="height:10px;font-size:0;line-height:0;">&nbsp;</td></tr>`;
+}
+
+async function sendWeeklyNewsletter(user, { engagedPosts = [], interestPosts = [] }) {
+  const appUrl = (safeEmailUrl(env('APP_URL') || 'https://www.crowdwide.run.place') || 'https://www.crowdwide.run.place').replace(/\/$/, '');
+  const posts = [...engagedPosts, ...interestPosts];
+  if (!posts.length) return false;
+  const section = (heading, rows) => rows.length
+    ? `<h2 style="margin:22px 0 10px;color:#171a2b;font-family:Arial,sans-serif;font-size:17px;">${heading}</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl)).join('')}</table>`
+    : '';
+  const html = `${section('Most engaged this week', engagedPosts)}${section('Picked for your interests', interestPosts)}`;
+  const text = posts.map((post) => `${post.author?.name || 'Crowdwide member'}: ${String(post.body || '').slice(0, 260)}\n${appUrl}/posts/${post._id}`).join('\n\n');
+  return deliver({
+    from: fromAddress(),
+    to: user.email,
+    subject: 'Your Crowdwide weekly: conversations worth a look',
+    text: `A weekly selection of active and interest-matched posts.\n\n${text}\n\nManage this email in Settings: ${appUrl}/settings/notifications`,
+    html: brandedEmail({
+      heading: `A week on Crowdwide${user.name ? `, ${user.name.split(' ')[0]}` : ''}`,
+      message: 'Here are active conversations and posts matched to the topics you follow.',
+      preheader: 'Five active conversations and up to seven picks for your interests',
+      eyebrow: 'YOUR WEEKLY DIGEST',
+      contentHtml: html,
+      note: `This weekly email is optional. You can turn it off any time in Settings: ${appUrl}/settings/notifications`
+    })
+  }, `Weekly newsletter for ${user.email}`);
+}
+
+async function sendUnreadNotificationSummary(user, notifications = []) {
+  const appUrl = (safeEmailUrl(env('APP_URL') || 'https://www.crowdwide.run.place') || 'https://www.crowdwide.run.place').replace(/\/$/, '');
+  const entries = notifications.map((notification) => {
+    const url = notification.post ? safeEmailUrl(`${appUrl}/posts/${notification.post}`) : safeEmailUrl(`${appUrl}/notifications`);
+    const actor = notification.actor?.name || 'Crowdwide';
+    return `<tr><td style="padding:12px 14px;border-bottom:1px solid #e7e9ef;color:#282c3e;font-family:Arial,sans-serif;font-size:13px;line-height:1.6;"><strong>${escapeHtml(actor)}</strong> ${escapeHtml(notification.message)}${url ? ` <a href="${escapeHtml(url)}" style="color:#b95e1d;font-weight:bold;text-decoration:none;">Open</a>` : ''}</td></tr>`;
+  }).join('');
+  const list = entries ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:16px 0;border-collapse:collapse;">${entries}</table>` : '';
+  const text = notifications.map((item) => `${item.actor?.name || 'Crowdwide'} ${item.message}`).join('\n');
+  return deliver({
+    from: fromAddress(),
+    to: user.email,
+    subject: 'You have unread notifications on Crowdwide',
+    text: `You have at least five unread notifications:\n\n${text}\n\nView notifications: ${appUrl}/notifications`,
+    html: brandedEmail({
+      heading: 'You have unread notifications',
+      message: 'Here are your latest unread updates on Crowdwide.',
+      preheader: 'A quick summary of your unread notifications',
+      eyebrow: 'NOTIFICATION SUMMARY',
+      contentHtml: list,
+      actionUrl: `${appUrl}/notifications`,
+      actionLabel: 'View all notifications',
+      note: `Manage notification emails in Settings: ${appUrl}/settings/notifications`
+    })
+  }, `Unread notification summary for ${user.email}`);
+}
+
 module.exports = {
   sendVerificationCode,
   sendNewDeviceAlert,
   sendSecurityAlert,
   sendPasswordResetLink,
+  sendWeeklyNewsletter,
+  sendUnreadNotificationSummary,
   verifyMailConfig,
   sendTestEmail,
   explainMailError

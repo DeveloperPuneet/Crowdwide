@@ -201,6 +201,16 @@ exports.directory = async (req, res) => {
   });
 };
 
+exports.mine = async (req, res) => {
+  const communities = await Community.find({ owner: req.session.user.id }).sort({ createdAt: -1 }).lean();
+  res.render('pages/my-communities', {
+    title: 'Your communities',
+    pagePath: '/communities/mine',
+    noIndex: true,
+    communities
+  });
+};
+
 exports.detail = async (req, res) => {
   const community = await Community.findOne({ slug: req.params.slug }).populate('owner', 'name profilePicture').lean();
   if (!community) return res.status(404).render('pages/not-found', { title: 'Community not found' });
