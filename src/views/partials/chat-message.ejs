@@ -31,10 +31,16 @@
 				<% } %>
 			<% } %>
 			<% if (m.gif?.url) { %><img class="chat-gif" src="<%= m.gif.url %>" alt="<%= m.gif.title || 'GIF' %>" loading="lazy"<% if (m.gif.width && m.gif.height) { %> width="<%= m.gif.width %>" height="<%= m.gif.height %>"<% } %>><% } %>
+			<% if (m.attachment?.filename) { const attachmentUrl = inGroup ? `${locals.reportBaseUrl}/messages/${m._id}/attachment` : `${locals.reportBaseUrl}/${m._id}/attachment`; %>
+			<a class="chat-attachment" href="<%= attachmentUrl %>" download><%- icon('paperclip', { size: 15 }) %><span><%= m.attachment.filename %></span><small><%= Math.ceil(m.attachment.size / 1024) %> KB</small></a>
+			<% } %>
 			<% if (m.body) { %><p class="chat-text"><%= m.body %></p><% } %>
 		</div>
 		<time class="chat-time" datetime="<%= iso %>"></time>
 		<%- include('emoji-reaction-bar', { reactions, targetType: inGroup ? 'group' : 'dm', targetId: m._id, groupId: inGroup ? locals.groupId : null }) %>
+		<% if (!mine && locals.reportBaseUrl) { const reportUrl = inGroup ? `${locals.reportBaseUrl}/messages/${m._id}/report` : `${locals.reportBaseUrl}/${m._id}/report`; %>
+		<details class="chat-message-report"><summary aria-label="Report message"><%- icon('flag', { size: 13 }) %></summary><form method="post" action="<%= reportUrl %>"><input type="hidden" name="_csrf" value="<%= locals.csrfToken %>"><label>Reason<select name="reason" required><option value="">Choose a reason</option><option>Spam</option><option>Harassment</option><option>Threat or harmful content</option><option>Other</option></select></label><button type="submit">Report</button></form></details>
+		<% } %>
 	</div>
 </div>
 <% } %>

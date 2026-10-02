@@ -2,9 +2,10 @@ const mongoose = require('mongoose');
 
 const reportSchema = new mongoose.Schema({
   reporter: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  targetType: { type: String, enum: ['post', 'user', 'community', 'comment'], required: true },
+  targetType: { type: String, enum: ['post', 'user', 'community', 'comment', 'direct-message', 'group-message'], required: true },
   target: { type: mongoose.Schema.Types.ObjectId, required: true },
   reason: { type: String, trim: true, maxlength: 500, required: true },
+  contextText: { type: String, trim: true, maxlength: 3000, default: '' },
   evidenceUrl: String,
   status: { type: String, enum: ['open', 'reviewing', 'resolved', 'dismissed'], default: 'open', index: true },
   resolution: { type: String, trim: true, maxlength: 1000 },

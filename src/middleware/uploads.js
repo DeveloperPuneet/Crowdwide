@@ -14,6 +14,7 @@ const COMMUNITY_AVATAR_LIMIT = 1.5 * 1024 * 1024;
 const COMMUNITY_BANNER_LIMIT = 2 * 1024 * 1024;
 const REPORT_EVIDENCE_LIMIT = 2 * 1024 * 1024;
 const GROUP_AVATAR_LIMIT = 1.5 * 1024 * 1024;
+const CHAT_ATTACHMENT_LIMIT = 3 * 1024 * 1024;
 
 function classify(file) {
   if (file.mimetype.startsWith('image/')) return 'image';
@@ -55,6 +56,36 @@ const groupUpload = multer({
   limits: { fileSize: GROUP_AVATAR_LIMIT + 1, files: 1 },
   fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
 }).single('avatar');
+
+const chatAttachmentUpload = multer({
+  storage,
+  limits: { fileSize: CHAT_ATTACHMENT_LIMIT, files: 1 }
+}).single('attachment');
+
+function detectChatAttachmentType(buffer, declaredType) {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) return null;
+  if (buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])) && declaredType === 'image/jpeg') return 'image/jpeg';
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) && declaredType === 'image/png') return 'image/png';
+  if (['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii')) && declaredType === 'image/gif') return 'image/gif';
+  if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP' && declaredType === 'image/webp') return 'image/webp';
+  if (buffer.subarray(0, 5).toString('ascii') === '%PDF-' && declaredType === 'application/pdf') return 'application/pdf';
+  if (declaredType === 'text/plain' && !buffer.includes(0)) {
+    try { new TextDecoder('utf-8', { fatal: true }).decode(buffer); return 'text/plain'; } catch (error) { return null; }
+  }
+  return null;
+}
+
+function validateChatAttachment(req, res, next) {
+  if (!req.file) return next();
+  const contentType = detectChatAttachmentType(req.file.buffer, req.file.mimetype);
+  if (req.file.size >= CHAT_ATTACHMENT_LIMIT || !contentType) {
+    req.session.flash = { type: 'error', message: 'Choose a supported image, PDF, or text file smaller than 3 MB.' };
+    return res.redirect(req.get('referer') || '/messages');
+  }
+  req.file.safeContentType = contentType;
+  req.file.safeFilename = String(req.file.originalname || 'attachment').replace(/[\\/\r\n"\0]/g, '_').slice(0, 180) || 'attachment';
+  next();
+}
 
 function validateGroupUpload(req, res, next) {
   if (req.file && req.file.size >= GROUP_AVATAR_LIMIT) {
@@ -133,9 +164,10 @@ function handleUploadError(error, req, res, next) {
   if (!error) return next();
   req.session.flash = { type: 'error', message: error.code === 'LIMIT_FILE_SIZE' ? 'That file is larger than the allowed limit.' : 'We could not process that upload.' };
   if (req.path.startsWith('/groups')) return res.redirect(req.get('referer') || '/groups');
+  if (req.path.startsWith('/messages')) return res.redirect(req.get('referer') || '/messages');
   if (req.path.startsWith('/settings')) return res.redirect('/settings/profile');
   if (req.path.includes('/manage') || req.path.includes('/report')) return res.redirect(req.get('referer') || '/dashboard');
   res.redirect('/dashboard');
 }
 
-module.exports = { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };
+module.exports = { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, chatAttachmentUpload, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };

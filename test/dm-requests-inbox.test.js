@@ -81,7 +81,17 @@ test('dmThread: pending is true when the other person started the thread and the
   ) }) }));
   t.mock.method(Message, 'exists', (filter) => Promise.resolve(filter.sender === 'other-1'));
   t.mock.method(Message, 'updateMany', () => Promise.resolve());
-  t.mock.method(Message, 'find', () => ({ sort: () => ({ limit: () => ({ populate: () => ({ lean: () => Promise.resolve([]) }) }) }) }));
+  t.mock.method(Message, 'find', () => ({
+    sort: () => ({
+      limit: () => ({
+        select: () => ({
+          populate: () => ({
+            lean: () => Promise.resolve([])
+          })
+        })
+      })
+    })
+  }));
   const req = { params: { id: 'other-1' }, session: { user: { id: 'viewer-1' } }, query: {} };
   const res = mockRes();
   await chatController.dmThread(req, res);
@@ -94,7 +104,17 @@ test('dmThread: pending is false once the viewer has already sent a reply', asyn
   ) }) }));
   t.mock.method(Message, 'exists', () => Promise.resolve(true));
   t.mock.method(Message, 'updateMany', () => Promise.resolve());
-  t.mock.method(Message, 'find', () => ({ sort: () => ({ limit: () => ({ populate: () => ({ lean: () => Promise.resolve([]) }) }) }) }));
+  t.mock.method(Message, 'find', () => ({
+    sort: () => ({
+      limit: () => ({
+        select: () => ({
+          populate: () => ({
+            lean: () => Promise.resolve([])
+          })
+        })
+      })
+    })
+  }));
   const req = { params: { id: 'other-1' }, session: { user: { id: 'viewer-1' } }, query: {} };
   const res = mockRes();
   await chatController.dmThread(req, res);

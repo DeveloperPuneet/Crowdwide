@@ -15,6 +15,7 @@ const Message = require('../models/Message');
 const GroupConversation = require('../models/GroupConversation');
 const GroupMessage = require('../models/GroupMessage');
 const Notification = require('../models/Notification');
+const Report = require('../models/Report');
 const User = require('../models/User');
 const logger = require('../services/logger');
 const { gifFromBody } = require('../services/gif');
@@ -29,11 +30,11 @@ function renderPartial(res, view, data) {
   return new Promise((resolve, reject) => res.render(view, data, (error, html) => (error ? reject(error) : resolve(html))));
 }
 
-async function renderMessages(res, messages, { group, viewerId, groupId }) {
+async function renderMessages(res, messages, { group, viewerId, groupId, reportBaseUrl }) {
   return Promise.all(messages.map(async (message) => ({
     id: String(message._id),
     createdAt: message.createdAt,
-    html: (await renderPartial(res, 'partials/chat-message', { message, group, viewerId, groupId })).trim()
+    html: (await renderPartial(res, 'partials/chat-message', { message, group, viewerId, groupId, reportBaseUrl, csrfToken: res.locals.csrfToken })).trim()
   })));
 }
 
@@ -53,10 +54,10 @@ async function notifyMessage({ recipient, actor, text, actorName, url }) {
 
 async function pageOfMessages(Model, filter, { after, before }) {
   if (after) {
-    return { rows: await Model.find({ ...filter, _id: { $gt: after } }).sort({ _id: 1 }).limit(50).populate('sender', 'name profilePicture').lean(), hasMore: false };
+    return { rows: await Model.find({ ...filter, _id: { $gt: after } }).sort({ _id: 1 }).limit(50).select('-attachment.data').populate('sender', 'name profilePicture').lean(), hasMore: false };
   }
   const query = before ? { ...filter, _id: { $lt: before } } : filter;
-  const rows = await Model.find(query).sort({ _id: -1 }).limit(PAGE_SIZE + 1).populate('sender', 'name profilePicture').lean();
+  const rows = await Model.find(query).sort({ _id: -1 }).limit(PAGE_SIZE + 1).select('-attachment.data').populate('sender', 'name profilePicture').lean();
   return { rows: rows.slice(0, PAGE_SIZE).reverse(), hasMore: rows.length > PAGE_SIZE };
 }
 
@@ -65,8 +66,8 @@ async function pageAroundMessage(Model, filter, focusId) {
   if (!target) return pageOfMessages(Model, filter, {});
   const halfPage = Math.ceil(PAGE_SIZE / 2);
   const [before, fromTarget] = await Promise.all([
-    Model.find({ ...filter, _id: { $lt: target._id } }).sort({ _id: -1 }).limit(halfPage + 1).populate('sender', 'name profilePicture').lean(),
-    Model.find({ ...filter, _id: { $gte: target._id } }).sort({ _id: 1 }).limit(halfPage).populate('sender', 'name profilePicture').lean()
+    Model.find({ ...filter, _id: { $lt: target._id } }).sort({ _id: -1 }).limit(halfPage + 1).select('-attachment.data').populate('sender', 'name profilePicture').lean(),
+    Model.find({ ...filter, _id: { $gte: target._id } }).sort({ _id: 1 }).limit(halfPage).select('-attachment.data').populate('sender', 'name profilePicture').lean()
   ]);
   return { rows: [...before.slice(0, halfPage).reverse(), ...fromTarget], hasMore: before.length > halfPage };
 }
@@ -93,7 +94,27 @@ function shapeSearchResults(rows, href) {
 function sanitizedContent(req) {
   const body = String(req.body.body || '').trim();
   const gif = gifFromBody(req.body);
-  return { body, gif };
+  const attachment = req.file ? {
+    filename: req.file.safeFilename,
+    contentType: req.file.safeContentType,
+    size: req.file.size,
+    data: req.file.buffer
+  } : null;
+  return { body, gif, attachment };
+}
+
+function sendMessageAttachment(res, message) {
+  if (!message?.attachment?.data) return res.status(404).end();
+  const { filename, contentType, size, data } = message.attachment;
+  const fallbackName = String(filename || 'attachment').replace(/[^\x20-\x7e]|["\\]/g, '_');
+  res.set({
+    'Content-Type': contentType,
+    'Content-Length': size,
+    'Content-Disposition': `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(filename || 'attachment')}`,
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff'
+  });
+  res.send(data);
 }
 
 function sendFailure(req, res, status, error, redirectTo) {
@@ -141,7 +162,7 @@ exports.dmThread = async (req, res) => {
       ? await pageAroundMessage(Message, dmFilter(userId, person._id), focusId)
       : await pageOfMessages(Message, dmFilter(userId, person._id), {});
     await attachPostPreviews(rows, userId);
-    const rendered = await renderMessages(res, rows, { group: false, viewerId: userId });
+    const rendered = await renderMessages(res, rows, { group: false, viewerId: userId, reportBaseUrl: `/messages/${person._id}` });
     res.render('pages/message-thread', {
       title: `Messages with ${person.name}`,
       pagePath: `/messages/${person._id}`,
@@ -186,7 +207,7 @@ exports.dmPoll = async (req, res) => {
       await Message.updateMany({ sender: person._id, recipient: userId, readAt: null }, { readAt: new Date() });
     }
     await attachPostPreviews(rows, userId);
-    res.json({ messages: await renderMessages(res, rows, { group: false, viewerId: userId }), hasMore });
+    res.json({ messages: await renderMessages(res, rows, { group: false, viewerId: userId, reportBaseUrl: `/messages/${person._id}` }), hasMore });
   } catch (error) {
     logger.error('Polling direct messages failed', error);
     res.status(500).json({ messages: [], error: 'Could not load messages.' });
@@ -211,8 +232,8 @@ exports.dmSend = async (req, res) => {
   const fallback = `/messages/${req.params.id}`;
   try {
     const userId = req.session.user.id;
-    const { body, gif } = sanitizedContent(req);
-    if ((!body && !gif) || body.length > 2000) return sendFailure(req, res, 400, 'Write a message (up to 2,000 characters) or pick a GIF.', fallback);
+    const { body, gif, attachment } = sanitizedContent(req);
+    if ((!body && !gif && !attachment) || body.length > 2000) return sendFailure(req, res, 400, 'Write a message, attach a file, or pick a GIF. Text is limited to 2,000 characters.', fallback);
     const recipient = await User.findById(req.params.id).select('_id isVerified blockedUsers').lean();
     const viewer = await User.findById(userId).select('blockedUsers acceptedDmFrom').lean();
     const blocked = recipient && ((viewer?.blockedUsers || []).some((id) => String(id) === String(recipient._id)) || (recipient.blockedUsers || []).some((id) => String(id) === String(userId)));
@@ -223,22 +244,58 @@ exports.dmSend = async (req, res) => {
     if (!everMessagedBefore && await tooManyNewDmRequests(Message, userId)) {
       return sendFailure(req, res, 429, "You've started a lot of new conversations recently. Try again later.", fallback);
     }
-    const message = await Message.create({ sender: userId, recipient: recipient._id, body, ...(gif ? { gif } : {}) });
+    const message = await Message.create({ sender: userId, recipient: recipient._id, body, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}) });
     // Replying to someone (including replying to a pending request from
     // them) is an explicit signal of acceptance - no separate click needed.
     const alreadyAccepted = (viewer?.acceptedDmFrom || []).some((id) => String(id) === String(recipient._id));
     if (!alreadyAccepted) {
       await User.updateOne({ _id: userId }, { $addToSet: { acceptedDmFrom: recipient._id }, $pull: { declinedDmFrom: recipient._id } });
     }
-    notifyMessage({ recipient: recipient._id, actor: userId, text: gif && !body ? 'sent you a GIF.' : 'sent you a message.', actorName: req.session.user.name, url: `/messages/${userId}` })
+    notifyMessage({ recipient: recipient._id, actor: userId, text: attachment && !body && !gif ? 'sent you an attachment.' : gif && !body ? 'sent you a GIF.' : 'sent you a message.', actorName: req.session.user.name, url: `/messages/${userId}` })
       .catch((error) => logger.error('Message notification failed', error));
     if (!isXhr(req)) return res.redirect(fallback);
     const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture } };
-    const [item] = await renderMessages(res, [shaped], { group: false, viewerId: userId });
+    const [item] = await renderMessages(res, [shaped], { group: false, viewerId: userId, reportBaseUrl: `/messages/${recipient._id}` });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
     logger.error('Sending message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
+  }
+};
+
+exports.dmAttachment = async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id) || !isObjectId(req.params.messageId)) return res.status(404).end();
+    const { person, blocked, userId } = await loadDmPerson(req);
+    if (!person || blocked) return res.status(404).end();
+    const message = await Message.findOne({ _id: req.params.messageId, ...dmFilter(userId, person._id) }).select('attachment').lean();
+    return sendMessageAttachment(res, message);
+  } catch (error) {
+    logger.error('Loading direct-message attachment failed', error);
+    return res.status(404).end();
+  }
+};
+
+exports.dmReportMessage = async (req, res) => {
+  const fallback = `/messages/${req.params.id}`;
+  try {
+    const reason = String(req.body.reason || '').trim().slice(0, 500);
+    if (!reason) { req.session.flash = { type: 'error', message: 'Choose a reason to report this message.' }; return res.redirect(fallback); }
+    if (!isObjectId(req.params.id) || !isObjectId(req.params.messageId)) return res.redirect('/messages');
+    const { person, blocked, userId } = await loadDmPerson(req);
+    if (!person || blocked) return res.redirect('/messages');
+    const message = await Message.findOne({ _id: req.params.messageId, ...dmFilter(userId, person._id) }).select('sender body attachment.filename').populate('sender', 'name').lean();
+    if (!message || String(message.sender?._id || message.sender) === String(userId)) return res.redirect(fallback);
+    const contextText = `${message.sender?.name || 'Member'}: ${message.body || `[attachment: ${message.attachment?.filename || 'file'}]`}`.slice(0, 3000);
+    await Report.updateOne({ reporter: userId, targetType: 'direct-message', target: message._id }, {
+      $setOnInsert: { reporter: userId, targetType: 'direct-message', target: message._id, reason, contextText }
+    }, { upsert: true });
+    req.session.flash = { type: 'success', message: 'Message reported to the moderation team.' };
+    res.redirect(fallback);
+  } catch (error) {
+    logger.error('Reporting direct message failed', error);
+    req.session.flash = { type: 'error', message: 'Could not report that message.' };
+    res.redirect(fallback);
   }
 };
 
@@ -297,7 +354,7 @@ exports.groupThread = async (req, res) => {
       ? await pageAroundMessage(GroupMessage, { group: group._id }, focusId)
       : await pageOfMessages(GroupMessage, { group: group._id }, {});
     await attachPostPreviews(rows, userId);
-    const rendered = await renderMessages(res, rows, { group: true, viewerId: userId, groupId: String(group._id) });
+    const rendered = await renderMessages(res, rows, { group: true, viewerId: userId, groupId: String(group._id), reportBaseUrl: `/groups/${group._id}` });
     res.render('pages/group-thread', {
       title: group.name,
       pagePath: `/groups/${group._id}`,
@@ -339,7 +396,7 @@ exports.groupPoll = async (req, res) => {
     const before = isObjectId(req.query.before) ? req.query.before : null;
     const { rows, hasMore } = await pageOfMessages(GroupMessage, { group: group._id }, { after, before });
     await attachPostPreviews(rows, userId);
-    res.json({ messages: await renderMessages(res, rows, { group: true, viewerId: userId, groupId: String(group._id) }), hasMore });
+    res.json({ messages: await renderMessages(res, rows, { group: true, viewerId: userId, groupId: String(group._id), reportBaseUrl: `/groups/${group._id}` }), hasMore });
   } catch (error) {
     logger.error('Polling group messages failed', error);
     res.status(500).json({ messages: [], error: 'Could not load messages.' });
@@ -365,21 +422,58 @@ exports.groupSend = async (req, res) => {
   try {
     const userId = req.session.user.id;
     const group = await GroupConversation.findById(req.params.id).select('members name');
-    const { body, gif } = sanitizedContent(req);
+    const { body, gif, attachment } = sanitizedContent(req);
     if (!memberOf(group, userId)) return sendFailure(req, res, 403, 'That message could not be sent.', '/groups');
-    if ((!body && !gif) || body.length > 2000) return sendFailure(req, res, 400, 'Write a message (up to 2,000 characters) or pick a GIF.', fallback);
-    const message = await GroupMessage.create({ group: group._id, sender: userId, body, ...(gif ? { gif } : {}) });
+    if ((!body && !gif && !attachment) || body.length > 2000) return sendFailure(req, res, 400, 'Write a message, attach a file, or pick a GIF. Text is limited to 2,000 characters.', fallback);
+    const message = await GroupMessage.create({ group: group._id, sender: userId, body, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}) });
     await GroupConversation.updateOne({ _id: group._id }, { updatedAt: new Date() });
     const others = group.members.filter((id) => String(id) !== String(userId));
-    Promise.all(others.map((memberId) => notifyMessage({ recipient: memberId, actor: userId, text: `sent a message in ${group.name}.`, actorName: req.session.user.name, url: `/groups/${group._id}` })))
+    Promise.all(others.map((memberId) => notifyMessage({ recipient: memberId, actor: userId, text: attachment && !body && !gif ? `sent an attachment in ${group.name}.` : `sent a message in ${group.name}.`, actorName: req.session.user.name, url: `/groups/${group._id}` })))
       .catch((error) => logger.error('Group message notification failed', error));
     if (!isXhr(req)) return res.redirect(fallback);
     const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture } };
-    const [item] = await renderMessages(res, [shaped], { group: true, viewerId: userId, groupId: String(group._id) });
+    const [item] = await renderMessages(res, [shaped], { group: true, viewerId: userId, groupId: String(group._id), reportBaseUrl: `/groups/${group._id}` });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
     logger.error('Sending group message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
+  }
+};
+
+exports.groupAttachment = async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id) || !isObjectId(req.params.messageId)) return res.status(404).end();
+    const group = await GroupConversation.findById(req.params.id).select('members').lean();
+    if (!memberOf(group, req.session.user.id)) return res.status(404).end();
+    const message = await GroupMessage.findOne({ _id: req.params.messageId, group: group._id }).select('attachment').lean();
+    return sendMessageAttachment(res, message);
+  } catch (error) {
+    logger.error('Loading group attachment failed', error);
+    return res.status(404).end();
+  }
+};
+
+exports.groupReportMessage = async (req, res) => {
+  const fallback = `/groups/${req.params.id}`;
+  try {
+    const reason = String(req.body.reason || '').trim().slice(0, 500);
+    if (!reason) { req.session.flash = { type: 'error', message: 'Choose a reason to report this message.' }; return res.redirect(fallback); }
+    if (!isObjectId(req.params.id) || !isObjectId(req.params.messageId)) return res.redirect('/groups');
+    const group = await GroupConversation.findById(req.params.id).select('members').lean();
+    const userId = req.session.user.id;
+    if (!memberOf(group, userId)) return res.redirect('/groups');
+    const message = await GroupMessage.findOne({ _id: req.params.messageId, group: group._id }).select('sender body attachment.filename').populate('sender', 'name').lean();
+    if (!message || String(message.sender?._id || message.sender) === String(userId)) return res.redirect(fallback);
+    const contextText = `${message.sender?.name || 'Member'}: ${message.body || `[attachment: ${message.attachment?.filename || 'file'}]`}`.slice(0, 3000);
+    await Report.updateOne({ reporter: userId, targetType: 'group-message', target: message._id }, {
+      $setOnInsert: { reporter: userId, targetType: 'group-message', target: message._id, reason, contextText }
+    }, { upsert: true });
+    req.session.flash = { type: 'success', message: 'Message reported to the moderation team.' };
+    res.redirect(fallback);
+  } catch (error) {
+    logger.error('Reporting group message failed', error);
+    req.session.flash = { type: 'error', message: 'Could not report that message.' };
+    res.redirect(fallback);
   }
 };
 
