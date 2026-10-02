@@ -273,6 +273,7 @@ exports.postDetail = async (req, res) => {
   if (!(await canAccessPost(existing, viewerId))) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } }, { new: true })
     .populate('author', 'name profilePicture')
+    .populate('coAuthors', 'name profilePicture')
     .populate('community', 'name slug')
     .populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } })
     .populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } })

@@ -1,4 +1,5 @@
 <% const wordLimits = locals.wordLimits || { post: 60, article: 300, poll: 60 }; %>
+<% const coAuthorSuggestions = locals.coAuthorSuggestions || []; %>
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'home', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
@@ -52,6 +53,22 @@
 					<select name="community" aria-label="Choose a community"><option value="">Open Crowdwide</option><% communities.forEach((community) => { %><option value="<%= community._id %>"><%= community.name %></option><% }) %></select>
 					<label class="schedule-picker">Schedule<input type="datetime-local" name="scheduledAt" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
 					<label class="schedule-picker">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
+					<div class="coauthor-picker">
+						<div class="coauthor-picker-head"><span>Co-authors</span><small>Optional</small></div>
+						<% if (!coAuthorSuggestions.length) { %>
+						<p class="coauthor-empty">Follow someone or invite a follower to collaborate.</p>
+						<% } else { %>
+						<div class="coauthor-chip-list">
+							<% coAuthorSuggestions.forEach((person) => { %>
+							<label class="coauthor-chip">
+								<input type="checkbox" name="coAuthors" value="<%= person._id %>">
+								<span class="coauthor-avatar"><%= (person.name || 'C').charAt(0).toUpperCase() %></span>
+								<span><%= person.name %></span>
+							</label>
+							<% }) %>
+						</div>
+						<% } %>
+					</div>
 					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*" multiple></label>
 					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
 					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>

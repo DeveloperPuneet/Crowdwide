@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  coAuthors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community' },
   body: { type: String, trim: true, maxlength: 4000 },
   contentWarning: { type: String, trim: true, maxlength: 120, default: '' },

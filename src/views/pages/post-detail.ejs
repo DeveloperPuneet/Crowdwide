@@ -15,10 +15,12 @@
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
 	<article class="post-view <%= post.contentWarning ? 'has-content-warning' : '' %>" id="post-<%= post._id %>">
 		<% if (post.contentWarning) { %><button class="content-warning-toggle" type="button" data-warning-toggle>Show content: <%= post.contentWarning %></button><% } %>
+		<% const coAuthorNames = (post.coAuthors || []).map((person) => person && typeof person === 'object' ? person.name : '').filter(Boolean); %>
 		<header class="post-view-head">
 			<%- include('../partials/avatar', { person: post.author, size: 'medium', link: !!currentUser }) %>
 			<div class="post-view-author">
 				<strong><%= post.author?.name || 'Crowdwide member' %></strong>
+				<% if (coAuthorNames.length) { %><span class="co-author-line">with <%= coAuthorNames.slice(0, 2).join(', ') %><% if (coAuthorNames.length > 2) { %> +<%= coAuthorNames.length - 2 %><% } %></span><% } %>
 				<span><%= post.community?.name || 'Open Crowdwide' %> · <time datetime="<%= new Date(post.createdAt).toISOString() %>"><%= new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time></span>
 			</div>
 		</header>

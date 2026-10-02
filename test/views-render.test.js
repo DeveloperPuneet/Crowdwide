@@ -6,6 +6,7 @@ const path = require('node:path');
 const ejs = require('ejs');
 const { icon } = require('../src/utils/icons');
 const { renderMentions, renderRichBody } = require('../src/services/mentions');
+const { sendMessageAttachment } = require('../src/controllers/chatController');
 
 const views = path.join(__dirname, '..', 'src', 'views');
 const currentUser = { id: 'u1', name: 'Puneet K', email: 'p@x.com', role: 'user', profilePicture: '' };
@@ -13,8 +14,26 @@ const base = { icon, renderMentions, renderRichBody, csrfToken: 'tok', flash: nu
 const render = (file, data = {}) => ejs.renderFile(path.join(views, file), { ...base, ...data });
 const post = (i, extra = {}) => ({ _id: `p${i}`, author: { _id: `a${i}`, name: `Author ${i}` }, body: `Hello #tag ${i}`, type: 'post', likes: [1, 2], commentsCount: 3, sharesCount: 4, viewsCount: 9, hashtags: ['tag'], community: null, createdAt: new Date(), status: 'published', reactions: {}, media: [], ...extra });
 
+test('chat attachment responses render previewable media inline and keep downloads for files', () => {
+  const captures = [];
+  const res = {
+    headers: {},
+    set(headers) { Object.assign(this.headers, headers); },
+    send(data) { captures.push(data); },
+    status(code) { this.statusCode = code; return this; },
+    end() { captures.push('ended'); }
+  };
+
+  sendMessageAttachment(res, { attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', size: 123, data: Buffer.from('abc') } });
+  assert.match(res.headers['Content-Disposition'], /^inline;/);
+
+  const pdfResponse = { headers: {}, set(headers) { Object.assign(this.headers, headers); }, send(data) { captures.push(data); }, status(code) { this.statusCode = code; return this; }, end() { captures.push('ended'); } };
+  sendMessageAttachment(pdfResponse, { attachment: { filename: 'note.pdf', contentType: 'application/pdf', size: 123, data: Buffer.from('abc') } });
+  assert.match(pdfResponse.headers['Content-Disposition'], /^attachment;/);
+});
+
 test('chat-message renders text, GIF, shared post, unavailable post and system rows', async () => {
-  const msg = (extra) => render('partials/chat-message.ejs', { group: true, viewerId: 'u1', message: { _id: 'm1', sender: { _id: 'u2', name: 'Asha' }, createdAt: new Date(), body: '', ...extra } });
+  const msg = (extra) => render('partials/chat-message.ejs', { group: true, viewerId: 'u1', reportBaseUrl: 'http://x', message: { _id: 'm1', sender: { _id: 'u2', name: 'Asha' }, createdAt: new Date(), body: '', ...extra } });
   const text = await msg({ body: '<b>hi</b>' });
   assert.match(text, /class="chat-msg"/);
   assert.match(text, /&lt;b&gt;hi&lt;\/b&gt;/, 'message text must be escaped');
@@ -25,6 +44,12 @@ test('chat-message renders text, GIF, shared post, unavailable post and system r
   const gif = await msg({ gif: { url: 'https://media.giphy.com/x.gif', width: 200, height: 100 } });
   assert.match(gif, /class="chat-gif"/);
   assert.match(gif, /is-media/);
+  const imageAttachment = await msg({ attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', size: 2048 } });
+  assert.match(imageAttachment, /chat-attachment-media/);
+  assert.match(imageAttachment, /<img class="chat-attachment-media"/);
+  const videoAttachment = await msg({ attachment: { filename: 'clip.mp4', contentType: 'video/mp4', size: 4096 } });
+  assert.match(videoAttachment, /chat-attachment-media/);
+  assert.match(videoAttachment, /<video class="chat-attachment-media"/);
   const shared = await msg({ postPreview: { id: 'p1', label: 'Article', author: 'Ravi', excerpt: 'Short text', image: null } });
   assert.match(shared, /href="\/posts\/p1"/);
   const hidden = await msg({ postPreview: { unavailable: true } });
@@ -41,6 +66,8 @@ test('direct message and group pages render a chat panel with no full-page form 
   assert.match(dm, /data-gif-trigger/);
   assert.match(dm, /data-chat-more/);
   assert.match(dm, /data-message-search-form/);
+  assert.match(dm, /enctype="multipart\/form-data"/);
+  assert.match(dm, /name="attachment"/);
   assert.match(dm, /aria-live="polite"/);
   const group = await render('pages/group-thread.ejs', { ...shared, title: 'G', group: { _id: 'g1', name: 'Crew', avatar: '', members: [{ _id: 'u1', name: 'Me' }, { _id: 'u2', name: 'Asha' }] } });
   assert.match(group, /data-kind="group"/);
@@ -48,6 +75,16 @@ test('direct message and group pages render a chat panel with no full-page form 
   assert.match(group, /data-message-search-form/);
   const noGifs = await render('pages/message-thread.ejs', { ...shared, title: 'DM', person: { _id: 'u2', name: 'Asha' }, gifsEnabled: false });
   assert.doesNotMatch(noGifs, /data-gif-trigger/, 'no GIF button when GIPHY_API_KEY is not set');
+});
+
+test('post cards render co-author credit when a post is collaborative', async () => {
+  const html = await render('partials/post-card.ejs', {
+    post: { ...post(1), author: { _id: 'u1', name: 'Me' }, coAuthors: [{ _id: 'u2', name: 'Priya' }, { _id: 'u3', name: 'Aadi' }], community: null, body: 'Collab post', likes: [], commentsCount: 0, sharesCount: 0, viewsCount: 0 },
+    csrfToken: 'tok',
+    currentUser: { id: 'u1', name: 'Me' }
+  });
+  assert.match(html, /with Priya/);
+  assert.match(html, /Aadi/);
 });
 
 test('post page: flat actions, send-to-chat share, comment box, no Quote', async () => {

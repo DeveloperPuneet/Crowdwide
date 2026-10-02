@@ -2,9 +2,10 @@
     Everything you do *after* reading - reply, quote, save, react, report, edit - lives on the post page. %>
 <article class="post-card <%= post.contentWarning ? 'has-content-warning' : '' %>" id="post-<%= post._id %>" data-post-url="/posts/<%= post._id %>">
 	<% if (post.contentWarning) { %><button class="content-warning-toggle" type="button" data-warning-toggle>Show content: <%= post.contentWarning %></button><% } %>
+	<% const coAuthorNames = (post.coAuthors || []).map((person) => person && typeof person === 'object' ? person.name : '').filter(Boolean); %>
 	<div class="post-meta">
 		<%- include('avatar', { person: post.author, size: 'small' }) %>
-		<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %><% if (post.status === 'draft') { %> · Draft<% } else if (post.status === 'scheduled') { %> · Scheduled<% } %></span></div>
+		<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><% if (coAuthorNames.length) { %><span class="co-author-line">with <%= coAuthorNames.slice(0, 2).join(', ') %><% if (coAuthorNames.length > 2) { %> +<%= coAuthorNames.length - 2 %><% } %></span><% } %><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %><% if (post.status === 'draft') { %> · Draft<% } else if (post.status === 'scheduled') { %> · Scheduled<% } %></span></div>
 		<% if (!locals.hideSource) { %><span class="post-source"><%= post.feedSource || 'From your communities' %></span><% } %>
 	</div>
 	<div class="post-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>

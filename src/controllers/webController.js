@@ -83,12 +83,15 @@ exports.dashboard = async (req, res) => {
 		const user = await User.findById(req.session.user.id).lean();
 		const activeTab = resolveFeedView(req.query);
 		const followingIds = (user.following || []).map(String);
-		const [feed, communities, people, wordLimits] = await Promise.all([
+		const [feed, communities, people, followedPeople, followerPeople, wordLimits] = await Promise.all([
 			getFeedPage({ userId: user._id, view: activeTab, page: 1, user }),
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
 			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean(),
+			User.find({ _id: { $in: user.following || [], $ne: user._id } }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
+			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			getWordLimits()
 		]);
+		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
 		res.render('pages/dashboard', {
 			title: 'Your Crowdwide',
 			pagePath: '/dashboard',
@@ -96,6 +99,7 @@ exports.dashboard = async (req, res) => {
 			feed: { ...feed, activeTab, visiblePosts: feed.posts },
 			communities,
 			people,
+			coAuthorSuggestions,
 			joinedCommunities: (user.joinedCommunities || []).map(String),
 			following: followingIds,
 			wordLimits,
@@ -180,8 +184,12 @@ exports.createPost = async (req, res) => {
 		}
 		media.push(item);
 	}
+	const coAuthorIds = Array.isArray(req.body.coAuthors) ? req.body.coAuthors : [req.body.coAuthors].filter(Boolean);
+	const validCoAuthors = [...new Set(coAuthorIds.map((value) => String(value)).filter((value) => value && value !== String(req.session.user.id)))];
+	const coAuthorDocs = validCoAuthors.length ? await User.find({ _id: { $in: validCoAuthors } }).select('_id').lean() : [];
+	const coAuthorList = coAuthorDocs.map((userDoc) => userDoc._id);
 	const isDraft = req.body.saveAsDraft === 'on';
-	const createdPost = await Post.create({ author: req.session.user.id, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+	const createdPost = await Post.create({ author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	refreshPersonalization(req.session.user.id); // so the new post shows up, and shapes "for you", on the very next feed load
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
 	if (!isDraft && !media.length) {

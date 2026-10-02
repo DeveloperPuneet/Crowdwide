@@ -10,6 +10,10 @@
   const empty = shell.querySelector('[data-chat-empty]');
   const form = shell.querySelector('[data-chat-form]');
   const input = shell.querySelector('[data-chat-input]');
+  const attachmentInput = form?.querySelector('[data-chat-attachment]');
+  const attachmentSelected = form?.querySelector('[data-chat-attachment-selected]');
+  const attachmentName = form?.querySelector('[data-chat-attachment-name]');
+  const removeAttachment = form?.querySelector('[data-chat-attachment-remove]');
   const searchForm = shell.querySelector('[data-message-search-form]');
   const searchResults = shell.querySelector('[data-message-search-results]');
   const errorBox = shell.querySelector('[data-chat-error]');
@@ -195,7 +199,20 @@
     if (event.key === 'Escape' && searchResults) searchResults.hidden = true;
   });
 
-  const pendingBubble = ({ body, gif }) => {
+  const syncAttachmentSelection = () => {
+    if (!attachmentSelected || !attachmentName || !attachmentInput) return;
+    const file = attachmentInput.files?.[0];
+    attachmentName.textContent = file ? file.name : '';
+    attachmentSelected.hidden = !file;
+  };
+
+  attachmentInput?.addEventListener('change', syncAttachmentSelection);
+  removeAttachment?.addEventListener('click', () => {
+    if (attachmentInput) attachmentInput.value = '';
+    syncAttachmentSelection();
+  });
+
+  const pendingBubble = ({ body, gif, file }) => {
     const wrap = document.createElement('div');
     wrap.className = 'chat-msg is-own is-pending';
     const main = document.createElement('div');
@@ -208,6 +225,12 @@
       image.src = gif.preview || gif.url;
       image.alt = gif.title || 'GIF';
       bubble.append(image);
+    }
+    if (file) {
+      const attachment = document.createElement('div');
+      attachment.className = 'chat-attachment-pending';
+      attachment.textContent = file.name;
+      bubble.append(attachment);
     }
     if (body) {
       const text = document.createElement('p');
@@ -224,21 +247,34 @@
   };
 
   async function deliver(payload, bubble) {
-    const params = new URLSearchParams();
-    if (payload.body) params.set('body', payload.body);
+    const formData = new FormData(form);
+    const body = payload.body ?? input.value.trim();
+    const file = payload.file || attachmentInput?.files?.[0];
+    if (body) formData.set('body', body);
+    else formData.delete('body');
     if (payload.gif) {
-      params.set('gifUrl', payload.gif.url);
-      params.set('gifPreview', payload.gif.preview || '');
-      params.set('gifTitle', payload.gif.title || '');
-      params.set('gifWidth', payload.gif.width || '');
-      params.set('gifHeight', payload.gif.height || '');
+      formData.set('gifUrl', payload.gif.url);
+      formData.set('gifPreview', payload.gif.preview || '');
+      formData.set('gifTitle', payload.gif.title || '');
+      formData.set('gifWidth', payload.gif.width || '');
+      formData.set('gifHeight', payload.gif.height || '');
+    } else {
+      formData.delete('gifUrl');
+      formData.delete('gifPreview');
+      formData.delete('gifTitle');
+      formData.delete('gifWidth');
+      formData.delete('gifHeight');
     }
-    params.set('_csrf', csrf());
+    if (file) formData.set('attachment', file);
+    else formData.delete('attachment');
     bubble.classList.remove('is-failed');
     bubble.querySelector('.chat-status').textContent = 'Sending...';
     bubble.querySelector('.chat-retry')?.remove();
     try {
-      const { data } = await window.axios.post(form.action, params, { headers: headers() });
+      const { data } = await window.axios.post(form.action, formData, { headers: headers() });
+      if (attachmentInput) attachmentInput.value = '';
+      if (attachmentSelected) attachmentSelected.hidden = true;
+      if (attachmentName) attachmentName.textContent = '';
       const item = data.message;
       const alreadyThere = list.querySelector(`[data-id="${item.id}"]`); // the poll may have delivered it first
       if (alreadyThere) bubble.remove();
@@ -260,9 +296,10 @@
   }
 
   function send(payload) {
-    if (!payload.body && !payload.gif) return;
+    const file = payload.file || attachmentInput?.files?.[0];
+    if (!payload.body && !payload.gif && !file) return;
     showError('');
-    const bubble = pendingBubble(payload);
+    const bubble = pendingBubble({ ...payload, file });
     list.append(bubble);
     if (empty) empty.hidden = true;
     pinned = true;
@@ -278,9 +315,12 @@
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const body = input.value.trim();
-    if (!body) return;
-    send({ body });
+    const file = attachmentInput?.files?.[0];
+    if (!body && !file) return;
+    send({ body, file });
     input.value = '';
+    if (attachmentInput) attachmentInput.value = '';
+    syncAttachmentSelection();
     autosize();
     input.focus();
   });

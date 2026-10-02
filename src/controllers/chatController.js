@@ -107,10 +107,11 @@ function sendMessageAttachment(res, message) {
   if (!message?.attachment?.data) return res.status(404).end();
   const { filename, contentType, size, data } = message.attachment;
   const fallbackName = String(filename || 'attachment').replace(/[^\x20-\x7e]|["\\]/g, '_');
+  const isPreviewableMedia = /^image\//.test(contentType) || /^video\//.test(contentType);
   res.set({
     'Content-Type': contentType,
     'Content-Length': size,
-    'Content-Disposition': `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(filename || 'attachment')}`,
+    'Content-Disposition': `${isPreviewableMedia ? 'inline' : 'attachment'}; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(filename || 'attachment')}`,
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff'
   });
@@ -122,6 +123,8 @@ function sendFailure(req, res, status, error, redirectTo) {
   req.session.flash = { type: 'error', message: error };
   return res.redirect(redirectTo);
 }
+
+exports.sendMessageAttachment = sendMessageAttachment;
 
 // ---- direct messages ------------------------------------------------------
 

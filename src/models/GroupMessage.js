@@ -11,7 +11,7 @@ const groupMessageSchema = new mongoose.Schema({
   gif: { url: String, preview: String, title: String, width: Number, height: Number },
   attachment: {
     filename: { type: String, maxlength: 180 },
-    contentType: { type: String, enum: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain'] },
+    contentType: { type: String, enum: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime', 'application/pdf', 'text/plain'] },
     size: { type: Number, max: 3 * 1024 * 1024 },
     data: Buffer
   },

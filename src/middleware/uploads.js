@@ -68,6 +68,9 @@ function detectChatAttachmentType(buffer, declaredType) {
   if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) && declaredType === 'image/png') return 'image/png';
   if (['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii')) && declaredType === 'image/gif') return 'image/gif';
   if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP' && declaredType === 'image/webp') return 'image/webp';
+  if (declaredType === 'video/mp4' && buffer.subarray(4, 8).toString('ascii') === 'ftyp') return 'video/mp4';
+  if (declaredType === 'video/webm' && buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return 'video/webm';
+  if (declaredType === 'video/quicktime' && buffer.subarray(4, 8).toString('ascii') === 'ftyp') return 'video/quicktime';
   if (buffer.subarray(0, 5).toString('ascii') === '%PDF-' && declaredType === 'application/pdf') return 'application/pdf';
   if (declaredType === 'text/plain' && !buffer.includes(0)) {
     try { new TextDecoder('utf-8', { fatal: true }).decode(buffer); return 'text/plain'; } catch (error) { return null; }

@@ -294,6 +294,7 @@ async function loadPagePosts(entries, user) {
   const ordered = ids.map((id) => byId.get(id)).filter(Boolean);
   const populated = await Post.populate(ordered, [
     { path: 'author', select: 'name createdAt profilePicture' },
+    { path: 'coAuthors', select: 'name profilePicture' },
     { path: 'community', select: 'name slug membersCount' },
     { path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } },
     { path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }
