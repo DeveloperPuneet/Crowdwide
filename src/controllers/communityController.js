@@ -161,7 +161,7 @@ exports.createQuest = async (req, res) => {
   const title = req.body.title?.trim();
   if (!title) {
     req.session.flash = { type: 'error', message: 'A quest needs a title.' };
-    return res.redirect(`/communities/${req.community.slug}/manage`);
+    return res.redirect(`/communities/${req.community._id}/manage`);
   }
   const quest = await Quest.create({
     community: req.community._id,
@@ -170,10 +170,11 @@ exports.createQuest = async (req, res) => {
     description: req.body.description?.trim().slice(0, 260) || '',
     goal: req.body.goal?.trim().slice(0, 150) || '',
     reward: req.body.reward?.trim().slice(0, 120) || '',
+    achievementTag: req.body.achievementTag?.trim().slice(0, 60) || '',
     status: 'open'
   });
   req.session.flash = { type: 'success', message: `Quest “${quest.title}” is live.` };
-  res.redirect(`/communities/${req.community.slug}/manage`);
+  res.redirect(`/communities/${req.community._id}/manage`);
 };
 
 exports.toggleQuestParticipation = async (req, res) => {
@@ -246,7 +247,7 @@ exports.endQuest = async (req, res) => {
   const quest = await Quest.findOne({ _id: req.params.questId, community: req.community._id });
   if (!quest) {
     req.session.flash = { type: 'error', message: 'That quest no longer exists.' };
-    return res.redirect(`/communities/${req.community.slug}/manage`);
+    return res.redirect(`/communities/${req.community._id}/manage`);
   }
   const winnerId = req.body.winnerId || quest.completedBy[0] || quest.participants[0];
   const validWinner = quest.participants.some((id) => String(id) === String(winnerId));
@@ -257,24 +258,24 @@ exports.endQuest = async (req, res) => {
   await quest.save();
   const winner = quest.winner ? await User.findById(quest.winner).select('name').lean() : null;
   req.session.flash = { type: 'success', message: winner ? `Quest closed. Winner: ${winner.name}` : 'Quest closed without a winner.' };
-  res.redirect(`/communities/${req.community.slug}/manage`);
+  res.redirect(`/communities/${req.community._id}/manage`);
 };
 
 exports.rewardQuestWinner = async (req, res) => {
   const quest = await Quest.findOne({ _id: req.params.questId, community: req.community._id });
   if (!quest) {
     req.session.flash = { type: 'error', message: 'That quest no longer exists.' };
-    return res.redirect(`/communities/${req.community.slug}/manage`);
+    return res.redirect(`/communities/${req.community._id}/manage`);
   }
   if (!quest.winner) {
     req.session.flash = { type: 'error', message: 'Choose a winner before marking the reward.' };
-    return res.redirect(`/communities/${req.community.slug}/manage`);
+    return res.redirect(`/communities/${req.community._id}/manage`);
   }
   quest.rewarded = true;
   quest.rewardSentAt = new Date();
   await quest.save();
   req.session.flash = { type: 'success', message: 'Reward marked as sent.' };
-  res.redirect(`/communities/${req.community.slug}/manage`);
+  res.redirect(`/communities/${req.community._id}/manage`);
 };
 
 exports.update = async (req, res) => {

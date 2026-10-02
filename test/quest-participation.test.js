@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Community = require('../src/models/Community');
 const Quest = require('../src/models/Quest');
+const User = require('../src/models/User');
 const communityController = require('../src/controllers/communityController');
 const webRouter = require('../src/routes/web');
 
@@ -44,4 +45,49 @@ test('quest participation loads community context before joining', async (t) => 
 
   assert.deepEqual([...quest.participants], ['u1']);
   assert.equal(res.path, '/communities/sketch-club');
+});
+
+test('ending a quest and marking its reward sent return to the ID-based manage route', async (t) => {
+  const quest = {
+    _id: 'q1',
+    community: 'c1',
+    participants: ['u1'],
+    completedBy: [],
+    rewarded: false,
+    async save() {}
+  };
+  t.mock.method(Quest, 'findOne', () => Promise.resolve(quest));
+  t.mock.method(User, 'findById', () => ({ select: () => ({ lean: () => Promise.resolve({ name: 'Winner' }) }) }));
+  const request = {
+    params: { questId: 'q1' },
+    body: { winnerId: 'u1' },
+    community: { _id: 'c1', slug: 'sketch-club' },
+    session: { user: { id: 'u1' }, flash: null }
+  };
+  const endResponse = { redirect(path) { this.path = path; } };
+  await communityController.endQuest(request, endResponse);
+  assert.equal(endResponse.path, '/communities/c1/manage');
+
+  const rewardResponse = { redirect(path) { this.path = path; } };
+  await communityController.rewardQuestWinner(request, rewardResponse);
+  assert.equal(rewardResponse.path, '/communities/c1/manage');
+});
+
+test('quest creators can set a trimmed winner achievement tag', async (t) => {
+  let createdQuest;
+  t.mock.method(Quest, 'create', (values) => {
+    createdQuest = values;
+    return Promise.resolve({ title: values.title });
+  });
+  const req = {
+    body: { title: 'Sketch sprint', achievementTag: '  Community Artist  ' },
+    community: { _id: 'c1', slug: 'sketch-club' },
+    session: { user: { id: 'u1' }, flash: null }
+  };
+  const res = { redirect(path) { this.path = path; } };
+
+  await communityController.createQuest(req, res);
+
+  assert.equal(createdQuest.achievementTag, 'Community Artist');
+  assert.equal(res.path, '/communities/c1/manage');
 });

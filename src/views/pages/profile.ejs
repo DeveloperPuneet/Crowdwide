@@ -46,6 +46,22 @@
 			<span><strong><%= (profileUser.profileViews || 0).toLocaleString() %></strong> profile views</span>
 		</div>
 		<p class="profile-joined">Joined <%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) %></p>
+		<section class="profile-community-highlights" aria-label="Community roles and achievements">
+			<div class="profile-highlight-group">
+				<div class="profile-highlight-heading"><h2>Communities</h2><span><%= memberCommunities.length %></span></div>
+				<% if (!memberCommunities.length) { %><p class="profile-highlight-empty">No visible communities yet.</p><% } %>
+				<% memberCommunities.forEach((community) => { %>
+				<a class="profile-community-item" href="/communities/<%= community.slug %>"><span><%= community.name %></span><b><%= community.isOwner ? 'Owner' : 'Member' %></b></a>
+				<% }) %>
+			</div>
+			<div class="profile-highlight-group">
+				<div class="profile-highlight-heading"><h2>Quest achievements</h2><span><%= questAchievements.length %></span></div>
+				<% if (!questAchievements.length) { %><p class="profile-highlight-empty">Quest wins will appear here.</p><% } %>
+				<% questAchievements.forEach((achievement) => { %>
+				<a class="profile-achievement-item" href="/communities/<%= achievement.community.slug %>"><span class="profile-achievement-icon"><%- icon('award', { size: 16 }) %></span><span><b><%= achievement.achievementTag || 'Quest winner' %></b><small>Quest winner · <%= achievement.title %></small><small><%= achievement.community.name %></small></span></a>
+				<% }) %>
+			</div>
+		</section>
 		<div class="profile-engagement">
 			<div class="panel-heading"><h2>Activity stats</h2><span>All time</span></div>
 			<div class="engagement-grid">

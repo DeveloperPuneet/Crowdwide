@@ -183,20 +183,42 @@ test('ended quests show the winner and reward state', async () => {
   assert.match(html, /Reward sent/);
 });
 
+test('profiles show community roles and quest-winner achievements', async () => {
+  const html = await render('pages/profile.ejs', {
+    title: 'Asha on Crowdwide', pagePath: '/u/u2', noIndex: false,
+    profileUser: { _id: 'u2', id: 'u2', name: 'Asha', email: 'asha@example.test', isVerified: false, bio: '', hashtags: [], links: [], profilePicture: '', bannerImage: '', profileViews: 0, createdAt: new Date() },
+    isSelf: true, profileTab: 'posts', posts: [], profileLikes: [], savedPosts: [],
+    profileComments: [], activity: [], suggestions: [], followersCount: 0, followingCount: 0,
+    postCount: 0, profileStats: { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 },
+    memberCommunities: [{ _id: 'c1', name: 'Sketch Club', slug: 'sketch-club', isOwner: false }],
+    questAchievements: [{ _id: 'q1', title: 'Weekly sketch sprint', achievementTag: 'Community Artist', community: { name: 'Sketch Club', slug: 'sketch-club' } }]
+  });
+  assert.match(html, /Sketch Club/);
+  assert.match(html, /Member/);
+  assert.match(html, /Community Artist/);
+  assert.match(html, /Quest winner/);
+});
+
 test('personal recap renders activity totals and a monthly timeline', async () => {
   const html = await render('pages/activity-recap.ejs', {
     title: 'Your activity recap', pagePath: '/recap', noIndex: true,
     recap: {
       periodLabel: 'Oct 2025 – Sep 2026',
       totals: { posts: 8, comments: 12, shares: 3, communities: 2 },
-      months: [{ label: 'Sep', posts: 2, comments: 1, shares: 0, postsHeight: 100, commentsHeight: 50, sharesHeight: 0 }],
-      topPost: { body: 'A favorite post', type: 'post', createdAt: new Date('2026-09-10T00:00:00Z'), engagement: 7 }
+      months: [{ label: 'Sep', fullLabel: 'September 2026', posts: 2, comments: 1, shares: 0, postsHeight: 100, commentsHeight: 50, sharesHeight: 0, topics: [{ tag: 'sketching', posts: 2 }] }],
+      topPost: { body: 'A favorite post', type: 'post', createdAt: new Date('2026-09-10T00:00:00Z'), engagement: 7 },
+      topComment: { body: 'A thoughtful reply', createdAt: new Date('2026-09-11T00:00:00Z'), interactions: 5, post: { _id: 'p1', body: 'A conversation prompt' } },
+      topTopics: [{ tag: 'sketching', posts: 2 }, { tag: 'design', posts: 1 }]
     }
   });
   assert.match(html, /Oct 2025 – Sep 2026/);
   assert.match(html, /8/);
   assert.match(html, /12/);
   assert.match(html, /A favorite post/);
+  assert.match(html, /A thoughtful reply/);
+  assert.match(html, /Topics you shared most/);
+  assert.match(html, /#sketching/);
+  assert.match(html, /View conversation/);
   assert.match(html, /September/);
   assert.match(html, /In-app shares/);
   assert.match(html, /<strong>3<\/strong>/);

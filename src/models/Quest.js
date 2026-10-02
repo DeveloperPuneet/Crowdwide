@@ -7,6 +7,7 @@ const questSchema = new mongoose.Schema({
   description: { type: String, trim: true, maxlength: 260, default: '' },
   goal: { type: String, trim: true, maxlength: 150, default: '' },
   reward: { type: String, trim: true, maxlength: 120, default: '' },
+  achievementTag: { type: String, trim: true, maxlength: 60, default: '' },
   status: { type: String, enum: ['open', 'active', 'completed', 'ended', 'archived'], default: 'open', index: true },
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   completedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

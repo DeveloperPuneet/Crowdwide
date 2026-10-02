@@ -140,7 +140,7 @@ exports.activityRecap = async (req, res) => {
 			_id: { $dateToString: { format: '%Y-%m', date: '$createdAt', timezone: 'UTC' } },
 			count: { $sum: 1 }
 		};
-		const [postMonths, commentMonths, shareMonths, topPosts] = await Promise.all([
+		const [postMonths, commentMonths, shareMonths, topPosts, topCommentRows, topicRows] = await Promise.all([
 			Post.aggregate([{ $match: { author: userId, status: 'published', createdAt: range } }, { $group: monthGroup }]),
 			Comment.aggregate([{ $match: { author: userId, createdAt: range } }, { $group: monthGroup }]),
 			PostShare.aggregate([{ $match: { user: userId, createdAt: range } }, { $group: monthGroup }]),
@@ -158,12 +158,37 @@ exports.activityRecap = async (req, res) => {
 				{ $sort: { recapEngagement: -1, createdAt: -1 } },
 				{ $limit: 1 },
 				{ $project: { body: 1, type: 1, createdAt: 1, recapEngagement: 1 } }
+			]),
+			Comment.aggregate([
+				{ $match: { author: userId, createdAt: range } },
+				{ $lookup: { from: 'comments', localField: '_id', foreignField: 'parent', as: 'replies' } },
+				{ $addFields: { recapInteractions: { $add: [
+					{ $size: { $ifNull: ['$likes', []] } },
+					{ $size: { $ifNull: ['$replies', []] } },
+					{ $sum: { $map: { input: { $ifNull: ['$reactions', []] }, as: 'reaction', in: { $size: { $ifNull: ['$$reaction.users', []] } } } } },
+					{ $cond: ['$heartedByAuthor', 1, 0] }
+				] } } },
+				{ $sort: { recapInteractions: -1, createdAt: -1 } },
+				{ $limit: 1 },
+				{ $project: { body: 1, post: 1, createdAt: 1, recapInteractions: 1 } }
+			]),
+			Post.aggregate([
+				{ $match: { author: userId, status: 'published', createdAt: range } },
+				{ $unwind: '$hashtags' },
+				{ $group: { _id: { month: { $dateToString: { format: '%Y-%m', date: '$createdAt', timezone: 'UTC' } }, tag: '$hashtags' }, count: { $sum: 1 } } },
+				{ $sort: { '_id.month': 1, count: -1, '_id.tag': 1 } }
 			])
 		]);
 		const monthCounts = (rows) => new Map(rows.map((row) => [row._id, row.count]));
 		const postsByMonth = monthCounts(postMonths);
 		const commentsByMonth = monthCounts(commentMonths);
 		const sharesByMonth = monthCounts(shareMonths);
+		const topicsByMonth = new Map();
+		topicRows.forEach((row) => {
+			const topics = topicsByMonth.get(row._id.month) || [];
+			if (topics.length < 3) topics.push({ tag: row._id.tag, posts: row.count });
+			topicsByMonth.set(row._id.month, topics);
+		});
 		const months = [];
 		for (let offset = 0; offset < 12; offset += 1) {
 			const date = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + offset, 1));
@@ -174,7 +199,8 @@ exports.activityRecap = async (req, res) => {
 				fullLabel: new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date),
 				posts: postsByMonth.get(key) || 0,
 				comments: commentsByMonth.get(key) || 0,
-				shares: sharesByMonth.get(key) || 0
+				shares: sharesByMonth.get(key) || 0,
+				topics: topicsByMonth.get(key) || []
 			});
 		}
 		const maxActivity = Math.max(1, ...months.map((month) => month.posts + month.comments + month.shares));
@@ -191,6 +217,8 @@ exports.activityRecap = async (req, res) => {
 			shares: shareMonths.reduce((sum, row) => sum + row.count, 0),
 			communities: (user.joinedCommunities || []).length
 		};
+		const topCommentData = topCommentRows[0];
+		const topComment = topCommentData ? await Comment.findById(topCommentData._id).select('body post createdAt').populate('post', 'body').lean() : null;
 		res.render('pages/activity-recap', {
 			title: 'Your activity recap',
 			pagePath: '/recap',
@@ -199,7 +227,14 @@ exports.activityRecap = async (req, res) => {
 				periodLabel: `${periodFormat.format(start)} – ${periodFormat.format(periodEnd)}`,
 				totals,
 				months,
-				topPost: topPosts[0] ? { ...topPosts[0], engagement: topPosts[0].recapEngagement } : null
+				topPost: topPosts[0] ? { ...topPosts[0], engagement: topPosts[0].recapEngagement } : null,
+				topComment: topComment ? { ...topComment, interactions: topCommentData.recapInteractions } : null,
+				topTopics: topicRows.reduce((topics, row) => {
+					const existing = topics.find((topic) => topic.tag === row._id.tag);
+					if (existing) existing.posts += row.count;
+					else topics.push({ tag: row._id.tag, posts: row.count });
+					return topics;
+				}, []).sort((a, b) => b.posts - a.posts).slice(0, 6)
 			}
 		});
 	} catch (error) {
@@ -401,7 +436,7 @@ exports.profile = async (req, res) => {
 	const restrictedCommunityIds = await getRestrictedCommunityIds(viewerId);
 	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
 	const publishedFilter = { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
-	const [posts, followersCount, viewer, postCount, likedPosts, comments, engagementAgg] = await Promise.all([
+	const [posts, followersCount, viewer, postCount, likedPosts, comments, engagementAgg, memberCommunities, wonQuests] = await Promise.all([
 		Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
 		User.findById(viewerId).select('following bookmarks blockedUsers mutedUsers').lean(),
@@ -411,8 +446,11 @@ exports.profile = async (req, res) => {
 		Post.aggregate([
 			{ $match: publishedFilter },
 			{ $group: { _id: null, totalLikes: { $sum: { $size: { $ifNull: ['$likes', []] } } }, totalComments: { $sum: '$commentsCount' }, totalViews: { $sum: '$viewsCount' }, totalShares: { $sum: '$sharesCount' } } }
-		])
+		]),
+		Community.find({ _id: { $nin: restrictedCommunityIds }, $or: [{ members: profileUser._id }, { owner: profileUser._id }] }).select('name slug owner').sort({ name: 1 }).limit(60).lean(),
+		Quest.find({ winner: profileUser._id, status: 'ended' }).sort({ endedAt: -1, updatedAt: -1 }).limit(20).populate('community', 'name slug').lean()
 	]);
+	const questAchievements = wonQuests.filter((quest) => quest.community && !restrictedCommunityIds.some((id) => String(id) === String(quest.community._id)));
 	const profileStats = engagementAgg[0] || { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 };
 	// Comment.find can't filter by its parent post's community in the query
 	// itself (no community field on Comment), so this is filtered in code:
@@ -495,6 +533,8 @@ exports.profile = async (req, res) => {
 		followersCount,
 		followingCount: (profileUser.following || []).length,
 		profileStats,
+		memberCommunities: memberCommunities.map((community) => ({ ...community, isOwner: String(community.owner) === String(profileUser._id) })),
+		questAchievements,
 		isSelf,
 		isFollowing: !isSelf && (viewer?.following || []).some((id) => String(id) === String(profileUser._id)),
 		isFollowingBack: !isSelf && (profileUser.following || []).some((id) => String(id) === String(viewerId)),

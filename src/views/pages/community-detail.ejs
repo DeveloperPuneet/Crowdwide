@@ -38,6 +38,7 @@
 			<% if (quest.description) { %><small><%= quest.description %></small><% } %>
 			<% if (quest.reward) { %><span class="quest-reward">Reward: <%= quest.reward %></span><% } %>
 			<% if (quest.status === 'ended' && quest.winner) { %><span class="quest-winner">Winner: <%= quest.winner?.name || 'Community member' %></span><% } %>
+			<% if (quest.status === 'ended' && quest.winner && quest.achievementTag) { %><span class="quest-rewarded">Achievement: <%= quest.achievementTag %></span><% } %>
 			<% if (quest.status === 'ended' && quest.rewarded) { %><span class="quest-rewarded">Reward sent</span><% } %>
 			<% if (joined && !['ended', 'archived'].includes(quest.status)) { %>
 				<div class="quest-actions">

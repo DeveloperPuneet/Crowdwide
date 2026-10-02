@@ -36,11 +36,27 @@
 		<p class="recap-empty">Your next post, comment, or share will start this timeline.</p>
 		<% } %>
 	</section>
+	<% if (recap.topTopics?.length) { %>
+	<section class="recap-panel recap-topics">
+		<div class="recap-section-heading"><div><p class="eyebrow">Your themes</p><h2>Topics you shared most</h2></div><span class="recap-muted">From hashtags on your published posts</span></div>
+		<div class="recap-topic-list"><% recap.topTopics.forEach((topic, index) => { %><span class="recap-topic"><b><%= String(index + 1).padStart(2, '0') %></b><span>#<%= topic.tag %></span><small><%= topic.posts %> post<%= topic.posts === 1 ? '' : 's' %></small></span><% }) %></div>
+		<div class="recap-month-topics"><% recap.months.filter((month) => month.topics?.length).forEach((month) => { %><div><strong><%= month.fullLabel %></strong><span><%= month.topics.map((topic) => `#${topic.tag}`).join(' · ') %></span></div><% }) %></div>
+	</section>
+	<% } %>
 	<% if (recap.topPost) { %>
 	<section class="recap-panel recap-highlight">
 		<div><p class="eyebrow">A conversation starter</p><h2>Your most-engaged post</h2></div>
 		<blockquote><%= recap.topPost.body %></blockquote>
 		<div class="recap-highlight-meta"><span><%= recap.topPost.type === 'article' ? 'Article' : recap.topPost.type === 'poll' ? 'Poll' : 'Post' %></span><span><%= new Date(recap.topPost.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %></span><span><%= recap.topPost.engagement.toLocaleString() %> reactions, comments, and shares</span></div>
+	</section>
+	<% } %>
+	<% if (recap.topComment) { %>
+	<section class="recap-panel recap-highlight recap-comment-highlight">
+		<div><p class="eyebrow">A conversation you moved</p><h2>Your most-interacted comment</h2></div>
+		<blockquote><%= recap.topComment.body || 'Media comment' %></blockquote>
+		<div class="recap-highlight-meta"><span><%= recap.topComment.interactions.toLocaleString() %> interactions</span><span><%= new Date(recap.topComment.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %></span>
+		<% if (recap.topComment.post?._id) { %><a href="/posts/<%= recap.topComment.post._id %>#replies">View conversation</a><% } %></div>
+		<% if (recap.topComment.post?.body) { %><p class="recap-comment-context">On: <%= recap.topComment.post.body.slice(0, 160) %><%= recap.topComment.post.body.length > 160 ? '…' : '' %></p><% } %>
 	</section>
 	<% } %>
 </main>
