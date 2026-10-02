@@ -143,6 +143,50 @@ test('docs page renders the API endpoints, and info pages cover help', async () 
   assert.match(help, /Why verify\?/);
 });
 
+test('community detail renders a quest board with member actions', async () => {
+  const html = await render('pages/community-detail.ejs', {
+    title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
+    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', category: 'design', description: 'Share ideas', hashtags: ['design'], membersCount: 12, isPrivate: false, owner: { _id: 'u1', name: 'Puneet' }, members: ['u1', 'u2'], moderators: [], pinnedPosts: [] },
+    posts: [], members: [{ _id: 'u1', name: 'Puneet' }, { _id: 'u2', name: 'Asha' }],
+    moderatorIds: ['u1'], joined: true, requested: false, isOwner: true, locked: false,
+    quests: [{ _id: 'q1', title: 'Ship a mockup', description: 'Post one visual concept this week.', reward: 'Community badge', participants: [{ _id: 'u2', name: 'Asha' }], completedBy: [], creator: { _id: 'u1', name: 'Puneet' } }]
+  });
+  assert.match(html, /Quest board/);
+  assert.match(html, /Ship a mockup/);
+  assert.match(html, /Join quest/);
+});
+
+test('ended quests show the winner and reward state', async () => {
+  const html = await render('pages/community-detail.ejs', {
+    title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
+    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', category: 'design', description: 'Share ideas', hashtags: ['design'], membersCount: 12, isPrivate: false, owner: { _id: 'u1', name: 'Puneet' }, members: ['u1', 'u2'], moderators: [], pinnedPosts: [] },
+    posts: [], members: [{ _id: 'u1', name: 'Puneet' }, { _id: 'u2', name: 'Asha' }],
+    moderatorIds: ['u1'], joined: true, requested: false, isOwner: true, locked: false,
+    quests: [{ _id: 'q2', title: 'Final sprint', description: 'Complete the sprint.', reward: 'Featured post', status: 'ended', winner: { _id: 'u2', name: 'Asha' }, rewarded: true, participants: [{ _id: 'u2', name: 'Asha' }], completedBy: [{ _id: 'u2', name: 'Asha' }], creator: { _id: 'u1', name: 'Puneet' } }]
+  });
+  assert.match(html, /Winner: Asha/);
+  assert.match(html, /Reward sent/);
+});
+
+test('personal recap renders activity totals and a monthly timeline', async () => {
+  const html = await render('pages/activity-recap.ejs', {
+    title: 'Your activity recap', pagePath: '/recap', noIndex: true,
+    recap: {
+      periodLabel: 'Oct 2025 – Sep 2026',
+      totals: { posts: 8, comments: 12, shares: 3, communities: 2 },
+      months: [{ label: 'Sep', posts: 2, comments: 1, shares: 0, postsHeight: 100, commentsHeight: 50, sharesHeight: 0 }],
+      topPost: { body: 'A favorite post', type: 'post', createdAt: new Date('2026-09-10T00:00:00Z'), engagement: 7 }
+    }
+  });
+  assert.match(html, /Oct 2025 – Sep 2026/);
+  assert.match(html, /8/);
+  assert.match(html, /12/);
+  assert.match(html, /A favorite post/);
+  assert.match(html, /September/);
+  assert.match(html, /In-app shares/);
+  assert.match(html, /<strong>3<\/strong>/);
+});
+
 test('footers link to the new docs and help pages, and the GitHub link uses a real icon (not a stray glyph)', async () => {
   const footer = await render('partials/site-footer.ejs');
   assert.match(footer, /href="\/docs"/);

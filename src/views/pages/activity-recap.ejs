@@ -1,0 +1,48 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'home', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="recap-layout">
+	<a class="back-link" href="/dashboard">← Back to your feed</a>
+	<header class="recap-heading">
+		<p class="eyebrow">A year of showing up</p>
+		<h1>Your Crowdwide recap</h1>
+		<p><%= recap.periodLabel %></p>
+	</header>
+	<section class="recap-stats" aria-label="Activity totals">
+		<div class="recap-stat"><span>Published posts</span><strong><%= recap.totals.posts.toLocaleString() %></strong></div>
+		<div class="recap-stat"><span>Comments</span><strong><%= recap.totals.comments.toLocaleString() %></strong></div>
+		<div class="recap-stat"><span>In-app shares</span><strong><%= recap.totals.shares.toLocaleString() %></strong></div>
+		<div class="recap-stat"><span>Communities now</span><strong><%= recap.totals.communities.toLocaleString() %></strong></div>
+	</section>
+	<section class="recap-panel">
+		<div class="recap-section-heading"><div><p class="eyebrow">Your activity</p><h2>Month by month</h2></div><div class="recap-legend" aria-label="Chart legend"><span><i class="recap-key-posts"></i>Posts</span><span><i class="recap-key-comments"></i>Comments</span><span><i class="recap-key-shares"></i>Shares</span></div></div>
+		<% if (recap.totals.posts || recap.totals.comments || recap.totals.shares) { %>
+		<div class="recap-chart" role="img" aria-label="Monthly totals for posts, comments, and in-app shares">
+			<% recap.months.forEach((month) => { %>
+			<div class="recap-month" aria-label="<%= month.fullLabel %>: <%= month.posts %> posts, <%= month.comments %> comments, <%= month.shares %> in-app shares">
+				<div class="recap-bar-track"><div class="recap-bar">
+					<span class="recap-bar-posts" style="height:<%= month.postsHeight %>%"></span>
+					<span class="recap-bar-comments" style="height:<%= month.commentsHeight %>%"></span>
+					<span class="recap-bar-shares" style="height:<%= month.sharesHeight %>%"></span>
+				</div></div>
+				<span class="recap-month-label"><%= month.label %></span>
+			</div>
+			<% }) %>
+		</div>
+		<ul class="visually-hidden" aria-label="Activity by month">
+			<% recap.months.forEach((month) => { %><li><%= month.fullLabel %>: <%= month.posts %> posts, <%= month.comments %> comments, <%= month.shares %> in-app shares</li><% }) %>
+		</ul>
+		<% } else { %>
+		<p class="recap-empty">Your next post, comment, or share will start this timeline.</p>
+		<% } %>
+	</section>
+	<% if (recap.topPost) { %>
+	<section class="recap-panel recap-highlight">
+		<div><p class="eyebrow">A conversation starter</p><h2>Your most-engaged post</h2></div>
+		<blockquote><%= recap.topPost.body %></blockquote>
+		<div class="recap-highlight-meta"><span><%= recap.topPost.type === 'article' ? 'Article' : recap.topPost.type === 'poll' ? 'Poll' : 'Post' %></span><span><%= new Date(recap.topPost.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %></span><span><%= recap.topPost.engagement.toLocaleString() %> reactions, comments, and shares</span></div>
+	</section>
+	<% } %>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

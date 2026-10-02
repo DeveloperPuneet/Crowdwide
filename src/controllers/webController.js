@@ -7,6 +7,7 @@ const Community = require('../models/Community');
 const { createSignedUpload, createImageThumbnail, getImageSize } = require('../services/storage');
 const { uploadBuffer, streamFile, mediaUrl, clusterStatus } = require('../services/storageCluster');
 const Comment = require('../models/Comment');
+const PostShare = require('../models/PostShare');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
 const { getFeedPage, refreshPersonalization } = require('../services/feedService');
@@ -114,6 +115,85 @@ exports.dashboard = async (req, res) => {
 	} catch (error) {
 		logger.error('Unable to load dashboard', error);
 		res.status(500).render('pages/not-found', { title: 'Dashboard unavailable', noIndex: true });
+	}
+};
+
+exports.activityRecap = async (req, res) => {
+	try {
+		const user = await User.findById(req.session.user.id).select('joinedCommunities').lean();
+		const now = new Date();
+		const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
+		const range = { $gte: start, $lte: now };
+		const userId = user._id;
+		const monthGroup = {
+			_id: { $dateToString: { format: '%Y-%m', date: '$createdAt', timezone: 'UTC' } },
+			count: { $sum: 1 }
+		};
+		const [postMonths, commentMonths, shareMonths, topPosts] = await Promise.all([
+			Post.aggregate([{ $match: { author: userId, status: 'published', createdAt: range } }, { $group: monthGroup }]),
+			Comment.aggregate([{ $match: { author: userId, createdAt: range } }, { $group: monthGroup }]),
+			PostShare.aggregate([{ $match: { user: userId, createdAt: range } }, { $group: monthGroup }]),
+			Post.aggregate([
+				{ $match: { author: userId, status: 'published', createdAt: range } },
+				{ $addFields: { recapEngagement: { $add: [
+					{ $size: { $ifNull: ['$likes', []] } },
+					{ $ifNull: ['$commentsCount', 0] },
+					{ $ifNull: ['$sharesCount', 0] },
+					{ $size: { $ifNull: ['$reactions.celebrate', []] } },
+					{ $size: { $ifNull: ['$reactions.insightful', []] } },
+					{ $size: { $ifNull: ['$reactions.support', []] } },
+					{ $size: { $ifNull: ['$reactions.funny', []] } }
+				] } } },
+				{ $sort: { recapEngagement: -1, createdAt: -1 } },
+				{ $limit: 1 },
+				{ $project: { body: 1, type: 1, createdAt: 1, recapEngagement: 1 } }
+			])
+		]);
+		const monthCounts = (rows) => new Map(rows.map((row) => [row._id, row.count]));
+		const postsByMonth = monthCounts(postMonths);
+		const commentsByMonth = monthCounts(commentMonths);
+		const sharesByMonth = monthCounts(shareMonths);
+		const months = [];
+		for (let offset = 0; offset < 12; offset += 1) {
+			const date = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + offset, 1));
+			const key = date.toISOString().slice(0, 7);
+			months.push({
+				key,
+				label: new Intl.DateTimeFormat('en', { month: 'short', timeZone: 'UTC' }).format(date),
+				fullLabel: new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date),
+				posts: postsByMonth.get(key) || 0,
+				comments: commentsByMonth.get(key) || 0,
+				shares: sharesByMonth.get(key) || 0
+			});
+		}
+		const maxActivity = Math.max(1, ...months.map((month) => month.posts + month.comments + month.shares));
+		months.forEach((month) => {
+			month.postsHeight = Math.round((month.posts / maxActivity) * 100);
+			month.commentsHeight = Math.round((month.comments / maxActivity) * 100);
+			month.sharesHeight = Math.round((month.shares / maxActivity) * 100);
+		});
+		const periodFormat = new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+		const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+		const totals = {
+			posts: postMonths.reduce((sum, row) => sum + row.count, 0),
+			comments: commentMonths.reduce((sum, row) => sum + row.count, 0),
+			shares: shareMonths.reduce((sum, row) => sum + row.count, 0),
+			communities: (user.joinedCommunities || []).length
+		};
+		res.render('pages/activity-recap', {
+			title: 'Your activity recap',
+			pagePath: '/recap',
+			noIndex: true,
+			recap: {
+				periodLabel: `${periodFormat.format(start)} – ${periodFormat.format(periodEnd)}`,
+				totals,
+				months,
+				topPost: topPosts[0] ? { ...topPosts[0], engagement: topPosts[0].recapEngagement } : null
+			}
+		});
+	} catch (error) {
+		logger.error('Unable to load personal activity recap', error);
+		res.status(500).render('pages/not-found', { title: 'Recap unavailable', noIndex: true });
 	}
 };
 

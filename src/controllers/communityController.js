@@ -1,6 +1,7 @@
 const Community = require('../models/Community');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const Quest = require('../models/Quest');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners } = require('../services/discovery');
@@ -120,27 +121,141 @@ exports.detail = async (req, res) => {
     return res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts: [], members: [], moderatorIds, joined, requested, isOwner, locked: true });
   }
   const pinnedIds = (community.pinnedPosts || []).map(String);
-  const [recentPosts, pinnedPosts, members] = await Promise.all([
+  const [recentPosts, pinnedPosts, members, quests] = await Promise.all([
     Post.find({ community: community._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
     pinnedIds.length ? Post.find({ _id: { $in: pinnedIds }, community: community._id, status: 'published' }).populate('author', 'name profilePicture').lean() : Promise.resolve([]),
-    User.find({ _id: { $in: community.members } }).select('name profilePicture').limit(60).lean()
+    User.find({ _id: { $in: community.members } }).select('name profilePicture').limit(60).lean(),
+    Quest.find({ community: community._id }).sort({ createdAt: -1 }).populate('creator', 'name profilePicture').populate('participants', 'name profilePicture').populate('completedBy', 'name profilePicture').populate('winner', 'name profilePicture').lean()
   ]);
   const pinnedById = new Map(pinnedPosts.map((post) => [String(post._id), post]));
   const posts = [
     ...pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean),
     ...recentPosts.filter((post) => !pinnedById.has(String(post._id)))
   ];
-  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false });
+  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests });
 };
 exports.manage = async (req, res) => {
-  const [members, posts, pendingPosts, requests, moderators] = await Promise.all([
+  const [members, posts, pendingPosts, requests, moderators, quests] = await Promise.all([
     User.find({ _id: { $in: req.community.members } }).select('name email profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'published' }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'pending' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
     User.find({ _id: { $in: req.community.joinRequests.map((request) => request.user) } }).select('name email').lean(),
-    User.find({ _id: { $in: req.community.moderators } }).select('name email').lean()
+    User.find({ _id: { $in: req.community.moderators } }).select('name email').lean(),
+    Quest.find({ community: req.community._id }).sort({ createdAt: -1 }).populate('creator', 'name').populate('participants', 'name').populate('completedBy', 'name').populate('winner', 'name').lean()
   ]);
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, community: req.community, members, posts, pendingPosts, requests, moderators, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, community: req.community, members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+};
+
+exports.createQuest = async (req, res) => {
+  const title = req.body.title?.trim();
+  if (!title) {
+    req.session.flash = { type: 'error', message: 'A quest needs a title.' };
+    return res.redirect(`/communities/${req.community.slug}/manage`);
+  }
+  const quest = await Quest.create({
+    community: req.community._id,
+    creator: req.session.user.id,
+    title: title.slice(0, 80),
+    description: req.body.description?.trim().slice(0, 260) || '',
+    goal: req.body.goal?.trim().slice(0, 150) || '',
+    reward: req.body.reward?.trim().slice(0, 120) || '',
+    status: 'open'
+  });
+  req.session.flash = { type: 'success', message: `Quest “${quest.title}” is live.` };
+  res.redirect(`/communities/${req.community.slug}/manage`);
+};
+
+exports.toggleQuestParticipation = async (req, res) => {
+  const quest = await Quest.findOne({ _id: req.params.questId, community: req.community._id });
+  if (!quest) {
+    req.session.flash = { type: 'error', message: 'That quest no longer exists.' };
+    return res.redirect(`/communities/${req.community.slug}`);
+  }
+  if (quest.status === 'ended') {
+    req.session.flash = { type: 'error', message: 'This quest has already ended.' };
+    return res.redirect(req.get('referer') || `/communities/${req.community.slug}`);
+  }
+  const userId = req.session.user.id;
+  const isJoined = quest.participants.some((id) => String(id) === String(userId));
+  if (isJoined) {
+    quest.participants.pull(userId);
+    quest.completedBy.pull(userId);
+    if (String(quest.winner) === String(userId)) quest.winner = null;
+    req.session.flash = { type: 'success', message: 'You left this quest.' };
+  } else {
+    quest.participants.addToSet(userId);
+    req.session.flash = { type: 'success', message: 'You joined the quest.' };
+  }
+  quest.status = quest.completedBy.length ? 'completed' : (quest.participants.length ? 'active' : 'open');
+  if (quest.status === 'completed' && !quest.winner && quest.completedBy.length) quest.winner = quest.completedBy[0];
+  await quest.save();
+  res.redirect(req.get('referer') || `/communities/${req.community.slug}`);
+};
+
+exports.completeQuest = async (req, res) => {
+  const quest = await Quest.findOne({ _id: req.params.questId, community: req.community._id });
+  if (!quest) {
+    req.session.flash = { type: 'error', message: 'That quest no longer exists.' };
+    return res.redirect(`/communities/${req.community.slug}`);
+  }
+  if (quest.status === 'ended') {
+    req.session.flash = { type: 'error', message: 'This quest is already closed.' };
+    return res.redirect(req.get('referer') || `/communities/${req.community.slug}`);
+  }
+  const userId = req.session.user.id;
+  const isJoined = quest.participants.some((id) => String(id) === String(userId));
+  if (!isJoined) {
+    req.session.flash = { type: 'error', message: 'Join the quest before marking it complete.' };
+    return res.redirect(req.get('referer') || `/communities/${req.community.slug}`);
+  }
+  const isCompleted = quest.completedBy.some((id) => String(id) === String(userId));
+  if (isCompleted) quest.completedBy.pull(userId);
+  else quest.completedBy.addToSet(userId);
+  if (quest.completedBy.length) {
+    quest.status = 'completed';
+    quest.winner = quest.completedBy[0];
+  } else {
+    quest.status = 'active';
+    quest.winner = null;
+  }
+  await quest.save();
+  req.session.flash = { type: 'success', message: isCompleted ? 'Quest marked as not completed.' : 'Quest marked as complete.' };
+  res.redirect(req.get('referer') || `/communities/${req.community.slug}`);
+};
+
+exports.endQuest = async (req, res) => {
+  const quest = await Quest.findOne({ _id: req.params.questId, community: req.community._id });
+  if (!quest) {
+    req.session.flash = { type: 'error', message: 'That quest no longer exists.' };
+    return res.redirect(`/communities/${req.community.slug}/manage`);
+  }
+  const winnerId = req.body.winnerId || quest.completedBy[0] || quest.participants[0];
+  const validWinner = quest.participants.some((id) => String(id) === String(winnerId));
+  quest.winner = validWinner ? winnerId : null;
+  quest.status = 'ended';
+  quest.endedAt = new Date();
+  quest.rewarded = quest.rewarded || false;
+  await quest.save();
+  const winner = quest.winner ? await User.findById(quest.winner).select('name').lean() : null;
+  req.session.flash = { type: 'success', message: winner ? `Quest closed. Winner: ${winner.name}` : 'Quest closed without a winner.' };
+  res.redirect(`/communities/${req.community.slug}/manage`);
+};
+
+exports.rewardQuestWinner = async (req, res) => {
+  const quest = await Quest.findOne({ _id: req.params.questId, community: req.community._id });
+  if (!quest) {
+    req.session.flash = { type: 'error', message: 'That quest no longer exists.' };
+    return res.redirect(`/communities/${req.community.slug}/manage`);
+  }
+  if (!quest.winner) {
+    req.session.flash = { type: 'error', message: 'Choose a winner before marking the reward.' };
+    return res.redirect(`/communities/${req.community.slug}/manage`);
+  }
+  quest.rewarded = true;
+  quest.rewardSentAt = new Date();
+  await quest.save();
+  req.session.flash = { type: 'success', message: 'Reward marked as sent.' };
+  res.redirect(`/communities/${req.community.slug}/manage`);
 };
 
 exports.update = async (req, res) => {

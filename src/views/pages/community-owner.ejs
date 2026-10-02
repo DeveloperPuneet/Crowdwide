@@ -27,7 +27,7 @@
 			<label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community <small>(new members must be approved to join)</small></label>
 			<label class="privacy-check"><input type="checkbox" name="requireApproval" <%= community.requireApproval ? 'checked' : '' %>> Review posts before they appear <small>(moderation queue below)</small></label>
 			<label>Banned words<input name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>" placeholder="word, phrase"></label>
-			<button class="button button-primary button-small" type="submit">Save controls <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
+			<button class="button button-primary button-small upper-margin-15" type="submit">Save controls <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 		</form>
 
 		<% if (community.requireApproval) { %>
@@ -81,6 +81,46 @@
 				<form method="post" action="/communities/<%= community._id %>/members/<%= member._id %>/role"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="role-button" name="role" value="<%= community.moderators.some((id) => String(id) === String(member._id)) ? 'member' : 'moderator' %>" type="submit"><%= community.moderators.some((id) => String(id) === String(member._id)) ? 'Remove mod' : 'Make mod' %></button></form>
 				<form method="post" action="/communities/<%= community._id %>/members/<%= member._id %>/remove"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Remove member">×</button></form>
 				<% } else { %><em>Owner</em><% } %>
+			</div>
+			<% }) %>
+		</section>
+		<section class="settings-block">
+			<h2>Quest board</h2>
+			<form method="post" action="/communities/<%= community._id %>/quests" style="display:grid;gap:10px;">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<label>Title<input name="title" maxlength="80" placeholder="Community challenge" required></label>
+				<label>Goal<input name="goal" maxlength="150" placeholder="What should members do?"></label>
+				<label>Description<textarea name="description" maxlength="260" placeholder="Give the community some context and a clear target."></textarea></label>
+				<label>Reward<input name="reward" maxlength="120" placeholder="Example: Featured post or badge"></label>
+				<button class="button button-primary button-small" type="submit">Launch quest</button>
+			</form>
+			<% if (!quests.length) { %><p>No quests yet.</p><% } %>
+			<% quests.forEach((quest) => { %>
+			<div class="quest-manage-card">
+				<div class="quest-header">
+					<span class="quest-badge <%= quest.status === 'ended' ? 'quest-badge-complete' : (quest.status === 'completed' ? 'quest-badge-complete' : 'quest-badge-open') %>"><%= quest.status === 'ended' ? 'Ended' : quest.status === 'completed' ? 'Completed' : quest.status === 'active' ? 'Active' : 'Open' %></span>
+					<span class="quest-progress"><%= (quest.completedBy || []).length %> complete</span>
+				</div>
+				<strong><%= quest.title %></strong>
+				<p><%= quest.description || quest.goal || 'Community challenge' %></p>
+				<small>Reward: <%= quest.reward || 'Community recognition' %></small>
+				<% if (quest.status === 'ended' && quest.winner) { %><small>Winner: <%= quest.winner?.name || 'Community member' %></small><% } %>
+				<% if (quest.status === 'ended' && quest.rewarded) { %><small>Reward sent</small><% } %>
+				<div class="quest-actions">
+					<span><%= (quest.participants || []).length %> joined</span>
+				</div>
+				<% if (quest.status !== 'ended') { %>
+				<form method="post" action="/communities/<%= community._id %>/quests/<%= quest._id %>/end" style="display:grid;gap:8px;">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<label>Declare winner<select name="winnerId" required>
+						<option value="">Choose the winner</option>
+						<% (quest.participants || []).forEach((person) => { %><option value="<%= person._id %>"><%= person.name %></option><% }) %>
+					</select></label>
+					<button class="button button-small button-primary" type="submit">End quest</button>
+				</form>
+				<% } else if (quest.winner && !quest.rewarded) { %>
+				<form method="post" action="/communities/<%= community._id %>/quests/<%= quest._id %>/reward"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit">Mark reward sent</button></form>
+				<% } %>
 			</div>
 			<% }) %>
 		</section>

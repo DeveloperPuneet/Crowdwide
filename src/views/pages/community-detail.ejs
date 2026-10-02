@@ -21,6 +21,38 @@
 			<% } else { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%= community.isPrivate ? 'Request to join' : 'Join community' %> <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button></form><% } %>
 		</div>
 	</section>
+	<% if (quests && quests.length) { %>
+	<section class="discover-panel quest-board">
+		<div class="panel-heading"><h2>Quest board</h2><span><%= quests.length %></span></div>
+		<% quests.forEach((quest) => {
+			const joinedQuest = (quest.participants || []).some((person) => String(person?._id || person) === String(currentUser.id));
+			const doneQuest = (quest.completedBy || []).some((person) => String(person?._id || person) === String(currentUser.id));
+		%>
+		<div class="quest-card">
+			<div class="quest-header">
+				<span class="quest-badge <%= quest.status === 'ended' ? 'quest-badge-complete' : (quest.status === 'completed' ? 'quest-badge-complete' : 'quest-badge-open') %>"><%= quest.status === 'ended' ? 'Ended' : quest.status === 'completed' ? 'Completed' : quest.status === 'active' ? 'Active' : 'Open' %></span>
+				<span class="quest-progress"><%= (quest.completedBy || []).length %>/<%= (quest.participants || []).length || 0 %> complete</span>
+			</div>
+			<strong><%= quest.title %></strong>
+			<% if (quest.goal) { %><p><%= quest.goal %></p><% } %>
+			<% if (quest.description) { %><small><%= quest.description %></small><% } %>
+			<% if (quest.reward) { %><span class="quest-reward">Reward: <%= quest.reward %></span><% } %>
+			<% if (quest.status === 'ended' && quest.winner) { %><span class="quest-winner">Winner: <%= quest.winner?.name || 'Community member' %></span><% } %>
+			<% if (quest.status === 'ended' && quest.rewarded) { %><span class="quest-rewarded">Reward sent</span><% } %>
+			<% if (joined && quest.status !== 'ended') { %>
+				<div class="quest-actions">
+					<% if (!joinedQuest) { %>
+					<form method="post" action="/communities/<%= community._id %>/quests/<%= quest._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" type="submit">Join quest</button></form>
+					<% } else { %>
+					<form method="post" action="/communities/<%= community._id %>/quests/<%= quest._id %>/complete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit"><%= doneQuest ? 'Undo complete' : 'Complete quest' %></button></form>
+					<form method="post" action="/communities/<%= community._id %>/quests/<%= quest._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-dark" type="submit">Leave</button></form>
+					<% } %>
+				</div>
+			<% } %>
+		</div>
+		<% }) %>
+	</section>
+	<% } %>
 	<section class="community-posts">
 		<div class="panel-heading"><h2>Community posts</h2><span><%= locked ? 'Members only' : `${posts.length} recent` %></span></div>
 		<% if (locked) { %>
