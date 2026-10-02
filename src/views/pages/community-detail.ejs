@@ -68,7 +68,7 @@
 		<article class="post-card">
 			<div class="post-meta">
 				<%- include('../partials/avatar', { person: post.author, size: 'small', link: false }) %>
-				<div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %><% if (moderatorIds.includes(String(post.author?._id))) { %> <span style="color:#ff9850;font-size:10px;">MOD</span><% } %></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %><% if (community.pinnedPosts?.some((id) => String(id) === String(post._id))) { %> · Pinned<% } %></span></div>
+				<div><strong class="community-post-author"><%= post.author?.name || 'Member' %><% if (moderatorIds.includes(String(post.author?._id))) { %> <span class="community-moderator-label">MOD</span><% } %></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %><% if (community.pinnedPosts?.some((id) => String(id) === String(post._id))) { %> · Pinned<% } %></span></div>
 			</div>
 			<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
 			<p class="post-body"><%= post.body %></p>
@@ -84,7 +84,7 @@
 	<% if (community.guidelines) { %>
 	<section class="discover-panel">
 		<div class="panel-heading"><h2>About & guidelines</h2></div>
-		<p style="color:#9295aa;font-size:12px;line-height:1.7;white-space:pre-wrap;"><%= community.guidelines %></p>
+		<p class="community-guidelines-copy"><%= community.guidelines %></p>
 	</section>
 	<% } %>
 	<section class="discover-panel">
