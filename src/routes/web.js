@@ -105,8 +105,8 @@ router.post('/posts', requireAuth, requireVerified, postUpload, csrfSynchronised
 router.post('/communities', requireAuth, requireVerified, controller.createCommunity);
 router.post('/communities/:id/join', requireAuth, requireVerified, communityController.requestJoin);
 router.post('/communities/:id/quests', requireAuth, requireVerified, communityController.moderationOnly, communityController.createQuest);
-router.post('/communities/:id/quests/:questId/join', requireAuth, requireVerified, communityController.toggleQuestParticipation);
-router.post('/communities/:id/quests/:questId/complete', requireAuth, requireVerified, communityController.completeQuest);
+router.post('/communities/:id/quests/:questId/join', requireAuth, requireVerified, communityController.loadCommunity, communityController.toggleQuestParticipation);
+router.post('/communities/:id/quests/:questId/complete', requireAuth, requireVerified, communityController.loadCommunity, communityController.completeQuest);
 router.post('/communities/:id/quests/:questId/end', requireAuth, requireVerified, communityController.moderationOnly, communityController.endQuest);
 router.post('/communities/:id/quests/:questId/reward', requireAuth, requireVerified, communityController.moderationOnly, communityController.rewardQuestWinner);
 router.get('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityController.manage);

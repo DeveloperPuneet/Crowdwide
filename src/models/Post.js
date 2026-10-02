@@ -4,6 +4,8 @@ const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   coAuthors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community' },
+  quest: { type: mongoose.Schema.Types.ObjectId, ref: 'Quest' },
+  questTitle: { type: String, trim: true, maxlength: 80, default: '' },
   body: { type: String, trim: true, maxlength: 4000 },
   contentWarning: { type: String, trim: true, maxlength: 120, default: '' },
   hashtags: [{ type: String, trim: true, lowercase: true }],

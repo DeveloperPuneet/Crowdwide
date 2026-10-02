@@ -7,8 +7,18 @@ const { parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners } = require('../services/discovery');
 const { getInterestProfile, topInterestTags, refreshPersonalization } = require('../services/feedService');
 
-const moderationOnly = async (req, res, next) => {
+const loadCommunity = async (req, res, next) => {
   const community = await Community.findById(req.params.id);
+  if (!community) {
+    req.session.flash = { type: 'error', message: 'That community could not be found.' };
+    return res.redirect('/communities');
+  }
+  req.community = community;
+  next();
+};
+
+const moderationOnly = async (req, res, next) => {
+  const community = req.community || await Community.findById(req.params.id);
   const isOwner = community && String(community.owner) === String(req.session.user.id);
   const isModerator = community?.moderators?.some((id) => String(id) === String(req.session.user.id));
   if (!community || (!isOwner && !isModerator)) {
@@ -33,6 +43,7 @@ const ownerOnly = async (req, res, next) => {
 
 exports.ownerOnly = ownerOnly;
 exports.moderationOnly = moderationOnly;
+exports.loadCommunity = loadCommunity;
 exports.explore = async (req, res) => {
   const query = req.query.q?.trim();
   const category = req.query.category?.trim().toLowerCase();
@@ -171,7 +182,11 @@ exports.toggleQuestParticipation = async (req, res) => {
     req.session.flash = { type: 'error', message: 'That quest no longer exists.' };
     return res.redirect(`/communities/${req.community.slug}`);
   }
-  if (quest.status === 'ended') {
+  if (!req.community.members.some((id) => String(id) === String(req.session.user.id))) {
+    req.session.flash = { type: 'error', message: 'Join the community before joining its quests.' };
+    return res.redirect(`/communities/${req.community.slug}`);
+  }
+  if (['ended', 'archived'].includes(quest.status)) {
     req.session.flash = { type: 'error', message: 'This quest has already ended.' };
     return res.redirect(req.get('referer') || `/communities/${req.community.slug}`);
   }
@@ -198,7 +213,11 @@ exports.completeQuest = async (req, res) => {
     req.session.flash = { type: 'error', message: 'That quest no longer exists.' };
     return res.redirect(`/communities/${req.community.slug}`);
   }
-  if (quest.status === 'ended') {
+  if (!req.community.members.some((id) => String(id) === String(req.session.user.id))) {
+    req.session.flash = { type: 'error', message: 'Join the community before completing its quests.' };
+    return res.redirect(`/communities/${req.community.slug}`);
+  }
+  if (['ended', 'archived'].includes(quest.status)) {
     req.session.flash = { type: 'error', message: 'This quest is already closed.' };
     return res.redirect(req.get('referer') || `/communities/${req.community.slug}`);
   }

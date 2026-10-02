@@ -1,5 +1,7 @@
 <% const wordLimits = locals.wordLimits || { post: 60, article: 300, poll: 60 }; %>
 <% const coAuthorSuggestions = locals.coAuthorSuggestions || []; %>
+<% const composerCommunities = locals.composerCommunities || communities || []; %>
+<% const availableQuests = locals.availableQuests || []; %>
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'home', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
@@ -51,7 +53,8 @@
 				<fieldset class="poll-composer" hidden><legend>Poll choices</legend><input name="pollQuestion" maxlength="200" placeholder="Ask a question"><div class="poll-option-grid"><input name="pollOptions" maxlength="80" placeholder="Option 1"><input name="pollOptions" maxlength="80" placeholder="Option 2"><input name="pollOptions" maxlength="80" placeholder="Option 3"><input name="pollOptions" maxlength="80" placeholder="Option 4"></div></fieldset>
 				<div class="composer-actions">
 					<select name="type" aria-label="Post type"><option value="post">Post · <%= wordLimits.post %> words</option><option value="article">Article · <%= wordLimits.article %> words</option><option value="poll">Poll · <%= wordLimits.poll %> words</option></select>
-					<select name="community" aria-label="Choose a community"><option value="">Open Crowdwide</option><% communities.forEach((community) => { %><option value="<%= community._id %>"><%= community.name %></option><% }) %></select>
+					<select name="community" data-community-select aria-label="Choose a community"><option value="">Open Crowdwide</option><% composerCommunities.forEach((community) => { %><option value="<%= community._id %>" <%= String(community._id) === String(locals.selectedCommunityId || '') ? 'selected' : '' %>><%= community.name %></option><% }) %></select>
+					<label class="quest-post-picker"><span>Post for quest (optional)</span><select name="quest" data-quest-picker aria-label="Link this post to a quest" aria-describedby="quest-post-help"><option value="">No quest</option><% availableQuests.forEach((quest) => { %><option value="<%= quest._id %>" data-community="<%= quest.community?._id %>" <%= String(quest._id) === String(locals.selectedQuestId || '') ? 'selected' : '' %>><%= quest.title %> · <%= quest.community?.name || 'Community' %></option><% }) %></select></label>
 					<label class="schedule-picker">Schedule<input type="datetime-local" name="scheduledAt" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
 					<label class="schedule-picker">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
 					<div class="coauthor-picker">
@@ -75,6 +78,7 @@
 					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
 					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 				</div>
+				<small class="quest-picker-hint" id="quest-post-help" data-quest-hint><%= availableQuests.length ? 'Choose one of the active quests you have joined; its community will be selected for you.' : 'Join an active community quest to link a post to it.' %></small>
 				<details class="composer-media-details">
 					<summary>Media details · alt text, caption, transcript (per file)</summary>
 					<% [1, 2].forEach((n) => { %>

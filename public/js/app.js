@@ -45,6 +45,9 @@ if (composer) {
   composer.addEventListener('keydown', (event) => { if (event.key === 'Escape') setComposerOpen(false); });
   const textarea = composer.querySelector('textarea[name="body"]');
   const typeSelect = composer.querySelector('select[name="type"]');
+  const communitySelect = composer.querySelector('[data-community-select]');
+  const questSelect = composer.querySelector('[data-quest-picker]');
+  const questHint = composer.querySelector('[data-quest-hint]');
   const count = composer.querySelector('[data-word-count]');
   const progress = composer.querySelector('.word-limit-meter');
   const progressFill = composer.querySelector('[data-word-progress]');
@@ -65,6 +68,20 @@ if (composer) {
       progress.classList.toggle('is-over', total > limit);
     }
     if (pollFields) pollFields.hidden = typeSelect.value !== 'poll';
+  };
+  const updateQuestOptions = (source) => {
+    if (!communitySelect || !questSelect) return;
+    const selectedQuest = questSelect.selectedOptions[0];
+    const questCommunityId = selectedQuest?.dataset.community;
+    if (source === 'quest' && questSelect.value && questCommunityId) communitySelect.value = questCommunityId;
+    if (source === 'community' && questSelect.value && questCommunityId !== communitySelect.value) questSelect.value = '';
+    if (questHint) {
+      questHint.textContent = questSelect.value
+        ? 'This post will be shared with the selected quest community.'
+        : questSelect.options.length > 1
+          ? 'Choose one of the active quests you have joined; its community will be selected for you.'
+          : 'Join an active community quest to link a post to it.';
+    }
   };
   const renderSuggestions = (items) => {
     suggestions.replaceChildren(...items.map(({ tag }) => {
@@ -98,11 +115,14 @@ if (composer) {
     suggestionTimer = setTimeout(() => fetch(`/hashtags/suggest?q=${encodeURIComponent(match[1])}`).then((response) => response.json()).then(renderSuggestions).catch(() => {}), 120);
   });
   typeSelect.addEventListener('change', updateCount);
+  communitySelect?.addEventListener('change', () => updateQuestOptions('community'));
+  questSelect?.addEventListener('change', () => updateQuestOptions('quest'));
   composer.addEventListener('submit', (event) => {
     if (words() > (limits[typeSelect.value] || limits.post)) { event.preventDefault(); updateCount(); return; }
     composer.classList.add('composer-hidden');
   });
   updateCount();
+  updateQuestOptions('quest');
 }
 
 document.querySelectorAll('[data-mention-input]').forEach((input) => {

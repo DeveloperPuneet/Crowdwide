@@ -3,6 +3,7 @@ const { getGrowthStats } = require('../services/publicStats');
 const { isStaging } = require('../services/environment');
 const { mediaDetailsFor } = require('../utils/mediaDetails');
 const Post = require('../models/Post');
+const Quest = require('../models/Quest');
 const Community = require('../models/Community');
 const { createSignedUpload, createImageThumbnail, getImageSize } = require('../services/storage');
 const { uploadBuffer, streamFile, mediaUrl, clusterStatus } = require('../services/storageCluster');
@@ -84,14 +85,20 @@ exports.dashboard = async (req, res) => {
 		const user = await User.findById(req.session.user.id).lean();
 		const activeTab = resolveFeedView(req.query);
 		const followingIds = (user.following || []).map(String);
-		const [feed, communities, people, followedPeople, followerPeople, wordLimits] = await Promise.all([
+		const joinedCommunityIds = user.joinedCommunities || [];
+		const [feed, communities, joinedCommunityDocs, availableQuests, people, followedPeople, followerPeople, wordLimits] = await Promise.all([
 			getFeedPage({ userId: user._id, view: activeTab, page: 1, user }),
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
+			Community.find({ _id: { $in: joinedCommunityIds } }).sort({ name: 1 }).lean(),
+			Quest.find({ participants: user._id, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean(),
 			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean(),
 			User.find({ _id: { $in: user.following || [], $ne: user._id } }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			getWordLimits()
 		]);
+		const questCommunities = availableQuests.map((quest) => quest.community).filter(Boolean);
+		const composerCommunities = Array.from(new Map([...joinedCommunityDocs, ...questCommunities, ...communities].map((community) => [String(community._id), community])).values());
+		const selectedQuest = availableQuests.find((quest) => String(quest._id) === String(req.query.quest || ''));
 		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
 		res.render('pages/dashboard', {
 			title: 'Your Crowdwide',
@@ -99,6 +106,10 @@ exports.dashboard = async (req, res) => {
 			noIndex: true,
 			feed: { ...feed, activeTab, visiblePosts: feed.posts },
 			communities,
+			composerCommunities,
+			availableQuests,
+			selectedQuestId: selectedQuest ? String(selectedQuest._id) : '',
+			selectedCommunityId: selectedQuest ? String(selectedQuest.community?._id) : '',
 			people,
 			coAuthorSuggestions,
 			joinedCommunities: (user.joinedCommunities || []).map(String),
@@ -225,8 +236,26 @@ exports.createPost = async (req, res) => {
 	}
 	let status = 'published';
 	let scheduledAt;
-	if (req.body.community) {
-		const community = await Community.findById(req.body.community).select('members bannedWords owner moderators requireApproval');
+	let quest = null;
+	let communityId = req.body.community || '';
+	if (req.body.quest) {
+		if (typeof req.body.quest !== 'string' || !/^[a-f\d]{24}$/i.test(req.body.quest)) {
+			req.session.flash = { type: 'error', message: 'Choose a valid active quest.' };
+			return res.redirect('/dashboard');
+		}
+		quest = await Quest.findOne({ _id: req.body.quest, status: { $nin: ['ended', 'archived'] } }).select('title community participants');
+		if (!quest || (communityId && String(communityId) !== String(quest.community))) {
+			req.session.flash = { type: 'error', message: 'Choose an active quest from the selected community.' };
+			return res.redirect('/dashboard');
+		}
+		if (!quest.participants.some((id) => String(id) === String(req.session.user.id))) {
+			req.session.flash = { type: 'error', message: 'Join the quest before posting for it.' };
+			return res.redirect('/dashboard');
+		}
+		communityId = String(quest.community);
+	}
+	if (communityId) {
+		const community = await Community.findById(communityId).select('members bannedWords owner moderators requireApproval');
 		if (!community || !community.members.some((id) => String(id) === String(req.session.user.id))) {
 			req.session.flash = { type: 'error', message: 'Join that community before posting there.' };
 			return res.redirect('/dashboard');
@@ -269,7 +298,7 @@ exports.createPost = async (req, res) => {
 	const coAuthorDocs = validCoAuthors.length ? await User.find({ _id: { $in: validCoAuthors } }).select('_id').lean() : [];
 	const coAuthorList = coAuthorDocs.map((userDoc) => userDoc._id);
 	const isDraft = req.body.saveAsDraft === 'on';
-	const createdPost = await Post.create({ author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: req.body.community || undefined, media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+	const createdPost = await Post.create({ author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	refreshPersonalization(req.session.user.id); // so the new post shows up, and shapes "for you", on the very next feed load
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
 	if (!isDraft && !media.length) {

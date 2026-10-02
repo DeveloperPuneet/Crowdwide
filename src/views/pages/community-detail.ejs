@@ -30,7 +30,7 @@
 		%>
 		<div class="quest-card">
 			<div class="quest-header">
-				<span class="quest-badge <%= quest.status === 'ended' ? 'quest-badge-complete' : (quest.status === 'completed' ? 'quest-badge-complete' : 'quest-badge-open') %>"><%= quest.status === 'ended' ? 'Ended' : quest.status === 'completed' ? 'Completed' : quest.status === 'active' ? 'Active' : 'Open' %></span>
+				<span class="quest-badge <%= ['ended', 'archived'].includes(quest.status) || quest.status === 'completed' ? 'quest-badge-complete' : 'quest-badge-open' %>"><%= quest.status === 'ended' ? 'Ended' : quest.status === 'archived' ? 'Archived' : quest.status === 'completed' ? 'Completed' : quest.status === 'active' ? 'Active' : 'Open' %></span>
 				<span class="quest-progress"><%= (quest.completedBy || []).length %>/<%= (quest.participants || []).length || 0 %> complete</span>
 			</div>
 			<strong><%= quest.title %></strong>
@@ -39,11 +39,12 @@
 			<% if (quest.reward) { %><span class="quest-reward">Reward: <%= quest.reward %></span><% } %>
 			<% if (quest.status === 'ended' && quest.winner) { %><span class="quest-winner">Winner: <%= quest.winner?.name || 'Community member' %></span><% } %>
 			<% if (quest.status === 'ended' && quest.rewarded) { %><span class="quest-rewarded">Reward sent</span><% } %>
-			<% if (joined && quest.status !== 'ended') { %>
+			<% if (joined && !['ended', 'archived'].includes(quest.status)) { %>
 				<div class="quest-actions">
 					<% if (!joinedQuest) { %>
 					<form method="post" action="/communities/<%= community._id %>/quests/<%= quest._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" type="submit">Join quest</button></form>
 					<% } else { %>
+					<a class="button button-small button-ghost" href="/dashboard?quest=<%= quest._id %>">Post for quest</a>
 					<form method="post" action="/communities/<%= community._id %>/quests/<%= quest._id %>/complete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit"><%= doneQuest ? 'Undo complete' : 'Complete quest' %></button></form>
 					<form method="post" action="/communities/<%= community._id %>/quests/<%= quest._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-dark" type="submit">Leave</button></form>
 					<% } %>
@@ -68,6 +69,7 @@
 				<%- include('../partials/avatar', { person: post.author, size: 'small', link: false }) %>
 				<div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %><% if (moderatorIds.includes(String(post.author?._id))) { %> <span style="color:#ff9850;font-size:10px;">MOD</span><% } %></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %><% if (community.pinnedPosts?.some((id) => String(id) === String(post._id))) { %> · Pinned<% } %></span></div>
 			</div>
+			<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
 			<p class="post-body"><%= post.body %></p>
 			<% if ((post.media || [])[0]) { %><div class="post-media count-1"><div class="post-media-frame"><% if (post.media[0].kind === 'image') { %><img src="<%= post.media[0].thumbnailUrl || post.media[0].url %>" alt="" loading="lazy"><% } %></div></div><% } %>
 			<div class="post-stat-row" aria-hidden="true"><span><%- icon('heart', { size: 14 }) %><%= post.likes?.length || 0 %></span><span><%- icon('message-circle', { size: 14 }) %><%= post.commentsCount || 0 %></span><span><%- icon('send', { size: 14 }) %><%= post.sharesCount || 0 %></span><span><%- icon('eye', { size: 14 }) %><%= post.viewsCount || 0 %></span></div>

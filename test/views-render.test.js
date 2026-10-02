@@ -79,18 +79,20 @@ test('direct message and group pages render a chat panel with no full-page form 
 
 test('post cards render co-author credit when a post is collaborative', async () => {
   const html = await render('partials/post-card.ejs', {
-    post: { ...post(1), author: { _id: 'u1', name: 'Me' }, coAuthors: [{ _id: 'u2', name: 'Priya' }, { _id: 'u3', name: 'Aadi' }], community: null, body: 'Collab post', likes: [], commentsCount: 0, sharesCount: 0, viewsCount: 0 },
+    post: { ...post(1), author: { _id: 'u1', name: 'Me' }, coAuthors: [{ _id: 'u2', name: 'Priya' }, { _id: 'u3', name: 'Aadi' }], community: null, questTitle: 'Weekly sketch sprint', body: 'Collab post', likes: [], commentsCount: 0, sharesCount: 0, viewsCount: 0 },
     csrfToken: 'tok',
     currentUser: { id: 'u1', name: 'Me' }
   });
   assert.match(html, /with Priya/);
   assert.match(html, /Aadi/);
+  assert.match(html, /Quest post/);
+  assert.match(html, /Weekly sketch sprint/);
 });
 
 test('post page: flat actions, send-to-chat share, comment box, no Quote', async () => {
   const html = await render('pages/post-detail.ejs', {
     title: 'p', pagePath: '/posts/p1', comments: [{}],
-    post: { ...post(1), liked: true, bookmarked: false, poll: null, quotedPost: null, replyTo: null },
+    post: { ...post(1), liked: true, bookmarked: false, poll: null, quotedPost: null, replyTo: null, questTitle: 'Weekly sketch sprint' },
     commentTree: [{ _id: 'c1', author: { _id: 'a2', name: 'B' }, body: 'hi', gif: { url: 'https://media.giphy.com/c.gif' }, createdAt: new Date(), likes: [], children: [] }]
   });
   assert.match(html, /data-share-open/);
@@ -101,6 +103,7 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
   assert.match(html, /class="comment-gif"/);
   assert.match(html, /post-view-actions/);
   assert.match(html, /data-share-count-for="p1"/);
+  assert.match(html, /Quest post · Weekly sketch sprint/);
 });
 
 test('group info: admins see management tools, plain members do not', async () => {
@@ -123,11 +126,19 @@ test('dashboard still renders with the share button and share sheet in the foote
   const html = await render('pages/dashboard.ejs', {
     title: 't', pagePath: '/dashboard', noIndex: true,
     feed: { posts: [post(1)], visiblePosts: [post(1)], hasMore: true, activeTab: 'for-you', note: 'n' },
-    communities: [], people: [], joinedCommunities: [], following: []
+    communities: [], composerCommunities: [{ _id: 'c1', name: 'Sketch Club' }],
+    availableQuests: [{ _id: 'q1', title: 'Weekly sketch sprint', community: { _id: 'c1', name: 'Sketch Club' } }],
+    selectedQuestId: 'q1', selectedCommunityId: 'c1',
+    people: [], joinedCommunities: [], following: []
   });
   assert.match(html, /data-share-open/);
   assert.match(html, /data-share-sheet/);
   assert.match(html, /feed-sentinel/);
+  assert.match(html, /name="quest"/);
+  assert.match(html, /Weekly sketch sprint/);
+  assert.doesNotMatch(html, /name="quest"[^>]*disabled/);
+  assert.match(html, /value="c1" selected/);
+  assert.match(html, /value="q1" data-community="c1" selected/);
 });
 
 test('docs page renders the API endpoints, and info pages cover help', async () => {
@@ -149,11 +160,15 @@ test('community detail renders a quest board with member actions', async () => {
     community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', category: 'design', description: 'Share ideas', hashtags: ['design'], membersCount: 12, isPrivate: false, owner: { _id: 'u1', name: 'Puneet' }, members: ['u1', 'u2'], moderators: [], pinnedPosts: [] },
     posts: [], members: [{ _id: 'u1', name: 'Puneet' }, { _id: 'u2', name: 'Asha' }],
     moderatorIds: ['u1'], joined: true, requested: false, isOwner: true, locked: false,
-    quests: [{ _id: 'q1', title: 'Ship a mockup', description: 'Post one visual concept this week.', reward: 'Community badge', participants: [{ _id: 'u2', name: 'Asha' }], completedBy: [], creator: { _id: 'u1', name: 'Puneet' } }]
+    quests: [
+      { _id: 'q1', title: 'Ship a mockup', description: 'Post one visual concept this week.', reward: 'Community badge', participants: [{ _id: 'u2', name: 'Asha' }], completedBy: [], creator: { _id: 'u1', name: 'Puneet' } },
+      { _id: 'q3', title: 'Share your process', participants: [{ _id: 'u1', name: 'Puneet' }], completedBy: [], creator: { _id: 'u1', name: 'Puneet' } }
+    ]
   });
   assert.match(html, /Quest board/);
   assert.match(html, /Ship a mockup/);
   assert.match(html, /Join quest/);
+  assert.match(html, /href="\/dashboard\?quest=q3"/);
 });
 
 test('ended quests show the winner and reward state', async () => {

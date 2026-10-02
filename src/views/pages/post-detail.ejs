@@ -24,6 +24,7 @@
 				<span><%= post.community?.name || 'Open Crowdwide' %> · <time datetime="<%= new Date(post.createdAt).toISOString() %>"><%= new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time></span>
 			</div>
 		</header>
+		<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
 		<div class="post-view-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
 		<% if (post.poll?.question && post.poll.options?.length) { %>
 		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %></section>
