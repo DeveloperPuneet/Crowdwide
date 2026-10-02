@@ -31,7 +31,8 @@
 				<p class="community-map-tile-error" data-map-tile-error role="status" hidden>Map tiles are blocked on this connection. Try again on another network to place the location pin.</p>
 				<input type="hidden" name="locationLat" data-location-lat value="<%= community.locationLat ?? '' %>">
 				<input type="hidden" name="locationLng" data-location-lng value="<%= community.locationLng ?? '' %>">
-				<div class="community-location-actions"><small>Click the map to place or move the community pin.</small><button type="button" class="button button-small button-ghost" data-clear-community-location>Clear location</button></div>
+				<div class="community-location-actions"><button type="button" class="button button-small button-ghost" data-use-current-location><%- icon('map-pin', { size: 14 }) %> Use current location</button><button type="button" class="button button-small button-ghost" data-clear-community-location>Clear location</button></div>
+				<p class="community-location-status" data-location-status role="status" aria-live="polite"></p>
 			</fieldset>
 			<label>Community guidelines<textarea name="guidelines" maxlength="4000" placeholder="What's expected from members here?"><%= community.guidelines || '' %></textarea></label>
 			<label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community <small>(new members must be approved to join)</small></label>

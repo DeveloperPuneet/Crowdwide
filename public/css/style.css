@@ -806,8 +806,10 @@ html { scrollbar-gutter: stable; }
 .community-location-settings > label:not(.privacy-check) { display: grid; gap: 5px; }
 .community-location-settings small { color: #9699ac; font-size: 10px; }
 .community-location-map { width: 100%; height: 260px; border-radius: 7px; background: #d9e4df; }
-.community-location-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.community-location-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .community-location-actions small { min-width: 0; }
+.community-location-status { margin: 0; color: #9de1d8; font-size: 11px; line-height: 1.5; }
+.community-location-status:empty { display: none; }
 .leaflet-container { font: inherit; }
 .leaflet-popup-content-wrapper { border-radius: 8px; }
 .explore-hero { border-bottom: 1px solid var(--line); padding-bottom: 44px; }

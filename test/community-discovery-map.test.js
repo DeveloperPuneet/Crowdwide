@@ -142,3 +142,62 @@ test('map tile loading follows OSM policy and falls back to CARTO and optional M
   assert.match(withKey.urls[2], /api\.maptiler\.com/);
   assert.match(withKey.urls[2], /key=test-key/);
 });
+
+test('current-location control rounds the pin and fills a broad reverse-geocoded label', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'community-map.js'), 'utf8');
+  let onClick;
+  let geoSuccess;
+  let requestedUrl;
+  let mapCenter;
+  const latitudeInput = { value: '' };
+  const longitudeInput = { value: '' };
+  const showOnMap = { checked: false };
+  const locationLabel = { value: '' };
+  const locationStatus = { textContent: '' };
+  const locationButton = { disabled: false, addEventListener: (event, callback) => { if (event === 'click') onClick = callback; } };
+  const mapContainer = { dataset: { lat: '', lng: '', mapApiKey: 'test-key' }, parentElement: { querySelector: () => ({ hidden: true }) } };
+  const map = {
+    setView(center) { mapCenter = center; return this; },
+    getZoom() { return 2; },
+    on() {},
+    removeLayer() {}
+  };
+  const document = {
+    querySelector(selector) {
+      return {
+        '[data-location-lat]': latitudeInput,
+        '[data-location-lng]': longitudeInput,
+        '[data-show-on-map]': showOnMap,
+        '[data-location-label]': locationLabel,
+        '[data-use-current-location]': locationButton,
+        '[data-location-status]': locationStatus
+      }[selector] || null;
+    },
+    querySelectorAll: (selector) => selector === '[data-owner-location-map]' ? [mapContainer] : []
+  };
+  const L = {
+    map: () => map,
+    tileLayer: () => ({ on() { return this; }, addTo() { return this; } }),
+    marker: () => ({ addTo() { return this; }, setLatLng() { return this; } })
+  };
+  const navigator = { geolocation: { getCurrentPosition: (success, failure, options) => { geoSuccess = { success, failure, options }; } } };
+  const fetch = async (url) => {
+    requestedUrl = String(url);
+    return { ok: true, json: async () => ({ features: [{ place_type: ['locality'], text: 'Mountain View', context: [{ id: 'region.1', text: 'California' }, { id: 'country.1', text: 'United States' }] }] }) };
+  };
+
+  vm.runInNewContext(source, { document, L, navigator, fetch, URLSearchParams, encodeURIComponent, Math });
+  onClick();
+  assert.equal(locationButton.disabled, true);
+  assert.equal(geoSuccess.options.enableHighAccuracy, false);
+  await geoSuccess.success({ coords: { latitude: 37.4219, longitude: -122.0841 } });
+
+  assert.equal(latitudeInput.value, '37.42');
+  assert.equal(longitudeInput.value, '-122.08');
+  assert.equal(showOnMap.checked, true);
+  assert.equal(locationLabel.value, 'Mountain View, California, United States');
+  assert.match(requestedUrl, /api\.maptiler\.com\/geocoding\/\-122\.08,37\.42/);
+  assert.deepEqual(Array.from(mapCenter), [37.42, -122.08]);
+  assert.equal(locationButton.disabled, false);
+  assert.match(locationStatus.textContent, /Review it, then save community controls/);
+});

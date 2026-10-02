@@ -46,7 +46,7 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
       directives: {
         scriptSrc: ["'self'", ...turnstileOrigins],
         frameSrc: ["'self'", ...turnstileOrigins],
-        connectSrc: ["'self'", ...turnstileOrigins],
+        connectSrc: ["'self'", 'https://api.maptiler.com', ...turnstileOrigins],
         // GIFs come from GIPHY's CDN; blob: lets upload previews render.
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://api.maptiler.com', ...mediaOrigins]
       }

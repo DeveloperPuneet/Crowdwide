@@ -50,7 +50,10 @@ function addLocationPicker(mapContainer) {
   const longitudeInput = document.querySelector('[data-location-lng]');
   const showOnMap = document.querySelector('[data-show-on-map]');
   const locationLabel = document.querySelector('[data-location-label]');
+  const useCurrentLocationButton = document.querySelector('[data-use-current-location]');
+  const locationStatus = document.querySelector('[data-location-status]');
   const clearButton = document.querySelector('[data-clear-community-location]');
+  const apiKey = mapContainer.dataset.mapApiKey || '';
   const latitude = Number(mapContainer.dataset.lat);
   const longitude = Number(mapContainer.dataset.lng);
   const hasLocation = Number.isFinite(latitude) && Number.isFinite(longitude) && mapContainer.dataset.lat !== '' && mapContainer.dataset.lng !== '';
@@ -65,7 +68,61 @@ function addLocationPicker(mapContainer) {
     if (marker) marker.setLatLng([roundedLat, roundedLng]);
     else marker = L.marker([roundedLat, roundedLng]).addTo(map);
     showOnMap.checked = true;
+    map.setView([roundedLat, roundedLng], Math.max(map.getZoom(), 7));
   };
+  const reverseGeocode = async (lat, lng) => {
+    if (!apiKey) return '';
+    const params = new URLSearchParams({ key: apiKey, limit: '1', types: 'place,locality,district,region,country' });
+    const response = await fetch(`https://api.maptiler.com/geocoding/${lng},${lat}.json?${params}`, {
+      headers: { Accept: 'application/json' },
+      credentials: 'omit'
+    });
+    if (!response.ok) return '';
+    const data = await response.json();
+    const feature = data.features?.[0];
+    if (!feature) return '';
+    const broadTypes = new Set(['place', 'locality', 'district', 'region', 'country']);
+    const names = [];
+    if ((feature.place_type || []).some((type) => broadTypes.has(type)) && feature.text) names.push(feature.text);
+    for (const item of feature.context || []) {
+      const type = String(item.id || '').split('.')[0];
+      if (broadTypes.has(type) && item.text) names.push(item.text);
+    }
+    return [...new Set(names)].slice(0, 4).join(', ');
+  };
+  useCurrentLocationButton?.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      if (locationStatus) locationStatus.textContent = 'This browser does not support location access.';
+      return;
+    }
+    useCurrentLocationButton.disabled = true;
+    if (locationStatus) locationStatus.textContent = 'Requesting location permission…';
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      const lat = Number(coords.latitude.toFixed(2));
+      const lng = Number(coords.longitude.toFixed(2));
+      setLocation(lat, lng);
+      locationLabel.value = 'Approximate location';
+      if (locationStatus) locationStatus.textContent = 'Pin set to an approximate location. Finding a city or region…';
+      if (apiKey) {
+        try {
+          const placeName = await reverseGeocode(lat, lng);
+          if (placeName) locationLabel.value = placeName.slice(0, 100);
+        } catch (error) {
+          // Keep the approximate location label if reverse geocoding is unavailable.
+        }
+      }
+      if (locationStatus) locationStatus.textContent = `Location set: ${locationLabel.value}. Review it, then save community controls.`;
+      useCurrentLocationButton.disabled = false;
+    }, (error) => {
+      const messages = {
+        1: 'Location permission was denied. Allow location access in your browser settings and try again.',
+        2: 'Your current location is unavailable. Try again or click the map to place the pin.',
+        3: 'Location request timed out. Try again or click the map to place the pin.'
+      };
+      if (locationStatus) locationStatus.textContent = messages[error.code] || 'Could not get your location. Try again or click the map to place the pin.';
+      useCurrentLocationButton.disabled = false;
+    }, { enableHighAccuracy: false, maximumAge: 60000, timeout: 12000 });
+  });
   if (hasLocation) marker = L.marker([latitude, longitude]).addTo(map);
   map.on('click', (event) => setLocation(event.latlng.lat, event.latlng.lng));
   clearButton?.addEventListener('click', () => {
@@ -73,6 +130,7 @@ function addLocationPicker(mapContainer) {
     longitudeInput.value = '';
     locationLabel.value = '';
     showOnMap.checked = false;
+    if (locationStatus) locationStatus.textContent = '';
     if (marker) map.removeLayer(marker);
     marker = null;
   });
