@@ -1,37 +1,7 @@
 const nodemailer = require('nodemailer');
-<<<<<<< HEAD
 const { mailAllowed } = require('./environment');
 const MailComposer = require('nodemailer/lib/mail-composer');
 const logger = require('./logger');
-=======
-const contactEmail = 'developerpuneet2010@gmail.com';
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  })[character]);
-}
-
-function emailLayout(preheader, content) {
-  return `<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#f2f3f8;color:#202238;font-family:Arial,Helvetica,sans-serif;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(preheader)}</div>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f2f3f8;padding:36px 14px;">
-      <tr><td align="center">
-        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #e2e4ef;border-radius:12px;overflow:hidden;">
-          <tr><td style="height:5px;background:#ff8a30;font-size:0;line-height:0;">&nbsp;</td></tr>
-          <tr><td style="padding:28px 34px 12px;"><div style="font-size:17px;font-weight:700;color:#171a30;">Crowdwide</div></td></tr>
-          <tr><td style="padding:12px 34px 30px;">${content}</td></tr>
-          <tr><td style="padding:18px 34px;border-top:1px solid #e7e8f0;color:#777a91;font-size:12px;line-height:1.6;">Need help? <a href="mailto:${contactEmail}" style="color:#5068ff;text-decoration:underline;">${contactEmail}</a></td></tr>
-        </table>
-      </td></tr>
-    </table>
-  </body></html>`;
-}
->>>>>>> ca1c18a (feat: update email handling and improve mailer layout for verification and alerts)
 
 // ---------------------------------------------------------------------------
 // How mail leaves Crowdwide
@@ -294,7 +264,6 @@ async function sendTestEmail(to) {
 }
 
 async function sendVerificationCode(user, code) {
-<<<<<<< HEAD
   const bodyText = 'Welcome to Crowdwide. Confirm that this email address belongs to you to finish creating your account.';
   const verifyUrl = `${env('APP_URL') || 'https://www.crowdwide.run.place'}/auth/verify?email=${encodeURIComponent(user.email)}`;
   const message = {
@@ -313,16 +282,6 @@ async function sendVerificationCode(user, code) {
       actionLabel: 'Continue verification',
       note: 'This code expires in 15 minutes. Never share it with anyone; Crowdwide will never ask you to do so.'
     })
-=======
-  const transporter = getTransporter();
-  const safeCode = escapeHtml(code);
-  const message = {
-    from: process.env.MAIL_FROM || process.env.GMAIL_USER || `Crowdwide <${contactEmail}>`,
-    to: user.email,
-    subject: 'Your Crowdwide verification code',
-    text: `Your Crowdwide verification code is ${code}. It expires in 15 minutes.`,
-    html: emailLayout('Your Crowdwide sign-up code is ready.', `<h1 style="margin:0 0 12px;color:#171a30;font-size:25px;line-height:1.25;">Welcome to Crowdwide</h1><p style="margin:0 0 22px;color:#5d6076;font-size:15px;line-height:1.65;">Enter this code to verify your email address and finish setting up your account.</p><div style="padding:19px 16px;background:#f6f7fc;border:1px solid #e4e6f0;border-radius:8px;color:#171a30;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:30px;font-weight:700;letter-spacing:7px;">${safeCode}</div><p style="margin:18px 0 0;color:#777a91;font-size:13px;line-height:1.6;">This code expires in 15 minutes. If you did not create a Crowdwide account, you can ignore this message.</p>`)
->>>>>>> ca1c18a (feat: update email handling and improve mailer layout for verification and alerts)
   };
   await deliver(message, `Verification code for ${user.email}: ${code}`);
 }
@@ -339,7 +298,6 @@ async function sendSecurityAlert(user, { subject, heading, message, details = []
 }
 
 async function sendNewDeviceAlert(user, details) {
-<<<<<<< HEAD
   return sendSecurityAlert(user, {
     subject: 'New Crowdwide sign-in',
     heading: 'A new device signed in',
@@ -350,23 +308,6 @@ async function sendNewDeviceAlert(user, details) {
     ],
     note: 'If this was you, no action is needed. If you do not recognize this sign-in, change your password and review account security.'
   });
-=======
-  const transporter = getTransporter();
-  const ipAddress = details.ipAddress || 'an unknown IP';
-  const userAgent = details.userAgent || 'Unknown browser';
-  const message = {
-    from: process.env.MAIL_FROM || process.env.GMAIL_USER || `Crowdwide <${contactEmail}>`,
-    to: user.email,
-    subject: 'New Crowdwide sign-in',
-    text: `A new device signed in to your Crowdwide account from ${ipAddress} using ${userAgent}. If this was not you, change your password immediately.`,
-    html: emailLayout('A new device signed in to your Crowdwide account.', `<h1 style="margin:0 0 12px;color:#171a30;font-size:25px;line-height:1.25;">New sign-in detected</h1><p style="margin:0 0 22px;color:#5d6076;font-size:15px;line-height:1.65;">A device recently signed in to your Crowdwide account. Here are the details we recorded:</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f7fc;border:1px solid #e4e6f0;border-radius:8px;"><tr><td style="padding:15px 17px;color:#777a91;font-size:12px;">IP address</td><td style="padding:15px 17px;color:#171a30;font-size:13px;text-align:right;word-break:break-word;">${escapeHtml(ipAddress)}</td></tr><tr><td colspan="2" style="padding:0 17px;"><div style="height:1px;background:#e2e4ef;"></div></td></tr><tr><td style="padding:15px 17px;color:#777a91;font-size:12px;vertical-align:top;">Browser</td><td style="padding:15px 17px;color:#171a30;font-size:13px;text-align:right;word-break:break-word;">${escapeHtml(userAgent)}</td></tr></table><p style="margin:20px 0 0;padding:14px 16px;background:#fff6ed;border-left:3px solid #ff8a30;color:#744b2a;font-size:13px;line-height:1.6;"><strong>Wasn't you?</strong> Change your Crowdwide password immediately and review the security settings on your account.</p>`)
-  };
-  if (!transporter) {
-    console.log(`[Crowdwide mail preview] New device for ${user.email}: ${message.text}`);
-    return;
-  }
-  await transporter.sendMail(message);
->>>>>>> ca1c18a (feat: update email handling and improve mailer layout for verification and alerts)
 }
 
 async function sendPasswordResetLink(user, resetUrl) {

@@ -107,17 +107,9 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
 
 ## Quick start
 
-<<<<<<< HEAD
-1. Install Node.js 22+ and MongoDB.
-2. Install dependencies: `npm install`
-3. Copy `.env.example` to `.env` and fill it in - see **Environment
-   variables** below for what each one does and where to get it.
-4. Start development mode: `npm run dev`
-5. Open `http://localhost:3000`
-=======
 ### Requirements
 
-- Node.js 18 or newer
+- Node.js 22 or newer
 - MongoDB running locally or a MongoDB Atlas connection string
 
 ### Install and run
@@ -136,7 +128,6 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000). To run the test suite, use `npm test`. For a production-style start, use `npm start`.
 
 Email delivery is optional during local development. Without mail credentials, verification codes and security email previews are written to the server log. See [Email delivery](#email-delivery) to configure Gmail OAuth2 or SMTP.
->>>>>>> ca1c18a (feat: update email handling and improve mailer layout for verification and alerts)
 
 Without mail configured, verification codes and security emails print to
 the server log instead of sending - fine for local development, not for
@@ -276,13 +267,10 @@ code anywhere.
 - `src/utils` - small shared helpers (hashtags, spam detection, posting
   restrictions, private-community visibility)
 - `src/views` - EJS pages and partials
-<<<<<<< HEAD
 - `public` - static assets, styles, service worker, and browser scripts
 - `test` - DB-free unit tests (`npm test`) and end-to-end tests requiring
   MongoDB (`npm run test:e2e`) - see **Testing** below
 - `scripts` - operational scripts (backup, restore verification)
-=======
-- `public` - static assets, styles, and browser scripts
 
 ## Public pages and SEO
 
@@ -305,7 +293,6 @@ Communities can be open or private. Open communities accept members immediately;
 ## Social interactions and security
 
 Likes, bookmarks, nested/threaded comments (with reply-to-reply), share counters, hashtags, and notifications are stored in MongoDB. Posts and communities support `#hashtags`, searchable from `/search?q=%23tag` or by typing `#tag` in the search box. Users can follow/unfollow and block/unblock each other; blocking removes any follow relationship and filters the blocked account's posts, comments, and notifications out of your feed and search results. A profile's Followers and Following counts open a dedicated page (`/u/:id/followers`, `/u/:id/following`) with suggestions. Helmet security headers, CSRF tokens, authentication rate limits, interaction rate limits, five-attempt login lockouts, 75-day device records, and new-device email alerts are enabled. Users can configure TOTP two-factor authentication at `/settings/security/2fa`, which issues eight one-time recovery codes (downloadable as a .txt file) for signing in if the authenticator app is unavailable; codes can be regenerated at any time with a password confirmation.
->>>>>>> ca1c18a (feat: update email handling and improve mailer layout for verification and alerts)
 
 ## Extended media storage (multi-cluster MongoDB)
 
@@ -335,7 +322,6 @@ scanned through a ClamAV daemon before it's accepted - see
 
 ## Testing
 
-<<<<<<< HEAD
 - `npm test` - the DB-free unit suite (permission logic, upload
   validation, mailer/alerting resilience, link previews, spam detection,
   CAPTCHA, the private-community access gate, and more). No setup beyond
@@ -347,7 +333,7 @@ scanned through a ClamAV daemon before it's accepted - see
   auto-downloaded in-memory instance via `mongodb-memory-server`.
 - CI runs both automatically on every push/PR - see
   `.github/workflows/ci.yml` and `DEPLOYMENT.md`.
-=======
+
 ## Profiles, following, and search
 
 Every author name and avatar across the app links to a public profile at `/u/:id`, showing a banner image, bio, up to four custom links, join date, post count, followers/following counts, and that user's posts. Viewing your own profile shows an additional "Recent activity" feed (your latest likes and comments) and a "People to follow" panel, Twitter-style. Users can follow, unfollow, or block each other; following/blocking are reflected immediately (AJAX). The home feed mixes posts from people you follow, a second-degree "extended network" (people your follows follow, and people who follow your followers), new voices and communities, and larger communities - so growing accounts and new communities are not permanently buried under popularity, and the feed lazy-loads further posts as you scroll. `/search?q=` searches people, communities, hashtags, and post text in one place and is wired to the header search box and the mobile menu on every page.
@@ -370,7 +356,6 @@ Crowdwide supports Gmail OAuth2 and generic SMTP. Configure either provider in `
 6. Set `MAIL_FROM` to the same verified sender address as `GMAIL_USER`.
 
 The mailer uses Gmail OAuth2 through Nodemailer, so no Gmail password or less-secure-app access is required. `MAIL_FROM` should use the verified sender address configured as `GMAIL_USER`. For generic SMTP, set `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASS`, and `MAIL_FROM`; do not set `MAIL_PROVIDER=gmail`. In production, store credentials in your deployment platform's secret manager or Google Secret Manager.
->>>>>>> ca1c18a (feat: update email handling and improve mailer layout for verification and alerts)
 
 ## Routes
 
@@ -397,7 +382,6 @@ The mailer uses Gmail OAuth2 through Nodemailer, so no Gmail password or less-se
 - `/rss.xml`; `/api/v1/posts` (see `API.md`)
 - `/people` people to follow: common interests, mutual network, trending creators, new joiners
 - `/guide` tips for growing a profile, a community, and staying secure
-<<<<<<< HEAD
 - `/docs` public API reference; `/help` frequently asked questions
 - `/about`, `/about/developer`, `/privacy`, `/terms`,
   `/community-guidelines`, `/accessibility`, `/contact`
@@ -414,10 +398,7 @@ error alerting are covered in [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 ## Roadmap
 
 `todo.txt` lists what has been built and what is planned next.
-=======
-- `/about`, `/privacy`, `/terms`, `/community-guidelines`, `/accessibility`, `/contact`
 
 ## Contact
 
 For product feedback, bug reports, accessibility concerns, or security questions, email [developerpuneet2010@gmail.com](mailto:developerpuneet2010@gmail.com). Do not include passwords, recovery codes, OAuth tokens, or other secrets in support messages.
->>>>>>> ca1c18a (feat: update email handling and improve mailer layout for verification and alerts)
