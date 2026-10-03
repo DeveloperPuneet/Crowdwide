@@ -173,7 +173,7 @@ for the full walkthrough)
 - `CLAMAV_HOST`/`CLAMAV_PORT` or `CLAMAV_SOCKET`, plus optional
   `CLAMAV_REQUIRED`/`CLAMAV_FAIL_OPEN` - upload virus scanning against a
   ClamAV daemon. See `DEPLOYMENT.md`.
-- `LIBRETRANSLATE_URL` and optional `LIBRETRANSLATE_API_KEY` - post/comment
+- Translation works with no setup (free built-in providers; `TRANSLATE_FREE_FALLBACK=off` disables). Optional: `LIBRETRANSLATE_URL` and optional `LIBRETRANSLATE_API_KEY` - post/comment
   translation via a self-hosted LibreTranslate service. An optional
   `GOOGLE_TRANSLATE_API_KEY` enables paid fallback translation.
 - `GCS_PROJECT_ID`, `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`,

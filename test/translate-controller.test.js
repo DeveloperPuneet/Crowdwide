@@ -24,7 +24,7 @@ function mockRes() {
 }
 
 test('returns 503 when no provider is configured', async () => {
-  await withEnv({ GOOGLE_TRANSLATE_API_KEY: undefined, LIBRETRANSLATE_URL: undefined }, async () => {
+  await withEnv({ TRANSLATE_FREE_FALLBACK: 'off', GOOGLE_TRANSLATE_API_KEY: undefined, LIBRETRANSLATE_URL: undefined }, async () => {
     const controller = freshController();
     const res = mockRes();
     await controller.translate({ body: { text: 'hi', target: 'es' } }, res);
@@ -34,7 +34,7 @@ test('returns 503 when no provider is configured', async () => {
 });
 
 test('rejects missing text or a malformed target language code', async () => {
-  await withEnv({ GOOGLE_TRANSLATE_API_KEY: 'k' }, async () => {
+  await withEnv({ TRANSLATE_FREE_FALLBACK: 'off', GOOGLE_TRANSLATE_API_KEY: 'k' }, async () => {
     const controller = freshController();
     const res1 = mockRes();
     await controller.translate({ body: { text: '   ', target: 'es' } }, res1);
@@ -46,7 +46,7 @@ test('rejects missing text or a malformed target language code', async () => {
 });
 
 test('a successful translation returns the translated text', async () => {
-  await withEnv({ GOOGLE_TRANSLATE_API_KEY: 'k' }, async () => {
+  await withEnv({ TRANSLATE_FREE_FALLBACK: 'off', GOOGLE_TRANSLATE_API_KEY: 'k' }, async () => {
     const controller = freshController();
     const translateService = require('../src/services/translate');
     const originalFetch = global.fetch;
@@ -60,7 +60,7 @@ test('a successful translation returns the translated text', async () => {
 });
 
 test('a provider error surfaces as a 502 without leaking the internal error', async () => {
-  await withEnv({ GOOGLE_TRANSLATE_API_KEY: 'k' }, async () => {
+  await withEnv({ TRANSLATE_FREE_FALLBACK: 'off', GOOGLE_TRANSLATE_API_KEY: 'k' }, async () => {
     const controller = freshController();
     const originalFetch = global.fetch;
     global.fetch = async () => { throw new Error('network down'); };

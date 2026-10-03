@@ -106,6 +106,11 @@ When available, confirm the daemon with the standard, harmless
 
 ## Translation
 
+Translation works out of the box, free, with no key or extra service: it uses
+free public endpoints (Google's web-translate endpoint, then MyMemory as a
+backup). Those are unofficial/rate-limited, so for heavy traffic add the
+optional providers below. Set `TRANSLATE_FREE_FALLBACK=off` to disable the built-in ones.
+
 Posts and comments have a "Translate" button, backed by
 `src/services/translate.js`. With no provider configured it just tells
 the viewer translation isn't available - nothing else breaks. Two
