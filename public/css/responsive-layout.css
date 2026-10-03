@@ -1,0 +1,506 @@
+/* Shared tablet and mobile layout rules. Keep these after page styles so each
+   page gets the same responsive behavior without changing its desktop design. */
+
+:root {
+  --responsive-gutter: clamp(14px, 4vw, 28px);
+}
+
+@media (max-width: 1180px) {
+  .app-layout,
+  .app-layout.sidebar-collapsed {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .app-layout .discover-column {
+    display: none;
+  }
+
+  .app-nav {
+    padding-inline: var(--responsive-gutter);
+  }
+
+  .app-nav nav {
+    gap: clamp(10px, 2vw, 22px);
+    margin-left: 0;
+  }
+
+  .profile-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    gap: 24px;
+  }
+
+  .community-map-layout {
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, .9fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-nav,
+  .site-nav {
+    min-height: 64px;
+    height: auto;
+    padding-block: 10px;
+  }
+
+  .app-nav nav,
+  .site-nav .nav-links {
+    display: none;
+  }
+
+  .app-nav .nav-menu-toggle,
+  .site-nav .nav-menu-toggle {
+    display: inline-flex;
+  }
+
+  .app-nav .welcome {
+    display: none;
+  }
+
+  .app-layout,
+  .app-layout.sidebar-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 24px var(--responsive-gutter) 44px;
+  }
+
+  .app-layout .app-sidebar,
+  .app-layout .sidebar-toggle {
+    display: none;
+  }
+
+  .app-layout .discover-column {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    order: 3;
+  }
+
+  .settings-layout,
+  .owner-layout,
+  .profile-layout {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .community-map-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .community-map-canvas {
+    height: min(58vh, 560px);
+    min-height: 320px;
+  }
+
+  .community-map-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 10px;
+    max-height: none;
+    padding-right: 0;
+  }
+
+  .community-map-row {
+    margin: 0;
+  }
+
+  .chat-main {
+    padding-inline: 0;
+  }
+
+  .chat-shell {
+    height: calc(100dvh - var(--header-h) - 32px);
+    min-height: 380px;
+    border-radius: 12px;
+  }
+
+  .chat-page .chat-shell {
+    height: calc(100dvh - var(--header-h));
+    border-radius: 0;
+  }
+
+  .chat-header {
+    flex-wrap: wrap;
+  }
+
+  .chat-search {
+    flex: 1 1 100%;
+    order: 2;
+  }
+}
+
+@media (max-width: 760px) {
+  .container {
+    width: calc(100% - 2 * var(--responsive-gutter));
+  }
+
+  .app-nav {
+    gap: 8px;
+    padding-inline: var(--responsive-gutter);
+  }
+
+  .app-nav-actions {
+    gap: 8px;
+  }
+
+  .app-nav .brand,
+  .site-nav .brand {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .app-layout,
+  .app-layout.sidebar-collapsed {
+    padding: 18px var(--responsive-gutter) 34px;
+  }
+
+  .feed-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .feed-heading h1 {
+    font-size: clamp(25px, 7vw, 34px);
+    letter-spacing: -1px;
+  }
+
+  .feed-tabs {
+    gap: 14px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .feed-tabs a {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .feed-tabs span {
+    flex: none;
+  }
+
+  .post-card,
+  .composer,
+  .discover-panel,
+  .settings-block,
+  .recap-panel {
+    padding: 16px;
+  }
+
+  .composer {
+    gap: 9px;
+  }
+
+  .composer-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .composer-actions > * {
+    min-width: 0;
+  }
+
+  .composer-actions .button {
+    min-height: 40px;
+  }
+
+  .post-actions {
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .post-actions form,
+  .post-actions > * {
+    min-width: 0;
+  }
+
+  .settings-layout,
+  .owner-layout,
+  .profile-layout,
+  .explore-page,
+  .community-detail,
+  .community-directory,
+  .community-map-page,
+  .community-radar-page,
+  .notifications-page,
+  .conversations-page,
+  .post-detail-page {
+    padding-inline: var(--responsive-gutter);
+  }
+
+  .settings-layout {
+    padding-top: 28px;
+    padding-bottom: 56px;
+  }
+
+  .settings-nav {
+    margin-bottom: 20px;
+  }
+
+  .settings-nav h1,
+  .settings-content h2 {
+    font-size: clamp(25px, 7vw, 34px);
+  }
+
+  .settings-tabs,
+  .settings-nav > .settings-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settings-block-heading {
+    flex-wrap: wrap;
+  }
+
+  .settings-block-heading > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .owner-hero h1 {
+    font-size: clamp(34px, 9vw, 48px);
+    overflow-wrap: anywhere;
+  }
+
+  .owner-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .explore-grid,
+  .explore-viral-grid,
+  .explore-people-cols,
+  .search-discovery-grid,
+  .info-sections,
+  .guide-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .explore-search,
+  .community-map-tools {
+    width: 100%;
+  }
+
+  .explore-search {
+    display: grid;
+  }
+
+  .explore-search > *,
+  .community-map-tools > * {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .community-map-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .community-map-search {
+    flex-basis: auto;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .community-map-count {
+    width: auto;
+  }
+
+  .community-map-canvas {
+    height: 52vh;
+    min-height: 260px;
+  }
+
+  .community-map-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .conversations-page {
+    padding-top: 26px;
+    padding-bottom: 44px;
+  }
+
+  .conversations-hero h1,
+  .community-map-heading h1,
+  .community-radar-heading h1,
+  .notifications-heading h1 {
+    font-size: clamp(30px, 8vw, 44px);
+    overflow-wrap: anywhere;
+  }
+
+  .activity-row.message-row,
+  .activity-row.group-row {
+    gap: 9px;
+    padding: 12px 10px;
+  }
+
+  .activity-row.message-row p,
+  .activity-row.group-row p {
+    overflow-wrap: anywhere;
+  }
+
+  .chat-page .chat-main {
+    padding: 0;
+  }
+
+  .chat-shell,
+  .chat-page .chat-shell {
+    height: calc(100dvh - var(--header-h));
+    min-height: 0;
+    border-radius: 0;
+  }
+
+  .chat-header {
+    gap: 7px;
+    padding: 8px var(--responsive-gutter);
+  }
+
+  .chat-title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .chat-composer {
+    gap: 5px;
+    padding: 8px var(--responsive-gutter);
+  }
+
+  .chat-composer textarea {
+    flex-basis: 80px;
+    padding-inline: 13px;
+    font-size: 16px;
+  }
+
+  .chat-retention {
+    padding-inline: var(--responsive-gutter);
+  }
+
+  .message-thread .activity-row {
+    max-width: 96%;
+    padding: 10px 12px;
+  }
+
+  .recap-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .recap-topic-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .docs-table-wrap,
+  .table-scroll,
+  .admin-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .button,
+  button,
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+
+  .button,
+  button {
+    min-height: 40px;
+  }
+
+  .site-footer .footer-top,
+  .app-footer .footer-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .app-nav .brand span,
+  .site-nav .brand span {
+    font-size: 17px;
+  }
+
+  .app-nav .icon-button {
+    display: none;
+  }
+
+  .app-nav-actions {
+    gap: 6px;
+  }
+
+  .app-nav .nav-menu-toggle,
+  .site-nav .nav-menu-toggle {
+    width: 40px;
+    height: 40px;
+  }
+
+  .post-card,
+  .composer,
+  .discover-panel,
+  .settings-block {
+    padding: 13px;
+  }
+
+  .post-meta {
+    gap: 8px;
+  }
+
+  .post-body {
+    font-size: 14px;
+  }
+
+  .post-actions {
+    flex-wrap: wrap;
+  }
+
+  .composer-actions {
+    justify-content: flex-start;
+  }
+
+  .composer-actions select,
+  .composer-actions .button,
+  .media-picker {
+    max-width: 100%;
+  }
+
+  .community-row {
+    gap: 8px;
+  }
+
+  .community-members {
+    white-space: normal;
+  }
+
+  .recap-topic-list,
+  .recap-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .upload-preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (pointer: coarse) {
+  .app-nav nav a,
+  .site-nav .nav-links a,
+  .side-links a,
+  .nav-drawer-panel a,
+  .settings-tabs > a,
+  .settings-nav > a,
+  .feed-tabs a,
+  .community-map-focus {
+    min-height: 44px;
+  }
+
+  .notification-button,
+  .icon-button,
+  .nav-menu-toggle,
+  .chat-tool,
+  .chat-send {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
