@@ -19,7 +19,7 @@
     <p class="eyebrow">Identity</p><h2>Make your profile yours.</h2>
     <form class="settings-form" method="post" action="/settings/profile" enctype="multipart/form-data">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <label>Banner image<% if (user.bannerImage) { %><img src="<%= user.bannerImage %>" alt="" style="width:100%;object-fit:cover;border-radius:10px;border:1px solid #32354e;margin-bottom:6px;"><% } %><input type="file" name="bannerImage" accept="image/*"><small>Shows at the top of your profile. Up to 1.5MB.</small></label>
+      <label>Banner image<% if (user.bannerImage) { %><img src="<%= user.bannerImage %>" alt="" style="width:100%;object-fit:cover;border-radius:10px;border:1px solid var(--bd-1);margin-bottom:6px;"><% } %><input type="file" name="bannerImage" accept="image/*"><small>Shows at the top of your profile. Up to 1.5MB.</small></label>
       <label>Profile picture<%- include('../partials/avatar', { person: user, size: 'large', link: false }) %><input type="file" name="profilePicture" accept="image/*"><small>Images only, up to 1.5MB.</small></label>
       <label>Display name<input name="name" value="<%= user.name %>" maxlength="80" required></label>
       <label>Bio<textarea name="bio" maxlength="280" placeholder="What should people know about you?"><%= user.bio || '' %></textarea><small><%= (user.bio || '').length %>/280 characters</small></label>

@@ -41,7 +41,7 @@
 		<div class="explore-viral-grid">
 			<% viralPosts.forEach((post) => { %>
 			<a class="viral-card" href="/posts/<%= post._id %>">
-				<div class="post-meta"><%- include('../partials/avatar', { person: post.author, size: 'tiny', link: false }) %><div><strong style="color:#f6f6fa;"><%= post.author?.name || 'Member' %></strong></div></div>
+				<div class="post-meta"><%- include('../partials/avatar', { person: post.author, size: 'tiny', link: false }) %><div><strong style="color:var(--tx-hi);"><%= post.author?.name || 'Member' %></strong></div></div>
 				<p><%= (post.body || '').slice(0, 140) %><%= (post.body || '').length > 140 ? '…' : '' %></p>
 				<span class="viral-likes"><%- icon('heart', { size: 13 }) %> <%= post.likesTotal %></span>
 			</a>

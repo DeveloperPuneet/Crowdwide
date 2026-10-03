@@ -95,7 +95,7 @@
 			<div><strong><a class="name-link" href="/u/<%= member._id %>"><%= member.name %></a></strong><span><%= String(member._id) === String(community.owner?._id) ? 'Owner' : moderatorIds.includes(String(member._id)) ? 'Moderator' : 'Member' %></span></div>
 		</div>
 		<% }) %>
-		<% if (members.length > 12) { %><p style="color:#777a91;font-size:11px;padding-top:10px;">+<%= members.length - 12 %> more members</p><% } %>
+		<% if (members.length > 12) { %><p style="color:var(--tx-faint);font-size:11px;padding-top:10px;">+<%= members.length - 12 %> more members</p><% } %>
 	</section>
 </aside>
 </main>

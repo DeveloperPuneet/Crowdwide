@@ -5,7 +5,7 @@
 	<section class="explore-hero">
 		<p class="eyebrow">Grow your circle</p>
 		<h1>People worth<br><em>following.</em></h1>
-		<p style="color:#a7abc4;max-width:520px;margin-top:14px;">Picked from what you're into, who your network follows, and who's active right now — not just the same big accounts every time.</p>
+		<p style="color:var(--tx-lo);max-width:520px;margin-top:14px;">Picked from what you're into, who your network follows, and who's active right now — not just the same big accounts every time.</p>
 	</section>
 
 	<section class="explore-section">
@@ -13,9 +13,9 @@
 			<div class="discover-panel">
 				<div class="panel-heading"><h2>Because you're into...</h2><span>Common interests</span></div>
 				<% if (!hasInterests) { %>
-				<p style="color:#777a91;font-size:12px;padding:10px 0;">Add a few hashtags to your profile and we'll match you with people who share them.</p>
+				<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">Add a few hashtags to your profile and we'll match you with people who share them.</p>
 				<% } else if (!commonInterests.length) { %>
-				<p style="color:#777a91;font-size:12px;padding:10px 0;">No matches yet — follow a few more people or post with hashtags to sharpen this.</p>
+				<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">No matches yet — follow a few more people or post with hashtags to sharpen this.</p>
 				<% } %>
 				<% commonInterests.forEach((person) => { %>
 				<div class="discover-row">
@@ -29,7 +29,7 @@
 			<div class="discover-panel">
 				<div class="panel-heading"><h2>People you may know</h2><span>Common creators</span></div>
 				<% if (!mutualNetwork.length) { %>
-				<p style="color:#777a91;font-size:12px;padding:10px 0;">Follow a few people and we'll surface who they follow too.</p>
+				<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">Follow a few people and we'll surface who they follow too.</p>
 				<% } %>
 				<% mutualNetwork.forEach((person) => { %>
 				<div class="discover-row">
@@ -43,7 +43,7 @@
 			<div class="discover-panel">
 				<div class="panel-heading"><h2>Trending creators</h2><span>Last 7 days</span></div>
 				<% if (!trending.length) { %>
-				<p style="color:#777a91;font-size:12px;padding:10px 0;">Nothing trending yet — check back soon.</p>
+				<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">Nothing trending yet — check back soon.</p>
 				<% } %>
 				<% trending.forEach((person) => { %>
 				<div class="discover-row">
@@ -57,7 +57,7 @@
 			<div class="discover-panel">
 				<div class="panel-heading"><h2>New on Crowdwide</h2><span>Just joined</span></div>
 				<% if (!newJoiners.length) { %>
-				<p style="color:#777a91;font-size:12px;padding:10px 0;">No new members right now.</p>
+				<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">No new members right now.</p>
 				<% } %>
 				<% newJoiners.forEach((person) => { %>
 				<div class="discover-row">

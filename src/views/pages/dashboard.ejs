@@ -121,7 +121,7 @@
 		<section class="discover-panel" id="communities">
 			<div class="panel-heading"><h2>Explore communities</h2><a href="/explore">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
 			<% if (!communities.length) { %>
-			<p style="color:#777a91;font-size:12px;padding:10px 0;">No communities yet — be the first to start one below.</p>
+			<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">No communities yet — be the first to start one below.</p>
 			<% } %>
 			<% communities.forEach((community) => { %>
 			<div class="discover-row">
@@ -137,7 +137,7 @@
 		<section class="discover-panel" id="people">
 			<div class="panel-heading"><h2>People to follow</h2><a href="/people">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
 			<% if (!people.length) { %>
-			<p style="color:#777a91;font-size:12px;padding:10px 0;">You're following everyone who's joined so far.</p>
+			<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">You're following everyone who's joined so far.</p>
 			<% } %>
 			<% people.forEach((person) => { %>
 			<div class="discover-row">

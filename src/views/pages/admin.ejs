@@ -34,7 +34,7 @@
       <tbody>
       <% users.forEach((user) => { %>
         <tr data-row-text="<%= (user.name + ' ' + user.email).toLowerCase() %>">
-          <td data-label="Name"><strong><%= user.name %></strong><% if (user.moderatorId) { %><br><span style="color:#777a91"><%= user.moderatorId %></span><% } %></td>
+          <td data-label="Name"><strong><%= user.name %></strong><% if (user.moderatorId) { %><br><span style="color:var(--tx-faint)"><%= user.moderatorId %></span><% } %></td>
           <td data-label="Email"><%= user.email %></td>
           <td data-label="Role"><span class="admin-badge role-<%= user.role %>"><%= user.role %></span></td>
           <td data-label="Verified"><%= user.isVerified ? 'Yes' : 'No' %></td>
@@ -56,7 +56,7 @@
               <label class="checkbox-field"><input type="checkbox" name="isVerified" <%= user.isVerified ? 'checked' : '' %>> Verified</label>
               <% if (String(user._id) !== String(currentUser.id)) { %>
               <% if (user.suspendedUntil && new Date(user.suspendedUntil) > new Date()) { %>
-              <p class="full-width" style="margin:0;font-size:11px;color:#ff9850;">Currently suspended until <%= new Date(user.suspendedUntil).toLocaleString() %>.</p>
+              <p class="full-width" style="margin:0;font-size:11px;color:var(--ac-orange);">Currently suspended until <%= new Date(user.suspendedUntil).toLocaleString() %>.</p>
               <% } %>
               <label>Suspension
                 <select name="suspend">
@@ -195,7 +195,7 @@
       </div>
       <form method="post" action="/admin/reports/<%= report._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input name="resolution" placeholder="Resolution note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:#d7d8e2;border-radius:7px;padding:7px 9px;font-size:11px;">
+        <input name="resolution" placeholder="Resolution note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:var(--tx-mid);border-radius:7px;padding:7px 9px;font-size:11px;">
         <button name="status" value="resolved" class="button button-small button-primary">Resolve</button>
         <button name="status" value="dismissed" class="button button-small button-ghost">Dismiss</button>
       </form>
@@ -216,7 +216,7 @@
       </div>
       <form method="post" action="/admin/appeals/<%= appeal._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:#d7d8e2;border-radius:7px;padding:7px 9px;font-size:11px;">
+        <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:var(--tx-mid);border-radius:7px;padding:7px 9px;font-size:11px;">
         <button name="decision" value="approve" class="button button-small button-primary">Approve &amp; lift</button>
         <button name="decision" value="deny" class="button button-small button-ghost">Deny</button>
       </form>
@@ -238,7 +238,7 @@
 <% }) %><% } %></div>
       <form method="post" action="/admin/moderation/<%= item._id %>/review" style="display:flex;gap:8px;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:#d7d8e2;border-radius:7px;padding:7px 9px;font-size:11px;">
+        <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:var(--tx-mid);border-radius:7px;padding:7px 9px;font-size:11px;">
         <button class="button button-small button-primary" name="decision" value="approve">Approve &amp; apply</button>
         <button class="button button-small button-danger" name="decision" value="reject">Reject</button>
       </form>

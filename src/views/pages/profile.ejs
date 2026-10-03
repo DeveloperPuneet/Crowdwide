@@ -160,7 +160,7 @@
 	<aside class="discover-column">
 		<section class="discover-panel">
 			<div class="panel-heading"><h2>People to follow</h2><span>Popular</span></div>
-			<% if (!suggestions.length) { %><p style="color:#777a91;font-size:12px;padding:10px 0;">Follow a few people to see suggestions here.</p><% } %>
+			<% if (!suggestions.length) { %><p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">Follow a few people to see suggestions here.</p><% } %>
 			<% suggestions.forEach((person) => { %>
 			<div class="discover-row">
 				<%- include('../partials/avatar', { person, size: 'tiny' }) %>

@@ -135,7 +135,7 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: #f6f6fa;
+  color: var(--tx-hi);
   width: 30px; height: 30px;
   display: inline-flex;
   align-items: center;
@@ -244,7 +244,7 @@
 .cw-speed { position: relative; flex: none; }
 .cw-speed-btn {
   font: 700 11px/1 'Space Grotesk', sans-serif;
-  color: #f6f6fa;
+  color: var(--tx-hi);
   background: transparent;
   border: 0;
   border-radius: 8px;

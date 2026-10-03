@@ -27,12 +27,12 @@ img, video, audio { max-width: 100%; }
   min-width: 0;
   border-radius: 12px;
   overflow: hidden;
-  background: #05060f;
+  background: var(--sf-0);
   border: 1px solid var(--line);
 }
 .post-media-frame--audio { background: transparent; border: 0; overflow: visible; }
 
-.media-box { position: relative; width: 100%; background: #05060f; }
+.media-box { position: relative; width: 100%; background: var(--sf-0); }
 /* Known ratio: reserve exactly that shape, capped in height. */
 .media-box.has-ratio { aspect-ratio: var(--ar, 16 / 9); max-height: var(--media-max-h); }
 
@@ -71,7 +71,7 @@ img, video, audio { max-width: 100%; }
 }
 
 /* ---- Sidebar (collapsible icon rail) --------------------------------------*/
-.sidebar-toggle { position: absolute; right: -13px; top: 20px; width: 26px; height: 26px; border: 1px solid #3b4269; border-radius: 50%; background: #171a30; color: #fff; cursor: pointer; z-index: 2; }
+.sidebar-toggle { position: absolute; right: -13px; top: 20px; width: 26px; height: 26px; border: 1px solid var(--bd-2); border-radius: 50%; background: var(--sf-2); color: #fff; cursor: pointer; z-index: 2; }
 .app-layout { transition: grid-template-columns .2s ease; }
 .app-layout.sidebar-collapsed { grid-template-columns: 64px minmax(0, 880px) 330px; }
 .app-layout.sidebar-collapsed .app-sidebar { padding-right: 10px; }
