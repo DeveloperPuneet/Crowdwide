@@ -2311,3 +2311,86 @@ body[data-theme="light"] .button-primary, body[data-theme="pink"] .button-primar
 body[data-theme="light"] .button-primary *, body[data-theme="pink"] .button-primary * { color: #fff; }
 .comment-submit * { color: inherit; }
 :is(body[data-theme="light"], body[data-theme="pink"]) .comment-form .comment-submit span { color: #fff; }
+
+/* ==========================================================================
+   Mobile hardening - phone widths (<= 900px). Fixes grid columns that grew to
+   their content's min-width (causing sideways scroll), the footer grid that
+   ignored the breakpoints, a crowded public header, and small tap targets.
+   ========================================================================== */
+html, body { max-width: 100%; }
+body { overflow-x: clip; }
+img, video, canvas, iframe, table { max-width: 100%; }
+pre, code { overflow-wrap: anywhere; }
+pre { overflow-x: auto; }
+
+@media (max-width: 900px) {
+  /* 1fr is minmax(auto, 1fr): a wide child stretched the whole column. */
+  .app-layout, .app-layout.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
+  .app-layout > *, .settings-layout > *, .profile-layout > *, .community-detail > *, .explore-page > * { min-width: 0; }
+  .feed-column, .discover-column { min-width: 0; max-width: 100%; }
+  .app-footer .footer-top { grid-template-columns: 1fr 1fr; }
+  .post-card, .composer, .settings-block, .discover-panel { max-width: 100%; }
+  .post-body, .post-view-body, .comment-body, .chat-msg-main, .profile-bio { overflow-wrap: anywhere; }
+  table { display: block; overflow-x: auto; }
+}
+
+@media (max-width: 700px) {
+  .app-footer .footer-top { grid-template-columns: 1fr; }
+  .footer-col a { padding: 4px 0; margin-bottom: 6px; }
+  .post-actions { gap: 0; }
+  .post-actions button, .post-actions .post-stat, .post-actions a { min-width: 0; justify-content: center; }
+  .post-actions .label { display: none; }
+  .hashtag-row, .post-meta { min-width: 0; }
+  .feed-heading { flex-wrap: wrap; gap: 12px; }
+  .panel-heading { flex-wrap: wrap; gap: 6px; }
+}
+
+@media (max-width: 420px) {
+  .site-nav { height: 68px; gap: 8px; }
+  .site-nav .brand { font-size: 18px; min-width: 0; }
+  .site-nav .brand img { height: 30px; width: 30px; }
+  .nav-actions { gap: 6px; flex: none; }
+  .nav-actions .button { padding: 0 12px; font-size: 12px; white-space: nowrap; }
+  .container { width: calc(100% - 28px); }
+  h1 { font-size: clamp(32px, 11vw, 44px); }
+  .auth-card { padding: 24px 16px; }
+  .hero-actions { gap: 14px; }
+  .hero-actions .button { width: 100%; justify-content: center; }
+}
+
+/* Touch devices: comfortable hit areas without changing how things look. */
+@media (pointer: coarse) {
+  .back-link, .settings-link, .text-link, .post-open-link { display: inline-flex; align-items: center; min-height: 40px; }
+  .footer-legal a, .footer-col a { display: inline-flex; align-items: center; min-height: 36px; }
+  summary { min-height: 40px; display: flex; align-items: center; cursor: pointer; }
+  .hashtag-chip { min-height: 34px; display: inline-flex; align-items: center; }
+  .post-actions button, .post-actions .post-stat, .post-view-actions button, .post-view-actions .action-link,
+  .action-like, .action-translate, .reaction-add-trigger, .comment-tool, .icon-button { min-height: 40px; min-width: 40px; }
+  .avatar-link, .name-link, .chat-sender a { position: relative; }
+  .avatar-link::after, .name-link::after { content: ''; position: absolute; inset: -9px -6px; }
+}
+@media (max-width: 800px) { .ambient { display: none; } }
+
+@media (max-width: 560px) {
+  /* Public header: the menu drawer already lists these, so keep only the primary action. */
+  .site-nav .nav-actions .button-ghost:not(:first-child), .site-nav .nav-actions .button-ghost:has(+ .button-primary) { display: none; }
+  /* Comment composer: full-width field on top, avatar + tools on the row below. */
+  .comment-form-row { flex-wrap: wrap; }
+  .comment-form .comment-field { flex: 1 1 100%; order: -1; }
+  .comment-form-row > .avatar { margin: 0 auto 0 0; }
+}
+@media (pointer: coarse) {
+  .button-small, .button.button-small { min-height: 38px; }
+  .site-nav .brand { min-height: 40px; }
+}
+
+.chat-attachment-picker { position: relative; overflow: hidden; }
+.chat-attachment-picker input[type="file"] { font-size: 0; }
+.docs-table { min-width: 520px; }
+
+/* Phones: lift the smallest (9-10px) captions to a readable size. */
+@media (max-width: 700px) {
+  small, time, .upload-help, .report-evidence-label, .community-map-attribution, .member-badge,
+  .post-meta span, .device-row span, .thread-comment time, .upload-dropzone-copy small,
+  .profile-achievement-item small, .quest-progress, .recap-muted, .form-note { font-size: 11.5px; }
+}
