@@ -130,7 +130,7 @@
 
 @media (max-width: 760px) {
   .container {
-    width: calc(100% - 2 * var(--responsive-gutter));
+    width: calc(100% - var(--responsive-gutter) - var(--responsive-gutter));
   }
 
   .app-nav {
@@ -502,5 +502,449 @@
   .chat-send {
     min-width: 44px;
     min-height: 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Keep the landing illustration inside a predictable 16:9 frame. Its
+     desktop oversize treatment crops the artwork and labels on narrow screens. */
+  .hero {
+    gap: 12px;
+    padding-top: 22px;
+  }
+
+  .hero-visual {
+    width: 100%;
+    height: clamp(165px, 56vw, 330px);
+    margin-inline: auto;
+  }
+
+  .orbit-card {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--line);
+    background: radial-gradient(ellipse at center, #222954 0, #11142a 68%, transparent 100%);
+  }
+
+  .orbit-card img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    mix-blend-mode: screen;
+  }
+
+  .visual-note {
+    padding: 9px 11px;
+    grid-template-columns: 24px auto;
+    column-gap: 7px;
+  }
+
+  .note-top {
+    right: 1%;
+    top: 3%;
+  }
+
+  .note-bottom {
+    left: 1%;
+    bottom: 3%;
+  }
+
+  .profile-layout,
+  .community-detail {
+    padding-top: 24px;
+    padding-bottom: 48px;
+  }
+
+  .profile-banner {
+    height: clamp(96px, 27vw, 170px);
+    margin-bottom: 16px;
+    border-radius: 10px;
+  }
+
+  .profile-hero {
+    padding-bottom: 22px;
+    margin-bottom: 22px;
+  }
+
+  .profile-hero-top {
+    gap: 12px;
+  }
+
+  .profile-identity {
+    flex-direction: row;
+    align-items: center;
+    flex: 1 1 100%;
+    gap: 11px;
+  }
+
+  .profile-identity .avatar.large {
+    width: clamp(60px, 18vw, 78px);
+    height: clamp(60px, 18vw, 78px);
+    font-size: 25px;
+  }
+
+  .profile-identity h1 {
+    font-size: clamp(21px, 6vw, 29px);
+    line-height: 1.15;
+  }
+
+  .profile-actions {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 7px;
+  }
+
+  .profile-actions form {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .profile-actions :is(button, .button) {
+    min-height: 42px;
+    white-space: nowrap;
+  }
+
+  .profile-bio {
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .profile-stats {
+    gap: 8px 16px;
+    font-size: 12px;
+  }
+
+  .profile-community-highlights {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .profile-tabs {
+    gap: 17px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .profile-tabs a {
+    min-height: 44px;
+  }
+
+  .engagement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .engagement-grid div {
+    min-width: 0;
+    padding: 11px 9px;
+  }
+
+  .engagement-grid strong {
+    min-width: 0;
+    font-size: clamp(15px, 4.5vw, 20px);
+    overflow-wrap: anywhere;
+  }
+
+  .engagement-grid span {
+    font-size: 9px;
+    letter-spacing: .3px;
+  }
+
+  .explore-page {
+    padding-top: 32px;
+    padding-bottom: 54px;
+  }
+
+  .explore-grid,
+  .community-directory-grid,
+  .directory-post-grid,
+  .community-radar-grid,
+  .explore-rising-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .community-card {
+    min-width: 0;
+    padding: 17px;
+  }
+
+  .community-card h2 {
+    margin-top: 17px;
+    overflow-wrap: anywhere;
+  }
+
+  .community-card p {
+    min-height: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .community-card footer {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .site-footer .footer-top,
+  .app-footer .footer-top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 16px;
+  }
+
+  .site-footer .footer-brand,
+  .app-footer .footer-brand {
+    grid-column: 1 / -1;
+  }
+
+  .footer-tagline {
+    max-width: 42ch;
+  }
+
+  .footer-bottom {
+    align-items: flex-start;
+  }
+
+  .footer-legal {
+    gap: 8px 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .hero-copy h1 {
+    font-size: clamp(32px, 10vw, 41px);
+    line-height: 1.08;
+    letter-spacing: -1.5px;
+  }
+
+  .hero-lede {
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 17px 0;
+  }
+
+  .hero-proof {
+    margin-top: 25px;
+  }
+
+  .trust-strip {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .story-section h2,
+  .landing-highlight h2 {
+    font-size: clamp(28px, 8vw, 36px);
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stats-grid strong {
+    font-size: clamp(19px, 6vw, 27px);
+    overflow-wrap: anywhere;
+  }
+
+  .stats-grid span {
+    font-size: 9px;
+    letter-spacing: .4px;
+  }
+
+  .cta-band {
+    padding: 25px 18px;
+  }
+
+  .cta-band h2 {
+    font-size: clamp(27px, 8vw, 34px);
+  }
+
+  .profile-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-stats > * {
+    min-width: 0;
+  }
+
+  .profile-actions > * {
+    flex: 1 1 calc(50% - 7px);
+  }
+
+  .profile-actions :is(button, .button) {
+    width: 100%;
+    padding-inline: 9px;
+    font-size: 11px;
+  }
+
+  .footer-top {
+    padding-bottom: 26px;
+  }
+
+  .footer-col h4 {
+    margin-bottom: 11px;
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --responsive-gutter: 12px;
+  }
+
+  .site-nav .nav-actions > .button {
+    display: none;
+  }
+
+  .hero-visual {
+    height: 165px;
+  }
+
+  .visual-note {
+    padding: 7px 8px;
+    grid-template-columns: 19px auto;
+    column-gap: 5px;
+  }
+
+  .visual-note strong {
+    font-size: 10px;
+  }
+
+  .visual-note small {
+    font-size: 9px;
+  }
+
+  .note-icon {
+    font-size: 17px;
+  }
+
+  .profile-actions > * {
+    flex-basis: calc(50% - 7px);
+  }
+
+  .profile-actions :is(button, .button) {
+    padding-inline: 6px;
+    font-size: 10px;
+  }
+
+  .engagement-grid div {
+    padding: 9px 7px;
+  }
+
+  .footer-top {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 18px;
+  }
+
+  .site-footer .footer-brand,
+  .app-footer .footer-brand {
+    grid-column: auto;
+  }
+
+  .footer-bottom {
+    gap: 10px;
+  }
+
+  .footer-legal {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .link-field-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .upload-dropzone {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 6px 8px;
+    padding: 11px;
+  }
+
+  .upload-dropzone-icon {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 340px) {
+  .app-nav .brand span,
+  .site-nav .brand span {
+    font-size: 16px;
+  }
+
+  .app-nav .brand,
+  .site-nav .brand {
+    gap: 6px;
+  }
+
+  .app-nav .brand img,
+  .site-nav .brand img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .app-nav .notification-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .profile-identity .avatar.large {
+    width: 56px;
+    height: 56px;
+    font-size: 22px;
+  }
+
+  .profile-actions {
+    gap: 5px;
+  }
+
+  .profile-actions > * {
+    flex-basis: calc(50% - 5px);
+  }
+
+  .community-map-heading h1,
+  .conversations-hero h1,
+  .community-radar-heading h1,
+  .notifications-heading h1 {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 320px) {
+  .hero-actions {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .hero-actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .profile-identity {
+    gap: 8px;
+  }
+
+  .profile-identity h1 {
+    font-size: 20px;
+  }
+
+  .engagement-grid {
+    gap: 6px;
+  }
+
+  .engagement-grid strong {
+    font-size: 15px;
+  }
+
+  .stats-grid span {
+    font-size: 8px;
+  }
+
+  .community-card {
+    padding: 13px;
   }
 }

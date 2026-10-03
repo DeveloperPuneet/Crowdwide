@@ -41,3 +41,8 @@
 </head>
 <body class="<%= locals.bodyClass || '' %>" data-theme="<%= locals.currentUser?.theme || 'default' %>">
 <% if (locals.isStaging) { %><div class="staging-banner" role="status">Staging environment · not the live site · emails are restricted</div><% } %>
+<div class="page-preloader" aria-hidden="true">
+  <img class="preloader-mark" src="/images/Crowdwide_logo_192.png" alt="">
+  <span class="preloader-label">Loading Crowdwide</span>
+  <span class="preloader-line" aria-hidden="true"></span>
+</div>

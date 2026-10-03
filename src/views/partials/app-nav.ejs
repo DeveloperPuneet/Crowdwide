@@ -20,9 +20,9 @@
   </div>
 </header>
 
-<div class="nav-drawer" id="app-nav-drawer">
+<div class="nav-drawer" id="app-nav-drawer" aria-hidden="true" inert>
   <div class="nav-drawer-backdrop" data-drawer-close></div>
-  <nav class="nav-drawer-panel">
+  <nav class="nav-drawer-panel" aria-label="Main menu">
     <button class="nav-drawer-close" type="button" data-drawer-close aria-label="Close menu"><%- icon('x', { size: 20 }) %></button>
     <form class="nav-drawer-search" method="get" action="/search">
       <input type="search" name="q" placeholder="Search Crowdwide" aria-label="Search Crowdwide">

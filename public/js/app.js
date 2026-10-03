@@ -365,11 +365,47 @@ document.querySelectorAll('[data-drawer-open]').forEach((toggle) => {
   const header = toggle.closest('header');
   const drawer = (header?.nextElementSibling?.classList.contains('nav-drawer') ? header.nextElementSibling : null) || document.querySelector('.nav-drawer');
   if (!drawer) return;
-  const open = () => { drawer.classList.add('is-open'); toggle.setAttribute('aria-expanded', 'true'); document.body.style.overflow = 'hidden'; };
-  const close = () => { drawer.classList.remove('is-open'); toggle.setAttribute('aria-expanded', 'false'); document.body.style.overflow = ''; };
+  const focusable = () => Array.from(drawer.querySelectorAll('a[href], button:not([disabled]), input:not([disabled])'));
+  const previousOverflow = document.body.style.overflow;
+  const open = () => {
+    if (drawer.classList.contains('is-open')) return;
+    drawer.inert = false;
+    drawer.setAttribute('aria-hidden', 'false');
+    drawer.classList.add('is-open');
+    toggle.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => focusable()[0]?.focus());
+  };
+  const close = (restoreFocus = true) => {
+    if (!drawer.classList.contains('is-open')) return;
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.inert = true;
+    toggle.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = previousOverflow;
+    if (restoreFocus) toggle.focus();
+  };
   toggle.addEventListener('click', open);
   drawer.querySelectorAll('[data-drawer-close]').forEach((el) => el.addEventListener('click', close));
-  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
+  drawer.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => close(false)));
+  document.addEventListener('keydown', (event) => {
+    if (!drawer.classList.contains('is-open')) return;
+    if (event.key === 'Escape') {
+      close();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const items = focusable();
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  });
 });
 
 document.querySelectorAll('[data-sidebar-toggle]').forEach((toggle) => {

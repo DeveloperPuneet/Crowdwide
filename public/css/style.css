@@ -392,16 +392,19 @@ html { scrollbar-gutter: stable; }
 
 /* Mobile nav drawer (shared by marketing + app header) */
 .nav-drawer {
-  position: fixed; inset: 0; z-index: 50; display: none;
+  position: fixed; inset: 0; z-index: 50; visibility: hidden; opacity: 0; pointer-events: none;
+  transition: opacity .24s ease, visibility .24s linear .24s;
 }
-.nav-drawer.is-open { display: block; }
-.nav-drawer-backdrop { position: absolute; inset: 0; background: #05060fcc; backdrop-filter: blur(2px); }
+.nav-drawer.is-open { visibility: visible; opacity: 1; pointer-events: auto; transition-delay: 0s; }
+.nav-drawer-backdrop { position: absolute; inset: 0; background: #05060fcc; backdrop-filter: blur(2px); opacity: 0; transition: opacity .24s ease; }
+.nav-drawer.is-open .nav-drawer-backdrop { opacity: 1; }
 .nav-drawer-panel {
   position: absolute; top: 0; right: 0; width: min(320px, 86vw); height: 100%;
   background: var(--sf-1); border-left: 1px solid var(--line); padding: 22px 20px;
   display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
-  transform: translateX(0); box-shadow: -20px 0 60px #0008;
+  transform: translateX(100%); transition: transform .3s cubic-bezier(.2,.75,.25,1); box-shadow: -20px 0 60px #0008;
 }
+.nav-drawer.is-open .nav-drawer-panel { transform: translateX(0); }
 .nav-drawer-close { align-self: flex-end; background: transparent; border: 0; color: var(--tx-mid); font-size: 22px; cursor: pointer; margin-bottom: 6px; }
 .nav-drawer-panel a, .nav-drawer-panel form button {
   display: flex; align-items: center; gap: 12px; color: var(--tx-mid); font-size: 14px;
@@ -893,7 +896,8 @@ html { scrollbar-gutter: stable; }
 .post-detail-page .public-post { width: 100%; }
 .post-detail-page .post-body { font-size: 17px; line-height: 1.8; }
 .page-preloader { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; gap: 12px; align-content: center; background: var(--sf-0); transition: opacity .35s ease, visibility .35s ease; }
-.page-preloader .preloader-mark { color: var(--orange); font-size: 28px; animation: preloader-pulse 1s ease-in-out infinite; }
+.page-preloader .preloader-mark { width: 64px; height: 64px; object-fit: contain; animation: preloader-pulse 1s ease-in-out infinite; }
+.page-preloader .preloader-label { color: var(--tx-mid); font: 600 13px 'Space Grotesk', sans-serif; letter-spacing: .2px; }
 .preloader-line { width: 90px; height: 2px; overflow: hidden; background: var(--sf-3); }
 .preloader-line::after { content: ''; display: block; width: 45%; height: 100%; background: var(--orange); animation: preloader-slide 1s ease-in-out infinite; }
 .page-preloader { animation: preloader-failsafe .01s linear 3.5s forwards; }
