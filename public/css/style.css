@@ -80,7 +80,7 @@ a.avatar-link { display: inline-flex; }
 .name-link:hover { text-decoration: underline; }
 .mention-link { color: var(--ac-blue); font-weight: 600; }
 .mention-link:hover { color: #fff; text-decoration: underline; }
-.verified-tick { color: var(--cyan); margin-left: 3px; font-size: 11px; }
+.verified-tick { color: var(--cyan); margin-left: 8px; font-size: 11px;}
 
 /* 3. Buttons & forms --------------------------------------------------------*/
 .button {
@@ -442,7 +442,7 @@ html { scrollbar-gutter: stable; }
 /* Only the avatar pokes up into the banner (a common, intentional overlap);
    the name/handle text next to it stays in normal flow so it can never end
    up rendered on top of the (often busy) banner image - see profile.ejs. */
-.profile-avatar-slot.has-banner { margin-top: -50px; }
+/* .profile-avatar-slot.has-banner { margin-top: -50px; } */
 .profile-hero { position: relative; z-index: 1; }
 .profile-identity { min-width: 0; flex: 1 1 280px; }
 .profile-identity > div:last-child { min-width: 0; }
