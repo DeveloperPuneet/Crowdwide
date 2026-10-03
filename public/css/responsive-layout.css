@@ -302,6 +302,12 @@
 .post-actions .post-stat { justify-content: center; }
 .post-media,
 .growth-chart { max-width: 100%; }
+.growth-chart-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
 .growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .popular-search-list a { min-width: 0; }
 .popular-search-list .search-meta { max-width: 42%; white-space: normal; text-align: right; }
@@ -323,6 +329,7 @@
 .chat-msg { min-width: 0; max-width: 100%; }
 .chat-msg-main { max-width: min(85%, 720px); }
 .chat-attachment { min-width: 0; }
+.chat-attachment-selected { min-width: 0; }
 .chat-retention { overflow-wrap: anywhere; }
 .share-sheet-panel { width: min(440px, 100%); max-width: 100%; }
 .share-sheet-search,
@@ -455,7 +462,15 @@
   .settings-form .notification-option { gap: 10px; }
   .growth-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .growth-card { padding: 18px 14px; }
+  .growth-chart-scroll .growth-chart { width: max(100%, 440px); max-width: none; }
   .growth-legend { gap: 8px 12px; }
+  .growth-empty { padding: 28px 12px; overflow-wrap: anywhere; }
+  .flash { overflow-wrap: anywhere; }
+  .auth-shell {
+    width: calc(100% - max(var(--responsive-gutter), env(safe-area-inset-left)) - max(var(--responsive-gutter), env(safe-area-inset-right)));
+    padding-block: max(26px, env(safe-area-inset-top)) max(26px, env(safe-area-inset-bottom));
+  }
+  .auth-card { padding: clamp(20px, 6vw, 28px) clamp(16px, 5vw, 24px); }
   .thread-comment { padding-right: 0; padding-left: 10px; }
   .thread-comment[data-depth="1"] { margin-left: 14px; }
   .thread-comment[data-depth="2"] { margin-left: 24px; }
@@ -464,6 +479,13 @@
   .thread-comment-head time { flex-basis: 100%; margin: 0 0 0 35px; }
   .thread-comment-actions { gap: 4px 8px; }
   .chat-msg-main { max-width: min(90%, 720px); }
+  .chat-attachment-selected { flex: 0 1 132px; }
+  .reaction-picker {
+    width: min(280px, calc(100vw - 2 * var(--responsive-gutter)));
+    flex-wrap: wrap;
+  }
+  .reaction-picker-option { flex: 1 0 36px; }
+  .thread-comment-actions :is(button, summary) { min-height: 40px; }
   .chat-scroll { padding-inline: var(--responsive-gutter); }
   .chat-retention { padding-inline: var(--responsive-gutter); }
   .share-sheet { align-items: end; padding: 0; }

@@ -2,6 +2,7 @@
 <% if (!chart.hasData) { %>
 <p class="growth-empty">Not enough activity in the last <%= weeks %> weeks to draw this chart yet.</p>
 <% } else { %>
+<div class="growth-chart-scroll" tabindex="0" role="region" aria-label="<%= label %> chart">
 <svg class="growth-chart" viewBox="0 0 <%= chart.width %> <%= chart.height %>" role="img" aria-label="<%= label %>">
   <line x1="<%= chart.left %>" y1="<%= chart.yBottom %>" x2="<%= chart.xEnd %>" y2="<%= chart.yBottom %>" class="axis-line"/>
   <line x1="<%= chart.left %>" y1="<%= chart.yTop %>" x2="<%= chart.left %>" y2="<%= chart.yBottom %>" class="axis-line"/>
@@ -19,6 +20,7 @@
   <text x="<%= l.x %>" y="<%= chart.yBottom + 20 %>" class="axis-label" text-anchor="<%= i === 0 ? 'start' : (i === chart.xLabels.length - 1 ? 'end' : 'middle') %>"><%= l.text %></text>
   <% }) %>
 </svg>
+</div>
 <div class="growth-legend">
   <% chart.series.forEach((s) => { %><span><i class="dot dot-<%= s.key %>"></i><%= s.name %></span><% }) %>
 </div>

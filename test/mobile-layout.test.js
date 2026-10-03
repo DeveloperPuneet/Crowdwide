@@ -123,6 +123,19 @@ test('mobile headers span the viewport and keep public account actions in the me
   assert.match(responsive, /\.site-nav \.nav-menu-toggle/);
 });
 
+test('shared view partials support safe-area mobile layouts and readable charts', () => {
+  const responsive = files.find((file) => file.name === 'responsive-layout.css').text;
+  const head = fs.readFileSync(path.join(__dirname, '..', 'src', 'views', 'partials', 'head.ejs'), 'utf8');
+  const chart = fs.readFileSync(path.join(__dirname, '..', 'src', 'views', 'partials', 'growth-chart-svg.ejs'), 'utf8');
+
+  assert.match(head, /name="viewport" content="[^"]*viewport-fit=cover/);
+  assert.match(chart, /class="growth-chart-scroll" tabindex="0" role="region"/);
+  assert.match(responsive, /\.growth-chart-scroll\s*\{[^}]*overflow-x:\s*auto/);
+  assert.match(responsive, /@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.growth-chart-scroll \.growth-chart\s*\{[^}]*width:\s*max\(100%,\s*440px\)/);
+  assert.match(responsive, /@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.auth-shell\s*\{[^}]*env\(safe-area-inset-top\)[^}]*env\(safe-area-inset-bottom\)/);
+  assert.match(responsive, /@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.reaction-picker\s*\{[^}]*flex-wrap:\s*wrap/);
+});
+
 test('every rule that overrides position away from sticky/absolute/fixed also resets the offset that positioning used', () => {
   const positioned = new Set();
   files.forEach(({ text }) => {
