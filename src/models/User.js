@@ -14,7 +14,16 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
-  bio: { type: String, trim: true, maxlength: 280, default: '' },
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: 2000,
+    default: '',
+    validate: {
+      validator: (value) => !value || value.trim().split(/\s+/).length <= 40,
+      message: 'Bio cannot exceed 40 words.'
+    }
+  },
   hashtags: [{ type: String, trim: true, lowercase: true }],
   links: { type: [linkSchema], validate: (value) => value.length <= 4 },
   profilePicture: { type: String, default: '' },

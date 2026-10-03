@@ -67,6 +67,8 @@ test('direct message and group pages render a chat panel with no full-page form 
   assert.match(dm, /data-gif-trigger/);
   assert.match(dm, /data-chat-more/);
   assert.match(dm, /data-message-search-form/);
+  assert.match(dm, /data-chat-search-toggle/);
+  assert.match(dm, /data-chat-search-close/);
   assert.match(dm, /enctype="multipart\/form-data"/);
   assert.match(dm, /name="attachment"/);
   assert.match(dm, /aria-live="polite"/);
@@ -74,6 +76,7 @@ test('direct message and group pages render a chat panel with no full-page form 
   assert.match(group, /data-kind="group"/);
   assert.match(group, /\/groups\/g1\/info/);
   assert.match(group, /data-message-search-form/);
+  assert.match(group, /data-chat-search-toggle/);
   const noGifs = await render('pages/message-thread.ejs', { ...shared, title: 'DM', person: { _id: 'u2', name: 'Asha' }, gifsEnabled: false });
   assert.doesNotMatch(noGifs, /data-gif-trigger/, 'no GIF button when GIPHY_API_KEY is not set');
 });
@@ -135,6 +138,10 @@ test('dashboard still renders with the share button and share sheet in the foote
   assert.match(html, /data-share-open/);
   assert.match(html, /data-share-sheet/);
   assert.match(html, /feed-sentinel/);
+  assert.doesNotMatch(html, /Ranked for you:/);
+  assert.match(html, /composer-options/);
+  assert.match(html, /Share with your community/);
+  assert.doesNotMatch(html, /Account settings →/);
   assert.match(html, /name="quest"/);
   assert.match(html, /Weekly sketch sprint/);
   assert.doesNotMatch(html, /name="quest"[^>]*disabled/);
@@ -168,6 +175,30 @@ test('landing page applies the member theme and renders real profile avatars', a
   assert.match(html, /avatar-stack/);
   assert.match(html, /src="\/media\/nia\.webp"/);
   assert.doesNotMatch(html, /style="color:#f6f6fa;/);
+});
+
+test('notification settings render grouped, accessible preferences', async () => {
+  const html = await render('pages/settings.ejs', {
+    title: 'Settings', pagePath: '/settings/notifications', section: 'notifications', noIndex: true,
+    user: { _id: 'u1', name: 'Puneet', email: 'p@x.com', notificationPreferences: {} },
+    sessions: [], ownedCommunities: [], blockedUsers: [], appeals: [], accountEvents: [],
+    sessionID: 'session', pushConfigured: false
+  });
+  assert.match(html, /In-app notifications/);
+  assert.match(html, /Email updates/);
+  assert.match(html, /name="notifySecurity"/);
+  assert.match(html, /notification-option/);
+});
+
+test('profile editor exposes the 40-word bio limit', async () => {
+  const html = await render('pages/settings.ejs', {
+    title: 'Settings', pagePath: '/settings/profile', section: 'profile', noIndex: true,
+    user: { _id: 'u1', name: 'Puneet', email: 'p@x.com', bio: 'Curious about design.', hashtags: [], links: [] },
+    sessions: [], ownedCommunities: [], blockedUsers: [], appeals: [], accountEvents: [],
+    sessionID: 'session'
+  });
+  assert.match(html, /data-word-limit="40"/);
+  assert.match(html, /Bio · up to 40 words/);
 });
 
 test('community detail renders a quest board with member actions', async () => {

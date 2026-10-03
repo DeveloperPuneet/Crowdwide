@@ -59,7 +59,7 @@
 				<% popularPeople.forEach((person) => { %>
 				<div class="discover-row">
 					<%- include('../partials/avatar', { person, size: 'tiny' }) %>
-					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.followers %> follower<%= person.followers === 1 ? '' : 's' %></span></div>
+					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.followers %> follower<%= person.followers === 1 ? '' : 's' %></span><% if (person.bio) { %><span class="person-bio" data-bio-limit><%= person.bio %></span><% } %></div>
 					<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>">+</button></form>
 				</div>
 				<% }) %>
@@ -71,7 +71,7 @@
 				<% newPeople.forEach((person) => { %>
 				<div class="discover-row">
 					<%- include('../partials/avatar', { person, size: 'tiny' }) %>
-					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.bio || 'New voice on Crowdwide' %></span></div>
+					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span class="person-bio" data-bio-limit><%= person.bio || 'New voice on Crowdwide' %></span></div>
 					<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>">+</button></form>
 				</div>
 				<% }) %>

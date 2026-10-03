@@ -21,10 +21,8 @@
 		const alreadyFollowing = followingSet.includes(String(person._id));
 	%>
 	<div class="search-user-row">
-		<a href="/u/<%= person._id %>" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;text-decoration:none;color:inherit;">
-			<%- include('../partials/avatar', { person, size: 'small', link: false }) %>
-			<div><strong><%= person.name %></strong><span><%= person.bio || 'Crowdwide member' %></span></div>
-		</a>
+		<a class="search-user-link" href="/u/<%= person._id %>" style="text-decoration:none;color:inherit;"><%- include('../partials/avatar', { person, size: 'small', link: false }) %><strong><%= person.name %></strong></a>
+		<span class="person-bio" data-bio-limit><%= person.bio || 'Crowdwide member' %></span>
 		<% if (!isSelf) { %>
 		<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">

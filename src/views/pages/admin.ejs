@@ -1,24 +1,30 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
 <main class="explore-page admin-console admin-wide"><%- include('../partials/flash') %>
-  <p class="eyebrow">Restricted operations</p><h1>Admin console</h1>
-  <div class="admin-stats"><span><strong><%= stats.users %></strong> users</span><span><strong><%= stats.posts %></strong> posts</span><span><strong><%= stats.communities %></strong> communities</span><span><strong><%= stats.reports %></strong> reports</span><span><strong><%= pendingActions.length %></strong> pending approvals</span></div>
+  <header class="admin-page-header"><div><p class="eyebrow">Restricted operations</p><h1>Admin console</h1><p>Monitor the community, resolve reports, and manage platform settings.</p></div><span class="admin-access-badge"><%- icon('shield', { size: 15 }) %> Admin access</span></header>
+  <div class="admin-stats" aria-label="Platform overview">
+    <article class="admin-stat"><span>Community</span><strong><%= stats.users.toLocaleString() %></strong><small>users</small></article>
+    <article class="admin-stat"><span>Content</span><strong><%= stats.posts.toLocaleString() %></strong><small>posts</small></article>
+    <article class="admin-stat"><span>Spaces</span><strong><%= stats.communities.toLocaleString() %></strong><small>communities</small></article>
+    <article class="admin-stat"><span>Safety</span><strong><%= stats.reports.toLocaleString() %></strong><small>reports</small></article>
+    <article class="admin-stat admin-stat-attention"><span>Action needed</span><strong><%= pendingActions.length.toLocaleString() %></strong><small>pending approvals</small></article>
+  </div>
 
-  <nav class="admin-tabs">
-    <button type="button" class="admin-tab" data-tab="overview">Overview</button>
-    <button type="button" class="admin-tab" data-tab="users">Users</button>
-    <button type="button" class="admin-tab" data-tab="posts">Posts</button>
-    <button type="button" class="admin-tab" data-tab="communities">Communities</button>
-    <button type="button" class="admin-tab" data-tab="reports">Reports<% if (openReports.length) { %> (<%= openReports.length %>)<% } %></button>
-    <button type="button" class="admin-tab" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
-    <button type="button" class="admin-tab" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
-    <button type="button" class="admin-tab" data-tab="moderators">Moderators</button>
-    <button type="button" class="admin-tab" data-tab="settings">Site settings</button>
-    <button type="button" class="admin-tab" data-tab="audit">Audit log</button>
+  <nav class="admin-tabs" role="tablist" aria-label="Admin sections">
+    <button type="button" class="admin-tab" id="admin-tab-overview" role="tab" aria-controls="admin-panel-overview" data-tab="overview">Overview</button>
+    <button type="button" class="admin-tab" id="admin-tab-users" role="tab" aria-controls="admin-panel-users" data-tab="users">Users</button>
+    <button type="button" class="admin-tab" id="admin-tab-posts" role="tab" aria-controls="admin-panel-posts" data-tab="posts">Posts</button>
+    <button type="button" class="admin-tab" id="admin-tab-communities" role="tab" aria-controls="admin-panel-communities" data-tab="communities">Communities</button>
+    <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (openReports.length) { %> (<%= openReports.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-queue" role="tab" aria-controls="admin-panel-queue" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-moderators" role="tab" aria-controls="admin-panel-moderators" data-tab="moderators">Moderators</button>
+    <button type="button" class="admin-tab" id="admin-tab-settings" role="tab" aria-controls="admin-panel-settings" data-tab="settings">Site settings</button>
+    <button type="button" class="admin-tab" id="admin-tab-audit" role="tab" aria-controls="admin-panel-audit" data-tab="audit">Audit log</button>
   </nav>
 
   <!-- OVERVIEW -->
-  <section class="admin-panel" data-panel="overview">
+  <section class="admin-panel" id="admin-panel-overview" role="tabpanel" aria-labelledby="admin-tab-overview" data-panel="overview">
     <div class="settings-block admin-wide">
       <h2>What needs attention</h2>
       <p><%= pendingActions.length %> moderator action<%= pendingActions.length === 1 ? '' : 's' %> waiting for your approval, <%= openReports.length %> open report<%= openReports.length === 1 ? '' : 's' %>, <%= pendingAppeals.length %> pending appeal<%= pendingAppeals.length === 1 ? '' : 's' %>.</p>
@@ -27,7 +33,7 @@
   </section>
 
   <!-- USERS -->
-  <section class="admin-panel" data-panel="users">
+  <section class="admin-panel" id="admin-panel-users" role="tabpanel" aria-labelledby="admin-tab-users" data-panel="users">
     <div class="admin-section-head"><h2>Users</h2><input class="admin-search" type="search" placeholder="Filter by name or email" data-filter-table="users-table"></div>
     <table class="admin-table" id="users-table">
       <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Verified</th><th>Status</th><th>Joined</th><th></th></tr></thead>
@@ -96,7 +102,7 @@
   </section>
 
   <!-- POSTS -->
-  <section class="admin-panel" data-panel="posts">
+  <section class="admin-panel" id="admin-panel-posts" role="tabpanel" aria-labelledby="admin-tab-posts" data-panel="posts">
     <div class="admin-section-head"><h2>Posts</h2><input class="admin-search" type="search" placeholder="Filter by author or text" data-filter-table="posts-table"></div>
     <table class="admin-table" id="posts-table">
       <thead><tr><th>Author</th><th>Body</th><th>Type</th><th>Status</th><th>Moderation</th><th>Community</th><th></th></tr></thead>
@@ -143,7 +149,7 @@
   </section>
 
   <!-- COMMUNITIES -->
-  <section class="admin-panel" data-panel="communities">
+  <section class="admin-panel" id="admin-panel-communities" role="tabpanel" aria-labelledby="admin-tab-communities" data-panel="communities">
     <h2>Communities</h2>
     <table class="admin-table">
       <thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Privacy</th><th></th></tr></thead>
@@ -183,7 +189,7 @@
   </section>
 
   <!-- REPORTS -->
-  <section class="admin-panel" data-panel="reports">
+  <section class="admin-panel" id="admin-panel-reports" role="tabpanel" aria-labelledby="admin-tab-reports" data-panel="reports">
     <h2>Open reports</h2>
     <% if (!openReports.length) { %><p>No open reports.</p><% } %>
     <% openReports.forEach((report) => { %>
@@ -204,7 +210,7 @@
   </section>
 
   <!-- APPEALS -->
-  <section class="admin-panel" data-panel="appeals">
+  <section class="admin-panel" id="admin-panel-appeals" role="tabpanel" aria-labelledby="admin-tab-appeals" data-panel="appeals">
     <h2>Pending appeals</h2>
     <% if (!pendingAppeals.length) { %><p>No pending appeals.</p><% } %>
     <% pendingAppeals.forEach((appeal) => { %>
@@ -225,7 +231,7 @@
   </section>
 
   <!-- APPROVAL QUEUE -->
-  <section class="admin-panel" data-panel="queue">
+  <section class="admin-panel" id="admin-panel-queue" role="tabpanel" aria-labelledby="admin-tab-queue" data-panel="queue">
     <h2>Pending moderator actions</h2>
     <% if (!pendingActions.length) { %><p>No actions waiting for approval.</p><% } %>
     <% pendingActions.forEach((item) => { %>
@@ -247,13 +253,13 @@
   </section>
 
   <!-- MODERATORS -->
-  <section class="admin-panel" data-panel="moderators">
+  <section class="admin-panel" id="admin-panel-moderators" role="tabpanel" aria-labelledby="admin-tab-moderators" data-panel="moderators">
     <section class="settings-block"><h2>Create moderator</h2><form class="settings-form compact" method="post" action="/admin/moderators"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Name<input name="name" required></label><label>Email<input type="email" name="email" required></label><label>Temporary password<input type="password" name="password" minlength="8" required></label><button class="button button-primary button-small">Create moderator</button></form></section>
     <section class="settings-block"><h2>Current moderators</h2><% moderators.forEach((mod) => { %><div class="device-row"><div><strong><%= mod.name %></strong><span><%= mod.moderatorId %> · <%= mod.email %></span></div><form method="post" action="/admin/moderators/<%= mod._id %>/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-danger">Remove</button></form></div><% }) %><% if (!moderators.length) { %><p>No moderators yet.</p><% } %></section>
   </section>
 
   <!-- SITE SETTINGS -->
-  <section class="admin-panel" data-panel="settings">
+  <section class="admin-panel" id="admin-panel-settings" role="tabpanel" aria-labelledby="admin-tab-settings" data-panel="settings">
     <section class="settings-block admin-wide">
       <h2>Site settings</h2>
       <form class="admin-edit-form" method="post" action="/admin/settings">
@@ -275,7 +281,7 @@
   </section>
 
   <!-- AUDIT LOG -->
-  <section class="admin-panel" data-panel="audit">
+  <section class="admin-panel" id="admin-panel-audit" role="tabpanel" aria-labelledby="admin-tab-audit" data-panel="audit">
     <h2>Recent audit activity</h2>
     <% auditLogs.forEach((entry) => { %><div class="device-row"><div><strong><%= entry.action %></strong><span><%= entry.actor?.name || 'system' %> · <%= new Date(entry.createdAt).toLocaleString() %></span></div></div><% }) %>
   </section>

@@ -32,7 +32,7 @@
 				<% } %>
 			</div>
 		</div>
-		<% if (profileUser.bio) { %><p class="profile-bio"><%= profileUser.bio %></p><% } %>
+		<% if (profileUser.bio) { %><p class="profile-bio person-bio" data-bio-limit><%= profileUser.bio %></p><% } %>
 		<% if ((profileUser.hashtags || []).length) { %><div class="hashtag-row profile-hashtags" style="margin-top: 15px;"><% profileUser.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<% if ((profileUser.links || []).length) { %>
 		<div class="profile-links">

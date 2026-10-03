@@ -20,7 +20,7 @@
 				<% commonInterests.forEach((person) => { %>
 				<div class="discover-row">
 					<%- include('../partials/avatar', { person, size: 'tiny' }) %>
-					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><% if ((person.sharedTags || []).length) { %>Also into <%= person.sharedTags.map((tag) => '#' + tag).join(', ') %><% } else { %><%= person.bio || 'Shares your interests' %><% } %></span></div>
+					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><% if ((person.sharedTags || []).length) { %>Also into <%= person.sharedTags.map((tag) => '#' + tag).join(', ') %><% } else { %><span class="person-bio" data-bio-limit><%= person.bio || 'Shares your interests' %></span><% } %></span></div>
 					<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>"><%- icon('plus', { size: 14 }) %></button></form>
 				</div>
 				<% }) %>
@@ -48,7 +48,7 @@
 				<% trending.forEach((person) => { %>
 				<div class="discover-row">
 					<%- include('../partials/avatar', { person, size: 'tiny' }) %>
-					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.bio || 'Gaining traction this week' %></span></div>
+					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span class="person-bio" data-bio-limit><%= person.bio || 'Gaining traction this week' %></span></div>
 					<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>"><%- icon('plus', { size: 14 }) %></button></form>
 				</div>
 				<% }) %>
@@ -62,7 +62,7 @@
 				<% newJoiners.forEach((person) => { %>
 				<div class="discover-row">
 					<%- include('../partials/avatar', { person, size: 'tiny' }) %>
-					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.bio || 'New voice on Crowdwide' %></span></div>
+					<div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span class="person-bio" data-bio-limit><%= person.bio || 'New voice on Crowdwide' %></span></div>
 					<form class="follow-form" data-user="<%= person._id %>" method="post" action="/users/<%= person._id %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Follow <%= person.name %>"><%- icon('plus', { size: 14 }) %></button></form>
 				</div>
 				<% }) %>

@@ -1,14 +1,14 @@
 <%- include('../partials/head', { title, bodyClass: 'auth-page', pagePath, noIndex: true }) %>
-<div class="auth-shell" style="width:min(520px, calc(100% - 32px));">
+<div class="auth-shell auth-shell-wide">
 	<a class="brand auth-brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
 	<div class="auth-card">
 		<p class="eyebrow">Save these now</p>
 		<h1 style="font-size:30px;">Your recovery codes.</h1>
 		<p class="form-note">Each code works once and lets you sign in if you lose access to your authenticator app. Save them somewhere safe - they will not be shown again.</p>
-		<div id="recovery-codes-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;background:var(--sf-0);border:1px solid var(--bd-1);border-radius:10px;padding:18px;font:700 15px 'Space Grotesk',monospace;letter-spacing:1px;margin:20px 0;">
+		<div id="recovery-codes-list" class="recovery-codes-list">
 			<% codes.forEach((code) => { %><span><%= code %></span><% }) %>
 		</div>
-		<div style="display:flex;gap:10px;flex-wrap:wrap;">
+		<div class="recovery-codes-actions">
 			<button class="button button-ghost button-small" type="button" id="download-codes">Download as .txt <span>↓</span></button>
 			<a class="button button-primary button-small" href="/settings/security">I've saved these, continue <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a>
 		</div>

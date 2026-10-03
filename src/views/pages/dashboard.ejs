@@ -44,17 +44,24 @@
 		<nav class="feed-tabs" aria-label="Feed views">
 			<% feedTabs.forEach(([id, href, label, glyph]) => { %><a class="<%= feed.activeTab === id ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- feed.activeTab === id ? 'aria-current="page"' : '' %>><%- icon(glyph, { size: 15 }) %><span><%= label %></span></a><% }) %>
 		</nav>
-		<p class="feed-note"><%= feed.note %></p>
 		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":<%= wordLimits.post %>,"article":<%= wordLimits.article %>,"poll":<%= wordLimits.poll %>}'>
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">
+				<div class="composer-intro"><strong>Share with your community</strong><span>A thought, a story, or a question to get things started.</span></div>
 				<textarea data-mention-input name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
 				<div class="composer-meta"><div class="word-limit-status"><span data-word-count>0 / <%= wordLimits.post %> words</span><div class="word-limit-meter" role="progressbar" aria-label="Word limit" aria-valuemin="0" aria-valuemax="<%= wordLimits.post %>" aria-valuenow="0"><span data-word-progress></span></div></div><div class="hashtag-suggestions" data-hashtag-suggestions></div></div>
 				<fieldset class="poll-composer" hidden><legend>Poll choices</legend><input name="pollQuestion" maxlength="200" placeholder="Ask a question"><div class="poll-option-grid"><input name="pollOptions" maxlength="80" placeholder="Option 1"><input name="pollOptions" maxlength="80" placeholder="Option 2"><input name="pollOptions" maxlength="80" placeholder="Option 3"><input name="pollOptions" maxlength="80" placeholder="Option 4"></div></fieldset>
 				<div class="composer-actions">
 					<select name="type" aria-label="Post type"><option value="post">Post · <%= wordLimits.post %> words</option><option value="article">Article · <%= wordLimits.article %> words</option><option value="poll">Poll · <%= wordLimits.poll %> words</option></select>
 					<select name="community" data-community-select aria-label="Choose a community"><option value="">Open Crowdwide</option><% composerCommunities.forEach((community) => { %><option value="<%= community._id %>" <%= String(community._id) === String(locals.selectedCommunityId || '') ? 'selected' : '' %>><%= community.name %></option><% }) %></select>
+					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
+					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
+					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
+				</div>
+				<details class="composer-options">
+					<summary>More options</summary>
+					<div class="composer-option-grid">
 					<label class="quest-post-picker"><span>Post for quest (optional)</span><select name="quest" data-quest-picker aria-label="Link this post to a quest" aria-describedby="quest-post-help"><option value="">No quest</option><% availableQuests.forEach((quest) => { %><option value="<%= quest._id %>" data-community="<%= quest.community?._id %>" <%= String(quest._id) === String(locals.selectedQuestId || '') ? 'selected' : '' %>><%= quest.title %> · <%= quest.community?.name || 'Community' %></option><% }) %></select></label>
 					<label class="schedule-picker">Schedule<input type="datetime-local" name="scheduledAt" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
 					<label class="schedule-picker">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
@@ -75,11 +82,9 @@
 						<% } %>
 					</div>
 					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*" multiple></label>
-					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
-					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
-					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
-				</div>
-				<small class="quest-picker-hint" id="quest-post-help" data-quest-hint><%= availableQuests.length ? 'Choose one of the active quests you have joined; its community will be selected for you.' : 'Join an active community quest to link a post to it.' %></small>
+					<small class="quest-picker-hint" id="quest-post-help" data-quest-hint><%= availableQuests.length ? 'Choose one of the active quests you have joined; its community will be selected for you.' : 'Join an active community quest to link a post to it.' %></small>
+					</div>
+				</details>
 				<details class="composer-media-details">
 					<summary>Media details · alt text, caption, transcript (per file)</summary>
 					<% [1, 2].forEach((n) => { %>
@@ -147,7 +152,6 @@
 			</div>
 			<% }) %>
 		</section>
-		<a class="settings-link" href="/settings/profile">Account settings →</a>
 	</aside>
 </main>
 <%- include('../partials/app-footer') %>

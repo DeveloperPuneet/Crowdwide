@@ -36,10 +36,10 @@
 	<section class="search-section">
 		<h2>People</h2>
 		<% users.forEach((person) => { %>
-		<a class="search-user-row" href="/u/<%= person._id %>" style="text-decoration:none;color:inherit;">
-			<%- include('../partials/avatar', { person, size: 'small', link: false }) %>
-			<div><strong><%= person.name %></strong><span><%= person.bio || 'Crowdwide member' %></span></div>
-		</a>
+		<div class="search-user-row">
+			<a class="search-user-link" href="/u/<%= person._id %>" style="text-decoration:none;color:inherit;"><%- include('../partials/avatar', { person, size: 'small', link: false }) %><strong><%= person.name %></strong></a>
+			<span class="person-bio" data-bio-limit><%= person.bio || 'Crowdwide member' %></span>
+		</div>
 		<% }) %>
 	</section>
 	<% } %>

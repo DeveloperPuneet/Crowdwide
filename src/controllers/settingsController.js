@@ -15,6 +15,7 @@ const Appeal = require('../models/Appeal');
 const AccountEvent = require('../models/AccountEvent');
 const logger = require('../services/logger');
 const { logEvent } = require('../services/accountHistory');
+const countWords = require('../utils/wordCount');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -34,9 +35,14 @@ exports.page = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
+  const bio = req.body.bio?.trim() || '';
+  if (countWords(bio) > 40) {
+    flash(req, 'error', 'Your bio can be up to 40 words. Please shorten it and try again.');
+    return res.redirect('/settings/profile');
+  }
   const user = await User.findById(req.session.user.id);
   user.name = req.body.name?.trim() || user.name;
-  user.bio = req.body.bio?.trim() || '';
+  user.bio = bio;
   user.hashtags = parseHashtagList(req.body.hashtags || '');
   user.privacy = ['public', 'followers'].includes(req.body.privacy) ? req.body.privacy : user.privacy;
 

@@ -51,6 +51,32 @@ document.querySelectorAll('textarea[data-word-limit]').forEach((textarea) => {
   updateWordCount();
 });
 
+document.querySelectorAll('[data-bio-limit]').forEach((bio) => {
+  const words = bio.textContent.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 40) return;
+
+  const preview = document.createElement('span');
+  preview.textContent = `${words.slice(0, 40).join(' ')}… `;
+  const full = document.createElement('span');
+  full.textContent = bio.textContent.trim();
+  full.hidden = true;
+
+  const toggle = document.createElement('button');
+  toggle.className = 'bio-read-more';
+  toggle.type = 'button';
+  toggle.textContent = 'Read more';
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') !== 'true';
+    preview.hidden = expanded;
+    full.hidden = !expanded;
+    toggle.textContent = expanded ? 'Show less' : 'Read more';
+    toggle.setAttribute('aria-expanded', String(expanded));
+  });
+
+  bio.replaceChildren(preview, full, toggle);
+});
+
 // Web fonts are added after the page is already on screen. A <link> in <head>
 // blocks rendering until the font host answers, so a slow or blocked
 // fonts.googleapis.com used to leave the page blank or half-loaded (text has
@@ -113,6 +139,7 @@ if (composer) {
       progress.classList.toggle('is-warning', total >= limit * 0.8 && total <= limit);
       progress.classList.toggle('is-over', total > limit);
     }
+
     if (pollFields) pollFields.hidden = typeSelect.value !== 'poll';
   };
   const updateQuestOptions = (source) => {
@@ -170,6 +197,32 @@ if (composer) {
   updateCount();
   updateQuestOptions('quest');
 }
+
+document.querySelectorAll('[data-chat-search-toggle]').forEach((toggle) => {
+  const form = document.getElementById(toggle.getAttribute('aria-controls'));
+  const closeButton = form?.querySelector('[data-chat-search-close]');
+  if (!form) return;
+
+  const close = (restoreFocus = true) => {
+    form.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+    form.parentElement.querySelector('[data-message-search-results]')?.setAttribute('hidden', '');
+    if (restoreFocus) toggle.focus();
+  };
+  toggle.addEventListener('click', () => {
+    if (!form.hidden) {
+      close();
+      return;
+    }
+    form.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+    form.querySelector('input[type="search"]')?.focus();
+  });
+  closeButton?.addEventListener('click', () => close());
+  form.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') close();
+  });
+});
 
 document.querySelectorAll('[data-mention-input]').forEach((input) => {
   // The suggestion list lives in a wrapper around the input and floats over
