@@ -83,10 +83,10 @@
 		<% if (['admin', 'moderator'].includes(currentUser?.role) && String(post.author?._id) !== String(currentUser.id)) { %>
 		<section class="post-moderation-tools">
 			<strong>Moderation</strong>
-			<form method="post" action="/posts/<%= post._id %>/moderate">
+			<form method="post" action="/posts/<%= post._id %>/moderate" style="margin-top: 20px;">
 				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-				<label>Action<select name="action"><option value="rate-good-post">Mark as good</option><option value="rate-bad-post">Mark for review</option><option value="report-post">Report post</option><option value="suspend-user">Suspend author</option><option value="delete-post">Delete post</option></select></label>
-				<input name="reason" maxlength="1000" placeholder="Reason (optional for ratings)">
+				<label style="margin-bottom: 10px;">Action<select name="action" style="margin-top: 20px; margin-bottom:15px;"><option value="rate-good-post">Mark as good</option><option value="rate-bad-post">Mark for review</option><option value="report-post">Report post</option><option value="suspend-user">Suspend author</option><option value="delete-post">Delete post</option></select></label>
+				<input name="reason" maxlength="1000" placeholder="Reason (optional for ratings)" style="margin-bottom: 10px;">
 				<button class="button button-small <%= currentUser.role === 'admin' ? 'button-danger' : 'button-ghost' %>" type="submit"><%= currentUser.role === 'admin' ? 'Apply action' : 'Send for approval' %></button>
 			</form>
 		</section>

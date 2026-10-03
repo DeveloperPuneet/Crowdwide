@@ -50,8 +50,17 @@ test('avatar images use an empty alt and failed loads reveal the initial fallbac
   const avatar = read('src', 'views', 'partials', 'avatar.ejs');
   assert.match(avatar, /alt="" aria-hidden="true"/);
   assert.match(avatar, /class="avatar-initial"/);
-  assert.match(read('public', 'js', 'app.js'), /image\.closest\('\.avatar'\).*image\.remove\(\)/s);
-  assert.match(read('public', 'js', 'app.js'), /image\.complete && image\.naturalWidth === 0/);
+  const groupAvatar = read('src', 'views', 'partials', 'group-avatar.ejs');
+  assert.match(groupAvatar, /class="avatar-initial"/);
+  assert.doesNotMatch(groupAvatar, /\sonerror=/i);
+  const appJs = read('public', 'js', 'app.js');
+  assert.match(appJs, /image\.closest\('\.avatar'\).*image\.remove\(\)/s);
+  assert.match(appJs, /if \(image\.complete\)[\s\S]*image\.naturalWidth === 0/);
+  assert.match(appJs, /image\.addEventListener\('load', \(\) => showLoadedAvatar\(image\)/);
+  const css = read('public', 'css', 'style.css');
+  assert.match(css, /\.avatar-initial\s*\{[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*color:\s*#fff/s);
+  assert.match(css, /\.avatar\.image-loaded \.avatar-initial\s*\{\s*visibility:\s*hidden/);
+  assert.match(css, /\.avatar img\s*\{[^}]*opacity:\s*0/);
 });
 
 test('light and pink themes set readable text, control, and surface colors', () => {
@@ -87,6 +96,36 @@ test('light and pink themes set readable text, control, and surface colors', () 
   const playerCss = read('public', 'css', 'media-player.css');
   assert.match(playerCss, /\.cw-player--audio :is\(\.cw-seek-track, \.cw-volume-range\) \{ background: var\(--theme-border\);/);
   assert.match(playerCss, /\.cw-player--audio \.cw-volume-range::-(webkit|moz)-slider-thumb \{ background: var\(--theme-accent\);/);
+});
+
+test('all dark themes boost supporting-text contrast and light themes recolor overlays and admin controls', () => {
+  const css = read('public', 'css', 'style.css');
+  assert.match(css, /:root\s*\{[^}]*--theme-muted:\s*#c3c6d4/s);
+  assert.match(css, /body\[data-theme="dark"\]\s*\{[^}]*--theme-muted:\s*#c8c8c8/s);
+  assert.match(css, /body\[data-theme="violet"\]\s*\{[^}]*--theme-muted:\s*#e0d5e8/s);
+  assert.match(css, /body\[data-theme="default"\], body\[data-theme="dark"\], body\[data-theme="violet"\]\)[\s\S]*\.post-meta span[\s\S]*color: var\(--theme-muted\)/);
+  assert.match(css, /body\[data-theme="light"\], body\[data-theme="pink"\]\)[\s\S]*\.share-menu[\s\S]*background: var\(--theme-surface\)/);
+  const adminCss = read('public', 'css', 'admin-panel.css');
+  assert.match(adminCss, /body\[data-theme="light"\], body\[data-theme="pink"\]\) \.admin-edit-form select[\s\S]*background: var\(--theme-surface\)/);
+  assert.match(adminCss, /body\[data-theme="light"\], body\[data-theme="pink"\]\) \.admin-table td::before[\s\S]*color: var\(--theme-muted\)/);
+});
+
+test('menus have distinct, higher-contrast surfaces in dark and light themes', () => {
+  const css = read('public', 'css', 'style.css');
+  assert.match(css, /--theme-menu:\s*#202338/);
+  assert.match(css, /body\[data-theme="dark"\]\s*\{[^}]*--theme-menu:\s*#222/s);
+  assert.match(css, /body\[data-theme="violet"\]\s*\{[^}]*--theme-menu:\s*#30213a/s);
+  assert.match(css, /body\[data-theme="default"\], body\[data-theme="dark"\], body\[data-theme="violet"\]\)[\s\S]*\.nav-drawer-panel[\s\S]*background-color: var\(--theme-menu\)/);
+  assert.match(css, /body\[data-theme="light"\], body\[data-theme="pink"\]\)[\s\S]*\.mention-suggestions[\s\S]*border: 1px solid var\(--theme-menu-border\)/);
+  assert.match(css, /body\[data-theme="pink"\]\s*\{[^}]*--theme-menu:\s*#fffafb/s);
+});
+
+test('dashboard omits the sidebar promo and light-theme navigation blends into the page surface', () => {
+  const dashboard = read('src', 'views', 'pages', 'dashboard.ejs');
+  assert.doesNotMatch(dashboard, /Make room for new voices|Every follow shapes your Crowdwide|Read tips to grow/);
+  const css = read('public', 'css', 'style.css');
+  assert.match(css, /body\[data-theme="light"\], body\[data-theme="pink"\]\) :is\(\.settings-nav, \.app-sidebar\)\s*\{[^}]*background:\s*transparent/s);
+  assert.match(css, /body\[data-theme="light"\], body\[data-theme="pink"\]\) :is\(\.app-nav, \.site-nav\)\s*\{[^}]*background:\s*var\(--theme-page\)/s);
 });
 
 test('edit and post-reply actions have dedicated page routes and a full-page editor', () => {

@@ -45,7 +45,7 @@ function usesGmailApi() {
 }
 
 function fromAddress() {
-  return env('MAIL_FROM') || env('GMAIL_USER') || 'Crowdwide <hello@crowdwide.com>';
+  return env('MAIL_FROM') || env('GMAIL_USER') || 'Crowdwide <crowdwide.support@gmail.com>';
 }
 
 function escapeHtml(value) {
@@ -69,24 +69,43 @@ function safeEmailUrl(value) {
 
 function brandedEmail({ heading, message, preheader, eyebrow = 'ACCOUNT SECURITY', code, steps = [], details = [], actionUrl, actionLabel, note, contentHtml = '', greeting }) {
   const safeActionUrl = safeEmailUrl(actionUrl);
-  const greetingBlock = greeting ? `<p style="margin:0 0 10px;color:#282c3e;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;line-height:1.6;">Hello ${escapeHtml(greeting)},</p>` : '';
-  const safeMessage = greetingBlock + String(message || '').split(/\n\s*\n/).map((paragraph) => `<p style="margin:0 0 14px;color:#555a6d;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;">${escapeHtml(paragraph).replace(/\r?\n/g, '<br>')}</p>`).join('') + contentHtml;
+  const greetingBlock = greeting ? `<p style="margin:0 0 10px;color:#252b45;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;line-height:1.6;">Hello ${escapeHtml(greeting)},</p>` : '';
+  const safeMessage = greetingBlock + String(message || '').split(/\n\s*\n/).map((paragraph) => `<p style="margin:0 0 14px;color:#4b5268;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;">${escapeHtml(paragraph).replace(/\r?\n/g, '<br>')}</p>`).join('') + contentHtml;
   const detailRows = details.length
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;border-collapse:collapse;">${details.map(({ label, value }) => `<tr><td style="padding:10px 12px;border-bottom:1px solid #e7e9ef;color:#777d8f;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(label)}</td><td style="padding:10px 12px;border-bottom:1px solid #e7e9ef;color:#282c3e;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;overflow-wrap:anywhere;">${escapeHtml(value)}</td></tr>`).join('')}</table>`
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;border-collapse:collapse;">${details.map(({ label, value }) => `<tr><td style="padding:10px 12px;border-bottom:1px solid #e4e7f0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(label)}</td><td style="padding:10px 12px;border-bottom:1px solid #e4e7f0;color:#252b45;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;overflow-wrap:anywhere;">${escapeHtml(value)}</td></tr>`).join('')}</table>`
     : '';
   const stepsBlock = steps.length
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;background-color:#f7f8fb;border-radius:8px;"><tr><td style="padding:16px 18px;color:#474c60;font-family:Arial,sans-serif;font-size:13px;line-height:1.8;">${steps.map((step, index) => `<div style="padding:3px 0;"><span style="display:inline-block;width:22px;height:22px;margin-right:8px;border-radius:50%;background-color:#fff0e3;color:#bd6220;font-size:12px;font-weight:bold;line-height:22px;text-align:center;">${index + 1}</span>${escapeHtml(step)}</div>`).join('')}</td></tr></table>`
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;background-color:#f2f3ff;border:1px solid #e0e2ff;border-radius:10px;"><tr><td style="padding:16px 18px;color:#414966;font-family:Arial,sans-serif;font-size:13px;line-height:1.8;">${steps.map((step, index) => `<div style="padding:3px 0;"><span style="display:inline-block;width:22px;height:22px;margin-right:8px;border-radius:50%;background-color:#5c63ed;color:#ffffff;font-size:12px;font-weight:bold;line-height:22px;text-align:center;">${index + 1}</span>${escapeHtml(step)}</div>`).join('')}</td></tr></table>`
     : '';
   const action = safeActionUrl && actionLabel
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 16px;"><tr><td bgcolor="#ff9850" style="border-radius:8px;"><a href="${escapeHtml(safeActionUrl)}" style="display:inline-block;padding:15px 24px;color:#111426;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;text-decoration:none;border-radius:8px;">${escapeHtml(actionLabel)} &nbsp;›</a></td></tr></table><p style="margin:0;color:#777d8f;font-family:Arial,sans-serif;font-size:12px;line-height:1.65;">Button not working? Paste this link into your browser:<br><a href="${escapeHtml(safeActionUrl)}" style="color:#b95e1d;word-break:break-all;">${escapeHtml(safeActionUrl)}</a></p>`
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 16px;"><tr><td bgcolor="#5c63ed" style="border-radius:9px;background-color:#5c63ed;"><a href="${escapeHtml(safeActionUrl)}" style="display:inline-block;padding:15px 24px;color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;text-decoration:none;border-radius:9px;">${escapeHtml(actionLabel)} &nbsp;›</a></td></tr></table><p style="margin:0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.65;">Button not working? Paste this link into your browser:<br><a href="${escapeHtml(safeActionUrl)}" style="color:#4d56d8;word-break:break-all;">${escapeHtml(safeActionUrl)}</a></p>`
     : '';
   const codeBlock = code !== undefined
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0;"><tr><td align="center" bgcolor="#fff6ed" style="padding:22px 16px;border:1px solid #ffd9bb;border-radius:10px;background-color:#fff6ed;"><div style="margin-bottom:8px;color:#94613f;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.5px;">YOUR ONE-TIME CODE</div><div style="color:#a34d13;font-family:Arial,sans-serif;font-size:32px;font-weight:bold;letter-spacing:7px;">${escapeHtml(code)}</div></td></tr></table>`
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0;"><tr><td align="center" bgcolor="#f2f3ff" style="padding:22px 16px;border:1px solid #dfe2ff;border-radius:12px;background-color:#f2f3ff;"><div style="margin-bottom:8px;color:#626a88;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.5px;">YOUR ONE-TIME CODE</div><div style="color:#4d56d8;font-family:Arial,sans-serif;font-size:32px;font-weight:bold;letter-spacing:7px;">${escapeHtml(code)}</div></td></tr></table>`
     : '';
-  const safeNote = note ? `<div style="margin-top:22px;padding:14px 16px;border-left:3px solid #ff9850;background-color:#f7f8fb;color:#5d6274;font-family:Arial,sans-serif;font-size:12px;line-height:1.65;">${escapeHtml(note)}</div>` : '';
+  const safeNote = note ? `<div style="margin-top:22px;padding:14px 16px;border-left:3px solid #5c63ed;background-color:#f2f3ff;color:#4b5268;font-family:Arial,sans-serif;font-size:12px;line-height:1.65;">${escapeHtml(note)}</div>` : '';
   const siteUrl = safeEmailUrl(env('APP_URL') || 'https://www.crowdwide.run.place');
 
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(heading)} · Crowdwide</title></head><body style="margin:0;padding:0;background-color:#eef0f5;color:#25283a;font-family:Arial,Helvetica,sans-serif;"><span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;color:transparent;">${escapeHtml(preheader || heading)}</span><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#eef0f5" style="width:100%;background-color:#eef0f5;"><tr><td align="center" style="padding:36px 14px;"><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;border-spacing:0;"><tr><td height="5" bgcolor="#ff9850" style="height:5px;font-size:0;line-height:0;">&nbsp;</td></tr><tr><td bgcolor="#111426" style="padding:25px 32px;background-color:#111426;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td><div style="color:#ffffff;font-family:Arial,sans-serif;font-size:23px;font-weight:bold;letter-spacing:.2px;">Crowdwide<span style="color:#ff9850;">.</span></div><div style="margin-top:5px;color:#aeb2c8;font-family:Arial,sans-serif;font-size:12px;">A fair chance at discovery</div></td><td align="right" style="color:#aeb2c8;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1px;">${escapeHtml(eyebrow)}</td></tr></table></td></tr><tr><td bgcolor="#ffffff" style="padding:36px 34px 32px;background-color:#ffffff;border-left:1px solid #e1e4eb;border-right:1px solid #e1e4eb;"><h1 style="margin:0 0 16px;color:#171a2b;font-family:Arial,sans-serif;font-size:28px;line-height:1.25;">${escapeHtml(heading)}</h1>${safeMessage}${stepsBlock}${codeBlock}${detailRows}${action}${safeNote}</td></tr><tr><td bgcolor="#f8f9fb" style="padding:20px 32px;border:1px solid #e1e4eb;border-top:0;background-color:#f8f9fb;color:#73788b;font-family:Arial,sans-serif;font-size:11px;line-height:1.7;"><strong style="color:#373b4c;">A little more room for curiosity.</strong><br>This account message was sent to ${escapeHtml('the email address associated with your Crowdwide account')}.<br>${siteUrl ? `<a href="${escapeHtml(siteUrl)}" style="color:#b95e1d;text-decoration:none;">Visit Crowdwide</a> &nbsp;·&nbsp; ` : ''}<a href="mailto:hello@crowdwide.com" style="color:#b95e1d;text-decoration:none;">Contact support</a><br><span style="color:#a5a9b6;">If you did not request this, you can safely ignore it.</span></td></tr></table></td></tr></table></body></html>`;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(heading)} · Crowdwide</title></head>
+<body style="margin:0;padding:0;background-color:#f0f1f8;color:#252b45;font-family:Arial,Helvetica,sans-serif;">
+<span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;color:transparent;">${escapeHtml(preheader || heading)}</span>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f0f1f8" style="width:100%;background-color:#f0f1f8;"><tr><td align="center" style="padding:36px 14px;">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;border-spacing:0;">
+<tr><td height="6" bgcolor="#5c63ed" style="height:6px;font-size:0;line-height:0;background-color:#5c63ed;">&nbsp;</td></tr>
+<tr><td bgcolor="#111426" style="padding:25px 32px;background-color:#111426;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+<td><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+<td align="center" width="38" height="38" bgcolor="#5c63ed" style="width:38px;height:38px;border-radius:11px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:18px;font-weight:bold;">C</td>
+<td style="padding-left:11px;"><div style="color:#ffffff;font-family:Arial,sans-serif;font-size:23px;font-weight:bold;letter-spacing:.2px;">Crowdwide<span style="color:#ff9850;">.</span></div><div style="margin-top:4px;color:#b8bdd3;font-family:Arial,sans-serif;font-size:12px;">A fair chance at discovery</div></td>
+</tr></table></td>
+<td align="right" style="color:#b8bdd3;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1px;">${escapeHtml(eyebrow)}</td>
+</tr></table></td></tr>
+<tr><td bgcolor="#ffffff" style="padding:36px 34px 32px;background-color:#ffffff;border-left:1px solid #e1e4eb;border-right:1px solid #e1e4eb;">
+<h1 style="margin:0 0 16px;color:#202641;font-family:Arial,sans-serif;font-size:28px;line-height:1.25;">${escapeHtml(heading)}</h1>${safeMessage}${stepsBlock}${codeBlock}${detailRows}${action}${safeNote}
+</td></tr>
+<tr><td bgcolor="#f8f9fd" style="padding:20px 32px;border:1px solid #e1e4eb;border-top:0;background-color:#f8f9fd;color:#68708a;font-family:Arial,sans-serif;font-size:11px;line-height:1.7;"><strong style="color:#343c5a;">A little more room for curiosity.</strong><br>This account message was sent to ${escapeHtml('the email address associated with your Crowdwide account')}.<br>${siteUrl ? `<a href="${escapeHtml(siteUrl)}" style="color:#4d56d8;text-decoration:none;">Visit Crowdwide</a> &nbsp;·&nbsp; ` : ''}<a href="mailto:crowdwide.support@gmail.com" style="color:#4d56d8;text-decoration:none;">Contact support</a><br><span style="color:#7d849b;">If you did not request this, you can safely ignore it.</span></td></tr>
+</table></td></tr></table></body></html>`;
 }
 
 function getSmtpTransporter() {
@@ -339,7 +358,7 @@ function postEmailCard(post, appUrl) {
   if (!url) return '';
   const body = String(post.body || '').slice(0, 260);
   const author = post.author?.name || 'Crowdwide member';
-  return `<tr><td style="padding:14px 16px;border:1px solid #e7e9ef;border-radius:8px;"><div style="margin-bottom:6px;color:#777d8f;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(author)}</div><p style="margin:0 0 10px;color:#282c3e;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;">${escapeHtml(body)}${String(post.body || '').length > 260 ? '…' : ''}</p><a href="${escapeHtml(url)}" style="color:#b95e1d;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read post &rarr;</a></td></tr><tr><td height="10" style="height:10px;font-size:0;line-height:0;">&nbsp;</td></tr>`;
+  return `<tr><td style="padding:14px 16px;border:1px solid #e0e2f0;border-radius:10px;background-color:#fbfbff;"><div style="margin-bottom:6px;color:#68708a;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(author)}</div><p style="margin:0 0 10px;color:#252b45;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;">${escapeHtml(body)}${String(post.body || '').length > 260 ? '…' : ''}</p><a href="${escapeHtml(url)}" style="color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read post &rarr;</a></td></tr><tr><td height="10" style="height:10px;font-size:0;line-height:0;">&nbsp;</td></tr>`;
 }
 
 async function sendWeeklyNewsletter(user, { engagedPosts = [], interestPosts = [] }) {
@@ -347,7 +366,7 @@ async function sendWeeklyNewsletter(user, { engagedPosts = [], interestPosts = [
   const posts = [...engagedPosts, ...interestPosts];
   if (!posts.length) return false;
   const section = (heading, rows) => rows.length
-    ? `<h2 style="margin:22px 0 10px;color:#171a2b;font-family:Arial,sans-serif;font-size:17px;">${heading}</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl)).join('')}</table>`
+    ? `<h2 style="margin:22px 0 10px;color:#202641;font-family:Arial,sans-serif;font-size:17px;">${heading}</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl)).join('')}</table>`
     : '';
   const html = `${section('Most engaged this week', engagedPosts)}${section('Picked for your interests', interestPosts)}`;
   const text = posts.map((post) => `${post.author?.name || 'Crowdwide member'}: ${String(post.body || '').slice(0, 260)}\n${appUrl}/posts/${post._id}`).join('\n\n');
@@ -372,7 +391,7 @@ async function sendUnreadNotificationSummary(user, notifications = []) {
   const entries = notifications.map((notification) => {
     const url = notification.post ? safeEmailUrl(`${appUrl}/posts/${notification.post}`) : safeEmailUrl(`${appUrl}/notifications`);
     const actor = notification.actor?.name || 'Crowdwide';
-    return `<tr><td style="padding:12px 14px;border-bottom:1px solid #e7e9ef;color:#282c3e;font-family:Arial,sans-serif;font-size:13px;line-height:1.6;"><strong>${escapeHtml(actor)}</strong> ${escapeHtml(notification.message)}${url ? ` <a href="${escapeHtml(url)}" style="color:#b95e1d;font-weight:bold;text-decoration:none;">Open</a>` : ''}</td></tr>`;
+    return `<tr><td style="padding:12px 14px;border-bottom:1px solid #e0e2f0;color:#252b45;font-family:Arial,sans-serif;font-size:13px;line-height:1.6;"><strong>${escapeHtml(actor)}</strong> ${escapeHtml(notification.message)}${url ? ` <a href="${escapeHtml(url)}" style="color:#4d56d8;font-weight:bold;text-decoration:none;">Open</a>` : ''}</td></tr>`;
   }).join('');
   const list = entries ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:16px 0;border-collapse:collapse;">${entries}</table>` : '';
   const text = notifications.map((item) => `${item.actor?.name || 'Crowdwide'} ${item.message}`).join('\n');

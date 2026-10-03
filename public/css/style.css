@@ -55,9 +55,10 @@ h1 em, h2 em { color: #7192ff; font-style: normal; }
   background: linear-gradient(135deg, #f46e66, #5d70ff);
   font: 700 15px 'Space Grotesk', sans-serif; color: #fff;
 }
-.avatar img { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-.avatar-initial { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; line-height: 1; pointer-events: none; }
-.avatar.has-image .avatar-initial { visibility: hidden; }
+.avatar img { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; }
+.avatar-initial { position: absolute; z-index: 1; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font: inherit; line-height: 1; text-align: center; pointer-events: none; }
+.avatar.image-loaded .avatar-initial { visibility: hidden; }
+.avatar.image-loaded img { opacity: 1; }
 .avatar.small { width: 32px; height: 32px; font-size: 12px; display:flex; justify-content: center;align-items: center; }
 .avatar.tiny { width: 29px; height: 29px; font-size: 11px; }
 .avatar.large { width: 84px; height: 84px; font-size: 30px; border: 3px solid var(--ink); }
@@ -2109,3 +2110,169 @@ body[data-theme="pink"] {
 :is(body[data-theme="light"], body[data-theme="pink"]) :is(.block-button.is-blocked, .block-button.is-blocked:hover) { border-color: color-mix(in srgb, #b4233d 28%, var(--theme-border)); background: color-mix(in srgb, #b4233d 9%, var(--theme-surface)); color: #a51f36; }
 :is(body[data-theme="light"], body[data-theme="pink"]) .button-danger { background: #b4233d; color: #fff; box-shadow: none; }
 :is(body[data-theme="light"], body[data-theme="pink"]) .button-danger:hover { background: #921d32; color: #fff; box-shadow: none; }
+
+/* Keep supporting text readable in every dark palette, and give secondary
+   components the same surface treatment as the rest of each light theme. */
+:root {
+  --theme-fg: #f6f6fa;
+  --theme-muted: #c3c6d4;
+  --theme-page: var(--ink);
+  --theme-surface: var(--panel);
+  --theme-soft: #1a1d32;
+  --theme-border: var(--line);
+  --theme-accent: #9eafff;
+  --theme-accent-hover: #bdc8ff;
+}
+body[data-theme="dark"] {
+  --theme-fg: #f5f5f5;
+  --theme-muted: #c8c8c8;
+  --theme-soft: #1c1c1c;
+  --theme-accent: #aab6ff;
+  --theme-accent-hover: #c7ceff;
+}
+body[data-theme="violet"] {
+  --theme-fg: #fff8ff;
+  --theme-muted: #e0d5e8;
+  --theme-soft: #30203a;
+  --theme-accent: #e0b5ff;
+  --theme-accent-hover: #f0d8ff;
+}
+:is(body[data-theme="default"], body[data-theme="dark"], body[data-theme="violet"])
+  :is(.eyebrow, .section-copy, .feed-tabs a, .feed-note, .post-meta span,
+    .post-actions button, .post-actions .post-stat, .post-stat-row,
+    .profile-handle, .profile-stats, .profile-joined, .settings-form label,
+    .settings-form small, .settings-block p, .device-row span, .community-row p,
+    .community-members, .empty-state p, .empty-feed p, .upload-help,
+    .composer-meta, .schedule-picker, .media-picker, .coauthor-picker-head small,
+    .coauthor-empty, .composer-media-meta label, .quest-picker-hint,
+    .quest-progress, .profile-achievement-item small, .profile-highlight-empty,
+    .recap-muted, .recap-month-label, .recap-highlight-meta,
+    .recap-comment-context, .discover-row span, .admin-table th,
+    .admin-edit-form label, .report-evidence-label, .form-note, .switch-auth,
+    .terms, .auth-foot, .site-footer, .footer-tagline, .footer-bottom,
+    .info-intro, .info-sections p, .hero-proof p span, .visual-note small,
+    .story-section p:not(.eyebrow)) {
+  color: var(--theme-muted);
+}
+:is(body[data-theme="default"], body[data-theme="dark"], body[data-theme="violet"])
+  :is(.feed-tabs .feed-tab-active, .profile-tabs .profile-tab-active,
+    .settings-tabs .settings-active, .settings-nav .settings-active) {
+  color: var(--theme-accent);
+}
+:is(body[data-theme="light"], body[data-theme="pink"])
+  :is(.mention-suggestions, .share-menu, .chat-search-results, .gif-picker-panel,
+    .share-sheet-panel, .reaction-picker, .poll-composer, .coauthor-picker,
+    .composer-media-meta, .post-compose-reply-options .media-picker) {
+  background: var(--theme-surface);
+  border-color: var(--theme-border);
+  color: var(--theme-fg);
+  box-shadow: 0 3px 14px rgba(38, 50, 68, .08);
+}
+:is(body[data-theme="light"], body[data-theme="pink"])
+  :is(.share-menu button, .share-menu a, .mention-suggestions button,
+    .chat-search-results button, .gif-picker-panel button, .reaction-picker button) {
+  color: var(--theme-fg);
+}
+:is(body[data-theme="light"], body[data-theme="pink"])
+  :is(.share-menu button:hover, .share-menu a:hover, .mention-suggestions button:hover,
+    .chat-search-results button:hover, .gif-picker-panel button:hover,
+    .reaction-picker button:hover) {
+  background: var(--theme-soft);
+  color: var(--theme-accent);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .poll-composer input,
+:is(body[data-theme="light"], body[data-theme="pink"]) .composer-media-meta input,
+:is(body[data-theme="light"], body[data-theme="pink"]) .composer-media-meta textarea {
+  background: var(--theme-soft);
+  border-color: var(--theme-border);
+  color: var(--theme-fg);
+}
+
+/* Menu surfaces need enough separation to read as overlays, not as part of
+   the page behind them. */
+:root {
+  --theme-menu: #202338;
+  --theme-menu-border: #4a5068;
+  --theme-menu-shadow: 0 12px 32px rgba(0, 0, 0, .55);
+}
+body[data-theme="dark"] {
+  --theme-menu: #222;
+  --theme-menu-border: #505050;
+  --theme-menu-shadow: 0 12px 32px rgba(0, 0, 0, .7);
+}
+body[data-theme="violet"] {
+  --theme-menu: #30213a;
+  --theme-menu-border: #604a70;
+  --theme-menu-shadow: 0 12px 32px rgba(0, 0, 0, .6);
+}
+:is(body[data-theme="default"], body[data-theme="dark"], body[data-theme="violet"])
+  :is(.nav-drawer-panel, .share-menu, .mention-suggestions, .chat-search-results,
+    .gif-picker-panel, .share-sheet-panel, .reaction-picker, .cw-speed-menu) {
+  background-color: var(--theme-menu);
+  border-color: var(--theme-menu-border);
+  box-shadow: var(--theme-menu-shadow);
+}
+:is(body[data-theme="default"], body[data-theme="dark"], body[data-theme="violet"])
+  :is(.share-menu button, .share-menu a, .mention-suggestions button,
+    .chat-search-result, .chat-search-result strong, .chat-search-result time,
+    .gif-picker-close, .gif-picker-status, .gif-picker-credit, .share-sheet-head h2,
+    .share-sheet-list h3, .share-sheet-empty, .share-target-name,
+    .share-target-name strong, .share-target-name small, .share-sheet-links button,
+    .reaction-picker-option, .cw-speed-menu button) {
+  color: #f4f3fa;
+}
+:is(body[data-theme="default"], body[data-theme="dark"], body[data-theme="violet"])
+  :is(.share-menu button:hover, .share-menu a:hover, .mention-suggestions button:hover,
+    .chat-search-result:hover, .gif-picker-close:hover, .share-target:hover,
+    .share-sheet-x:hover, .share-sheet-links button:hover,
+    .reaction-picker-option:hover, .cw-speed-menu button:hover) {
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) {
+  --theme-menu: #fff;
+  --theme-menu-border: #cbd4e0;
+  --theme-menu-shadow: 0 12px 30px rgba(30, 41, 59, .2), 0 2px 6px rgba(30, 41, 59, .1);
+}
+body[data-theme="pink"] {
+  --theme-menu: #fffafb;
+  --theme-menu-border: #dfc4cd;
+  --theme-menu-shadow: 0 12px 30px rgba(91, 40, 59, .18), 0 2px 6px rgba(91, 40, 59, .08);
+}
+:is(body[data-theme="light"], body[data-theme="pink"])
+  :is(.nav-drawer-panel, .share-menu, .mention-suggestions, .chat-search-results,
+    .gif-picker-panel, .share-sheet-panel, .reaction-picker, .cw-speed-menu) {
+  background-color: var(--theme-menu);
+  border: 1px solid var(--theme-menu-border);
+  box-shadow: var(--theme-menu-shadow);
+}
+:is(body[data-theme="light"], body[data-theme="pink"])
+  :is(.share-menu button, .share-menu a, .mention-suggestions button,
+    .chat-search-result, .chat-search-result strong, .chat-search-result time,
+    .gif-picker-close, .gif-picker-status, .gif-picker-credit, .share-sheet-head h2,
+    .share-sheet-list h3, .share-sheet-empty, .share-target-name,
+    .share-target-name strong, .share-target-name small, .share-sheet-links button,
+    .reaction-picker-option, .cw-speed-menu button) {
+  color: var(--theme-fg);
+}
+:is(body[data-theme="light"], body[data-theme="pink"])
+  :is(.share-menu button:hover, .share-menu a:hover, .mention-suggestions button:hover,
+    .chat-search-result:hover, .gif-picker-close:hover, .share-target:hover,
+    .share-sheet-x:hover, .share-sheet-links button:hover,
+    .reaction-picker-option:hover, .cw-speed-menu button:hover) {
+  background: var(--theme-soft);
+  color: var(--theme-accent);
+}
+
+/* Navigation columns should sit on the page surface rather than read as
+   oversized blank cards when a light appearance is selected. */
+:is(body[data-theme="light"], body[data-theme="pink"]) :is(.settings-nav, .app-sidebar) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) :is(.app-nav, .site-nav) {
+  background: var(--theme-page);
+  border-color: var(--theme-border);
+  box-shadow: none;
+}

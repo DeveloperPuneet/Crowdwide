@@ -68,11 +68,15 @@ test('auth emails use branded layouts and escape user-controlled content', async
     assert.match(mail.html, /Crowdwide/);
     assert.match(mail.html, /background-color:#111426/);
     assert.match(mail.html, /#ff9850/);
+    assert.match(mail.html, /background-color:#5c63ed/);
+    assert.match(mail.html, /A fair chance at discovery/);
   }
   assert.match(verification.html, /&lt;img src=x&gt;/);
   assert.match(verification.html, /expires in 15 minutes/);
   assert.match(verification.html, /Never share it with anyone/);
   assert.match(verification.html, /Continue verification/);
+  assert.match(verification.html, /bgcolor="#5c63ed"/);
+  assert.match(verification.html, /background-color:#f2f3ff/);
   assert.match(verification.text, /expires in 15 minutes/);
   assert.doesNotMatch(security.html, /<script>alert\(1\)<\/script>/);
   assert.match(security.html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);

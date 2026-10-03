@@ -10,10 +10,20 @@ const removeBrokenAvatar = (image) => {
   if (!avatar) return;
   image.remove();
   avatar.classList.remove('has-image');
+  avatar.classList.remove('image-loaded');
+};
+const showLoadedAvatar = (image) => {
+  const avatar = image.closest('.avatar');
+  if (avatar) avatar.classList.add('image-loaded');
 };
 document.querySelectorAll('.avatar img').forEach((image) => {
-  if (image.complete && image.naturalWidth === 0) removeBrokenAvatar(image);
-  else image.addEventListener('error', () => removeBrokenAvatar(image), { once: true });
+  if (image.complete) {
+    if (image.naturalWidth === 0) removeBrokenAvatar(image);
+    else showLoadedAvatar(image);
+  } else {
+    image.addEventListener('load', () => showLoadedAvatar(image), { once: true });
+    image.addEventListener('error', () => removeBrokenAvatar(image), { once: true });
+  }
 });
 document.addEventListener('error', (event) => {
   if (event.target instanceof HTMLImageElement) removeBrokenAvatar(event.target);

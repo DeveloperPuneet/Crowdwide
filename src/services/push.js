@@ -8,7 +8,7 @@ function ensureConfigured() {
   if (configured) return true;
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return false;
   webPush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:hello@crowdwide.com',
+    process.env.VAPID_SUBJECT || 'mailto:crowdwide.support@gmail.com',
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );

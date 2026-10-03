@@ -117,6 +117,77 @@
 .admin-section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
 .admin-search { background: var(--ink); border: 1px solid var(--line); border-radius: 8px; color: #f6f6fa; padding: 7px 10px; font-size: 12px; min-width: 220px; }
 
+/* The admin stylesheet is loaded after the shared theme layer, so keep its
+   table and form controls aligned with light and pink surfaces here. */
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-console {
+  color: var(--theme-fg);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-tabs {
+  border-color: var(--theme-border);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-tab {
+  color: var(--theme-muted);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-tab:hover {
+  color: var(--theme-fg);
+  background: var(--theme-soft);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-tab.is-active {
+  color: var(--theme-accent);
+  border-bottom-color: var(--theme-accent);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-table th {
+  color: var(--theme-muted);
+  border-color: var(--theme-border);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-table td,
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-row-toggle,
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-diff {
+  color: var(--theme-fg);
+  border-color: var(--theme-border);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-editrow {
+  background: var(--theme-soft);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-edit-form label {
+  color: var(--theme-muted);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-edit-form input[type="text"],
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-edit-form input[type="email"],
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-edit-form select,
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-edit-form textarea,
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-search {
+  background: var(--theme-surface);
+  border-color: var(--theme-border);
+  color: var(--theme-fg);
+  color-scheme: light;
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-table td::before {
+  color: var(--theme-muted);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-badge.role-admin,
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-badge.status-reported,
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-badge.status-suspended {
+  background: #fce9ed;
+  color: #8a2438;
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-badge.role-moderator {
+  background: #e5f5f8;
+  color: #126173;
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-badge.role-user {
+  background: var(--theme-soft);
+  color: var(--theme-muted);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-badge.status-good {
+  background: #e5f5ee;
+  color: #246345;
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .admin-badge.status-needs-review {
+  background: #fff2df;
+  color: #814500;
+}
+
 @media (max-width: 700px) {
   .admin-table, .admin-table thead, .admin-table tbody, .admin-table th, .admin-table td, .admin-table tr { display: block; }
   .admin-table thead { display: none; }
