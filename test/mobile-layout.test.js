@@ -114,6 +114,15 @@ test('app footer navigation links stay vertically grouped on phones', () => {
   assert.match(responsive, /@media\s*\(max-width:\s*420px\)\s*\{[\s\S]*?\.app-footer \.footer-top\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 });
 
+test('mobile headers span the viewport and keep public account actions in the menu', () => {
+  const responsive = files.find((file) => file.name === 'responsive-layout.css').text;
+
+  assert.match(responsive, /@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.site-nav\.container\s*\{[^}]*width:\s*100%;[^}]*margin-inline:\s*0;/);
+  assert.match(responsive, /@media\s*\(max-width:\s*760px\)\s*\{[\s\S]*?\.site-nav\s*\{[^}]*position:\s*sticky;[^}]*border-bottom:\s*1px solid var\(--line\)/);
+  assert.match(responsive, /@media\s*\(max-width:\s*560px\)\s*\{[\s\S]*?\.site-nav \.nav-actions \.button\s*\{\s*display:\s*none;/);
+  assert.match(responsive, /\.site-nav \.nav-menu-toggle/);
+});
+
 test('every rule that overrides position away from sticky/absolute/fixed also resets the offset that positioning used', () => {
   const positioned = new Set();
   files.forEach(({ text }) => {

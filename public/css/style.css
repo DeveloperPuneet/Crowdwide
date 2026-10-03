@@ -2376,8 +2376,6 @@ pre { overflow-x: auto; }
 @media (max-width: 800px) { .ambient { display: none; } }
 
 @media (max-width: 560px) {
-  /* Public header: the menu drawer already lists these, so keep only the primary action. */
-  .site-nav .nav-actions .button-ghost:not(:first-child), .site-nav .nav-actions .button-ghost:has(+ .button-primary) { display: none; }
   /* Comment composer: full-width field on top, avatar + tools on the row below. */
   .comment-form-row { flex-wrap: wrap; }
   .comment-form .comment-field { flex: 1 1 100%; order: -1; }
