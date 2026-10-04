@@ -197,6 +197,7 @@
       <div>
         <strong><%= report.targetType %> · <%= report.target %></strong>
         <span><%= report.reason %> · reported by <%= report.reporter?.name || 'member' %> · <%= new Date(report.createdAt).toLocaleString() %></span>
+        <% if (report.contextText) { %><p class="report-context"><%= report.contextText %></p><% } %>
         <% if (report.evidenceUrl) { %><a href="<%= report.evidenceUrl %>" target="_blank" rel="noopener noreferrer"><img src="<%= report.evidenceUrl %>" alt="Reported evidence screenshot" style="max-width:160px;border-radius:6px;margin-top:6px;display:block;"></a><% } %>
       </div>
       <form method="post" action="/admin/reports/<%= report._id %>" style="display:flex;gap:6px;flex:1 1 260px;">

@@ -39,9 +39,15 @@ test('chat-message renders text, GIF, shared post, unavailable post and system r
   assert.match(text, /class="chat-msg"/);
   assert.match(text, /&lt;b&gt;hi&lt;\/b&gt;/, 'message text must be escaped');
   assert.match(text, /chat-sender/);
+  assert.match(text, /aria-label="Report message"/);
+  assert.match(text, /class="report-reason-field"/);
+  assert.match(text, /Harassment or bullying/);
+  const multiline = await msg({ body: 'Hi,\nhow are you?\nwassup' });
+  assert.match(multiline, /Hi,\nhow are you\?\nwassup/);
   const own = await msg({ sender: { _id: 'u1', name: 'Me' }, body: 'yo' });
   assert.match(own, /chat-msg is-own/);
   assert.doesNotMatch(own, /chat-sender/);
+  assert.doesNotMatch(own, /aria-label="Report message"/);
   const gif = await msg({ gif: { url: 'https://media.giphy.com/x.gif', width: 200, height: 100 } });
   assert.match(gif, /class="chat-gif"/);
   assert.match(gif, /is-media/);
@@ -96,7 +102,7 @@ test('post cards render co-author credit when a post is collaborative', async ()
 test('post page: flat actions, send-to-chat share, comment box, no Quote', async () => {
   const html = await render('pages/post-detail.ejs', {
     title: 'p', pagePath: '/posts/p1', comments: [{}],
-    post: { ...post(1), liked: true, bookmarked: false, poll: null, quotedPost: null, replyTo: null, questTitle: 'Weekly sketch sprint' },
+    post: { ...post(1), body: 'Hi,\nhow are you?\nwassup', liked: true, bookmarked: false, poll: null, quotedPost: null, replyTo: null, questTitle: 'Weekly sketch sprint' },
     commentTree: [{ _id: 'c1', author: { _id: 'a2', name: 'B' }, body: 'hi', gif: { url: 'https://media.giphy.com/c.gif' }, createdAt: new Date(), likes: [], children: [] }]
   });
   assert.match(html, /data-share-open/);
@@ -105,9 +111,34 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
   assert.match(html, /Reply with a post/);
   assert.match(html, /id="comment-body"/);
   assert.match(html, /class="comment-gif"/);
+  assert.match(html, /<p>Hi,<br>how are you\?<br>wassup<\/p>/);
   assert.match(html, /post-view-actions/);
   assert.match(html, /data-share-count-for="p1"/);
   assert.match(html, /Quest post · Weekly sketch sprint/);
+  assert.match(html, /action="\/comments\/c1\/report"/);
+  assert.match(html, /Choose a reason/);
+});
+
+test('post moderation controls render visibly for staff outside the collapsed more-options menu', async () => {
+  const html = await render('pages/post-detail.ejs', {
+    title: 'p', pagePath: '/posts/p1', comments: [],
+    post: { ...post(1), liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null },
+    commentTree: [], postModerationRole: 'moderator',
+    currentUser: { ...currentUser, role: 'moderator' }
+  });
+  const moderationAt = html.indexOf('class="post-moderation-tools"');
+  const moreOptionsEnd = html.indexOf('</details>', html.indexOf('class="post-more"'));
+  assert.ok(moderationAt > moreOptionsEnd, 'moderation controls must not be inside collapsed More options');
+  assert.match(html, /Moderation options/);
+  assert.match(html, /action="\/posts\/p1\/moderate"/);
+  assert.match(html, /Send for approval/);
+  const adminHtml = await render('pages/post-detail.ejs', {
+    title: 'p', pagePath: '/posts/p1', comments: [],
+    post: { ...post(1), liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null },
+    commentTree: [], postModerationRole: 'admin',
+    currentUser: { ...currentUser, role: 'user' }
+  });
+  assert.match(adminHtml, /Apply action/, 'the fresh database role, not the session role, controls the action label');
 });
 
 test('group info: admins see management tools, plain members do not', async () => {

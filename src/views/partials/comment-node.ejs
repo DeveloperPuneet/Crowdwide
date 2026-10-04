@@ -35,6 +35,16 @@
 			<%- include('comment-form', { action: '/posts/' + postId + '/comments', parent: node._id, placeholder: 'Reply to ' + (node.author?.name || 'this comment'), compact: true, csrfToken: csrf }) %>
 		</details>
 		<% } %>
+		<% if (currentUser && String(node.author?._id || node.author) !== String(currentUser.id)) { %>
+		<details class="report-options comment-report">
+			<summary><%- icon('flag', { size: 13 }) %> Report</summary>
+			<form method="post" action="/comments/<%= node._id %>/report">
+				<input type="hidden" name="_csrf" value="<%= csrf %>">
+				<%- include('report-reason-field') %>
+				<button type="submit">Send report</button>
+			</form>
+		</details>
+		<% } %>
 		<% if (currentUser && String(node.author?._id) === String(currentUser.id)) { %>
 		<details class="comment-owner-tools">
 			<summary><%- icon('edit', { size: 14 }) %> Edit</summary>

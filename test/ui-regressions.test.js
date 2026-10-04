@@ -40,9 +40,14 @@ test('media frames take their own aspect ratio instead of one fixed shape', () =
 
 test('profile topics stay below the bio and post/comment editors have usable height', () => {
   const css = read('public', 'css', 'style.css');
+  const responsive = read('public', 'css', 'responsive-layout.css');
   assert.match(css, /\.profile-hashtags\s*\{\s*margin:\s*12px 0 0/);
   assert.match(css, /\.post-owner-tools textarea\s*\{[^}]*min-height:\s*240px/);
   assert.match(css, /\.comment-form textarea\[name="body"\]\s*\{[^}]*min-height:\s*104px/);
+  assert.match(responsive, /\.person-bio\s*\{[^}]*white-space:\s*pre-line/);
+  assert.match(responsive, /\.search-user-row > \.person-bio\s*\{[^}]*white-space:\s*pre-line/);
+  assert.match(css, /\.chat-text\s*\{\s*margin:\s*0;\s*white-space:\s*pre-wrap/);
+  assert.match(css, /\.thread-comment-text\s*\{\s*white-space:\s*pre-wrap/);
   assert.match(read('src', 'views', 'partials', 'comment-form.ejs'), /<textarea[\s\S]*?data-comment-input/);
 });
 

@@ -6,12 +6,14 @@ const { startTestDatabase, stopTestDatabase, extractCsrfToken, createAgent } = r
 let dbHandle;
 let app;
 let User;
+let Post;
 
 test.before(async () => {
   dbHandle = await startTestDatabase();
   const createApp = require('../../src/app');
   app = createApp({ port: 3000 });
   User = require('../../src/models/User');
+  Post = require('../../src/models/Post');
 });
 
 test.after(async () => {
@@ -56,6 +58,95 @@ test('a "moderator" role is also blocked from the admin-only panel', async () =>
   assert.equal(adminRes.status, 403);
 });
 
+test('moderators can confirm the moderator panel but cannot open or submit admin panel access', async () => {
+  const email = `moderator-access.${Date.now()}@example.com`;
+  const password = 'a-strong-password-123';
+  await User.create({ name: 'Moderator Access', email, password: await bcrypt.hash(password, 12), isVerified: true, role: 'moderator' });
+
+  const agent = createAgent(app);
+  await loginAs(agent, email, password);
+
+  const moderatorPanel = await agent.get('/moderator');
+  assert.equal(moderatorPanel.status, 302);
+  assert.equal(moderatorPanel.headers.location, '/moderator/access?returnTo=/moderator');
+  const moderatorAccess = await agent.get('/moderator/access');
+  assert.equal(moderatorAccess.status, 200);
+
+  assert.equal((await agent.get('/admin/access')).status, 403);
+  const adminAttempt = await agent.post('/admin/access', {
+    _csrf: extractCsrfToken(moderatorAccess.text),
+    password,
+    returnTo: '/admin'
+  });
+  assert.equal(adminAttempt.status, 403);
+
+  const confirmModerator = await agent.post('/moderator/access', {
+    _csrf: extractCsrfToken(moderatorAccess.text),
+    password,
+    returnTo: '/moderator'
+  });
+  assert.equal(confirmModerator.status, 302);
+  assert.equal(confirmModerator.headers.location, '/moderator');
+  assert.equal((await agent.get('/moderator')).status, 200);
+});
+
+test('regular users cannot view or submit either panel password confirmation', async () => {
+  const email = `regular-panel-access.${Date.now()}@example.com`;
+  const password = 'a-strong-password-123';
+  await User.create({ name: 'Regular Panel Access', email, password: await bcrypt.hash(password, 12), isVerified: true, role: 'user' });
+
+  const agent = createAgent(app);
+  await loginAs(agent, email, password);
+  const dashboard = await agent.get('/dashboard');
+  const token = extractCsrfToken(dashboard.text);
+
+  for (const panel of ['admin', 'moderator']) {
+    assert.equal((await agent.get(`/${panel}/access`)).status, 403);
+    const attempt = await agent.post(`/${panel}/access`, { _csrf: token, password, returnTo: `/${panel}` });
+    assert.equal(attempt.status, 403);
+  }
+});
+
+test('post moderation options use the current role and are hidden from regular users', async () => {
+  const password = 'a-strong-password-123';
+  const staffEmail = `fresh-role.${Date.now()}@example.com`;
+  const author = await User.create({
+    name: 'Post Author',
+    email: `post-author.${Date.now()}@example.com`,
+    password: await bcrypt.hash(password, 12),
+    isVerified: true,
+    role: 'user'
+  });
+  const staff = await User.create({
+    name: 'New Moderator',
+    email: staffEmail,
+    password: await bcrypt.hash(password, 12),
+    isVerified: true,
+    role: 'user'
+  });
+  const post = await Post.create({ author: author._id, body: 'Review this post', type: 'post', status: 'published' });
+
+  const agent = createAgent(app);
+  await loginAs(agent, staffEmail, password);
+  const regularView = await agent.get(`/posts/${post._id}`);
+  assert.equal(regularView.status, 200);
+  assert.doesNotMatch(regularView.text, /Moderation options/);
+
+  await User.updateOne({ _id: staff._id }, { role: 'moderator' });
+  const promotedView = await agent.get(`/posts/${post._id}`);
+  assert.match(promotedView.text, /Moderation options/);
+  assert.match(promotedView.text, /Send for approval/);
+
+  await User.updateOne({ _id: staff._id }, { role: 'user' });
+  const demotedView = await agent.get(`/posts/${post._id}`);
+  assert.doesNotMatch(demotedView.text, /Moderation options/);
+
+  await User.updateOne({ _id: staff._id }, { role: 'admin' });
+  const adminView = await agent.get(`/posts/${post._id}`);
+  assert.match(adminView.text, /Moderation options/);
+  assert.match(adminView.text, /Apply action/);
+});
+
 test('an "admin" role must confirm their password before reaching the panel, then gets in', async () => {
   const email = `admin.${Date.now()}@example.com`;
   const password = 'a-strong-password-123';
@@ -83,6 +174,17 @@ test('an "admin" role must confirm their password before reaching the panel, the
   const adminPage = await agent.get('/admin');
   assert.equal(adminPage.status, 200);
   assert.match(adminPage.text, /Admin console/i);
+
+  const moderatorAccess = await agent.get('/moderator/access');
+  assert.equal(moderatorAccess.status, 200);
+  const moderatorConfirm = await agent.post('/moderator/access', {
+    _csrf: extractCsrfToken(moderatorAccess.text),
+    password,
+    returnTo: '/moderator'
+  });
+  assert.equal(moderatorConfirm.status, 302);
+  assert.equal(moderatorConfirm.headers.location, '/moderator');
+  assert.equal((await agent.get('/moderator')).status, 200);
 });
 
 test('an "admin" who enters the wrong panel password stays locked out', async () => {

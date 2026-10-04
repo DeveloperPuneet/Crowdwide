@@ -99,6 +99,28 @@ exports.reportPost = async (req, res) => {
   return redirectBack(req, res, { reported: Boolean(post && reason) });
 };
 
+exports.reportComment = async (req, res) => {
+  const comment = await Comment.findById(req.params.id).populate('post', 'author status community').lean();
+  if (!comment || !comment.post || !(await canAccessPost(comment.post, req.session.user.id))) return redirectBack(req, res, { reported: false });
+  const reason = String(req.body.reason || '').trim().slice(0, 500);
+  if (!reason) {
+    req.session.flash = { type: 'error', message: 'Choose a reason to report this comment.' };
+    return res.redirect(`/posts/${comment.post._id}#comment-${comment._id}`);
+  }
+  if (String(comment.author) === String(req.session.user.id)) {
+    req.session.flash = { type: 'error', message: 'You cannot report your own comment.' };
+    return res.redirect(`/posts/${comment.post._id}#comment-${comment._id}`);
+  }
+  const contextText = `Comment: ${comment.body || '[GIF comment]'}`.slice(0, 3000);
+  await Report.updateOne(
+    { reporter: req.session.user.id, targetType: 'comment', target: comment._id },
+    { $setOnInsert: { reporter: req.session.user.id, targetType: 'comment', target: comment._id, reason, contextText } },
+    { upsert: true }
+  );
+  req.session.flash = { type: 'success', message: 'Comment reported to the moderation team.' };
+  return res.redirect(`/posts/${comment.post._id}#comment-${comment._id}`);
+};
+
 exports.editPost = async (req, res) => {
   const body = req.body.body?.trim();
   const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id });
@@ -375,11 +397,16 @@ exports.postDetail = async (req, res) => {
     .lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   let blockedIds = [];
+  let postModerationRole = null;
   if (viewerId) {
-    const viewer = await User.findById(viewerId).select('bookmarks blockedUsers').lean();
+    const viewer = await User.findById(viewerId).select('bookmarks blockedUsers role').lean();
     post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
     post.bookmarked = (viewer?.bookmarks || []).some((id) => String(id) === String(post._id));
     blockedIds = (viewer?.blockedUsers || []).map(String);
+    if (['admin', 'moderator'].includes(viewer?.role)
+      && !(viewer.role === 'moderator' && String(post.author?._id || post.author) === String(viewerId))) {
+      postModerationRole = viewer.role;
+    }
     // Log the open for feed personalization (what this person reads, not
     // just what they like/comment on) - skip their own posts, those don't
     // tell us anything about outside interests. Most-recent-first, capped
@@ -392,7 +419,7 @@ exports.postDetail = async (req, res) => {
   const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean())
     .filter((comment) => !blockedIds.includes(String(comment.author?._id)));
   const commentTree = buildCommentTree(comments);
-  res.render('pages/post-detail', { title: `${post.author?.name || 'Crowdwide'} post`, pagePath: `/posts/${post._id}`, noIndex: false, post, comments, commentTree });
+  res.render('pages/post-detail', { title: `${post.author?.name || 'Crowdwide'} post`, pagePath: `/posts/${post._id}`, noIndex: false, post, comments, commentTree, postModerationRole });
 };
 
 exports.commentThread = async (req, res) => {

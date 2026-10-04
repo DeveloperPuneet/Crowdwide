@@ -40,7 +40,14 @@
 		<time class="chat-time" datetime="<%= iso %>"></time>
 		<%- include('emoji-reaction-bar', { reactions, targetType: inGroup ? 'group' : 'dm', targetId: m._id, groupId: inGroup ? locals.groupId : null }) %>
 		<% if (!mine && locals.reportBaseUrl) { const reportUrl = inGroup ? `${locals.reportBaseUrl}/messages/${m._id}/report` : `${locals.reportBaseUrl}/${m._id}/report`; %>
-		<details class="chat-message-report"><summary aria-label="Report message"><%- icon('flag', { size: 13 }) %></summary><form method="post" action="<%= reportUrl %>"><input type="hidden" name="_csrf" value="<%= locals.csrfToken %>"><label>Reason<select name="reason" required><option value="">Choose a reason</option><option>Spam</option><option>Harassment</option><option>Threat or harmful content</option><option>Other</option></select></label><button type="submit">Report</button></form></details>
+		<details class="report-options chat-message-report">
+			<summary aria-label="Report message"><%- icon('flag', { size: 13 }) %><span>Report</span></summary>
+			<form method="post" action="<%= reportUrl %>">
+				<input type="hidden" name="_csrf" value="<%= locals.csrfToken %>">
+				<%- include('report-reason-field') %>
+				<button type="submit">Send report</button>
+			</form>
+		</details>
 		<% } %>
 	</div>
 </div>

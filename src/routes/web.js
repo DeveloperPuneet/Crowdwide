@@ -75,6 +75,7 @@ router.get('/posts/:id/comments', interactionController.commentThread);
 router.post('/notifications/read', requireAuth, requireVerified, interactionController.readNotifications);
 router.post('/posts/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleLike);
 router.post('/posts/:id/report', requireAuth, requireVerified, interactionLimiter, reportUpload, csrfSynchronisedProtection, handleUploadError, validateReportUpload, scanUploadsForViruses, interactionController.reportPost);
+router.post('/comments/:id/report', requireAuth, requireVerified, interactionLimiter, interactionController.reportComment);
 router.post('/posts/:id/comments', requireAuth, requireVerified, interactionLimiter, interactionController.comment);
 router.post('/comments/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editComment);
 router.post('/comments/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deleteComment);

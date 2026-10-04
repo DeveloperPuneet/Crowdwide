@@ -75,19 +75,24 @@
 				<% } else { %>
 				<details class="post-owner-tools">
 					<summary><%- icon('flag', { size: 14 }) %> Report</summary>
-					<form class="post-report-form" method="post" action="/posts/<%= post._id %>/report" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" maxlength="500" placeholder="What is wrong with this post?"><label class="report-evidence-label">Evidence (optional)<input type="file" name="evidence" accept="image/*"></label><button type="submit">Send report</button></form>
+					<form class="report-options post-report-form" method="post" action="/posts/<%= post._id %>/report" enctype="multipart/form-data">
+						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+						<%- include('../partials/report-reason-field') %>
+						<label class="report-evidence-label">Evidence (optional)<input type="file" name="evidence" accept="image/*"></label>
+						<button type="submit">Send report</button>
+					</form>
 				</details>
 				<% } %>
 			</div>
 		</details>
-		<% if (['admin', 'moderator'].includes(currentUser?.role) && String(post.author?._id) !== String(currentUser.id)) { %>
-		<section class="post-moderation-tools">
-			<strong>Moderation</strong>
-			<form method="post" action="/posts/<%= post._id %>/moderate" style="margin-top: 20px;">
+		<% if (locals.postModerationRole) { %>
+		<section class="post-moderation-tools" aria-labelledby="post-moderation-heading">
+			<div class="post-moderation-heading"><%- icon('shield', { size: 16 }) %><strong id="post-moderation-heading">Moderation options</strong></div>
+			<form class="post-moderation-form" method="post" action="/posts/<%= post._id %>/moderate">
 				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-				<label style="margin-bottom: 10px;">Action<select name="action" style="margin-top: 20px; margin-bottom:15px;"><option value="rate-good-post">Mark as good</option><option value="rate-bad-post">Mark for review</option><option value="report-post">Report post</option><option value="suspend-user">Suspend author</option><option value="delete-post">Delete post</option></select></label>
-				<input name="reason" maxlength="1000" placeholder="Reason (optional for ratings)" style="margin-bottom: 10px;">
-				<button class="button button-small <%= currentUser.role === 'admin' ? 'button-danger' : 'button-ghost' %>" type="submit"><%= currentUser.role === 'admin' ? 'Apply action' : 'Send for approval' %></button>
+				<label>Action<select name="action"><option value="rate-good-post">Mark as good</option><option value="rate-bad-post">Mark for review</option><option value="report-post">Report post</option><option value="suspend-user">Suspend author</option><option value="delete-post">Delete post</option></select></label>
+				<label>Reason <span class="form-optional">(optional for ratings)</span><input name="reason" maxlength="1000" placeholder="Add context for this action"></label>
+				<button class="button button-small <%= locals.postModerationRole === 'admin' ? 'button-danger' : 'button-ghost' %>" type="submit"><%= locals.postModerationRole === 'admin' ? 'Apply action' : 'Send for approval' %></button>
 			</form>
 		</section>
 		<% } %>

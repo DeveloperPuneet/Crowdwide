@@ -182,7 +182,7 @@
 }
 
 /* Shared polish for discovery, settings, chat and the admin workspace. */
-.person-bio { display: block; min-width: 0; overflow-wrap: anywhere; }
+.person-bio { display: block; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }
 .bio-read-more {
     display: inline;
     padding: 0;
@@ -267,7 +267,7 @@
 .search-user-row > .person-bio { flex: 1 1 100%; margin-left: 52px; color: var(--tx-faint); font-size: 12px; line-height: 1.5; }
 .discover-row > div { min-width: 0; }
 .discover-row .person-bio,
-.search-user-row > .person-bio { white-space: normal; overflow: visible; text-overflow: clip; }
+.search-user-row > .person-bio { white-space: pre-line; overflow: visible; text-overflow: clip; }
 .discover-row .person-bio { display: block; margin-top: 4px; color: var(--tx-faint); font-size: 11px; line-height: 1.45; }
 .explore-grid .community-card,
 .explore-rising-grid .community-radar-preview,
@@ -1541,6 +1541,18 @@
   .post-view-counts {
     gap: 6px 12px;
     font-size: 12px;
+  }
+
+  .post-moderation-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .post-moderation-form > button {
+    justify-self: start;
+  }
+
+  .report-options > form {
+    min-width: 0;
   }
 
   .post-view-actions {
