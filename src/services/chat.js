@@ -30,6 +30,7 @@ function previewText(message) {
 
 function buildPostPreview(post) {
   const image = (post.media || []).find((item) => item.kind === 'image');
+  const video = !image && (post.media || []).find((item) => item.kind === 'video');
   const label = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post';
   return {
     id: String(post._id),
@@ -37,7 +38,8 @@ function buildPostPreview(post) {
     label,
     author: post.author?.name || 'Crowdwide member',
     excerpt: excerpt(post.poll?.question || post.body, 160),
-    image: image ? (image.thumbnailUrl || image.url) : null
+    image: image ? (image.thumbnailUrl || image.url) : null,
+    video: video ? { url: video.url, poster: video.thumbnailUrl || null } : null
   };
 }
 

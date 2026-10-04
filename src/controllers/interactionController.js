@@ -7,6 +7,7 @@ const Report = require('../models/Report');
 const Message = require('../models/Message');
 const { previewText } = require('../services/chat');
 const { extractHashtags } = require('../utils/hashtags');
+const countWords = require('../utils/wordCount');
 const { gifFromBody } = require('../services/gif');
 const { refreshPersonalization } = require('../services/feedService');
 const { notifyMentionedUsers } = require('../services/mentions');
@@ -128,8 +129,9 @@ exports.editPost = async (req, res) => {
   if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
   const wordLimits = await getWordLimits();
   const wordLimit = post.replyTo ? MAX_REPLY_POST_WORDS : post.type === 'article' ? wordLimits.article : wordLimits.post;
-  const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
-  if (!body || wordCount > wordLimit) {
+  const wordCount = countWords(body);
+  const existingWordCount = countWords(post.body);
+  if (!body || (wordCount > wordLimit && wordCount > existingWordCount)) {
     const error = `${post.type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.`;
     req.session.flash = { type: 'error', message: error };
     return redirectBack(req, res, { ok: false, error });
@@ -310,7 +312,7 @@ exports.toggleReaction = async (req, res) => {
 exports.replyPost = async (req, res) => {
   const source = await Post.findById(req.params.id).select('author status community body').lean();
   const body = req.body.body?.trim();
-  const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
+  const wordCount = countWords(body);
   if (!(await canAccessPost(source, req.session.user.id)) || !body || wordCount > MAX_REPLY_POST_WORDS) {
     const error = `Reply posts are limited to ${MAX_REPLY_POST_WORDS} words.`;
     req.session.flash = { type: 'error', message: error };

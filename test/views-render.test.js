@@ -27,6 +27,19 @@ test('chat attachment responses render previewable media inline and keep downloa
 
   sendMessageAttachment(res, { attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', size: 3, data: Buffer.from('abc') } });
   assert.match(res.headers['Content-Disposition'], /^inline;/);
+  assert.deepEqual(captures[0], Buffer.from('abc'));
+
+  const binary = new (require('mongoose').mongo.BSON.Binary)(Buffer.from('image-bytes'));
+  const binaryImageResponse = {
+    headers: {},
+    set(headers) { Object.assign(this.headers, headers); },
+    send(data) { this.data = data; },
+    status(code) { this.statusCode = code; return this; },
+    end() { this.ended = true; }
+  };
+  sendMessageAttachment(binaryImageResponse, { attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', data: binary } });
+  assert.equal(binaryImageResponse.data.toString(), 'image-bytes');
+  assert.equal(binaryImageResponse.headers['Content-Length'], '11');
 
   const pdfResponse = { headers: {}, set(headers) { Object.assign(this.headers, headers); }, send(data) { captures.push(data); }, status(code) { this.statusCode = code; return this; }, end() { captures.push('ended'); } };
   sendMessageAttachment(pdfResponse, { attachment: { filename: 'note.pdf', contentType: 'application/pdf', size: 123, data: Buffer.from('abc') } });
@@ -110,8 +123,10 @@ test('chat-message renders text, GIF, shared post, unavailable post and system r
   assert.match(videoAttachment, /chat-attachment-media/);
   assert.match(videoAttachment, /<video class="chat-attachment-media"/);
   assert.match(videoAttachment, /src="\/groups\/g1\/messages\/m1\/attachment"/);
-  const shared = await msg({ postPreview: { id: 'p1', label: 'Article', author: 'Ravi', excerpt: 'Short text', image: null } });
-  assert.match(shared, /href="\/posts\/p1"/);
+  const shared = await msg({ postPreview: { id: 'p1', label: 'Article', author: 'Ravi', excerpt: 'Short text', image: '/media/photo.jpg' } });
+  assert.match(shared, /<a class="chat-post" href="\/posts\/p1">[\s\S]*<img src="\/media\/photo.jpg"[\s\S]*<\/a>/);
+  const sharedVideo = await msg({ postPreview: { id: 'p2', label: 'Post', author: 'Ravi', excerpt: 'Video', image: null, video: { url: '/media/clip', poster: '/media/poster' } } });
+  assert.match(sharedVideo, /<video class="chat-post-video" controls preload="metadata" playsinline src="\/media\/clip" poster="\/media\/poster"><\/video>/);
   const hidden = await msg({ postPreview: { unavailable: true } });
   assert.match(hidden, /isn't available/);
   const system = await msg({ kind: 'system', body: 'added Priya.' });
@@ -368,6 +383,7 @@ test('post edit and reply render as separate full-page composition flows', async
     title: 'Edit post', pagePath: '/posts/p1/edit', editorMode: 'edit', post: sourcePost, sourcePost, wordLimit: 60
   });
   assert.match(edit, /action="\/posts\/p1\/edit"/);
+  assert.match(edit, /<form class="post-compose-form" method="post" action="\/posts\/p1\/edit"/);
   assert.match(edit, /<textarea[^>]*>Original post text<\/textarea>/);
   assert.match(edit, /data-word-limit="60"/);
   assert.match(edit, /data-word-count-remaining/);
@@ -376,6 +392,7 @@ test('post edit and reply render as separate full-page composition flows', async
     title: 'Reply with a post', pagePath: '/posts/p1/reply', editorMode: 'reply', post: null, sourcePost, wordLimit: 50
   });
   assert.match(reply, /action="\/posts\/p1\/reply"/);
+  assert.match(reply, /<form class="post-compose-form" method="post" enctype="multipart\/form-data" action="\/posts\/p1\/reply"/);
   assert.match(reply, /Original post text/);
   assert.match(reply, /Reply with a post/);
   assert.match(reply, /name="media"/);

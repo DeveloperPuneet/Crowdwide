@@ -16,7 +16,7 @@
   <% } else { %>
   <div class="post-compose-context"><%- icon('edit', { size: 16 }) %><span>Editing your <%= post.type === 'article' ? 'article' : 'post' %><% if (post.community?.name) { %> in <strong><%= post.community.name %></strong><% } %></span></div>
   <% } %>
-  <form class="post-compose-form" method="post" enctype="multipart/form-data" action="/posts/<%= sourcePost._id %>/<%= editorMode === 'edit' ? 'edit' : 'reply' %>">
+  <form class="post-compose-form" method="post"<% if (editorMode === 'reply') { %> enctype="multipart/form-data"<% } %> action="/posts/<%= sourcePost._id %>/<%= editorMode === 'edit' ? 'edit' : 'reply' %>">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="post-compose-form-heading"><%- include('../partials/avatar', { person: currentUser, size: 'small', link: false }) %><div><strong><%= currentUser.name %></strong><span><%= editorMode === 'edit' ? 'Update your post' : 'Public reply post' %></span></div></div>
     <label class="post-compose-field" for="post-compose-body"><span><%= editorMode === 'edit' ? 'Post text' : 'Your reply' %></span><textarea id="post-compose-body" data-mention-input name="body"<% if (editorMode !== 'reply' && !(editorMode === 'edit' && post.replyTo)) { %> maxlength="4000"<% } %> required aria-describedby="post-compose-limit" data-word-limit="<%= wordLimit %>"><%= editorMode === 'edit' ? post.body : '' %></textarea></label>

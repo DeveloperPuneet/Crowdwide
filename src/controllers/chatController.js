@@ -106,7 +106,13 @@ function sanitizedContent(req) {
 
 function sendMessageAttachment(res, message, req) {
   if (!message?.attachment?.data) return res.status(404).end();
-  const { filename, contentType, size, data } = message.attachment;
+  const { filename, contentType } = message.attachment;
+  const storedData = message.attachment.data;
+  const data = Buffer.isBuffer(storedData)
+    ? storedData
+    : typeof storedData.value === 'function' ? storedData.value(true) : null;
+  if (!Buffer.isBuffer(data)) return res.status(404).end();
+  const size = data.length;
   const fallbackName = String(filename || 'attachment').replace(/[^\x20-\x7e]|["\\]/g, '_');
   const isPreviewableMedia = /^image\//.test(contentType) || /^video\//.test(contentType);
   res.set({
@@ -131,7 +137,7 @@ function sendMessageAttachment(res, message, req) {
     if (req?.method === 'HEAD') return res.status(206).end();
     return res.status(206).send(data.subarray(videoRange.start, videoRange.end + 1));
   }
-  res.set('Content-Length', String(size));
+  res.set({ 'Content-Length': String(size) });
   if (req?.method === 'HEAD') return res.end();
   res.send(data);
 }

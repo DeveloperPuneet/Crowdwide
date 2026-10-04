@@ -24,7 +24,9 @@ test('chat helpers: previews, ids and excerpts', () => {
   assert.equal(chat.isObjectId('nope'), false);
   assert.equal(chat.excerpt('a'.repeat(300), 20).length, 20);
   const preview = chat.buildPostPreview({ _id: 'p1', type: 'article', body: 'Body text', author: { name: 'Ravi' }, media: [{ kind: 'image', url: '/m/1' }] });
-  assert.deepEqual([preview.label, preview.author, preview.image], ['Article', 'Ravi', '/m/1']);
+  assert.deepEqual([preview.label, preview.author, preview.image, preview.video], ['Article', 'Ravi', '/m/1', null]);
+  const videoPreview = chat.buildPostPreview({ _id: 'p2', type: 'post', body: 'Video', media: [{ kind: 'video', url: '/media/1', thumbnailUrl: '/media/preview' }] });
+  assert.deepEqual(videoPreview.video, { url: '/media/1', poster: '/media/preview' });
 });
 
 test('messages and comments need text, a GIF or a shared post', async () => {

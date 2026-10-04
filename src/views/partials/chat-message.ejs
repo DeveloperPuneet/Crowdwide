@@ -24,10 +24,17 @@
 				<% if (m.postPreview.unavailable) { %>
 				<div class="chat-post is-unavailable"><%- icon('lock', { size: 15 }) %> <span>This post isn't available to you.</span></div>
 				<% } else { const p = m.postPreview; %>
+				<% if (p.video) { %>
+				<div class="chat-post is-video">
+					<video class="chat-post-video" controls preload="metadata" playsinline src="<%= p.video.url %>"<% if (p.video.poster) { %> poster="<%= p.video.poster %>"<% } %>></video>
+					<a class="chat-post-body" href="/posts/<%= p.id %>"><span class="chat-post-kind"><%= p.label %> · <%= p.author %></span><span class="chat-post-text"><%= p.excerpt || 'Open to view' %></span></a>
+				</div>
+				<% } else { %>
 				<a class="chat-post" href="/posts/<%= p.id %>">
 					<% if (p.image) { %><img src="<%= p.image %>" alt="" loading="lazy"><% } %>
 					<span class="chat-post-body"><span class="chat-post-kind"><%= p.label %> · <%= p.author %></span><span class="chat-post-text"><%= p.excerpt || 'Open to view' %></span></span>
 				</a>
+				<% } %>
 				<% } %>
 			<% } %>
 			<% if (m.gif?.url) { %><img class="chat-gif" src="<%= m.gif.url %>" alt="<%= m.gif.title || 'GIF' %>" loading="lazy"<% if (m.gif.width && m.gif.height) { %> width="<%= m.gif.width %>" height="<%= m.gif.height %>"<% } %>><% } %>
