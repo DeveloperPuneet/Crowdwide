@@ -1354,7 +1354,7 @@ body.no-scroll { overflow: hidden; }
 .chat-attachment-pending { display: inline-flex; align-items: center; max-width: 100%; padding: 6px 10px; border-radius: 999px; background: var(--ov-2); border: 1px solid rgba(255, 255, 255, .12); color: #fff; font-size: 12px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-attachment { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 7px 10px; border-radius: 999px; background: var(--ov-1); color: #edf0ff; text-decoration: none; }
 .chat-attachment-media-link { display: block; margin: 0 0 6px; }
-.chat-attachment-media { display: block; max-width: min(360px, 100%); border-radius: 14px; background: var(--sf-2); }
+.chat-attachment-media { display: block; max-width: min(360px, 100%); max-height: min(60vh, 480px); height: auto; border-radius: 14px; background: var(--sf-2); object-fit: contain; }
 .gif-badge { font-size: 11px; font-weight: 800; letter-spacing: .5px; border: 1.5px solid currentColor; border-radius: 6px; padding: 1px 5px; line-height: 1.3; }
 
 /* GIF picker */

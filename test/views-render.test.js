@@ -25,12 +25,20 @@ test('chat attachment responses render previewable media inline and keep downloa
     end() { captures.push('ended'); }
   };
 
-  sendMessageAttachment(res, { attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', size: 123, data: Buffer.from('abc') } });
+  sendMessageAttachment(res, { attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', size: 3, data: Buffer.from('abc') } });
   assert.match(res.headers['Content-Disposition'], /^inline;/);
 
   const pdfResponse = { headers: {}, set(headers) { Object.assign(this.headers, headers); }, send(data) { captures.push(data); }, status(code) { this.statusCode = code; return this; }, end() { captures.push('ended'); } };
   sendMessageAttachment(pdfResponse, { attachment: { filename: 'note.pdf', contentType: 'application/pdf', size: 123, data: Buffer.from('abc') } });
   assert.match(pdfResponse.headers['Content-Disposition'], /^attachment;/);
+
+  const videoResponse = { headers: {}, set(headers, value) { if (typeof headers === 'string') this.headers[headers] = value; else Object.assign(this.headers, headers); }, send(data) { this.data = data; }, status(code) { this.statusCode = code; return this; }, end() { this.ended = true; } };
+  sendMessageAttachment(videoResponse, { attachment: { filename: 'clip.mp4', contentType: 'video/mp4', size: 6, data: Buffer.from('abcdef') } }, { headers: { range: 'bytes=1-3' } });
+  assert.equal(videoResponse.statusCode, 206);
+  assert.equal(videoResponse.headers['Accept-Ranges'], 'bytes');
+  assert.equal(videoResponse.headers['Content-Range'], 'bytes 1-3/6');
+  assert.equal(videoResponse.headers['Content-Length'], '3');
+  assert.equal(videoResponse.data.toString(), 'bcd');
 });
 
 test('search results clamp long text and use responsive result classes', async () => {
@@ -76,7 +84,7 @@ test('community invite landing renders a join confirmation page', async () => {
 });
 
 test('chat-message renders text, GIF, shared post, unavailable post and system rows', async () => {
-  const msg = (extra) => render('partials/chat-message.ejs', { group: true, viewerId: 'u1', reportBaseUrl: 'http://x', message: { _id: 'm1', sender: { _id: 'u2', name: 'Asha' }, createdAt: new Date(), body: '', ...extra } });
+  const msg = (extra) => render('partials/chat-message.ejs', { group: true, viewerId: 'u1', reportBaseUrl: '/groups/g1', message: { _id: 'm1', sender: { _id: 'u2', name: 'Asha' }, createdAt: new Date(), body: '', ...extra } });
   const text = await msg({ body: '<b>hi</b>' });
   assert.match(text, /class="chat-msg"/);
   assert.match(text, /&lt;b&gt;hi&lt;\/b&gt;/, 'message text must be escaped');
@@ -96,9 +104,12 @@ test('chat-message renders text, GIF, shared post, unavailable post and system r
   const imageAttachment = await msg({ attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', size: 2048 } });
   assert.match(imageAttachment, /chat-attachment-media/);
   assert.match(imageAttachment, /<img class="chat-attachment-media"/);
+  assert.match(imageAttachment, /src="\/groups\/g1\/messages\/m1\/attachment"/);
+  assert.match(imageAttachment, /chat-bubble is-media/);
   const videoAttachment = await msg({ attachment: { filename: 'clip.mp4', contentType: 'video/mp4', size: 4096 } });
   assert.match(videoAttachment, /chat-attachment-media/);
   assert.match(videoAttachment, /<video class="chat-attachment-media"/);
+  assert.match(videoAttachment, /src="\/groups\/g1\/messages\/m1\/attachment"/);
   const shared = await msg({ postPreview: { id: 'p1', label: 'Article', author: 'Ravi', excerpt: 'Short text', image: null } });
   assert.match(shared, /href="\/posts\/p1"/);
   const hidden = await msg({ postPreview: { unavailable: true } });

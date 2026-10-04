@@ -20,6 +20,7 @@ const User = require('../models/User');
 const logger = require('../services/logger');
 const { gifFromBody } = require('../services/gif');
 const { PAGE_SIZE, isObjectId, escapeRegex, excerpt, previewText, attachPostPreviews, isPendingRequest, tooManyNewDmRequests } = require('../services/chat');
+const { parseRange } = require('../services/storageCluster');
 const { notify } = require('./interactionController');
 const { toggleReaction } = require('../utils/reactions');
 
@@ -103,18 +104,35 @@ function sanitizedContent(req) {
   return { body, gif, attachment };
 }
 
-function sendMessageAttachment(res, message) {
+function sendMessageAttachment(res, message, req) {
   if (!message?.attachment?.data) return res.status(404).end();
   const { filename, contentType, size, data } = message.attachment;
   const fallbackName = String(filename || 'attachment').replace(/[^\x20-\x7e]|["\\]/g, '_');
   const isPreviewableMedia = /^image\//.test(contentType) || /^video\//.test(contentType);
   res.set({
     'Content-Type': contentType,
-    'Content-Length': size,
     'Content-Disposition': `${isPreviewableMedia ? 'inline' : 'attachment'}; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(filename || 'attachment')}`,
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff'
   });
+  const isVideo = /^video\//.test(contentType);
+  if (isVideo) res.set('Accept-Ranges', 'bytes');
+  const videoRange = isVideo ? parseRange(req?.headers?.range, size) : null;
+  if (videoRange === 'unsatisfiable') {
+    res.set({ 'Content-Range': `bytes */${size}`, 'Accept-Ranges': 'bytes' });
+    return res.status(416).end();
+  }
+  if (videoRange) {
+    const length = videoRange.end - videoRange.start + 1;
+    res.set({
+      'Content-Range': `bytes ${videoRange.start}-${videoRange.end}/${size}`,
+      'Content-Length': String(length)
+    });
+    if (req?.method === 'HEAD') return res.status(206).end();
+    return res.status(206).send(data.subarray(videoRange.start, videoRange.end + 1));
+  }
+  res.set('Content-Length', String(size));
+  if (req?.method === 'HEAD') return res.end();
   res.send(data);
 }
 
@@ -224,7 +242,7 @@ exports.dmHistory = async (req, res) => {
     if (!person || blocked || !before) return res.status(404).json({ messages: [], hasMore: false });
     const { rows, hasMore } = await pageOfMessages(Message, dmFilter(userId, person._id), { before });
     await attachPostPreviews(rows, userId);
-    res.json({ messages: await renderMessages(res, rows, { group: false, viewerId: userId }), hasMore });
+    res.json({ messages: await renderMessages(res, rows, { group: false, viewerId: userId, reportBaseUrl: `/messages/${person._id}` }), hasMore });
   } catch (error) {
     logger.error('Loading earlier direct messages failed', error);
     res.status(500).json({ messages: [], hasMore: false, error: 'Could not load earlier messages.' });
@@ -272,7 +290,7 @@ exports.dmAttachment = async (req, res) => {
     const { person, blocked, userId } = await loadDmPerson(req);
     if (!person || blocked) return res.status(404).end();
     const message = await Message.findOne({ _id: req.params.messageId, ...dmFilter(userId, person._id) }).select('attachment').lean();
-    return sendMessageAttachment(res, message);
+    return sendMessageAttachment(res, message, req);
   } catch (error) {
     logger.error('Loading direct-message attachment failed', error);
     return res.status(404).end();
@@ -413,7 +431,7 @@ exports.groupHistory = async (req, res) => {
     if (!memberOf(group, req.session.user.id) || !before) return res.status(404).json({ messages: [], hasMore: false });
     const { rows, hasMore } = await pageOfMessages(GroupMessage, { group: group._id }, { before });
     await attachPostPreviews(rows, req.session.user.id);
-    res.json({ messages: await renderMessages(res, rows, { group: true, viewerId: req.session.user.id, groupId: String(group._id) }), hasMore });
+    res.json({ messages: await renderMessages(res, rows, { group: true, viewerId: req.session.user.id, groupId: String(group._id), reportBaseUrl: `/groups/${group._id}` }), hasMore });
   } catch (error) {
     logger.error('Loading earlier group messages failed', error);
     res.status(500).json({ messages: [], hasMore: false, error: 'Could not load earlier messages.' });
@@ -449,7 +467,7 @@ exports.groupAttachment = async (req, res) => {
     const group = await GroupConversation.findById(req.params.id).select('members').lean();
     if (!memberOf(group, req.session.user.id)) return res.status(404).end();
     const message = await GroupMessage.findOne({ _id: req.params.messageId, group: group._id }).select('attachment').lean();
-    return sendMessageAttachment(res, message);
+    return sendMessageAttachment(res, message, req);
   } catch (error) {
     logger.error('Loading group attachment failed', error);
     return res.status(404).end();

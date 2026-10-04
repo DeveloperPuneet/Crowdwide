@@ -19,7 +19,7 @@
 	<% if (!mine && inGroup) { %><span class="chat-msg-avatar"><%- include('avatar', { person: m.sender || {}, size: 'tiny', link: false }) %></span><% } %>
 	<div class="chat-msg-main">
 		<% if (!mine && inGroup) { %><span class="chat-sender"><%= m.sender?.name || 'Member' %></span><% } %>
-		<div class="chat-bubble<%= (m.gif?.url || m.postPreview) && !m.body ? ' is-media' : '' %>">
+		<div class="chat-bubble<%= (m.gif?.url || m.postPreview || m.attachment?.contentType?.startsWith('image/') || m.attachment?.contentType?.startsWith('video/')) && !m.body ? ' is-media' : '' %>">
 			<% if (m.postPreview) { %>
 				<% if (m.postPreview.unavailable) { %>
 				<div class="chat-post is-unavailable"><%- icon('lock', { size: 15 }) %> <span>This post isn't available to you.</span></div>
