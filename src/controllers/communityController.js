@@ -222,7 +222,7 @@ exports.detail = async (req, res) => {
   // A private community's posts and member list are for members only - the
   // "Request to join" flow below is the only thing a non-member should see.
   if (community.isPrivate && !joined) {
-    return res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts: [], members: [], moderatorIds, joined, requested, isOwner, locked: true });
+    return res.render('pages/community-request', { title: `Request to join ${community.name}`, pagePath: `/communities/${community.slug}`, noIndex: true, community, requested });
   }
   const pinnedIds = (community.pinnedPosts || []).map(String);
   const [recentPosts, pinnedPosts, members, quests] = await Promise.all([

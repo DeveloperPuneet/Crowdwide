@@ -55,7 +55,16 @@ test('a private community\'s posts are invisible to a non-member everywhere they
   const communityPage = await outsiderAgent.get(`/communities/${community.slug}`);
   assert.equal(communityPage.status, 200);
   assert.doesNotMatch(communityPage.text, new RegExp(secretPhrase));
-  assert.match(communityPage.text, /private community/i);
+  assert.match(communityPage.text, /Request to join Secret Club/);
+  assert.match(communityPage.text, /action="\/communities\/[^"]+\/join"/);
+
+  const joinRequest = await outsiderAgent.post(`/communities/${community._id}/join`).type('form').send({
+    _csrf: extractCsrfToken(communityPage.text)
+  });
+  assert.equal(joinRequest.status, 302);
+  const pendingRequestPage = await outsiderAgent.get(`/communities/${community.slug}`);
+  assert.match(pendingRequestPage.text, /Your request is pending moderator approval/);
+  assert.doesNotMatch(pendingRequestPage.text, /Request to join<\/button>/);
 
   // 2. The direct post URL must 404, not show the content.
   const postPage = await outsiderAgent.get(`/posts/${post._id}`);

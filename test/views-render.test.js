@@ -96,6 +96,22 @@ test('community invite landing renders a join confirmation page', async () => {
   assert.match(html, /\/communities\/invite\/token\/join/);
 });
 
+test('private community request page shows a request action or its pending state', async () => {
+  const community = { _id: 'c1', name: 'Secret Club', description: 'A private place' };
+  const requestPage = await render('pages/community-request.ejs', {
+    title: 'Request to join Secret Club', pagePath: '/communities/secret-club', noIndex: true,
+    community, requested: false
+  });
+  assert.match(requestPage, /Request to join Secret Club/);
+  assert.match(requestPage, /action="\/communities\/c1\/join"/);
+  const pendingPage = await render('pages/community-request.ejs', {
+    title: 'Request to join Secret Club', pagePath: '/communities/secret-club', noIndex: true,
+    community, requested: true
+  });
+  assert.match(pendingPage, /Your request is pending moderator approval/);
+  assert.doesNotMatch(pendingPage, /action="\/communities\/c1\/join"/);
+});
+
 test('chat-message renders text, GIF, shared post, unavailable post and system rows', async () => {
   const msg = (extra) => render('partials/chat-message.ejs', { group: true, viewerId: 'u1', reportBaseUrl: '/groups/g1', message: { _id: 'm1', sender: { _id: 'u2', name: 'Asha' }, createdAt: new Date(), body: '', ...extra } });
   const text = await msg({ body: '<b>hi</b>' });

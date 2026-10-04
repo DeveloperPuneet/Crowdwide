@@ -1,0 +1,22 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
+<main class="community-invite-page">
+	<% if (locals.flash) { %><div class="flash flash-<%= flash.type %>"><%= flash.message %></div><% } %>
+	<section class="community-invite-card">
+		<p class="eyebrow">Private community</p>
+		<h1>Request to join <%= community.name %></h1>
+		<% if (community.description) { %><p><%= community.description %></p><% } %>
+		<p class="upload-help">Posts and members are only visible after your request is approved.</p>
+		<% if (requested) { %>
+		<p class="joined-mark" role="status">Your request is pending moderator approval.</p>
+		<% } else { %>
+		<form method="post" action="/communities/<%= community._id %>/join">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<button class="button button-primary" type="submit">Request to join</button>
+		</form>
+		<% } %>
+		<a class="back-link" href="/explore">Back to communities</a>
+	</section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>
