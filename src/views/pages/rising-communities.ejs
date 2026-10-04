@@ -23,7 +23,7 @@
 				<span class="community-radar-score"><%= community.score %> score</span>
 			</div>
 			<div class="community-radar-name-row">
-				<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-radar-avatar" style="object-fit:cover;"><% } else { %><span class="community-radar-avatar"><%- icon('users', { size: 16 }) %></span><% } %>
+				<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-radar-avatar" style="object-fit:cover;"><% } else { %><span class="community-radar-avatar"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
 				<div>
 					<a href="/communities/<%= community.slug %>"><%= community.name %></a>
 					<span><%= community.category || 'general' %></span>

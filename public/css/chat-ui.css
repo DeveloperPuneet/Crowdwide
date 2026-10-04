@@ -1,0 +1,289 @@
+/* Direct and group messaging only. Keep the shell inside the visible viewport
+   so the message list is the sole scrolling region while the composer stays put. */
+body.chat-page {
+  height: 100vh;
+  height: var(--chat-viewport-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.chat-page .chat-main {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  padding: clamp(8px, 1.6vw, 20px) clamp(10px, 2.4vw, 32px) max(10px, env(safe-area-inset-bottom));
+}
+
+.chat-page .chat-shell {
+  width: min(1160px, 100%);
+  height: auto;
+  min-height: 0;
+  flex: 1 1 0;
+  margin-inline: auto;
+  border-radius: 22px;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .2);
+}
+
+.chat-page .chat-header {
+  z-index: 2;
+  min-height: 66px;
+  padding: 11px 16px;
+  backdrop-filter: blur(16px);
+}
+
+.chat-page .chat-back,
+.chat-page .chat-header-action {
+  transition: background-color .16s ease, color .16s ease, transform .16s ease;
+}
+
+.chat-page .chat-back:hover,
+.chat-page .chat-header-action:hover {
+  transform: translateY(-1px);
+}
+
+.chat-page .chat-title strong {
+  font-size: 15px;
+  letter-spacing: -.1px;
+}
+
+.chat-page .chat-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 18px clamp(14px, 3vw, 32px) 12px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.chat-page .chat-messages {
+  gap: 8px;
+}
+
+.chat-page .chat-msg {
+  scroll-margin-block: 20px;
+}
+
+.chat-page .chat-msg-main {
+  max-width: min(78%, 720px);
+}
+
+.chat-page .chat-bubble {
+  padding: 10px 15px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .08);
+}
+
+.chat-page .chat-msg.is-own .chat-bubble {
+  box-shadow: 0 5px 14px rgba(62, 79, 220, .16);
+}
+
+.chat-page .chat-bubble.is-media {
+  box-shadow: none;
+}
+
+.chat-page .chat-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-page .chat-load-more {
+  margin: 0 auto 14px;
+  border-color: color-mix(in srgb, var(--line) 78%, transparent);
+  background: var(--sf-1);
+  transition: background-color .16s ease, border-color .16s ease;
+}
+
+.chat-page .chat-load-more:hover {
+  border-color: var(--bd-2);
+  background: var(--sf-2);
+}
+
+.chat-page .chat-retention {
+  flex: none;
+  padding: 7px 16px;
+  text-align: center;
+  border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+}
+
+.chat-page .chat-composer {
+  flex: none;
+  align-items: flex-end;
+  gap: 9px;
+  padding: 11px 14px max(11px, env(safe-area-inset-bottom));
+  border-top-color: color-mix(in srgb, var(--line) 75%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.chat-page .chat-composer textarea {
+  min-height: 44px;
+  max-height: 140px;
+  padding: 11px 17px;
+  border-color: color-mix(in srgb, var(--line) 55%, transparent);
+  border-radius: 22px;
+  line-height: 1.45;
+  overscroll-behavior: contain;
+}
+
+.chat-page .chat-composer textarea:focus-visible {
+  border-color: #6879ff;
+  box-shadow: 0 0 0 3px rgba(88, 106, 255, .15);
+}
+
+.chat-page .chat-send,
+.chat-page .chat-tool {
+  transition: transform .16s ease, filter .16s ease, background-color .16s ease;
+}
+
+.chat-page .chat-send:hover,
+.chat-page .chat-tool:hover {
+  transform: translateY(-1px);
+}
+
+.chat-page .chat-send:active,
+.chat-page .chat-tool:active {
+  transform: scale(.96);
+}
+
+.chat-page .chat-request-gate {
+  flex: none;
+  padding: 16px;
+}
+
+.chat-page .chat-error {
+  flex: none;
+}
+
+/* Inbox styling belongs only to the direct-message list surface. */
+.conversations-page {
+  max-width: 1040px;
+}
+
+.conversations-page .conversations-hero {
+  max-width: 720px;
+}
+
+.conversations-page .conversations-search {
+  max-width: 480px;
+  min-height: 46px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+}
+
+.conversations-page .community-posts {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.conversations-page .community-posts > .panel-heading {
+  padding: 17px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.conversations-page .message-row {
+  min-height: 84px;
+  padding: 14px 20px;
+  transition: background-color .16s ease;
+}
+
+.conversations-page .message-row:hover {
+  background: color-mix(in srgb, var(--sf-2) 72%, transparent);
+}
+
+.conversations-page .message-row.is-unread {
+  background: color-mix(in srgb, var(--ac-blue) 7%, transparent);
+}
+
+.conversations-page .message-row > div {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .chat-page .chat-main {
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .chat-page .chat-shell {
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 720px) {
+  .chat-page .chat-main {
+    padding: 0;
+  }
+
+  .chat-page .chat-shell {
+    width: 100%;
+    border-radius: 0;
+    border-right: 0;
+    border-left: 0;
+    box-shadow: none;
+  }
+
+  .chat-page .chat-header {
+    min-height: 58px;
+    padding: 8px 10px;
+    gap: 7px;
+  }
+
+  .chat-page .chat-scroll {
+    padding: 12px 12px 8px;
+    scroll-behavior: auto;
+  }
+
+  .chat-page .chat-msg-main {
+    max-width: 86%;
+  }
+
+  .chat-page .chat-bubble {
+    padding: 9px 13px;
+    font-size: 14px;
+  }
+
+  .chat-page .chat-retention {
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+
+  .chat-page .chat-composer {
+    gap: 6px;
+    padding: 8px 9px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .chat-page .chat-composer textarea {
+    flex-basis: 100px;
+    padding-inline: 14px;
+    font-size: 16px;
+  }
+
+  .chat-page .chat-tool,
+  .chat-page .chat-send {
+    width: 42px;
+    height: 42px;
+  }
+
+  .conversations-page {
+    padding-top: 24px;
+  }
+
+  .conversations-page .community-posts {
+    border-radius: 16px;
+  }
+
+  .conversations-page .community-posts > .panel-heading,
+  .conversations-page .message-row {
+    padding-inline: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-page .chat-back,
+  .chat-page .chat-header-action,
+  .chat-page .chat-load-more,
+  .chat-page .chat-send,
+  .chat-page .chat-tool,
+  .conversations-page .message-row {
+    transition: none;
+  }
+}

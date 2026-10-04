@@ -32,6 +32,16 @@
   const timeFormat = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' });
   const isTouch = window.matchMedia?.('(pointer: coarse)').matches;
 
+  // Keep the chat panel within the actually visible viewport when mobile
+  // browser chrome or the on-screen keyboard changes its height.
+  const syncViewportHeight = () => {
+    const height = window.visualViewport?.height || window.innerHeight;
+    document.documentElement.style.setProperty('--chat-viewport-height', `${Math.round(height)}px`);
+  };
+  syncViewportHeight();
+  window.addEventListener('resize', syncViewportHeight);
+  window.visualViewport?.addEventListener('resize', syncViewportHeight);
+
   // ---- times and day separators (local time, so done in the browser) ----
   const dayKey = (date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
   const dayLabel = (date) => {
@@ -307,33 +317,35 @@
     deliver(payload, bubble);
   }
 
-  const autosize = () => {
-    input.style.height = 'auto';
-    input.style.height = `${Math.min(input.scrollHeight, 140)}px`;
-  };
+  if (form && input) {
+    const autosize = () => {
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 140)}px`;
+    };
 
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const body = input.value.trim();
-    const file = attachmentInput?.files?.[0];
-    if (!body && !file) return;
-    send({ body, file });
-    input.value = '';
-    if (attachmentInput) attachmentInput.value = '';
-    syncAttachmentSelection();
-    autosize();
-    input.focus();
-  });
-  input.addEventListener('input', autosize);
-  input.addEventListener('keydown', (event) => {
-    // Enter sends (Shift+Enter = new line). Touch keyboards keep Enter as a new line.
-    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !isTouch) {
+    form.addEventListener('submit', (event) => {
       event.preventDefault();
-      form.requestSubmit();
-    }
-  });
+      const body = input.value.trim();
+      const file = attachmentInput?.files?.[0];
+      if (!body && !file) return;
+      send({ body, file });
+      input.value = '';
+      if (attachmentInput) attachmentInput.value = '';
+      syncAttachmentSelection();
+      autosize();
+      input.focus({ preventScroll: true });
+    });
+    input.addEventListener('input', autosize);
+    input.addEventListener('keydown', (event) => {
+      // Enter sends (Shift+Enter = new line). Touch keyboards keep Enter as a new line.
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !isTouch) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+  }
 
-  form.querySelector('[data-gif-trigger]')?.addEventListener('click', (event) => {
+  form?.querySelector('[data-gif-trigger]')?.addEventListener('click', (event) => {
     if (!window.CWGif) return;
     window.CWGif.open(event.currentTarget, (gif) => send({ gif }));
   });
@@ -348,6 +360,6 @@
     focusMessage.scrollIntoView({ block: 'center' });
   } else toBottom(false);
   window.addEventListener('load', () => { decorate(); if (pinned) toBottom(false); });
-  if (!isTouch) input.focus({ preventScroll: true }); // don't pop the phone keyboard open on arrival
+  if (input && !isTouch) input.focus({ preventScroll: true }); // don't pop the phone keyboard open on arrival
   schedule(delay);
 })();

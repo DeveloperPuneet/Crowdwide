@@ -51,7 +51,7 @@
 		<h2>Communities</h2>
 		<% communities.forEach((community) => { %>
 		<a class="search-community-row" href="/communities/<%= community.slug %>" style="text-decoration:none;color:inherit;">
-			<span class="community-glyph search-community-glyph"><%- icon('users', { size: 15 }) %><% if (community.avatarImage) { %><img class="search-community-avatar" src="<%= community.avatarImage %>" alt="" aria-hidden="true"><% } %></span>
+			<span class="community-glyph search-community-glyph"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %><% if (community.avatarImage) { %><img class="search-community-avatar" src="<%= community.avatarImage %>" alt="" aria-hidden="true"><% } %></span>
 			<div><strong><%= community.name %></strong><span class="search-result-description"><%= (community.membersCount || 0).toLocaleString() %> members · <%= community.description %></span></div>
 		</a>
 		<% }) %>

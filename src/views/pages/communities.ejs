@@ -15,7 +15,7 @@
       <% if (!items.length) { %><p class="directory-empty">No communities in this group yet.</p><% } %>
       <% items.forEach((community) => { %>
       <a class="community-card" href="/communities/<%= community.slug %>">
-        <div class="community-card-top"><span class="community-glyph"><% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;"><% } else { %><%- icon('users', { size: 15 }) %><% } %></span><span class="community-category"><%= community.category || 'general' %></span></div>
+        <div class="community-card-top"><span class="community-glyph"><% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;"><% } else { %><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %><% } %></span><span class="community-category"><%= community.category || 'general' %></span></div>
         <h2><%= community.name %></h2>
         <p><%= community.description %></p>
         <footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span>Open <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></span></footer>

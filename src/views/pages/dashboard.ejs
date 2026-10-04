@@ -130,7 +130,7 @@
 			<% } %>
 			<% communities.forEach((community) => { %>
 			<div class="discover-row">
-				<a href="/communities/<%= community.slug %>" class="community-glyph" style="color:inherit;"><%- icon('users', { size: 15 }) %></a>
+				<a href="/communities/<%= community.slug %>" class="community-glyph" style="color:inherit;"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></a>
 				<div><strong><a class="name-link" href="/communities/<%= community.slug %>"><%= community.name %></a></strong><span><%= (community.membersCount || 0).toLocaleString() %> members</span></div>
 				<% if (String(community.owner) === String(currentUser.id)) { %><a class="joined-mark" href="/communities/<%= community._id %>/manage">Manage</a>
 				<% } else if (!joinedCommunities.includes(String(community._id))) { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Join <%= community.name %>"><%- icon('plus', { size: 14 }) %></button></form>

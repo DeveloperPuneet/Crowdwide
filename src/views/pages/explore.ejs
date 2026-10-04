@@ -25,7 +25,7 @@
 					<span class="community-radar-trend">+<%= community.recentPosts %> posts</span>
 				</div>
 				<div class="community-radar-name-row">
-					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph"><%- icon('users', { size: 15 }) %></span><% } %>
+					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
 					<strong><%= community.name %></strong>
 				</div>
 				<p><%= community.description %></p>
@@ -95,7 +95,7 @@
 			<% communities.forEach((community) => { %>
 			<a class="community-card" href="/communities/<%= community.slug %>">
 				<div class="community-card-top">
-					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph"><%- icon('users', { size: 15 }) %></span><% } %>
+					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
 					<span class="community-category"><%= community.category || 'general' %></span>
 				</div>
 				<h2><%= community.name %></h2>

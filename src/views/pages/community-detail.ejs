@@ -1,22 +1,22 @@
-<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex, communityPage: true }) %>
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="profile-layout">
+<main class="profile-layout community-detail-layout">
 <div>
 	<a class="back-link" href="/explore">← All communities</a>
-	<% if (community.coverImage) { %><div class="profile-banner"><img src="<%= community.coverImage %>" alt=""></div><% } %>
+	<% if (community.coverImage) { %><div class="profile-banner community-cover"><img src="<%= community.coverImage %>" alt=""></div><% } %>
 	<section class="community-detail-hero">
-		<div style="display:flex;align-items:center;gap:14px;">
-			<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:54px;height:54px;border-radius:14px;object-fit:cover;"><% } else { %><span class="community-glyph" style="width:54px;height:54px;font-size:20px;border-radius:14px;"><%- icon('users', { size: 22 }) %></span><% } %>
-			<div><p class="eyebrow" style="margin:0 0 4px;"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p><h1 style="margin:0;"><%= community.name %></h1></div>
+		<div class="community-detail-identity">
+			<% if (community.avatarImage) { %><img class="community-detail-avatar" src="<%= community.avatarImage %>" alt=""><% } else { %><span class="community-glyph community-detail-avatar"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
+			<div><p class="eyebrow"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p><h1><%= community.name %></h1></div>
 		</div>
 		<p><%= community.description %></p>
-		<% if ((community.hashtags || []).length) { %><div class="hashtag-row"><% community.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
+		<% if ((community.hashtags || []).length) { %><div class="hashtag-row" style="margin-top: 25px;"><% community.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<div class="community-detail-meta">
 			<span><strong><%= community.membersCount %></strong> members</span>
 			<span>Owner: <a class="name-link" href="/u/<%= community.owner?._id %>"><%= community.owner?.name || 'Crowdwide' %></a></span>
 			<% if (isOwner) { %><a class="button button-small button-ghost" href="/communities/<%= community._id %>/manage">Manage community</a>
-			<% } else if (joined) { %><span class="joined-mark">Joined</span>
+			<% } else if (joined) { %><span class="joined-mark">Joined</span><form method="post" action="/communities/<%= community._id %>/leave"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost community-leave-button" type="submit">Leave community</button></form>
 			<% } else if (requested) { %><span class="joined-mark">Request pending</span>
 			<% } else { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%= community.isPrivate ? 'Request to join' : 'Join community' %> <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button></form><% } %>
 		</div>

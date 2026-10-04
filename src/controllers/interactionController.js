@@ -182,16 +182,21 @@ exports.comment = async (req, res) => {
   const post = await Post.findById(req.params.id);
   if (!(await canAccessPost(post, req.session.user.id)) || (!body && !gif) || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Add a comment (up to 2,000 characters) or pick a GIF.' });
   let parent = null;
+  let replyRecipient = null;
   if (req.body.parent) {
     // A reply's parent must be a comment on this same post.
-    if (!/^[a-f\d]{24}$/i.test(String(req.body.parent)) || !(await Comment.exists({ _id: req.body.parent, post: post._id }))) return redirectBack(req, res, { ok: false, error: 'That comment is no longer available.' });
+    const parentComment = /^[a-f\d]{24}$/i.test(String(req.body.parent))
+      ? await Comment.findOne({ _id: req.body.parent, post: post._id }).select('author').lean()
+      : null;
+    if (!parentComment) return redirectBack(req, res, { ok: false, error: 'That comment is no longer available.' });
     parent = req.body.parent;
+    replyRecipient = parentComment.author;
   }
   const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, ...(gif ? { gif } : {}) });
   post.commentsCount += 1;
   await post.save();
   refreshPersonalization(req.session.user.id);
-  await notify(post.author, req.session.user.id, parent ? 'reply' : 'comment', parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
+  await notify(replyRecipient || post.author, req.session.user.id, parent ? 'reply' : 'comment', parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
   if (body) await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
   if (req.get('X-Requested-With') === 'XMLHttpRequest') {
     // Send the finished comment back as HTML so the page can drop it into the

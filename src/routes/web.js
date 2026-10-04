@@ -111,7 +111,9 @@ router.post('/communities/invite/:code/join', requireAuth, requireVerified, csrf
 router.get('/communities/:slug', requireAuth, requireVerified, communityController.detail);
 router.post('/posts', requireAuth, requireVerified, postUpload, csrfSynchronisedProtection, handleUploadError, validatePostUpload, scanUploadsForViruses, controller.createPost);
 router.post('/communities', requireAuth, requireVerified, controller.createCommunity);
-router.post('/communities/:id/join', requireAuth, requireVerified, communityController.requestJoin);
+router.post('/communities/:id/join', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.requestJoin);
+router.post('/communities/:id/leave', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.leaveCommunity);
+router.post('/communities/:id/join-request/cancel', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.cancelJoinRequest);
 router.post('/communities/:id/quests', requireAuth, requireVerified, communityController.moderationOnly, communityController.createQuest);
 router.post('/communities/:id/quests/:questId/join', requireAuth, requireVerified, communityController.loadCommunity, communityController.toggleQuestParticipation);
 router.post('/communities/:id/quests/:questId/complete', requireAuth, requireVerified, communityController.loadCommunity, communityController.completeQuest);

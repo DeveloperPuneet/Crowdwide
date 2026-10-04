@@ -36,6 +36,7 @@
     <a href="/notifications"><%- icon('bell', { size: 18 }) %> Notifications</a>
     <% if (locals.currentUser) { %>
     <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Your profile</a>
+    <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>
     <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Account settings</a>
     <a href="/communities/mine"><%- icon('users', { size: 18 }) %> Your communities</a>
     <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>

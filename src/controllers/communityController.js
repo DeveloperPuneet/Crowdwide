@@ -527,6 +527,7 @@ exports.requestJoin = async (req, res) => {
     if (!community.joinRequests.some((request) => String(request.user) === String(userId))) community.joinRequests.push({ user: userId });
     await community.save();
     req.session.flash = { type: 'success', message: 'Join request sent to the community moderators.' };
+    return res.redirect(`/communities/${community.slug}`);
   } else {
     community.members.push(userId);
     community.memberRoles.push({ user: userId, role: 'member' });
@@ -536,6 +537,46 @@ exports.requestJoin = async (req, res) => {
     refreshPersonalization(userId);
   }
   res.redirect(req.get('referer') || `/communities/${community.slug}`);
+};
+
+exports.leaveCommunity = async (req, res) => {
+  const community = await Community.findById(req.params.id);
+  if (!community) return res.redirect('/explore');
+  const userId = req.session.user.id;
+  if (String(community.owner) === String(userId)) {
+    req.session.flash = { type: 'error', message: 'The community owner cannot leave their community.' };
+    return res.redirect(`/communities/${community.slug}`);
+  }
+  if (!community.members.some((id) => String(id) === String(userId))) {
+    req.session.flash = { type: 'error', message: 'You are not a member of this community.' };
+    return res.redirect(`/communities/${community.slug}`);
+  }
+
+  community.members.pull(userId);
+  community.moderators.pull(userId);
+  community.memberRoles = community.memberRoles.filter((entry) => String(entry.user) !== String(userId));
+  community.joinRequests = community.joinRequests.filter((request) => String(request.user) !== String(userId));
+  community.membersCount = community.members.length;
+  await community.save();
+  await User.findByIdAndUpdate(userId, { $pull: { joinedCommunities: community._id } });
+  refreshPersonalization(userId);
+  req.session.flash = { type: 'success', message: `You left ${community.name}.` };
+  res.redirect(`/communities/${community.slug}`);
+};
+
+exports.cancelJoinRequest = async (req, res) => {
+  const community = await Community.findById(req.params.id);
+  if (!community) return res.redirect('/explore');
+  const userId = req.session.user.id;
+  const hadRequest = community.joinRequests.some((request) => String(request.user) === String(userId));
+  if (hadRequest) {
+    community.joinRequests = community.joinRequests.filter((request) => String(request.user) !== String(userId));
+    await community.save();
+    req.session.flash = { type: 'success', message: 'Your join request was cancelled.' };
+  } else {
+    req.session.flash = { type: 'error', message: 'You do not have a pending request for this community.' };
+  }
+  res.redirect(`/communities/${community.slug}`);
 };
 
 exports.reviewRequest = async (req, res) => {

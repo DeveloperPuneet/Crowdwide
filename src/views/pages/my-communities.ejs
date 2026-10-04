@@ -29,7 +29,7 @@
       <div class="community-owned-list">
         <% communities.forEach((community) => { %>
         <article class="community-owned-row">
-          <span class="community-owned-mark"><% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt=""><% } else { %><%- icon('users', { size: 18 }) %><% } %></span>
+          <span class="community-owned-mark"><% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt=""><% } else { %><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %><% } %></span>
           <div class="community-owned-copy"><div class="community-owned-title"><h3><%= community.name %></h3><span><%= community.isPrivate ? 'Private' : 'Public' %></span></div><p><%= community.description || 'No description yet.' %></p><small><%= (community.membersCount || 0).toLocaleString() %> members<% if (community.category) { %> · <%= community.category %><% } %></small></div>
           <div class="community-owned-actions"><a class="button button-ghost button-small" href="/communities/<%= community.slug %>">View</a><a class="button button-primary button-small" href="/communities/<%= community._id %>/manage"><%- icon('settings', { size: 14 }) %><span>Manage</span></a></div>
         </article>

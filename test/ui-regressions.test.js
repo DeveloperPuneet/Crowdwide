@@ -68,6 +68,22 @@ test('avatar images use an empty alt and failed loads reveal the initial fallbac
   assert.match(css, /\.avatar img\s*\{[^}]*opacity:\s*0/);
 });
 
+test('avatar initials are geometrically centered and verified profiles use a modern check badge', () => {
+  const css = read('public', 'css', 'style.css');
+  const profile = read('src', 'views', 'pages', 'profile.ejs');
+  assert.match(css, /\.avatar-initial\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s);
+  assert.match(css, /\.verified-tick\s*\{[^}]*display:\s*inline-grid;[^}]*border-radius:\s*50%/s);
+  assert.match(profile, /class="verified-tick"[^>]*aria-label="Verified"[^>]*><%- icon\('check'/);
+});
+
+test('settings, post composer, and comment controls share refreshed responsive surfaces', () => {
+  const css = read('public', 'css', 'style.css');
+  assert.match(css, /\.settings-content\s*\{[^}]*border-radius:\s*22px/);
+  assert.match(css, /\.post-compose-form\s*\{[^}]*border-radius:\s*20px/);
+  assert.match(css, /\.thread-comment-actions\s*\{\s*display:\s*flex;[^}]*align-items:\s*center;/);
+  assert.match(css, /\.action-translate-inline\s*\{[^}]*justify-content:\s*flex-end/);
+});
+
 test('light and pink themes set readable text, control, and surface colors', () => {
   const css = read('public', 'css', 'style.css');
   assert.match(css, /body\[data-theme="pink"\]\s*\{[^}]*--theme-fg:/s);

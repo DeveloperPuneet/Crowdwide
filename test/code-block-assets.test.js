@@ -14,7 +14,9 @@ test('Prism core, local grammar autoloader, and code-block controls are served l
     '/vendor/prism/plugins/autoloader/prism-autoloader.min.js',
     '/vendor/prism/components/prism-javascript.min.js',
     '/js/code-blocks.js',
-    '/css/code-blocks.css'
+    '/css/code-blocks.css',
+    '/css/chat-ui.css',
+    '/css/community-workspace.css'
   ];
   const responses = await Promise.all(paths.map((path) => request(app).get(path)));
   responses.forEach((response, index) => {

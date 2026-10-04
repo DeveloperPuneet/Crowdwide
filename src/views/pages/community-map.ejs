@@ -24,7 +24,7 @@
 				<% mapCommunities.forEach((community) => { %>
 				<article class="community-map-row" data-map-community data-name="<%= community.name %>" data-location="<%= community.locationLabel %>" data-category="<%= community.category || 'general' %>" data-topics="<%= (community.hashtags || []).join(' ') %>" data-lat="<%= community.locationLat %>" data-lng="<%= community.locationLng %>" data-members="<%= community.membersCount || 0 %>" data-slug="<%= community.slug %>">
 					<div class="community-map-row-top">
-						<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" loading="lazy"><% } else { %><span class="community-map-avatar"><%- icon('users', { size: 16 }) %></span><% } %>
+						<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" loading="lazy"><% } else { %><span class="community-map-avatar"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
 						<div><a href="/communities/<%= community.slug %>"><%= community.name %></a><span><%= community.locationLabel %></span></div>
 					</div>
 					<p><%= community.description %></p>

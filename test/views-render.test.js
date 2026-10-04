@@ -112,6 +112,8 @@ test('private community request page shows a request action or its pending state
     community, requested: true
   });
   assert.match(pendingPage, /Your request is pending moderator approval/);
+  assert.match(pendingPage, /action="\/communities\/c1\/join-request\/cancel"/);
+  assert.match(pendingPage, /community-request-status/);
   assert.doesNotMatch(pendingPage, /action="\/communities\/c1\/join"/);
 });
 
@@ -349,6 +351,19 @@ test('community detail renders a quest board with member actions', async () => {
   assert.match(html, /Ship a mockup/);
   assert.match(html, /Join quest/);
   assert.match(html, /href="\/dashboard\?quest=q3"/);
+  assert.doesNotMatch(html, /action="\/communities\/c1\/leave"/, 'the owner must retain community ownership');
+});
+
+test('joined community detail renders a leave action and focused community styling', async () => {
+  const html = await render('pages/community-detail.ejs', {
+    title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
+    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', category: 'design', description: 'Share ideas', hashtags: [], membersCount: 12, isPrivate: false, owner: { _id: 'owner', name: 'Owner' }, members: ['u1'], moderators: [], pinnedPosts: [] },
+    posts: [], members: [], moderatorIds: [], joined: true, requested: false, isOwner: false, locked: false, quests: []
+  });
+  assert.match(html, /action="\/communities\/c1\/leave"/);
+  assert.match(html, /class="community-glyph community-detail-avatar">D<\/span>/);
+  assert.match(html, /community-detail-layout/);
+  assert.match(html, /href="\/css\/community-workspace\.css"/);
 });
 
 test('community map gives users a usable fallback when map tile access is blocked', async () => {
@@ -479,6 +494,11 @@ test('personal recap renders activity totals and a monthly timeline', async () =
   assert.match(html, /September/);
   assert.match(html, /In-app shares/);
   assert.match(html, /<strong>3<\/strong>/);
+});
+
+test('mobile navigation drawer includes the personal recap link for signed-in users', async () => {
+  const html = await render('partials/app-nav.ejs');
+  assert.match(html, /<a href="\/recap">[\s\S]*?Your recap<\/a>/);
 });
 
 test('footers link to the new docs and help pages, and the GitHub link uses a real icon (not a stray glyph)', async () => {
