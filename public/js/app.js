@@ -25,8 +25,30 @@ document.querySelectorAll('.avatar img').forEach((image) => {
     image.addEventListener('error', () => removeBrokenAvatar(image), { once: true });
   }
 });
+const removeBrokenCommunityAvatar = (image) => {
+  const glyph = image.closest('.search-community-glyph');
+  if (!glyph) return;
+  image.remove();
+  glyph.classList.remove('image-loaded');
+};
+const showLoadedCommunityAvatar = (image) => {
+  const glyph = image.closest('.search-community-glyph');
+  if (glyph) glyph.classList.add('image-loaded');
+};
+document.querySelectorAll('.search-community-avatar').forEach((image) => {
+  if (image.complete) {
+    if (image.naturalWidth === 0) removeBrokenCommunityAvatar(image);
+    else showLoadedCommunityAvatar(image);
+  } else {
+    image.addEventListener('load', () => showLoadedCommunityAvatar(image), { once: true });
+    image.addEventListener('error', () => removeBrokenCommunityAvatar(image), { once: true });
+  }
+});
 document.addEventListener('error', (event) => {
-  if (event.target instanceof HTMLImageElement) removeBrokenAvatar(event.target);
+  if (event.target instanceof HTMLImageElement) {
+    removeBrokenAvatar(event.target);
+    removeBrokenCommunityAvatar(event.target);
+  }
 }, true);
 
 document.querySelectorAll('textarea[data-word-limit]').forEach((textarea) => {
@@ -60,28 +82,8 @@ document.querySelectorAll('textarea[data-word-limit]').forEach((textarea) => {
 
 document.querySelectorAll('[data-bio-limit]').forEach((bio) => {
   const words = bio.textContent.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= 40) return;
-
-  const preview = document.createElement('span');
-  preview.textContent = `${words.slice(0, 40).join(' ')}… `;
-  const full = document.createElement('span');
-  full.textContent = bio.textContent.trim();
-  full.hidden = true;
-
-  const toggle = document.createElement('button');
-  toggle.className = 'bio-read-more';
-  toggle.type = 'button';
-  toggle.textContent = 'Read more';
-  toggle.setAttribute('aria-expanded', 'false');
-  toggle.addEventListener('click', () => {
-    const expanded = toggle.getAttribute('aria-expanded') !== 'true';
-    preview.hidden = expanded;
-    full.hidden = !expanded;
-    toggle.textContent = expanded ? 'Show less' : 'Read more';
-    toggle.setAttribute('aria-expanded', String(expanded));
-  });
-
-  bio.replaceChildren(preview, full, toggle);
+  if (words.length <= 12) return;
+  bio.textContent = `${words.slice(0, 12).join(' ')}…`;
 });
 
 // Web fonts are added after the page is already on screen. A <link> in <head>

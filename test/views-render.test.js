@@ -59,13 +59,16 @@ test('search results clamp long text and use responsive result classes', async (
     title: 'Search', pagePath: '/search', noIndex: true, query: 'react hooks',
     filters: { type: '', community: '', sort: 'newest', from: '', to: '', media: '', unanswered: false },
     communityOptions: [], meilisearchEnabled: false, recentSearches: [], trendingHashtags: [],
-    popularSearches: [], users: [{ _id: 'u2', name: 'Asha', bio: 'a'.repeat(180) }],
-    communities: [{ _id: 'c1', slug: 'hooks', name: 'Hooks', membersCount: 3, description: 'b'.repeat(280) }],
+    popularSearches: [], users: [{ _id: 'u2', name: 'Asha', bio: 'a'.repeat(180), profilePicture: '/uploads/asha.png' }],
+    communities: [{ _id: 'c1', slug: 'hooks', name: 'Hooks', avatarImage: '/uploads/hooks.png', membersCount: 3, description: 'b'.repeat(280) }],
     posts: [post(91, { body: 'c'.repeat(300) })]
   });
   assert.match(html, /class="explore-page search-page"/);
-  assert.match(html, /class="person-bio search-result-description"/);
+  assert.match(html, /class="search-filter-toggles">[\s\S]*name="media"[\s\S]*name="unanswered"/);
+  assert.match(html, /class="avatar small has-image"><span class="avatar-initial"[^>]*>A<\/span><img class="avatar-image" src="\/uploads\/asha\.png"/);
+  assert.match(html, /class="person-bio search-result-description" data-bio-limit/);
   assert.match(html, /class="search-result-description">3 members ·/);
+  assert.match(html, /class="community-glyph search-community-glyph">[\s\S]*class="search-community-avatar" src="\/uploads\/hooks\.png" alt="" aria-hidden="true"/);
   assert.match(html, /class="post-card search-result-post"/);
   assert.match(html, /class="post-body search-result-description"/);
   assert.doesNotMatch(html, /max-width:1080px|line-clamp:3;max-height:5em/);
@@ -380,7 +383,7 @@ test('ended quests show the winner and reward state', async () => {
 test('profiles show community roles and quest-winner achievements', async () => {
   const html = await render('pages/profile.ejs', {
     title: 'Asha on Crowdwide', pagePath: '/u/u2', noIndex: false,
-    profileUser: { _id: 'u2', id: 'u2', name: 'Asha', email: 'asha@example.test', isVerified: false, bio: '', hashtags: [], links: [], profilePicture: '', bannerImage: '', profileViews: 0, createdAt: new Date() },
+    profileUser: { _id: 'u2', id: 'u2', name: 'Asha', email: 'asha@example.test', isVerified: false, bio: 'A full profile biography with more than twelve words should remain visible in its entirety.', hashtags: [], links: [], profilePicture: '', bannerImage: '', profileViews: 0, createdAt: new Date() },
     isSelf: true, profileTab: 'posts', posts: [], profileLikes: [], savedPosts: [],
     profileComments: [], activity: [], suggestions: [], followersCount: 0, followingCount: 0,
     postCount: 0, profileStats: { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 },
@@ -391,6 +394,8 @@ test('profiles show community roles and quest-winner achievements', async () => 
   assert.match(html, /Member/);
   assert.match(html, /Community Artist/);
   assert.match(html, /Quest winner/);
+  assert.match(html, /class="profile-bio person-bio">A full profile biography with more than twelve words should remain visible in its entirety\.<\/p>/);
+  assert.doesNotMatch(html, /class="profile-bio person-bio" data-bio-limit/);
 });
 
 test('post edit and reply render as separate full-page composition flows', async () => {

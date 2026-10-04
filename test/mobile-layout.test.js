@@ -97,8 +97,14 @@ test('group, inbox, moderator, and community workspace actions reflow on narrow 
 });
 
 test('search filters, profile links, and recovery codes fit narrow phone layouts', () => {
+  const base = files.find((file) => file.name === 'style.css').text;
   const responsive = files.find((file) => file.name === 'responsive-layout.css').text;
 
+  assert.match(base, /\.search-filter-form\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(base, /\.search-filter-form > input\[type="search"\]\s*\{[^}]*grid-column:\s*span 2;[^}]*min-width:\s*0/);
+  assert.match(base, /\.search-filter-toggles\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*span 2/);
+  assert.match(base, /\.search-media\s*\{[^}]*min-height:\s*40px;[^}]*border:\s*1px solid var\(--line\)/);
+  assert.match(responsive, /\.search-page \.search-filter-toggles\s*\{[^}]*grid-column:\s*1 \/ -1/);
   assert.match(responsive, /\.search-filter-form\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(responsive, /\.search-filter-form > input\[type="search"\],[\s\S]*?grid-column:\s*1 \/ -1/);
   assert.match(responsive, /\.link-field-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
