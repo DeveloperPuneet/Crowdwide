@@ -118,3 +118,69 @@ test('a private community\'s posts are invisible to a non-member everywhere they
   assert.equal(memberPostPage.status, 200);
   assert.match(memberPostPage.text, new RegExp(secretPhrase));
 });
+
+test('the composer only offers joined communities and the post endpoint enforces membership', async () => {
+  const suffix = Date.now();
+  const password = 'a-strong-password-123';
+  const owner = await User.create({
+    name: 'Community Owner',
+    email: `posting-owner.${suffix}@example.com`,
+    password: await bcrypt.hash(password, 12),
+    isVerified: true
+  });
+  const writer = await User.create({
+    name: 'Community Writer',
+    email: `posting-writer.${suffix}@example.com`,
+    password: await bcrypt.hash(password, 12),
+    isVerified: true
+  });
+  const makeCommunity = (name, isPrivate) => Community.create({
+    owner: owner._id,
+    name,
+    slug: `${name.toLowerCase().replace(/\s+/g, '-')}-${suffix}`,
+    description: `${name} community.`,
+    isPrivate,
+    members: [owner._id],
+    membersCount: 1
+  });
+  const [joinedCommunity, publicCommunity, privateCommunity] = await Promise.all([
+    makeCommunity('Joined Community', false),
+    makeCommunity('Public Community', false),
+    makeCommunity('Private Community', true)
+  ]);
+  joinedCommunity.members.addToSet(writer._id);
+  joinedCommunity.membersCount = joinedCommunity.members.length;
+  await joinedCommunity.save();
+  await User.findByIdAndUpdate(writer._id, { $addToSet: { joinedCommunities: joinedCommunity._id } });
+
+  const agent = createAgent(app);
+  await loginAs(agent, writer.email, password);
+  let dashboard = await agent.get('/dashboard');
+  const hasCommunityOption = (communityId) => new RegExp(`<option value="${communityId}"(?:\\s|>)`).test(dashboard.text);
+  assert.equal(hasCommunityOption(joinedCommunity._id), true);
+  assert.equal(hasCommunityOption(publicCommunity._id), false);
+  assert.equal(hasCommunityOption(privateCommunity._id), false);
+
+  for (const [community, label] of [[publicCommunity, 'public'], [privateCommunity, 'private']]) {
+    const body = `Unjoined ${label} post ${suffix}`;
+    const response = await agent.post('/posts', {
+      _csrf: extractCsrfToken(dashboard.text),
+      body,
+      community: String(community._id),
+      type: 'post'
+    });
+    assert.equal(response.status, 302);
+    assert.equal(await Post.exists({ author: writer._id, body }), null);
+    dashboard = await agent.get('/dashboard');
+  }
+
+  const joinedBody = `Joined community post ${suffix}`;
+  const joinedResponse = await agent.post('/posts', {
+    _csrf: extractCsrfToken(dashboard.text),
+    body: joinedBody,
+    community: String(joinedCommunity._id),
+    type: 'post'
+  });
+  assert.equal(joinedResponse.status, 302);
+  assert.ok(await Post.exists({ author: writer._id, body: joinedBody, community: joinedCommunity._id }));
+});

@@ -88,18 +88,20 @@ exports.dashboard = async (req, res) => {
 		const activeTab = resolveFeedView(req.query);
 		const followingIds = (user.following || []).map(String);
 		const joinedCommunityIds = user.joinedCommunities || [];
-		const [feed, communities, joinedCommunityDocs, availableQuests, people, followedPeople, followerPeople, wordLimits] = await Promise.all([
+		const [feed, communities, joinedCommunityDocs, people, followedPeople, followerPeople, wordLimits] = await Promise.all([
 			getFeedPage({ userId: user._id, view: activeTab, page: 1, user }),
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
-			Community.find({ _id: { $in: joinedCommunityIds } }).sort({ name: 1 }).lean(),
-			Quest.find({ participants: user._id, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean(),
+			Community.find({ _id: { $in: joinedCommunityIds }, members: user._id }).sort({ name: 1 }).lean(),
 			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean(),
 			User.find({ _id: { $in: user.following || [], $ne: user._id } }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			getWordLimits()
 		]);
-		const questCommunities = availableQuests.map((quest) => quest.community).filter(Boolean);
-		const composerCommunities = Array.from(new Map([...joinedCommunityDocs, ...questCommunities, ...communities].map((community) => [String(community._id), community])).values());
+		const joinedCommunityDocIds = joinedCommunityDocs.map((community) => community._id);
+		const availableQuests = joinedCommunityDocIds.length
+			? await Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
+			: [];
+		const composerCommunities = joinedCommunityDocs;
 		const selectedQuest = availableQuests.find((quest) => String(quest._id) === String(req.query.quest || ''));
 		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
 		res.render('pages/dashboard', {
