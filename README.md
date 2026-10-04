@@ -21,7 +21,8 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
   a caption and a transcript for each file**; images keep their aspect
   ratio, and video seeks smoothly (HTTP range support).
 - Rich formatting in the body: `**bold**`, `*italic*`, `# headings`,
-  `- lists`, paragraph breaks.
+  `- lists`, paragraph breaks, and fenced code blocks with locally served
+  syntax highlighting, language detection, and a copy button.
 - Hashtags and @mentions with autocomplete, content warnings with
   click-to-reveal, quote posts and linked post replies.
 - Link previews for the first link in a post (title, description, image).
@@ -39,7 +40,8 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
   `/people` for people to follow (shared interests, mutual network,
   trending creators, new joiners).
 - Search across people, communities, hashtags and posts, with recent and
-  popular searches.
+  popular searches. Optional Meilisearch provides typo-tolerant post search;
+  see [deployment setup](./DEPLOYMENT.md#meilisearch).
 - Trending hashtags, RSS feeds for the site, profiles and communities.
 
 ### Communities
@@ -61,8 +63,9 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
 - Direct messages and group chat (up to 50 members) with GIFs, sharing of
   posts and articles into chats, group admin tools (add/remove members,
   rename, group picture, invite links).
-- In-app notifications with grouping, per-type preferences, and opt-in
-  browser push notifications per device.
+- In-app notifications with grouping, per-type preferences, opt-in browser
+  push notifications per device, and comment/reply alerts that can be limited
+  to @mentions.
 - Security emails for new sign-ins, password changes and 2FA changes.
 
 ### Accounts and security

@@ -7,6 +7,7 @@ const { startPublicationWorker } = require('./src/services/publicationWorker');
 const { startNewsletterWorker, stopNewsletterWorker } = require('./src/services/newsletterWorker');
 const { verifyMailConfig } = require('./src/services/mailer');
 const { startKeepAlive, stopKeepAlive } = require('./src/services/keepAlive');
+const { startPostSearchIndexing } = require('./src/services/postSearch');
 
 const port = process.env.PORT || 3000;
 const app = createApp({ port });
@@ -15,6 +16,7 @@ process.on('unhandledRejection', (reason) => logger.error('Unhandled promise rej
 
 async function start() {
   await connectDatabase();
+  startPostSearchIndexing();
   startPublicationWorker();
   startNewsletterWorker();
   const server = app.listen(port, () => logger.info(`Crowdwide is live at http://localhost:${port}`));

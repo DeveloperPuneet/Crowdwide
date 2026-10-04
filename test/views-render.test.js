@@ -33,6 +33,48 @@ test('chat attachment responses render previewable media inline and keep downloa
   assert.match(pdfResponse.headers['Content-Disposition'], /^attachment;/);
 });
 
+test('search results clamp long text and use responsive result classes', async () => {
+  const html = await render('pages/search.ejs', {
+    title: 'Search', pagePath: '/search', noIndex: true, query: 'react hooks',
+    filters: { type: '', community: '', sort: 'newest', from: '', to: '', media: '', unanswered: false },
+    communityOptions: [], meilisearchEnabled: false, recentSearches: [], trendingHashtags: [],
+    popularSearches: [], users: [{ _id: 'u2', name: 'Asha', bio: 'a'.repeat(180) }],
+    communities: [{ _id: 'c1', slug: 'hooks', name: 'Hooks', membersCount: 3, description: 'b'.repeat(280) }],
+    posts: [post(91, { body: 'c'.repeat(300) })]
+  });
+  assert.match(html, /class="explore-page search-page"/);
+  assert.match(html, /class="person-bio search-result-description"/);
+  assert.match(html, /class="search-result-description">3 members ·/);
+  assert.match(html, /class="post-card search-result-post"/);
+  assert.match(html, /class="post-body search-result-description"/);
+  assert.doesNotMatch(html, /max-width:1080px|line-clamp:3;max-height:5em/);
+});
+
+test('community invite and sharing UI are rendered for private community owners', async () => {
+  const html = await render('pages/community-owner.ejs', {
+    title: 'Community controls', pagePath: '/communities/c1/manage', noIndex: true,
+    community: { _id: 'c1', slug: 'sketch-club', name: 'Sketch Club', description: 'Draw together', owner: 'u1', membersCount: 1, members: [], moderators: [], joinRequests: [], pinnedPosts: [], hashtags: [], bannedWords: [], isPrivate: true },
+    inviteUrl: 'https://x/communities/invite/secret',
+    members: [], posts: [], pendingPosts: [], requests: [], moderators: [], quests: [], isOwner: true
+  });
+  assert.match(html, /Private community invite/);
+  assert.match(html, /Anyone signed in to Crowdwide who opens this invite can join immediately/);
+  assert.match(html, /data-share-invite/);
+  assert.match(html, /Share on X/);
+  assert.match(html, /communities\/c1\/invite\/revoke/);
+});
+
+test('community invite landing renders a join confirmation page', async () => {
+  const html = await render('pages/community-invite.ejs', {
+    title: 'Join Sketch Club', pagePath: '/communities/invite/token', noIndex: true,
+    community: { name: 'Sketch Club', description: 'Draw together' },
+    inviteJoinUrl: '/communities/invite/token/join'
+  });
+  assert.match(html, /Join community/);
+  assert.match(html, /name="_csrf" value="tok"/);
+  assert.match(html, /\/communities\/invite\/token\/join/);
+});
+
 test('chat-message renders text, GIF, shared post, unavailable post and system rows', async () => {
   const msg = (extra) => render('partials/chat-message.ejs', { group: true, viewerId: 'u1', reportBaseUrl: 'http://x', message: { _id: 'm1', sender: { _id: 'u2', name: 'Asha' }, createdAt: new Date(), body: '', ...extra } });
   const text = await msg({ body: '<b>hi</b>' });
@@ -149,6 +191,8 @@ test('group info: admins see management tools, plain members do not', async () =
   const member = await render('pages/group-settings.ejs', { ...common, isAdmin: false, isOwner: false });
   for (const needle of ['/rename', '/avatar"', '/invite', '/remove']) assert.ok(!member.includes(needle), `member view should not include ${needle}`);
   assert.match(member, /\/leave/);
+  assert.match(admin, /data-share-invite/);
+  assert.match(admin, /Share on X/);
 });
 
 test('share sheet and group join pages render', async () => {
@@ -218,6 +262,8 @@ test('notification settings render grouped, accessible preferences', async () =>
   assert.match(html, /In-app notifications/);
   assert.match(html, /Email updates/);
   assert.match(html, /name="notifySecurity"/);
+  assert.match(html, /name="commentNotifications"/);
+  assert.match(html, /<option value="mentions"[^>]*>Only @mentions/);
   assert.match(html, /notification-option/);
 });
 
@@ -312,6 +358,9 @@ test('post edit and reply render as separate full-page composition flows', async
   });
   assert.match(edit, /action="\/posts\/p1\/edit"/);
   assert.match(edit, /<textarea[^>]*>Original post text<\/textarea>/);
+  assert.match(edit, /data-word-limit="60"/);
+  assert.match(edit, /data-word-count-remaining/);
+  assert.match(edit, /3 words used · 57 left/);
   const reply = await render('pages/post-compose.ejs', {
     title: 'Reply with a post', pagePath: '/posts/p1/reply', editorMode: 'reply', post: null, sourcePost, wordLimit: 50
   });
@@ -324,7 +373,7 @@ test('post edit and reply render as separate full-page composition flows', async
   assert.match(reply, /name="mediaTranscript"/);
   assert.match(reply, /name="contentWarning"/);
   assert.match(reply, /data-word-limit="50"/);
-  assert.match(reply, /0 \/ 50 words/);
+  assert.match(reply, /0 words used · 50 left/);
   assert.doesNotMatch(reply, /name="body"[^>]*maxlength="4000"/);
 });
 

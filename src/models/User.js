@@ -34,6 +34,7 @@ const userSchema = new mongoose.Schema({
   notificationPreferences: {
     likes: { type: Boolean, default: true },
     comments: { type: Boolean, default: true },
+    mentionsOnly: { type: Boolean, default: false },
     follows: { type: Boolean, default: true },
     messages: { type: Boolean, default: true },
     security: { type: Boolean, default: true },

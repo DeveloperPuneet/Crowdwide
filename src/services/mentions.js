@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { sendPushToUser } = require('./push');
 const logger = require('./logger');
+const { notificationPreferenceAllows } = require('../utils/notificationPreferences');
 
 const HANDLE_PATTERN = /@([a-z0-9][a-z0-9._-]{1,39})/gi;
 const HTML_ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -30,11 +31,65 @@ function applyInlineFormatting(line) {
     .replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
 }
 
+const CODE_LANGUAGE_ALIASES = {
+  csharp: 'csharp', cs: 'csharp', cxx: 'cpp', cplusplus: 'cpp', htm: 'markup',
+  html: 'markup', js: 'javascript', jsx: 'jsx', md: 'markdown', py: 'python',
+  sh: 'bash', shell: 'bash', ts: 'typescript', tsx: 'tsx', xml: 'markup', yml: 'yaml'
+};
+const SUPPORTED_CODE_LANGUAGES = new Set([
+  'bash', 'c', 'clike', 'cpp', 'csharp', 'css', 'diff', 'go', 'java', 'javascript',
+  'json', 'jsx', 'markdown', 'markup', 'php', 'python', 'ruby', 'rust', 'sql',
+  'typescript', 'tsx', 'yaml'
+]);
+
+function renderCodeBlock(code, language) {
+  const normalized = String(language || '').toLowerCase().replace(/[^a-z0-9_+-]/g, '');
+  const requestedLanguage = CODE_LANGUAGE_ALIASES[normalized] || normalized;
+  const canonical = SUPPORTED_CODE_LANGUAGES.has(requestedLanguage) ? requestedLanguage : '';
+  const languageClass = canonical ? ` class="language-${canonical}"` : '';
+  const label = canonical || 'auto';
+  const escapedCode = String(code).replace(/[&<>"']/g, (character) => HTML_ENTITIES[character]);
+  return `<div class="code-block"><div class="code-block-header"><span data-code-language-label>${label === 'auto' ? 'Auto-detect' : label}</span><button class="code-copy-button" type="button" data-copy-code>Copy code</button><span class="code-copy-status" data-copy-status role="status" aria-live="polite"></span></div><pre><code${languageClass}>${escapedCode}</code></pre></div>`;
+}
+
+function extractFencedCode(text) {
+  const blocks = [];
+  const source = String(text).replace(/\r\n?/g, '\n');
+  const lines = source.split('\n');
+  const output = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const opening = lines[index].match(/^ {0,3}```([^\s`]*)[^\n]*$/);
+    if (!opening) {
+      output.push(lines[index]);
+      continue;
+    }
+    const codeLines = [];
+    let end = index + 1;
+    while (end < lines.length && !/^ {0,3}```\s*$/.test(lines[end])) {
+      codeLines.push(lines[end]);
+      end += 1;
+    }
+    if (end === lines.length) {
+      output.push(...lines.slice(index));
+      break;
+    }
+    let placeholder = `CROWdwIDE_CODE_BLOCK_${blocks.length}_END`;
+    while (source.includes(placeholder)) placeholder += '_';
+    blocks.push({ placeholder, html: renderCodeBlock(codeLines.join('\n'), opening[1]) });
+    output.push('', placeholder, '');
+    index = end;
+  }
+  return { text: output.join('\n'), blocks };
+}
+
 function renderRichBody(text = '') {
-  const linked = renderMentions(text);
-  const blocks = linked.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
-  if (!blocks.length) return '';
-  return blocks.map((block) => {
+  const { text: withoutCode, blocks: codeBlocks } = extractFencedCode(text);
+  const linked = renderMentions(withoutCode);
+  const contentBlocks = linked.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
+  if (!contentBlocks.length) return '';
+  return contentBlocks.map((block) => {
+    const codeBlock = codeBlocks.find((entry) => entry.placeholder === block);
+    if (codeBlock) return codeBlock.html;
     const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
     if (lines.length && lines.every((line) => /^[-*]\s+/.test(line))) {
       return `<ul>${lines.map((line) => `<li>${applyInlineFormatting(line.replace(/^[-*]\s+/, ''))}</li>`).join('')}</ul>`;
@@ -52,7 +107,7 @@ async function notifyMentionedUsers(text, actorId, postId, communityId, message 
   const handles = extractMentionHandles(text);
   if (!handles.length) return;
   const recipients = await Promise.all(handles.map((handle) => User.findOne({ email: new RegExp(`^${escapeRegex(handle)}@`, 'i'), isVerified: true }).select('_id notificationPreferences').lean()));
-  const eligible = recipients.filter((user) => user && String(user._id) !== String(actorId) && user.notificationPreferences?.comments !== false);
+  const eligible = recipients.filter((user) => user && String(user._id) !== String(actorId) && notificationPreferenceAllows(user.notificationPreferences, 'comments', 'mention'));
   if (!eligible.length) return;
   await Notification.insertMany(eligible.map((user) => ({ recipient: user._id, actor: actorId, type: 'mention', message, post: postId, community: communityId })));
   await Promise.all(eligible.map((user) => sendPushToUser(user._id, {

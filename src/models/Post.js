@@ -1,4 +1,14 @@
 const mongoose = require('mongoose');
+const logger = require('../services/logger');
+const { queuePostIndex, queuePostRemoval } = require('../services/postSearch');
+
+const SEARCH_SYNC_FIELDS = new Set(['body', 'hashtags', 'author', 'community', 'type', 'status', 'createdAt', 'commentsCount', 'likes', 'media']);
+function affectsSearchIndex(update) {
+  return Object.entries(update || {}).some(([operator, changes]) => {
+    const fields = changes && typeof changes === 'object' ? Object.keys(changes) : [operator];
+    return fields.some((field) => SEARCH_SYNC_FIELDS.has(field));
+  });
+}
 
 const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -74,5 +84,39 @@ postSchema.index({ author: 1, status: 1, createdAt: -1 });
 // Feed ranking: interest lookups by hashtag and "posts this person liked".
 postSchema.index({ hashtags: 1, status: 1, createdAt: -1 });
 postSchema.index({ likes: 1, createdAt: -1 });
+
+postSchema.post('save', (post) => queuePostIndex(post));
+postSchema.post('findOneAndDelete', (post) => {
+  if (post) queuePostRemoval(post._id);
+});
+
+postSchema.pre(['deleteOne', 'deleteMany'], async function captureDeletedPostIds() {
+  try {
+    this._searchPostIds = await this.model.distinct('_id', this.getFilter());
+  } catch (error) {
+    logger.warn('Could not prepare deleted posts for search-index cleanup', error);
+  }
+});
+postSchema.post('deleteMany', function removeDeletedPostsFromSearch() {
+  if (this._searchPostIds?.length) queuePostRemoval(this._searchPostIds);
+});
+
+postSchema.pre(['updateOne', 'updateMany', 'findOneAndUpdate'], async function captureUpdatedPostIds() {
+  if (!affectsSearchIndex(this.getUpdate())) return;
+  try {
+    this._searchPostIds = await this.model.distinct('_id', this.getFilter());
+  } catch (error) {
+    logger.warn('Could not prepare updated posts for search-index refresh', error);
+  }
+});
+postSchema.post(['updateOne', 'updateMany', 'findOneAndUpdate'], async function refreshUpdatedPostsInSearch() {
+  if (!this._searchPostIds?.length) return;
+  try {
+    const posts = await this.model.find({ _id: { $in: this._searchPostIds } }).lean();
+    posts.forEach(queuePostIndex);
+  } catch (error) {
+    logger.warn('Could not refresh updated posts in search index', error);
+  }
+});
 
 module.exports = mongoose.model('Post', postSchema);

@@ -2,6 +2,7 @@ const Community = require('../models/Community');
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Quest = require('../models/Quest');
+const crypto = require('node:crypto');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners } = require('../services/discovery');
@@ -31,7 +32,7 @@ const moderationOnly = async (req, res, next) => {
 };
 
 const ownerOnly = async (req, res, next) => {
-  const community = await Community.findOne({ _id: req.params.id, owner: req.session.user.id });
+  const community = await Community.findOne({ _id: req.params.id, owner: req.session.user.id }).select('+inviteCode');
   if (!community) {
     req.session.flash = { type: 'error', message: 'Only the community owner can manage this community.' };
     return res.redirect('/dashboard');
@@ -246,7 +247,8 @@ exports.manage = async (req, res) => {
     User.find({ _id: { $in: req.community.moderators } }).select('name email').lean(),
     Quest.find({ community: req.community._id }).sort({ createdAt: -1 }).populate('creator', 'name').populate('participants', 'name').populate('completedBy', 'name').populate('winner', 'name').lean()
   ]);
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
 };
 
 exports.createQuest = async (req, res) => {
@@ -388,6 +390,7 @@ exports.update = async (req, res) => {
   req.community.guidelines = req.body.guidelines?.trim().slice(0, 4000) || req.community.guidelines;
   req.community.category = req.body.category?.trim().toLowerCase() || req.community.category;
   req.community.isPrivate = req.body.isPrivate === 'on';
+  if (!req.community.isPrivate) req.community.inviteCode = undefined;
   req.community.showOnMap = showOnMap;
   req.community.locationLabel = showOnMap ? locationLabel : '';
   req.community.locationLat = showOnMap ? locationLat : undefined;
@@ -410,6 +413,56 @@ exports.update = async (req, res) => {
   await req.community.save();
   req.session.flash = { type: 'success', message: 'Community details updated.' };
   res.redirect(`/communities/${req.community._id}/manage`);
+};
+
+exports.createInvite = async (req, res) => {
+  if (!req.community.isPrivate) {
+    req.session.flash = { type: 'error', message: 'Invite links are only available for private communities.' };
+    return res.redirect(`/communities/${req.community._id}/manage`);
+  }
+  req.community.inviteCode = crypto.randomBytes(32).toString('hex');
+  await req.community.save();
+  req.session.flash = { type: 'success', message: 'Invite link created. Anyone with the link can join immediately.' };
+  res.redirect(`/communities/${req.community._id}/manage`);
+};
+
+exports.revokeInvite = async (req, res) => {
+  req.community.inviteCode = undefined;
+  await req.community.save();
+  req.session.flash = { type: 'success', message: 'Community invite link turned off.' };
+  res.redirect(`/communities/${req.community._id}/manage`);
+};
+
+exports.invitePreview = async (req, res) => {
+  const community = await Community.findOne({ inviteCode: req.params.code, isPrivate: true }).select('name slug description').lean();
+  if (!community) return res.status(404).render('pages/not-found', { title: 'Invite link not found' });
+  res.render('pages/community-invite', {
+    title: `Join ${community.name}`,
+    pagePath: `/communities/invite/${req.params.code}`,
+    noIndex: true,
+    community,
+    inviteJoinUrl: `/communities/invite/${req.params.code}/join`
+  });
+};
+
+exports.joinByInvite = async (req, res) => {
+  const community = await Community.findOne({ inviteCode: req.params.code, isPrivate: true });
+  if (!community) {
+    req.session.flash = { type: 'error', message: 'That invite link is invalid or has expired.' };
+    return res.redirect('/explore');
+  }
+  const userId = req.session.user.id;
+  if (!community.members.some((id) => String(id) === String(userId))) {
+    community.members.addToSet(userId);
+    if (!community.memberRoles.some((entry) => String(entry.user) === String(userId))) community.memberRoles.push({ user: userId, role: 'member' });
+    community.joinRequests = community.joinRequests.filter((request) => String(request.user) !== String(userId));
+    community.membersCount = community.members.length;
+    await community.save();
+    await User.findByIdAndUpdate(userId, { $addToSet: { joinedCommunities: community._id } });
+    refreshPersonalization(userId);
+  }
+  req.session.flash = { type: 'success', message: `You joined ${community.name}.` };
+  res.redirect(`/communities/${community.slug}`);
 };
 
 exports.addModerator = async (req, res) => {

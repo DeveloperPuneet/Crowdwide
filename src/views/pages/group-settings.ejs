@@ -37,10 +37,7 @@
 		<h2>Invite link</h2>
 		<% if (inviteUrl) { %>
 		<p class="upload-help">Anyone signed in to Crowdwide who opens this link can join the group. Turn it off if it gets shared somewhere you don't want.</p>
-		<div class="invite-box">
-			<input id="invite-url" readonly value="<%= inviteUrl %>" aria-label="Group invite link">
-			<button class="button button-primary button-small" type="button" data-copy-target="#invite-url"><%- icon('copy', { size: 15 }) %> <span>Copy</span></button>
-		</div>
+		<%- include('../partials/invite-share', { inviteUrl, shareId: `group-${group._id}`, shareText: `Join ${group.name} on Crowdwide` }) %>
 		<div class="group-form-row">
 			<form method="post" action="/groups/<%= group._id %>/invite" data-confirm="Make a new link? The current one will stop working."><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-ghost button-small" type="submit">Reset link</button></form>
 			<form method="post" action="/groups/<%= group._id %>/invite/revoke"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-ghost button-small" type="submit">Turn off link</button></form>

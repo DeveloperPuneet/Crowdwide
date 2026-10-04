@@ -41,6 +41,23 @@
 			<button class="button button-primary button-small upper-margin-15" type="submit">Save controls <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 		</form>
 
+		<% if (community.isPrivate) { %>
+		<section class="settings-block community-invite-settings">
+			<h2>Private community invite</h2>
+			<p>Anyone signed in to Crowdwide who opens this invite can join immediately, without a join request.</p>
+			<% if (inviteUrl) { %>
+			<%- include('../partials/invite-share', { inviteUrl, shareId: `community-${community._id}`, shareText: `Join ${community.name} on Crowdwide` }) %>
+			<div class="invite-share-actions">
+				<form method="post" action="/communities/<%= community._id %>/invite" data-confirm="Create a new link? The current invite will stop working."><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-ghost button-small" type="submit">Reset link</button></form>
+				<form method="post" action="/communities/<%= community._id %>/invite/revoke"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-ghost button-small" type="submit">Turn off link</button></form>
+			</div>
+			<% } else { %>
+			<p class="upload-help">Create an invite link to let people join without approval.</p>
+			<form method="post" action="/communities/<%= community._id %>/invite"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%- icon('link', { size: 15 }) %> Create invite link</button></form>
+			<% } %>
+		</section>
+		<% } %>
+
 		<% if (community.requireApproval) { %>
 		<section class="settings-block">
 			<h2>Posts awaiting review</h2>

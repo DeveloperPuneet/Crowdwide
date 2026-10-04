@@ -46,9 +46,10 @@
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <fieldset class="notification-group">
         <legend>In-app notifications</legend>
-        <p>Choose which activity appears in your notifications.</p>
+        <p>Choose which activity appears in your notifications. Browser push follows these same choices.</p>
         <label class="notification-option"><span><strong>Likes on your posts</strong><small>Know when someone appreciates what you share.</small></span><input type="checkbox" name="notifyLikes" <%= user.notificationPreferences?.likes !== false ? 'checked' : '' %>></label>
-        <label class="notification-option"><span><strong>Comments and replies</strong><small>Keep up with conversations on your posts.</small></span><input type="checkbox" name="notifyComments" <%= user.notificationPreferences?.comments !== false ? 'checked' : '' %>></label>
+        <% const commentNotificationMode = user.notificationPreferences?.comments === false ? 'off' : user.notificationPreferences?.mentionsOnly ? 'mentions' : 'all'; %>
+        <label class="notification-option"><span><strong>Comments and replies</strong><small>Choose whether to get all replies, only @mentions, or no comment alerts.</small></span><select name="commentNotifications" aria-label="Comments and replies"><option value="all" <%= commentNotificationMode === 'all' ? 'selected' : '' %>>All comments and replies</option><option value="mentions" <%= commentNotificationMode === 'mentions' ? 'selected' : '' %>>Only @mentions</option><option value="off" <%= commentNotificationMode === 'off' ? 'selected' : '' %>>Off</option></select></label>
         <label class="notification-option"><span><strong>New followers</strong><small>Get a heads-up when someone joins your circle.</small></span><input type="checkbox" name="notifyFollows" <%= user.notificationPreferences?.follows !== false ? 'checked' : '' %>></label>
         <label class="notification-option"><span><strong>Direct messages</strong><small>Stay in the loop when people reach out.</small></span><input type="checkbox" name="notifyMessages" <%= user.notificationPreferences?.messages !== false ? 'checked' : '' %>></label>
         <label class="notification-option"><span><strong>Security alerts</strong><small>Important account and sign-in changes.</small></span><input type="checkbox" name="notifySecurity" <%= user.notificationPreferences?.security !== false ? 'checked' : '' %>></label>

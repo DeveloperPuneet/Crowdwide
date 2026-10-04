@@ -1,0 +1,83 @@
+.code-block {
+  max-width: 100%;
+  margin: 14px 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #101321;
+  color: #e6e8f2;
+  white-space: normal;
+}
+.code-block-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 5px 10px;
+  border-bottom: 1px solid #2b3044;
+  color: #aeb6cb;
+  font: 600 11px 'SFMono-Regular', Consolas, monospace;
+}
+.code-copy-button {
+  min-height: 26px;
+  margin-left: auto;
+  padding: 3px 9px;
+  border: 1px solid #3c435b;
+  border-radius: 6px;
+  background: #1c2132;
+  color: #e6e8f2;
+  font: inherit;
+  cursor: pointer;
+}
+.code-copy-button:hover { border-color: #8294ff; }
+.code-copy-button:focus-visible { outline: 2px solid #8294ff; outline-offset: 2px; }
+.code-copy-status { color: #79ddb4; font: 500 10px 'DM Sans', sans-serif; }
+.post-compose-code-help { display: block; margin: -8px 0 14px; color: var(--tx-faint); font-size: 10px; }
+.code-block pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  color: inherit;
+  font: 13px/1.65 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  white-space: pre;
+  tab-size: 2;
+}
+.code-block code {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: inherit;
+}
+.code-block .token.comment,
+.code-block .token.prolog,
+.code-block .token.doctype,
+.code-block .token.cdata { color: #8290a8; }
+.code-block .token.punctuation { color: #c2c9d8; }
+.code-block .token.property,
+.code-block .token.tag,
+.code-block .token.boolean,
+.code-block .token.number,
+.code-block .token.constant,
+.code-block .token.symbol { color: #ff9e74; }
+.code-block .token.selector,
+.code-block .token.attr-name,
+.code-block .token.string,
+.code-block .token.char,
+.code-block .token.builtin { color: #9be3b0; }
+.code-block .token.operator,
+.code-block .token.entity,
+.code-block .token.url { color: #83d8e8; }
+.code-block .token.atrule,
+.code-block .token.attr-value,
+.code-block .token.keyword { color: #c5a6ff; }
+.code-block .token.function,
+.code-block .token.class-name { color: #82bcff; }
+.code-block .token.regex,
+.code-block .token.important,
+.code-block .token.variable { color: #ffd580; }
+body[data-theme="light"] .code-block,
+body[data-theme="pink"] .code-block { background: #172033; color: #edf2ff; border-color: #ccd3df; }

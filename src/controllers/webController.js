@@ -20,6 +20,7 @@ const { checkPostingRestriction } = require('../utils/postingRestriction');
 const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const { isRepeatPost } = require('../utils/spamDetection');
 const { getWordLimits } = require('../services/siteConfig');
+const { searchPublishedPosts } = require('../services/postSearch');
 const logger = require('../services/logger');
 
 async function getLiveStats() {
@@ -551,6 +552,7 @@ exports.profile = async (req, res) => {
 
 exports.search = async (req, res) => {
 	const q = (req.query.q || '').trim();
+	const meilisearchEnabled = Boolean(String(process.env.MEILISEARCH_URL || '').trim());
 	const [trendingHashtags, communityOptions, viewer, popularSearches] = await Promise.all([
 		getTrendingHashtags(12),
 		Community.find().sort({ name: 1 }).select('name _id').lean(),
@@ -563,11 +565,11 @@ exports.search = async (req, res) => {
 		community: /^[a-f\d]{24}$/i.test(req.query.community || '') ? req.query.community : '',
 		media: req.query.media === 'with-media' ? 'with-media' : '',
 		unanswered: req.query.unanswered === 'true',
-		sort: ['newest', 'oldest', 'popular'].includes(req.query.sort) ? req.query.sort : 'newest',
+		sort: ['relevance', 'newest', 'oldest', 'popular'].includes(req.query.sort) ? req.query.sort : meilisearchEnabled ? 'relevance' : 'newest',
 		from: req.query.from || '',
 		to: req.query.to || ''
 	};
-	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches, recentSearches, communityOptions, filters });
+	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled });
 	const tag = q.startsWith('#') ? q.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
 	// "@name" is what mention links produce: match that person's handle (the
 	// part of their email before the @) as well as their display name.
@@ -580,7 +582,8 @@ exports.search = async (req, res) => {
 		await User.findByIdAndUpdate(req.session.user.id, { $push: { searchHistory: { $each: [{ query: q, searchedAt: new Date() }], $position: 0, $slice: 20 } } });
 	}
 	const restrictedCommunityIds = await getRestrictedCommunityIds(req.session.user.id);
-	const postFilter = { status: 'published', author: { $nin: viewer?.blockedUsers || [] }, community: { $nin: restrictedCommunityIds }, ...(tag ? { hashtags: tag } : { body: regex }) };
+	const excludedAuthors = [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])];
+	const postFilter = { status: 'published', author: { $nin: excludedAuthors }, community: { $nin: restrictedCommunityIds }, ...(tag ? { hashtags: tag } : {}) };
 	if (filters.type) postFilter.type = filters.type;
 	if (filters.community) postFilter.community = filters.community;
 	if (filters.media) postFilter.media = { $exists: true, $ne: [] };
@@ -595,15 +598,39 @@ exports.search = async (req, res) => {
 		: handle
 			? { $or: [{ email: new RegExp(`^${escapeRegex(handle)}@`, 'i') }, { name: regex }] }
 			: { $or: [{ name: regex }, { bio: regex }, { hashtags: q.toLowerCase() }] };
+	const indexedPostIds = await searchPublishedPosts({
+		query: tag ? '' : q,
+		filters: {
+			...filters,
+			tag,
+			from: createdAt.$gte,
+			to: createdAt.$lte,
+			blockedAuthors: viewer?.blockedUsers || [],
+			mutedAuthors: viewer?.mutedUsers || [],
+			restrictedCommunities: restrictedCommunityIds
+		}
+	});
+	if (indexedPostIds === null && filters.sort === 'relevance') filters.sort = 'newest';
+	const postQuery = Post.find({
+		...postFilter,
+		...(indexedPostIds === null ? (tag ? {} : { body: regex }) : { _id: { $in: indexedPostIds } })
+	});
+	if (indexedPostIds === null) postQuery.sort(postSort).limit(20);
+	else postQuery.select('body author community likes commentsCount viewsCount createdAt').limit(1000);
 	const [users, communities, posts] = await Promise.all([
 		User.find({ isVerified: true, _id: { $nin: [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])] }, ...userMatch }).limit(10).select('name bio hashtags profilePicture').lean(),
 		Community.find({ ...(tag ? { hashtags: tag } : { $or: [{ name: regex }, { description: regex }, { hashtags: q.toLowerCase() }] }) }).limit(10).lean(),
-		Post.find({ ...postFilter, author: { $nin: [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])] } }).sort(postSort).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+		postQuery.populate('author', 'name profilePicture').populate('community', 'name slug').lean()
 	]);
+	if (indexedPostIds !== null) {
+		const rank = new Map(indexedPostIds.map((id, index) => [id, index]));
+		posts.sort((a, b) => (rank.get(String(a._id)) ?? Infinity) - (rank.get(String(b._id)) ?? Infinity));
+		posts.splice(20);
+	}
 	// Feeds "Popular searches" for everyone. Never awaited: it must not slow
 	// the results page down or break it.
 	recordSearch({ userId: req.session.user.id, query: q, hits: users.length + communities.length + posts.length });
-	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches, recentSearches, communityOptions, filters });
+	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled });
 };
 
 exports.clearSearchHistory = async (req, res) => {

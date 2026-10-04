@@ -121,10 +121,14 @@ exports.setInactivity = async (req, res) => {
 };
 
 exports.setNotifications = async (req, res) => {
+  const commentNotifications = ['all', 'mentions', 'off'].includes(req.body.commentNotifications)
+    ? req.body.commentNotifications
+    : req.body.notifyComments === 'on' ? 'all' : 'off';
   await User.findByIdAndUpdate(req.session.user.id, {
     notificationPreferences: {
       likes: req.body.notifyLikes === 'on',
-      comments: req.body.notifyComments === 'on',
+      comments: commentNotifications !== 'off',
+      mentionsOnly: commentNotifications === 'mentions',
       follows: req.body.notifyFollows === 'on',
       messages: req.body.notifyMessages === 'on',
       security: req.body.notifySecurity === 'on',

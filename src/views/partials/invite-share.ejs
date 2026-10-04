@@ -1,0 +1,11 @@
+<div class="invite-share">
+	<div class="invite-box">
+		<input id="<%= shareId %>-url" readonly value="<%= inviteUrl %>" aria-label="Invite link">
+		<button class="button button-primary button-small" type="button" data-copy-target="#<%= shareId %>-url"><%- icon('copy', { size: 15 }) %> <span>Copy</span></button>
+	</div>
+	<div class="invite-share-actions">
+		<button class="button button-ghost button-small" type="button" data-share-invite data-url="<%= inviteUrl %>" data-title="<%= shareText %>"><%- icon('send', { size: 15 }) %> Share</button>
+		<a class="button button-ghost button-small" href="https://twitter.com/intent/tweet?url=<%= encodeURIComponent(inviteUrl) %>&amp;text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener noreferrer">Share on X</a>
+	</div>
+	<p class="invite-share-status" role="status" aria-live="polite"></p>
+</div>

@@ -240,6 +240,7 @@
 .settings-form .notification-option strong { color: var(--tx-hi); font-size: 12px; }
 .settings-form .notification-option small { color: var(--tx-faint); font-size: 10px; line-height: 1.45; }
 .settings-form .notification-option input[type="checkbox"] { width: 19px; height: 19px; flex: none; margin: 0; accent-color: var(--orange); }
+.settings-form .notification-option select { width: auto; min-width: 190px; max-width: 100%; flex: none; }
 
 .admin-page-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
 .admin-page-header h1 { margin: 0; }
@@ -262,13 +263,28 @@
 .admin-console .admin-row-toggle { min-height: 36px; padding-inline: 13px; }
 .admin-console .admin-edit-form { padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
 
-.search-user-row { align-items: center; flex-wrap: wrap; gap: 9px 14px; }
-.search-user-link { display: flex; align-items: center; gap: 12px; min-width: min(100%, 220px); color: inherit; }
-.search-user-row > .person-bio { flex: 1 1 100%; margin-left: 52px; color: var(--tx-faint); font-size: 12px; line-height: 1.5; }
+.search-page { width: min(100%, 1080px); min-width: 0; }
+.search-user-row { align-items: start; flex-wrap: wrap; gap: 9px 14px; min-width: 0; }
+.search-user-link { display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 100%; color: inherit; }
+.search-user-link strong { min-width: 0; overflow-wrap: anywhere; }
+.search-user-row > .person-bio { flex: 1 1 100%; min-width: 0; margin-left: 52px; color: var(--tx-faint); font-size: 12px; line-height: 1.5; }
 .discover-row > div { min-width: 0; }
 .discover-row .person-bio,
-.search-user-row > .person-bio { white-space: pre-line; overflow: visible; text-overflow: clip; }
+.search-user-row > .person-bio { white-space: pre-line; overflow-wrap: anywhere; }
 .discover-row .person-bio { display: block; margin-top: 4px; color: var(--tx-faint); font-size: 11px; line-height: 1.45; }
+.search-community-row { min-width: 0; }
+.search-community-row > div { min-width: 0; }
+.search-community-row .search-result-description { white-space: normal; overflow-wrap: anywhere; }
+.search-result-description { display: -webkit-box !important; min-width: 0; overflow: hidden; overflow-wrap: anywhere; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.search-result-post { min-width: 0; margin-bottom: 12px; }
+.search-result-post .post-body { max-height: none; }
+.community-invite-page { width: min(calc(100% - 32px), 620px); margin: 72px auto; }
+.community-invite-card { padding: clamp(22px, 5vw, 40px); border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-soft); }
+.community-invite-card h1, .community-invite-card p { overflow-wrap: anywhere; }
+.invite-share { display: grid; gap: 10px; min-width: 0; }
+.invite-share-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.invite-share-actions form { margin: 0; }
+.invite-share-status { min-height: 1em; margin: 0; color: var(--tx-faint); font-size: 12px; }
 .explore-grid .community-card,
 .explore-rising-grid .community-radar-preview,
 .explore-viral-grid .viral-card { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
@@ -460,6 +476,7 @@
   .chat-search input { min-height: 34px; }
   .notification-group { padding: 12px; }
   .settings-form .notification-option { gap: 10px; }
+  .settings-form .notification-option select { min-width: 0; }
   .growth-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .growth-card { padding: 18px 14px; }
   .growth-chart-scroll .growth-chart { width: max(100%, 440px); max-width: none; }

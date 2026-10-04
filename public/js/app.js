@@ -36,7 +36,14 @@ document.querySelectorAll('textarea[data-word-limit]').forEach((textarea) => {
   const updateWordCount = () => {
     const count = countWords();
     if (counter) {
-      counter.textContent = `${count} / ${limit} words`;
+      if (counter.hasAttribute('data-word-count-remaining')) {
+        const wordLabel = (total) => `${total} ${total === 1 ? 'word' : 'words'}`;
+        counter.textContent = count > limit
+          ? `${wordLabel(count)} used · ${wordLabel(count - limit)} over limit`
+          : `${wordLabel(count)} used · ${wordLabel(limit - count)} left`;
+      } else {
+        counter.textContent = `${count} / ${limit} words`;
+      }
       counter.classList.toggle('is-over', count > limit);
     }
     textarea.setAttribute('aria-invalid', String(count > limit));
@@ -705,6 +712,23 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
 
 // "Copy" buttons next to a read-only field, e.g. the group invite link.
 document.addEventListener('click', async (event) => {
+  const shareButton = event.target.closest('[data-share-invite]');
+  if (shareButton) {
+    const status = shareButton.closest('.invite-share')?.querySelector('.invite-share-status');
+    const url = shareButton.dataset.url;
+    const title = shareButton.dataset.title || 'Join me on Crowdwide';
+    if (!url) return;
+    try {
+      if (navigator.share) await navigator.share({ title, text: title, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        if (status) status.textContent = 'Invite link copied. Paste it into any app to share.';
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError' && status) status.textContent = 'Sharing was unavailable. Copy the invite link instead.';
+    }
+    return;
+  }
   const button = event.target.closest('[data-copy-target]');
   if (!button) return;
   const field = document.querySelector(button.dataset.copyTarget);

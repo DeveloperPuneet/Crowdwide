@@ -106,6 +106,8 @@ router.post('/users/:id/mute', requireAuth, requireVerified, interactionLimiter,
 router.get('/u/:id/followers', requireAuth, requireVerified, controller.followersPage);
 router.get('/u/:id/following', requireAuth, requireVerified, controller.followingPage);
 router.get('/communities/:slug/rss.xml', controller.communityRss);
+router.get('/communities/invite/:code', requireAuth, requireVerified, communityController.invitePreview);
+router.post('/communities/invite/:code/join', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.joinByInvite);
 router.get('/communities/:slug', requireAuth, requireVerified, communityController.detail);
 router.post('/posts', requireAuth, requireVerified, postUpload, csrfSynchronisedProtection, handleUploadError, validatePostUpload, scanUploadsForViruses, controller.createPost);
 router.post('/communities', requireAuth, requireVerified, controller.createCommunity);
@@ -116,6 +118,8 @@ router.post('/communities/:id/quests/:questId/complete', requireAuth, requireVer
 router.post('/communities/:id/quests/:questId/end', requireAuth, requireVerified, communityController.moderationOnly, communityController.endQuest);
 router.post('/communities/:id/quests/:questId/reward', requireAuth, requireVerified, communityController.moderationOnly, communityController.rewardQuestWinner);
 router.get('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityController.manage);
+router.post('/communities/:id/invite', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.createInvite);
+router.post('/communities/:id/invite/revoke', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.revokeInvite);
 router.post('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityUpload, csrfSynchronisedProtection, handleUploadError, validateCommunityUpload, scanUploadsForViruses, communityController.update);
 router.post('/communities/:id/moderators', requireAuth, requireVerified, communityController.ownerOnly, communityController.addModerator);
 router.post('/communities/:id/posts/:postId/review', requireAuth, requireVerified, communityController.moderationOnly, communityController.reviewPost);

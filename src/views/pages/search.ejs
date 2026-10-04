@@ -1,13 +1,13 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser, searchQuery: query }) %>
-<main class="explore-page" style="max-width:1080px;">
+<main class="explore-page search-page">
 	<p class="eyebrow">Search Crowdwide</p>
 	<h1>Find people, communities, and posts.</h1>
 	<form class="search-form search-filter-form" method="get" action="/search">
 		<input type="search" name="q" value="<%= query %>" placeholder="Search Crowdwide" autofocus>
 		<select name="type" aria-label="Content type"><option value="">All content</option><option value="post" <%= filters.type === 'post' ? 'selected' : '' %>>Posts</option><option value="article" <%= filters.type === 'article' ? 'selected' : '' %>>Articles</option><option value="poll" <%= filters.type === 'poll' ? 'selected' : '' %>>Polls</option></select>
 		<select name="community" aria-label="Community"><option value="">All communities</option><% communityOptions.forEach((community) => { %><option value="<%= community._id %>" <%= filters.community === String(community._id) ? 'selected' : '' %>><%= community.name %></option><% }) %></select>
-		<select name="sort" aria-label="Sort results"><option value="newest" <%= filters.sort === 'newest' ? 'selected' : '' %>>Newest</option><option value="oldest" <%= filters.sort === 'oldest' ? 'selected' : '' %>>Oldest</option><option value="popular" <%= filters.sort === 'popular' ? 'selected' : '' %>>Popular</option></select>
+		<select name="sort" aria-label="Sort results"><% if (meilisearchEnabled) { %><option value="relevance" <%= filters.sort === 'relevance' ? 'selected' : '' %>>Relevance</option><% } %><option value="newest" <%= filters.sort === 'newest' ? 'selected' : '' %>>Newest</option><option value="oldest" <%= filters.sort === 'oldest' ? 'selected' : '' %>>Oldest</option><option value="popular" <%= filters.sort === 'popular' ? 'selected' : '' %>>Popular</option></select>
 		<label class="search-date">From<input type="date" name="from" value="<%= filters.from %>"></label>
 		<label class="search-date">To<input type="date" name="to" value="<%= filters.to %>"></label>
 		<label class="search-media"><input type="checkbox" name="media" value="with-media" <%= filters.media === 'with-media' ? 'checked' : '' %>> Media</label>
@@ -38,7 +38,7 @@
 		<% users.forEach((person) => { %>
 		<div class="search-user-row">
 			<a class="search-user-link" href="/u/<%= person._id %>" style="text-decoration:none;color:inherit;"><%- include('../partials/avatar', { person, size: 'small', link: false }) %><strong><%= person.name %></strong></a>
-			<span class="person-bio" data-bio-limit><%= person.bio || 'Crowdwide member' %></span>
+			<span class="person-bio search-result-description"><%= person.bio || 'Crowdwide member' %></span>
 		</div>
 		<% }) %>
 	</section>
@@ -50,7 +50,7 @@
 		<% communities.forEach((community) => { %>
 		<a class="search-community-row" href="/communities/<%= community.slug %>" style="text-decoration:none;color:inherit;">
 			<span class="community-glyph"><%- icon('users', { size: 15 }) %></span>
-			<div><strong><%= community.name %></strong><span><%= (community.membersCount || 0).toLocaleString() %> members · <%= community.description %></span></div>
+			<div><strong><%= community.name %></strong><span class="search-result-description"><%= (community.membersCount || 0).toLocaleString() %> members · <%= community.description %></span></div>
 		</a>
 		<% }) %>
 	</section>
@@ -60,12 +60,12 @@
 	<section class="search-section">
 		<h2>Posts</h2>
 		<% posts.forEach((post) => { %>
-		<article class="post-card" style="margin-bottom:12px;">
+		<article class="post-card search-result-post">
 			<div class="post-meta">
 				<%- include('../partials/avatar', { person: post.author, size: 'small' }) %>
 				<div><strong><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a></strong><span><%= post.community?.name || 'Open Crowdwide' %></span></div>
 			</div>
-			<p class="post-body" style="-webkit-line-clamp:3;max-height:5em;"><%= post.body %></p>
+			<p class="post-body search-result-description"><%= post.body %></p>
 			<div class="post-stat-row" aria-hidden="true"><span><%- icon('heart', { size: 14 }) %><%= post.likes?.length || 0 %></span><span><%- icon('message-circle', { size: 14 }) %><%= post.commentsCount || 0 %></span><span><%- icon('eye', { size: 14 }) %><%= post.viewsCount || 0 %></span></div>
 			<a class="post-open-link" href="/posts/<%= post._id %>">Open post <%- icon('arrow-right', { size: 13 }) %></a>
 		</article>

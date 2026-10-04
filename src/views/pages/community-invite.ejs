@@ -1,0 +1,16 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
+<main class="community-invite-page">
+	<section class="community-invite-card">
+		<p class="eyebrow">Private community invitation</p>
+		<h1>Join <%= community.name %></h1>
+		<p><%= community.description %></p>
+		<p class="upload-help">This invite lets you join immediately. Community posts and members become visible after joining.</p>
+		<form method="post" action="<%= inviteJoinUrl %>">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<button class="button button-primary" type="submit">Join community</button>
+		</form>
+	</section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

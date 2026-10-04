@@ -48,7 +48,7 @@
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">
-				<div class="composer-intro"><strong>Share with your community</strong><span>A thought, a story, or a question to get things started.</span></div>
+				<div class="composer-intro"><strong>Share with your community</strong><span>A thought, a story, or a question to get things started. For highlighted, copyable code, wrap it in triple backticks (```js … ```).</span></div>
 				<textarea data-mention-input name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
 				<div class="composer-meta"><div class="word-limit-status"><span data-word-count>0 / <%= wordLimits.post %> words</span><div class="word-limit-meter" role="progressbar" aria-label="Word limit" aria-valuemin="0" aria-valuemax="<%= wordLimits.post %>" aria-valuenow="0"><span data-word-progress></span></div></div><div class="hashtag-suggestions" data-hashtag-suggestions></div></div>
 				<fieldset class="poll-composer" hidden><legend>Poll choices</legend><input name="pollQuestion" maxlength="200" placeholder="Ask a question"><div class="poll-option-grid"><input name="pollOptions" maxlength="80" placeholder="Option 1"><input name="pollOptions" maxlength="80" placeholder="Option 2"><input name="pollOptions" maxlength="80" placeholder="Option 3"><input name="pollOptions" maxlength="80" placeholder="Option 4"></div></fieldset>

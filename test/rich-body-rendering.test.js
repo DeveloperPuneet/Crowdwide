@@ -53,6 +53,35 @@ test('renderRichBody still links @mentions inside rich text', () => {
   assert.match(html, />@Alice_1<\/a>/);
 });
 
+test('renderRichBody renders fenced code safely with a language label and copy control', () => {
+  const html = renderRichBody('Example:\n\n```js\nconst value = "<script>nope</script>";\n```');
+  assert.match(html, /<p>Example:<\/p>/);
+  assert.match(html, /class="language-javascript"/);
+  assert.match(html, /data-code-language-label>javascript</);
+  assert.match(html, /data-copy-code/);
+  assert.match(html, /const value = &quot;&lt;script&gt;nope&lt;\/script&gt;&quot;;/);
+  assert.doesNotMatch(html, /<script>nope/);
+});
+
+test('renderRichBody does not turn mentions or Markdown into links or formatting inside code', () => {
+  const html = renderRichBody('```\n@alice **not bold**\n```');
+  assert.match(html, /@alice \*\*not bold\*\*/);
+  assert.doesNotMatch(html, /mention-link|<strong>not bold/);
+});
+
+test('renderRichBody supports unlabelled fenced blocks for client-side language detection', () => {
+  const html = renderRichBody('```\nconst count = 3;\n```');
+  assert.match(html, /data-code-language-label>Auto-detect</);
+  assert.doesNotMatch(html, /class="language-/);
+  assert.match(html, /data-copy-code/);
+});
+
+test('renderRichBody ignores unsupported language names rather than emitting a Prism fetch class', () => {
+  const html = renderRichBody('```not-a-language\nconst count = 3;\n```');
+  assert.match(html, /data-code-language-label>Auto-detect</);
+  assert.doesNotMatch(html, /language-not-a-language/);
+});
+
 test('renderRichBody returns an empty string for empty input', () => {
   assert.equal(renderRichBody(''), '');
   assert.equal(renderRichBody('   \n\n   '), '');

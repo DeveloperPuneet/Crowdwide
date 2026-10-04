@@ -19,6 +19,7 @@ const { getWordLimits } = require('../services/siteConfig');
 const { toggleReaction } = require('../utils/reactions');
 const logger = require('../services/logger');
 const { sendUnreadNotificationSummary } = require('../services/mailer');
+const { notificationPreferenceAllows } = require('../utils/notificationPreferences');
 
 const MAX_REPLY_POST_WORDS = 50;
 
@@ -42,7 +43,7 @@ async function notify(recipient, actor, type, message, post, community, actorNam
   if (!recipient || String(recipient) === String(actor)) return;
   const recipientUser = await User.findById(recipient).select('name email notificationPreferences').lean();
   const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : type === 'message' ? 'messages' : ['comment', 'reply', 'mention'].includes(type) ? 'comments' : 'security';
-  if (recipientUser?.notificationPreferences && recipientUser.notificationPreferences[preferenceKey] === false) return;
+  if (!notificationPreferenceAllows(recipientUser?.notificationPreferences, preferenceKey, type)) return;
   await Notification.create({ recipient, actor, type, message, post, community });
   if (recipientUser?.notificationPreferences?.emailUnreadSummary !== false) {
     const unread = await Notification.countDocuments({ recipient, readAt: null });

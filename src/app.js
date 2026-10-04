@@ -60,6 +60,7 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     next();
   });
   app.use('/vendor/leaflet', express.static(path.join(__dirname, '..', 'node_modules', 'leaflet', 'dist')));
+  app.use('/vendor/prism', express.static(path.join(__dirname, '..', 'node_modules', 'prismjs')));
   app.use(express.static(path.join(__dirname, '..', 'public')));
   // Pages and JSON are personal and change constantly: never let a browser or a
   // shared cache show a stale copy (or another visitor's copy) of them. "no-cache"

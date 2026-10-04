@@ -54,6 +54,25 @@ Setup:
 Production needs no extra setting: leave `APP_ENV` unset (or set it to
 `production`) and none of the above applies.
 
+## Meilisearch
+
+Crowdwide can use a self-hosted [Meilisearch](https://www.meilisearch.com/)
+instance to make post search typo-tolerant and relevance-ranked. Run
+Meilisearch as a separate private service; do not expose its admin key or
+unauthenticated API publicly. Set `MEILISEARCH_URL` to its internal base URL
+and `MEILISEARCH_API_KEY` to a key that can create/read the index, update its
+settings, search, add/delete documents, and read task status. The index
+contains published post text, including private-community posts, so keep the
+service private and trusted. Crowdwide loads result content from MongoDB and
+rechecks membership, visibility and selected filters before rendering.
+The app creates/configures the `posts` index and indexes existing published
+posts after MongoDB connects. New, edited, published and deleted posts are
+kept in sync.
+
+If the service is not configured or becomes unavailable, search falls back
+to the built-in MongoDB search. Search indexing failures are logged and do
+not prevent posting or editing.
+
 ## Backups
 
 `npm run backup` wraps `mongodump` to produce a timestamped, gzipped
