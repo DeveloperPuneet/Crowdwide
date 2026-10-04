@@ -10,11 +10,12 @@
 	<div class="post-media-frame post-media-frame--<%= media.kind %>">
 		<% if (media.kind === 'image') { %>
 		<div class="media-box<%= knownRatio ? ' has-ratio' : '' %>"<% if (knownRatio) { %> style="--ar: <%= knownRatio %>"<% } %>>
-			<img src="<%= media.thumbnailUrl || media.url %>" alt="<%= media.alt || 'Post image' %>" loading="lazy" decoding="async"<% if (media.width && media.height) { %> width="<%= media.width %>" height="<%= media.height %>"<% } %>>
+			<img src="<%= media.thumbnailUrl || media.url %>" data-media-viewer data-media-src="<%= media.url %>" alt="<%= media.alt || 'Post image' %>" aria-label="View image: <%= media.alt || 'Post image' %>" aria-haspopup="dialog" role="button" tabindex="0" loading="lazy" decoding="async"<% if (media.width && media.height) { %> width="<%= media.width %>" height="<%= media.height %>"<% } %>>
 		</div>
 		<% } else if (media.kind === 'video') { %>
 		<div class="media-box media-box--video has-ratio" style="--ar: 16 / 9">
-			<video controls controlsList="nodownload" disablePictureInPicture playsinline preload="metadata" src="<%= media.url %>#t=0.001"></video>
+			<video data-media-viewer data-media-src="<%= media.url %>" aria-label="Open video in larger viewer" controls controlsList="nodownload" disablePictureInPicture playsinline preload="metadata" src="<%= media.url %>#t=0.001"></video>
+			<button class="media-expand-button" type="button" data-media-viewer-trigger aria-label="View video larger"><%- icon('arrow-up-right', { size: 15 }) %><span>View larger</span></button>
 		</div>
 		<% } else if (media.kind === 'audio') { %>
 		<audio controls controlsList="nodownload" preload="none" src="<%= media.url %>"></audio>

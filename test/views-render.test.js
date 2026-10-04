@@ -117,6 +117,7 @@ test('private community request page shows a request action or its pending state
 
 test('chat-message renders text, GIF, shared post, unavailable post and system rows', async () => {
   const msg = (extra) => render('partials/chat-message.ejs', { group: true, viewerId: 'u1', reportBaseUrl: '/groups/g1', message: { _id: 'm1', sender: { _id: 'u2', name: 'Asha' }, createdAt: new Date(), body: '', ...extra } });
+  const dmMsg = (extra) => render('partials/chat-message.ejs', { group: false, viewerId: 'u1', reportBaseUrl: '/messages/u2', message: { _id: 'm2', sender: { _id: 'u2', name: 'Asha' }, createdAt: new Date(), body: '', ...extra } });
   const text = await msg({ body: '<b>hi</b>' });
   assert.match(text, /class="chat-msg"/);
   assert.match(text, /&lt;b&gt;hi&lt;\/b&gt;/, 'message text must be escaped');
@@ -132,20 +133,30 @@ test('chat-message renders text, GIF, shared post, unavailable post and system r
   assert.doesNotMatch(own, /aria-label="Report message"/);
   const gif = await msg({ gif: { url: 'https://media.giphy.com/x.gif', width: 200, height: 100 } });
   assert.match(gif, /class="chat-gif"/);
+  assert.match(gif, /data-media-viewer data-media-src="https:\/\/media\.giphy\.com\/x\.gif"/);
   assert.match(gif, /is-media/);
   const imageAttachment = await msg({ attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', size: 2048 } });
   assert.match(imageAttachment, /chat-attachment-media/);
-  assert.match(imageAttachment, /<img class="chat-attachment-media"/);
+  assert.match(imageAttachment, /<img class="chat-attachment-media" src="\/groups\/g1\/messages\/m1\/attachment" data-media-viewer data-media-src="\/groups\/g1\/messages\/m1\/attachment"/);
   assert.match(imageAttachment, /src="\/groups\/g1\/messages\/m1\/attachment"/);
+  assert.doesNotMatch(imageAttachment, /chat-attachment-media-link|download><img class="chat-attachment-media"/);
   assert.match(imageAttachment, /chat-bubble is-media/);
+  const dmImageAttachment = await dmMsg({ attachment: { filename: 'photo.jpg', contentType: 'image/jpeg', size: 2048 } });
+  assert.match(dmImageAttachment, /data-media-viewer data-media-src="\/messages\/u2\/m2\/attachment"/);
   const videoAttachment = await msg({ attachment: { filename: 'clip.mp4', contentType: 'video/mp4', size: 4096 } });
   assert.match(videoAttachment, /chat-attachment-media/);
   assert.match(videoAttachment, /<video class="chat-attachment-media"/);
+  assert.match(videoAttachment, /data-media-viewer-trigger aria-label="View video larger"/);
+  assert.match(videoAttachment, /class="chat-attachment-media-wrap media-viewer-trigger-wrap"/);
   assert.match(videoAttachment, /src="\/groups\/g1\/messages\/m1\/attachment"/);
+  const dmVideoAttachment = await dmMsg({ attachment: { filename: 'clip.mp4', contentType: 'video/mp4', size: 4096 } });
+  assert.match(dmVideoAttachment, /data-media-viewer-trigger aria-label="View video larger"/);
+  assert.match(dmVideoAttachment, /src="\/messages\/u2\/m2\/attachment"/);
   const shared = await msg({ postPreview: { id: 'p1', label: 'Article', author: 'Ravi', excerpt: 'Short text', image: '/media/photo.jpg' } });
-  assert.match(shared, /<a class="chat-post" href="\/posts\/p1">[\s\S]*<img src="\/media\/photo.jpg"[\s\S]*<\/a>/);
+  assert.match(shared, /<a class="chat-post" href="\/posts\/p1">[\s\S]*<img src="\/media\/photo.jpg" data-media-viewer data-media-src="\/media\/photo.jpg"[\s\S]*<\/a>/);
   const sharedVideo = await msg({ postPreview: { id: 'p2', label: 'Post', author: 'Ravi', excerpt: 'Video', image: null, video: { url: '/media/clip', poster: '/media/poster' } } });
-  assert.match(sharedVideo, /<video class="chat-post-video" controls preload="metadata" playsinline src="\/media\/clip" poster="\/media\/poster"><\/video>/);
+  assert.match(sharedVideo, /<video class="chat-post-video" controls preload="metadata" playsinline data-media-src="\/media\/clip" src="\/media\/clip" poster="\/media\/poster"><\/video>/);
+  assert.match(sharedVideo, /data-media-viewer-trigger aria-label="View shared video larger"/);
   const hidden = await msg({ postPreview: { unavailable: true } });
   assert.match(hidden, /isn't available/);
   const system = await msg({ kind: 'system', body: 'added Priya.' });

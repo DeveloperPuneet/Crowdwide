@@ -25,21 +25,22 @@
 				<div class="chat-post is-unavailable"><%- icon('lock', { size: 15 }) %> <span>This post isn't available to you.</span></div>
 				<% } else { const p = m.postPreview; %>
 				<% if (p.video) { %>
-				<div class="chat-post is-video">
-					<video class="chat-post-video" controls preload="metadata" playsinline src="<%= p.video.url %>"<% if (p.video.poster) { %> poster="<%= p.video.poster %>"<% } %>></video>
+				<div class="chat-post is-video media-viewer-trigger-wrap">
+					<video class="chat-post-video" controls preload="metadata" playsinline data-media-src="<%= p.video.url %>" src="<%= p.video.url %>"<% if (p.video.poster) { %> poster="<%= p.video.poster %>"<% } %>></video>
+					<button class="media-expand-button" type="button" data-media-viewer-trigger aria-label="View shared video larger"><%- icon('arrow-up-right', { size: 15 }) %><span>View larger</span></button>
 					<a class="chat-post-body" href="/posts/<%= p.id %>"><span class="chat-post-kind"><%= p.label %> · <%= p.author %></span><span class="chat-post-text"><%= p.excerpt || 'Open to view' %></span></a>
 				</div>
 				<% } else { %>
 				<a class="chat-post" href="/posts/<%= p.id %>">
-					<% if (p.image) { %><img src="<%= p.image %>" alt="" loading="lazy"><% } %>
+					<% if (p.image) { %><img src="<%= p.image %>" data-media-viewer data-media-src="<%= p.image %>" alt="" aria-label="View shared image" aria-haspopup="dialog" role="button" tabindex="0" loading="lazy"><% } %>
 					<span class="chat-post-body"><span class="chat-post-kind"><%= p.label %> · <%= p.author %></span><span class="chat-post-text"><%= p.excerpt || 'Open to view' %></span></span>
 				</a>
 				<% } %>
 				<% } %>
 			<% } %>
-			<% if (m.gif?.url) { %><img class="chat-gif" src="<%= m.gif.url %>" alt="<%= m.gif.title || 'GIF' %>" loading="lazy"<% if (m.gif.width && m.gif.height) { %> width="<%= m.gif.width %>" height="<%= m.gif.height %>"<% } %>><% } %>
+			<% if (m.gif?.url) { %><img class="chat-gif" src="<%= m.gif.url %>" data-media-viewer data-media-src="<%= m.gif.url %>" alt="<%= m.gif.title || 'GIF' %>" aria-haspopup="dialog" role="button" tabindex="0" loading="lazy"<% if (m.gif.width && m.gif.height) { %> width="<%= m.gif.width %>" height="<%= m.gif.height %>"<% } %>><% } %>
 			<% if (m.attachment?.filename) { const attachmentUrl = inGroup ? `${locals.reportBaseUrl}/messages/${m._id}/attachment` : `${locals.reportBaseUrl}/${m._id}/attachment`; const attachmentType = m.attachment.contentType || ''; const isImage = attachmentType.startsWith('image/'); const isVideo = attachmentType.startsWith('video/'); %>
-			<% if (isImage) { %><a class="chat-attachment-media-link" href="<%= attachmentUrl %>" download><img class="chat-attachment-media" src="<%= attachmentUrl %>" alt="<%= m.attachment.filename %>" loading="lazy"></a><% } else if (isVideo) { %><video class="chat-attachment-media" controls preload="metadata" playsinline src="<%= attachmentUrl %>"></video><% } %>
+			<% if (isImage) { %><img class="chat-attachment-media" src="<%= attachmentUrl %>" data-media-viewer data-media-src="<%= attachmentUrl %>" alt="<%= m.attachment.filename %>" aria-label="View image: <%= m.attachment.filename %>" aria-haspopup="dialog" role="button" tabindex="0" loading="lazy"><% } else if (isVideo) { %><div class="chat-attachment-media-wrap media-viewer-trigger-wrap"><video class="chat-attachment-media" controls preload="metadata" playsinline data-media-src="<%= attachmentUrl %>" src="<%= attachmentUrl %>"></video><button class="media-expand-button" type="button" data-media-viewer-trigger aria-label="View video larger"><%- icon('arrow-up-right', { size: 15 }) %><span>View larger</span></button></div><% } %>
 			<a class="chat-attachment" href="<%= attachmentUrl %>" download><%- icon('paperclip', { size: 15 }) %><span><%= m.attachment.filename %></span><small><%= Math.ceil(m.attachment.size / 1024) %> KB</small></a>
 			<% } %>
 			<% if (m.body) { %><p class="chat-text"><%= m.body %></p><% } %>

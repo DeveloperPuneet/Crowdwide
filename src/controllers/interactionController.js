@@ -434,6 +434,10 @@ exports.commentThread = async (req, res) => {
 
 exports.notifications = async (req, res) => {
   const viewer = await User.findById(req.session.user.id).select('blockedUsers mutedUsers').lean();
+  await Promise.all([
+    Notification.updateMany({ recipient: req.session.user.id, readAt: null }, { readAt: new Date() }),
+    User.updateOne({ _id: req.session.user.id }, { $unset: { unreadSummarySentAt: 1 } })
+  ]);
   const [notificationsRaw, unread] = await Promise.all([
     Notification.find({ recipient: req.session.user.id }).sort({ createdAt: -1 }).limit(50).populate('actor', 'name profilePicture').lean(),
     Notification.countDocuments({ recipient: req.session.user.id, readAt: null })

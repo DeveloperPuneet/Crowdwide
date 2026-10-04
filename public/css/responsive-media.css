@@ -33,6 +33,9 @@ img, video, audio { max-width: 100%; }
 .post-media-frame--audio { background: transparent; border: 0; overflow: visible; }
 
 .media-box { position: relative; width: 100%; background: var(--sf-0); }
+.media-box img[data-media-viewer],
+.media-box video[data-media-viewer] { cursor: zoom-in; }
+.media-box img[data-media-viewer]:focus-visible { outline: 3px solid var(--ac-blue); outline-offset: -3px; }
 /* Known ratio: reserve exactly that shape, capped in height. */
 .media-box.has-ratio { aspect-ratio: var(--ar, 16 / 9); max-height: var(--media-max-h); }
 
@@ -65,9 +68,75 @@ img, video, audio { max-width: 100%; }
 .post-media-frame audio { display: block; width: 100%; margin: 0; }
 .post-media-frame > .cw-player--audio { margin: 0; }
 
+.media-expand-button {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, .32);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .72);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.media-viewer-trigger-wrap { position: relative; }
+.chat-attachment-media-wrap { width: fit-content; max-width: 100%; }
+.chat-attachment-media[data-media-viewer],
+.chat-gif[data-media-viewer],
+.chat-post img[data-media-viewer] { cursor: zoom-in; }
+.chat-attachment-media[data-media-viewer]:focus-visible,
+.chat-gif[data-media-viewer]:focus-visible,
+.chat-post img[data-media-viewer]:focus-visible { outline: 3px solid var(--ac-blue); outline-offset: 2px; }
+.media-viewer {
+  width: min(96vw, 1440px);
+  max-width: none;
+  max-height: 96dvh;
+  padding: 48px 18px 18px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 14px;
+  background: #101114;
+  color: #fff;
+}
+.media-viewer::backdrop { background: rgba(0, 0, 0, .88); }
+.media-viewer-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+}
+.media-viewer-content { display: grid; place-items: center; min-height: 120px; }
+.media-viewer-content img,
+.media-viewer-content video {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(96dvh - 86px);
+  object-fit: contain;
+}
+.media-viewer-content video { width: min(100%, 1280px); background: #000; }
+body.media-viewer-open { overflow: hidden; }
+
 @media (max-width: 700px) {
   .post-media { --media-max-h: min(65vh, 520px); }
   .post-media.count-2 { grid-template-columns: 1fr; --media-max-h: min(60vh, 480px); }
+  .media-viewer { width: 100vw; max-height: 100dvh; padding: 48px 8px 8px; border-radius: 0; }
+  .media-viewer-content img,
+  .media-viewer-content video { max-height: calc(100dvh - 68px); }
 }
 
 /* ---- Sidebar (collapsible icon rail) --------------------------------------*/
