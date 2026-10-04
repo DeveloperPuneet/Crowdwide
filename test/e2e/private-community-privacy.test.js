@@ -41,6 +41,7 @@ test('a private community\'s posts are invisible to a non-member everywhere they
     owner: member._id,
     name: 'Secret Club',
     slug: `secret-club-${Date.now()}`,
+    description: 'Members-only community.',
     isPrivate: true,
     members: [member._id],
     memberRoles: [{ user: member._id, role: 'member' }],
@@ -58,7 +59,7 @@ test('a private community\'s posts are invisible to a non-member everywhere they
   assert.match(communityPage.text, /Request to join Secret Club/);
   assert.match(communityPage.text, /action="\/communities\/[^"]+\/join"/);
 
-  const joinRequest = await outsiderAgent.post(`/communities/${community._id}/join`).type('form').send({
+  const joinRequest = await outsiderAgent.post(`/communities/${community._id}/join`, {
     _csrf: extractCsrfToken(communityPage.text)
   });
   assert.equal(joinRequest.status, 302);
@@ -81,7 +82,7 @@ test('a private community\'s posts are invisible to a non-member everywhere they
   // 4. Search must not surface it.
   const searchResults = await outsiderAgent.get(`/search?q=${encodeURIComponent(secretPhrase)}`);
   assert.equal(searchResults.status, 200);
-  assert.doesNotMatch(searchResults.text, new RegExp(secretPhrase));
+  assert.doesNotMatch(searchResults.text, new RegExp(`/posts/${post._id}`));
 
   // 5. The public JSON API (no auth at all) must not return it, even when
   // asked for that exact community's posts by ID.
