@@ -47,6 +47,12 @@
   }
 }
 
+@media (max-width: 1150px) {
+  .profile-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 1024px) {
   .app-nav,
   .site-nav {

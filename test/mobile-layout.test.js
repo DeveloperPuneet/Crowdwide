@@ -69,6 +69,15 @@ test('dashboard columns fit common laptop widths and discovery does not spill be
   assert.match(responsive, /@media\s*\(max-width:\s*1024px\)\s*\{[\s\S]*?\.app-layout \.discover-column\s*\{\s*display:\s*none;/);
 });
 
+test('profile layout stops reserving a column when follow suggestions are hidden', () => {
+  const responsive = files.find((file) => file.name === 'responsive-layout.css').text;
+  const base = files.find((file) => file.name === 'style.css').text;
+
+  assert.match(responsive, /@media\s*\(max-width:\s*1180px\)\s*\{[\s\S]*?\.profile-layout\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(260px,\s*300px\)/);
+  assert.match(base, /@media\s*\(max-width:\s*1150px\)\s*\{[\s\S]*?\.discover-column\s*\{\s*display:\s*none/);
+  assert.match(responsive, /@media\s*\(max-width:\s*1150px\)\s*\{\s*\.profile-layout\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+});
+
 test('audited page layouts provide narrow-screen and touch-friendly behavior', () => {
   const responsive = files.find((file) => file.name === 'responsive-layout.css').text;
   const base = files.find((file) => file.name === 'style.css').text;
