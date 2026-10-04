@@ -319,8 +319,8 @@ exports.replyPost = async (req, res) => {
     return redirectBack(req, res, { ok: false, error });
   }
   if (source.community) {
-    const community = await Community.findById(source.community).select('members bannedWords');
-    if (!community?.members.some((id) => String(id) === String(req.session.user.id))) {
+    const community = await Community.findById(source.community).select('members bannedWords owner');
+    if (!community || (String(community.owner) !== String(req.session.user.id) && !community.members.some((id) => String(id) === String(req.session.user.id)))) {
       const error = 'Join the community before replying to this post.';
       req.session.flash = { type: 'error', message: error };
       return redirectBack(req, res, { ok: false, error });

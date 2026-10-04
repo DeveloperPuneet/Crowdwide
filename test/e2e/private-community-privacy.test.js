@@ -143,10 +143,19 @@ test('the composer only offers joined communities and the post endpoint enforces
     members: [owner._id],
     membersCount: 1
   });
-  const [joinedCommunity, publicCommunity, privateCommunity] = await Promise.all([
+  const [joinedCommunity, publicCommunity, privateCommunity, ownedCommunity] = await Promise.all([
     makeCommunity('Joined Community', false),
     makeCommunity('Public Community', false),
-    makeCommunity('Private Community', true)
+    makeCommunity('Private Community', true),
+    Community.create({
+      owner: writer._id,
+      name: 'Owned Community',
+      slug: `owned-community-${suffix}`,
+      description: 'Community owned by the writer.',
+      isPrivate: true,
+      members: [owner._id],
+      membersCount: 1
+    })
   ]);
   joinedCommunity.members.addToSet(writer._id);
   joinedCommunity.membersCount = joinedCommunity.members.length;
@@ -158,6 +167,7 @@ test('the composer only offers joined communities and the post endpoint enforces
   let dashboard = await agent.get('/dashboard');
   const hasCommunityOption = (communityId) => new RegExp(`<option value="${communityId}"(?:\\s|>)`).test(dashboard.text);
   assert.equal(hasCommunityOption(joinedCommunity._id), true);
+  assert.equal(hasCommunityOption(ownedCommunity._id), true);
   assert.equal(hasCommunityOption(publicCommunity._id), false);
   assert.equal(hasCommunityOption(privateCommunity._id), false);
 
@@ -183,4 +193,14 @@ test('the composer only offers joined communities and the post endpoint enforces
   });
   assert.equal(joinedResponse.status, 302);
   assert.ok(await Post.exists({ author: writer._id, body: joinedBody, community: joinedCommunity._id }));
+
+  const ownedBody = `Owned community post ${suffix}`;
+  const ownedResponse = await agent.post('/posts', {
+    _csrf: extractCsrfToken(dashboard.text),
+    body: ownedBody,
+    community: String(ownedCommunity._id),
+    type: 'post'
+  });
+  assert.equal(ownedResponse.status, 302);
+  assert.ok(await Post.exists({ author: writer._id, body: ownedBody, community: ownedCommunity._id }));
 });

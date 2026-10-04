@@ -87,11 +87,10 @@ exports.dashboard = async (req, res) => {
 		const user = await User.findById(req.session.user.id).lean();
 		const activeTab = resolveFeedView(req.query);
 		const followingIds = (user.following || []).map(String);
-		const joinedCommunityIds = user.joinedCommunities || [];
 		const [feed, communities, joinedCommunityDocs, people, followedPeople, followerPeople, wordLimits] = await Promise.all([
 			getFeedPage({ userId: user._id, view: activeTab, page: 1, user }),
 			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
-			Community.find({ _id: { $in: joinedCommunityIds }, members: user._id }).sort({ name: 1 }).lean(),
+			Community.find({ $or: [{ members: user._id }, { owner: user._id }] }).sort({ name: 1 }).lean(),
 			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean(),
 			User.find({ _id: { $in: user.following || [], $ne: user._id } }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
@@ -295,7 +294,7 @@ exports.createPost = async (req, res) => {
 	}
 	if (communityId) {
 		const community = await Community.findById(communityId).select('members bannedWords owner moderators requireApproval');
-		if (!community || !community.members.some((id) => String(id) === String(req.session.user.id))) {
+		if (!community || (String(community.owner) !== String(req.session.user.id) && !community.members.some((id) => String(id) === String(req.session.user.id)))) {
 			req.session.flash = { type: 'error', message: 'Join that community before posting there.' };
 			return res.redirect('/dashboard');
 		}
