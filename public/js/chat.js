@@ -10,6 +10,14 @@
   const empty = shell.querySelector('[data-chat-empty]');
   const form = shell.querySelector('[data-chat-form]');
   const input = shell.querySelector('[data-chat-input]');
+  const replyToInput = form?.querySelector('[data-chat-reply-to]');
+  const replyingTo = form?.querySelector('[data-chat-replying-to]');
+  const replySender = form?.querySelector('[data-chat-reply-sender]');
+  const replyBody = form?.querySelector('[data-chat-reply-body]');
+  const selectionBar = shell.querySelector('[data-chat-selection-bar]');
+  const selectionCount = shell.querySelector('[data-chat-selection-count]');
+  const deleteSelected = shell.querySelector('[data-chat-delete-selected]');
+  const selectionToggle = shell.querySelector('[data-chat-select-toggle]');
   const attachmentInput = form?.querySelector('[data-chat-attachment]');
   const attachmentSelected = form?.querySelector('[data-chat-attachment-selected]');
   const attachmentName = form?.querySelector('[data-chat-attachment-name]');
@@ -98,6 +106,75 @@
     template.innerHTML = html;
     return Array.from(template.content.children);
   };
+
+  const selectedMessages = () => Array.from(list.querySelectorAll('[data-chat-select-message]:checked'));
+  const updateSelection = () => {
+    const selected = selectedMessages();
+    if (selectionCount) selectionCount.textContent = `${selected.length} selected`;
+    if (deleteSelected) deleteSelected.disabled = selected.length === 0;
+  };
+  const setSelecting = (enabled) => {
+    shell.classList.toggle('is-selecting', enabled);
+    if (selectionToggle) {
+      selectionToggle.setAttribute('aria-pressed', String(enabled));
+      selectionToggle.textContent = enabled ? 'Selecting' : 'Select';
+    }
+    if (selectionBar) selectionBar.hidden = !enabled;
+    if (!enabled) list.querySelectorAll('[data-chat-select-message]:checked').forEach((checkbox) => { checkbox.checked = false; });
+    updateSelection();
+  };
+
+  selectionToggle?.addEventListener('click', () => setSelecting(!shell.classList.contains('is-selecting')));
+  shell.querySelector('[data-chat-selection-cancel]')?.addEventListener('click', () => setSelecting(false));
+  list.addEventListener('change', (event) => {
+    if (event.target.matches('[data-chat-select-message]')) updateSelection();
+  });
+  deleteSelected?.addEventListener('click', async () => {
+    const ids = selectedMessages().map((checkbox) => checkbox.value);
+    if (!ids.length || !window.confirm(`Delete ${ids.length === 1 ? 'this message' : `these ${ids.length} messages`}? This cannot be undone.`)) return;
+    deleteSelected.disabled = true;
+    try {
+      const { data } = await window.axios.post(shell.dataset.deleteUrl, { messageIds: ids }, { headers: headers() });
+      const deletedIds = new Set(data.deleted || []);
+      Array.from(list.querySelectorAll('[data-id]')).forEach((message) => {
+        if (deletedIds.has(message.dataset.id)) message.remove();
+      });
+      setSelecting(false);
+      decorate();
+      showError('');
+    } catch (error) {
+      showError(error.response?.data?.error || 'Could not delete the selected messages.');
+      updateSelection();
+    }
+  });
+
+  const clearReply = () => {
+    if (replyToInput) replyToInput.value = '';
+    if (replyingTo) replyingTo.hidden = true;
+  };
+  list.addEventListener('click', (event) => {
+    const replyButton = event.target.closest('[data-reply-message]');
+    if (replyButton) {
+      if (replyToInput) replyToInput.value = replyButton.dataset.messageId;
+      if (replySender) replySender.textContent = `Replying to ${replyButton.dataset.senderName}`;
+      if (replyBody) replyBody.textContent = replyButton.dataset.replyBody;
+      if (replyingTo) replyingTo.hidden = false;
+      input?.focus({ preventScroll: true });
+      return;
+    }
+    const jumpButton = event.target.closest('[data-reply-jump]');
+    if (!jumpButton) return;
+    const targetId = jumpButton.dataset.replyJump;
+    const target = Array.from(list.querySelectorAll('[data-id]')).find((message) => message.dataset.id === targetId);
+    if (target) {
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      target.classList.add('is-search-match');
+      setTimeout(() => target.classList.remove('is-search-match'), 1800);
+    } else {
+      window.location.href = `${window.location.pathname}?focus=${encodeURIComponent(targetId)}`;
+    }
+  });
+  form?.querySelector('[data-chat-reply-cancel]')?.addEventListener('click', clearReply);
 
   // Adds messages that are not on screen yet, keeping them in id (time) order.
   const addMessages = (items, { prepend = false } = {}) => {
@@ -222,11 +299,17 @@
     syncAttachmentSelection();
   });
 
-  const pendingBubble = ({ body, gif, file }) => {
+  const pendingBubble = ({ body, gif, file, replyTo }) => {
     const wrap = document.createElement('div');
     wrap.className = 'chat-msg is-own is-pending';
     const main = document.createElement('div');
     main.className = 'chat-msg-main';
+    if (replyTo) {
+      const quote = document.createElement('div');
+      quote.className = 'chat-reply-quote-pending';
+      quote.textContent = 'Replying to a message';
+      main.append(quote);
+    }
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble${gif && !body ? ' is-media' : ''}`;
     if (gif) {
@@ -277,6 +360,8 @@
     }
     if (file) formData.set('attachment', file);
     else formData.delete('attachment');
+    if (payload.replyTo) formData.set('replyTo', payload.replyTo);
+    else formData.delete('replyTo');
     bubble.classList.remove('is-failed');
     bubble.querySelector('.chat-status').textContent = 'Sending...';
     bubble.querySelector('.chat-retry')?.remove();
@@ -308,6 +393,7 @@
   function send(payload) {
     const file = payload.file || attachmentInput?.files?.[0];
     if (!payload.body && !payload.gif && !file) return;
+    payload = { ...payload, replyTo: payload.replyTo || replyToInput?.value || '' };
     showError('');
     const bubble = pendingBubble({ ...payload, file });
     list.append(bubble);
@@ -329,6 +415,7 @@
       const file = attachmentInput?.files?.[0];
       if (!body && !file) return;
       send({ body, file });
+      clearReply();
       input.value = '';
       if (attachmentInput) attachmentInput.value = '';
       syncAttachmentSelection();
@@ -347,7 +434,7 @@
 
   form?.querySelector('[data-gif-trigger]')?.addEventListener('click', (event) => {
     if (!window.CWGif) return;
-    window.CWGif.open(event.currentTarget, (gif) => send({ gif }));
+    window.CWGif.open(event.currentTarget, (gif) => { send({ gif }); clearReply(); });
   });
 
   // ---- start ----

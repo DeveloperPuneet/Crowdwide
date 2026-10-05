@@ -9,7 +9,7 @@ const { icon } = require('../src/utils/icons');
 
 const views = path.join(__dirname, '..', 'src', 'views');
 
-test('opening notifications marks unread notifications as read', async (t) => {
+test('opening notifications keeps unread notifications unread until explicitly marked read', async (t) => {
   const originals = {
     findById: User.findById,
     updateOne: User.updateOne,
@@ -27,6 +27,10 @@ test('opening notifications marks unread notifications as read', async (t) => {
   });
 
   const calls = [];
+  const notificationRows = [
+    { _id: 'dm-one', actor: { _id: 'sender-id', name: 'Sender' }, type: 'message', message: 'sent you a message.', url: '/messages/sender-id', readAt: null, createdAt: new Date() },
+    { _id: 'group-one', actor: { _id: 'sender-id', name: 'Sender' }, type: 'message', message: 'sent a message in a group.', url: '/groups/group-id', readAt: null, createdAt: new Date() }
+  ];
   User.findById = () => ({ select: () => ({ lean: async () => ({ blockedUsers: [], mutedUsers: [] }) }) });
   User.updateOne = async (...args) => { calls.push(['user-update', ...args]); };
   Notification.updateMany = async (...args) => { calls.push(['notifications-update', ...args]); };
@@ -36,12 +40,12 @@ test('opening notifications marks unread notifications as read', async (t) => {
       sort() { return this; },
       limit() { return this; },
       populate() { return this; },
-      lean: async () => []
+      lean: async () => notificationRows
     };
   };
   Notification.countDocuments = async (...args) => {
     calls.push(['count', ...args]);
-    return 0;
+    return 3;
   };
 
   let rendered;
@@ -50,14 +54,14 @@ test('opening notifications marks unread notifications as read', async (t) => {
     { render: (template, data) => { rendered = { template, data }; } }
   );
 
-  const markReadIndex = calls.findIndex(([name]) => name === 'notifications-update');
   const fetchIndex = calls.findIndex(([name]) => name === 'find');
-  assert.ok(markReadIndex >= 0);
-  assert.ok(fetchIndex > markReadIndex);
-  assert.deepEqual(calls[markReadIndex][1], { recipient: 'viewer-id', readAt: null });
-  assert.ok(calls[markReadIndex][2].readAt instanceof Date);
+  assert.equal(calls.findIndex(([name]) => name === 'notifications-update'), -1);
+  assert.ok(fetchIndex >= 0);
   assert.equal(rendered.template, 'pages/notifications');
-  assert.equal(rendered.data.unread, 0);
+  assert.equal(rendered.data.unread, 3);
+  assert.equal(rendered.data.notifications.length, 2, 'unread items from different chats must remain separate');
+  assert.deepEqual(rendered.data.notifications.map((notification) => notification.url), ['/messages/sender-id', '/groups/group-id']);
+  assert.ok(calls.some(([name, query]) => name === 'count' && query.readAt === null));
 });
 
 test('post media renders clickable full-size images and expandable videos', async () => {

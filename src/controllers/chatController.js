@@ -21,6 +21,7 @@ const logger = require('../services/logger');
 const { gifFromBody } = require('../services/gif');
 const { PAGE_SIZE, isObjectId, escapeRegex, excerpt, previewText, attachPostPreviews, isPendingRequest, tooManyNewDmRequests } = require('../services/chat');
 const { parseRange } = require('../services/storageCluster');
+const { renderMentions, notifyMentionedUsers } = require('../services/mentions');
 const { notify } = require('./interactionController');
 const { toggleReaction } = require('../utils/reactions');
 
@@ -35,7 +36,7 @@ async function renderMessages(res, messages, { group, viewerId, groupId, reportB
   return Promise.all(messages.map(async (message) => ({
     id: String(message._id),
     createdAt: message.createdAt,
-    html: (await renderPartial(res, 'partials/chat-message', { message, group, viewerId, groupId, reportBaseUrl, csrfToken: res.locals.csrfToken })).trim()
+    html: (await renderPartial(res, 'partials/chat-message', { message, group, viewerId, groupId, reportBaseUrl, renderedBody: renderMentions(message.body || ''), csrfToken: res.locals.csrfToken })).trim()
   })));
 }
 
@@ -43,11 +44,21 @@ function memberOf(group, userId) {
   return group?.members?.some((member) => String(member?._id || member) === String(userId));
 }
 
-// One notification per burst: while the recipient still has an unread message
-// notification from this sender, further messages do not create (or push) more.
+// Keep one unread alert per sender and chat during a burst. Later messages
+// refresh its preview and timestamp without sending another push notification.
 async function notifyMessage({ recipient, actor, text, actorName, url }) {
-  const recent = await Notification.exists({ recipient, actor, type: 'message', readAt: null, createdAt: { $gt: new Date(Date.now() - NOTIFY_QUIET_MS) } });
-  if (recent) return;
+  const recent = await Notification.findOne({
+    recipient,
+    actor,
+    type: 'message',
+    readAt: null,
+    ...(url ? { url } : {}),
+    createdAt: { $gt: new Date(Date.now() - NOTIFY_QUIET_MS) }
+  }).sort({ createdAt: -1 }).select('_id').lean();
+  if (recent) {
+    await Notification.updateOne({ _id: recent._id }, { $set: { message: text, url, createdAt: new Date() } }, { timestamps: false, overwriteImmutable: true });
+    return;
+  }
   await notify(recipient, actor, 'message', text, undefined, undefined, actorName, url);
 }
 
@@ -55,10 +66,10 @@ async function notifyMessage({ recipient, actor, text, actorName, url }) {
 
 async function pageOfMessages(Model, filter, { after, before }) {
   if (after) {
-    return { rows: await Model.find({ ...filter, _id: { $gt: after } }).sort({ _id: 1 }).limit(50).select('-attachment.data').populate('sender', 'name profilePicture').lean(), hasMore: false };
+    return { rows: await Model.find({ ...filter, _id: { $gt: after } }).sort({ _id: 1 }).limit(50).select('-attachment.data').populate('sender', 'name profilePicture').populate({ path: 'replyTo', select: 'body sender', populate: { path: 'sender', select: 'name' } }).lean(), hasMore: false };
   }
   const query = before ? { ...filter, _id: { $lt: before } } : filter;
-  const rows = await Model.find(query).sort({ _id: -1 }).limit(PAGE_SIZE + 1).select('-attachment.data').populate('sender', 'name profilePicture').lean();
+  const rows = await Model.find(query).sort({ _id: -1 }).limit(PAGE_SIZE + 1).select('-attachment.data').populate('sender', 'name profilePicture').populate({ path: 'replyTo', select: 'body sender', populate: { path: 'sender', select: 'name' } }).lean();
   return { rows: rows.slice(0, PAGE_SIZE).reverse(), hasMore: rows.length > PAGE_SIZE };
 }
 
@@ -67,10 +78,36 @@ async function pageAroundMessage(Model, filter, focusId) {
   if (!target) return pageOfMessages(Model, filter, {});
   const halfPage = Math.ceil(PAGE_SIZE / 2);
   const [before, fromTarget] = await Promise.all([
-    Model.find({ ...filter, _id: { $lt: target._id } }).sort({ _id: -1 }).limit(halfPage + 1).select('-attachment.data').populate('sender', 'name profilePicture').lean(),
-    Model.find({ ...filter, _id: { $gte: target._id } }).sort({ _id: 1 }).limit(halfPage).select('-attachment.data').populate('sender', 'name profilePicture').lean()
+    Model.find({ ...filter, _id: { $lt: target._id } }).sort({ _id: -1 }).limit(halfPage + 1).select('-attachment.data').populate('sender', 'name profilePicture').populate({ path: 'replyTo', select: 'body sender', populate: { path: 'sender', select: 'name' } }).lean(),
+    Model.find({ ...filter, _id: { $gte: target._id } }).sort({ _id: 1 }).limit(halfPage).select('-attachment.data').populate('sender', 'name profilePicture').populate({ path: 'replyTo', select: 'body sender', populate: { path: 'sender', select: 'name' } }).lean()
   ]);
   return { rows: [...before.slice(0, halfPage).reverse(), ...fromTarget], hasMore: before.length > halfPage };
+}
+
+async function findReplyTarget(Model, filter, id) {
+  if (!id) return null;
+  if (!isObjectId(id)) return false;
+  const query = { ...filter, _id: id };
+  if (Model === GroupMessage) query.kind = { $ne: 'system' };
+  return Model.findOne(query)
+    .select('_id body sender')
+    .populate('sender', 'name')
+    .lean();
+}
+
+async function deleteOwnedMessages(Model, filter, userId, messageIds, includeKind) {
+  if (!Array.isArray(messageIds)) return null;
+  const ids = Array.from(new Set(messageIds.filter(isObjectId)));
+  if (!ids.length || ids.length > 100) return null;
+  const query = { ...filter, _id: { $in: ids }, sender: userId };
+  if (includeKind) query.kind = { $ne: 'system' };
+  const owned = await Model.find(query).select('_id').lean();
+  if (!owned.length) return [];
+  const ownedIds = owned.map((message) => String(message._id));
+  const deleteQuery = { ...filter, _id: { $in: ownedIds }, sender: userId };
+  if (includeKind) deleteQuery.kind = { $ne: 'system' };
+  await Model.deleteMany(deleteQuery);
+  return ownedIds;
 }
 
 function searchQuery(req, res) {
@@ -265,13 +302,15 @@ exports.dmSend = async (req, res) => {
     const viewer = await User.findById(userId).select('blockedUsers acceptedDmFrom').lean();
     const blocked = recipient && ((viewer?.blockedUsers || []).some((id) => String(id) === String(recipient._id)) || (recipient.blockedUsers || []).some((id) => String(id) === String(userId)));
     if (!recipient || !recipient.isVerified || blocked || String(recipient._id) === String(userId)) return sendFailure(req, res, 403, 'That message could not be sent.', '/messages');
+    const replyTo = await findReplyTarget(Message, dmFilter(userId, recipient._id), req.body.replyTo);
+    if (replyTo === false) return sendFailure(req, res, 400, 'That reply could not be sent because the message was not found in this conversation.', fallback);
     // Rate-limit brand-new threads only (never a reply in an existing one),
     // so this can't be used to mass-DM strangers.
     const everMessagedBefore = await Message.exists({ sender: userId, recipient: recipient._id });
     if (!everMessagedBefore && await tooManyNewDmRequests(Message, userId)) {
       return sendFailure(req, res, 429, "You've started a lot of new conversations recently. Try again later.", fallback);
     }
-    const message = await Message.create({ sender: userId, recipient: recipient._id, body, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}) });
+    const message = await Message.create({ sender: userId, recipient: recipient._id, body, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}), ...(replyTo ? { replyTo: replyTo._id } : {}) });
     // Replying to someone (including replying to a pending request from
     // them) is an explicit signal of acceptance - no separate click needed.
     const alreadyAccepted = (viewer?.acceptedDmFrom || []).some((id) => String(id) === String(recipient._id));
@@ -281,12 +320,25 @@ exports.dmSend = async (req, res) => {
     notifyMessage({ recipient: recipient._id, actor: userId, text: attachment && !body && !gif ? 'sent you an attachment.' : gif && !body ? 'sent you a GIF.' : 'sent you a message.', actorName: req.session.user.name, url: `/messages/${userId}` })
       .catch((error) => logger.error('Message notification failed', error));
     if (!isXhr(req)) return res.redirect(fallback);
-    const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture } };
+    const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture }, ...(replyTo ? { replyTo } : {}) };
     const [item] = await renderMessages(res, [shaped], { group: false, viewerId: userId, reportBaseUrl: `/messages/${recipient._id}` });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
     logger.error('Sending message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
+  }
+};
+
+exports.dmDeleteMessages = async (req, res) => {
+  try {
+    const { person, blocked, userId } = await loadDmPerson(req);
+    if (!person || blocked) return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+    const deleted = await deleteOwnedMessages(Message, dmFilter(userId, person._id), userId, req.body.messageIds, false);
+    if (!deleted) return res.status(400).json({ ok: false, error: 'Select between 1 and 100 valid messages to delete.' });
+    res.json({ ok: true, deleted });
+  } catch (error) {
+    logger.error('Deleting direct messages failed', error);
+    res.status(500).json({ ok: false, error: 'Could not delete the selected messages.' });
   }
 };
 
@@ -452,18 +504,38 @@ exports.groupSend = async (req, res) => {
     const { body, gif, attachment } = sanitizedContent(req);
     if (!memberOf(group, userId)) return sendFailure(req, res, 403, 'That message could not be sent.', '/groups');
     if ((!body && !gif && !attachment) || body.length > 2000) return sendFailure(req, res, 400, 'Write a message, attach a file, or pick a GIF. Text is limited to 2,000 characters.', fallback);
-    const message = await GroupMessage.create({ group: group._id, sender: userId, body, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}) });
+    const replyTo = await findReplyTarget(GroupMessage, { group: group._id }, req.body.replyTo);
+    if (replyTo === false) return sendFailure(req, res, 400, 'That reply could not be sent because the message was not found in this group.', fallback);
+    const message = await GroupMessage.create({ group: group._id, sender: userId, body, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}), ...(replyTo ? { replyTo: replyTo._id } : {}) });
     await GroupConversation.updateOne({ _id: group._id }, { updatedAt: new Date() });
     const others = group.members.filter((id) => String(id) !== String(userId));
     Promise.all(others.map((memberId) => notifyMessage({ recipient: memberId, actor: userId, text: attachment && !body && !gif ? `sent an attachment in ${group.name}.` : `sent a message in ${group.name}.`, actorName: req.session.user.name, url: `/groups/${group._id}` })))
       .catch((error) => logger.error('Group message notification failed', error));
+    notifyMentionedUsers(body, userId, null, null, `mentioned you in ${group.name}.`, {
+      allowedUserIds: group.members,
+      url: `/groups/${group._id}`
+    }).catch((error) => logger.error('Group mention notification failed', error));
     if (!isXhr(req)) return res.redirect(fallback);
-    const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture } };
+    const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture }, ...(replyTo ? { replyTo } : {}) };
     const [item] = await renderMessages(res, [shaped], { group: true, viewerId: userId, groupId: String(group._id), reportBaseUrl: `/groups/${group._id}` });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
     logger.error('Sending group message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
+  }
+};
+
+exports.groupDeleteMessages = async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const group = await GroupConversation.findById(req.params.id).select('members').lean();
+    if (!memberOf(group, userId)) return res.status(404).json({ ok: false, error: 'Group not found.' });
+    const deleted = await deleteOwnedMessages(GroupMessage, { group: group._id }, userId, req.body.messageIds, true);
+    if (!deleted) return res.status(400).json({ ok: false, error: 'Select between 1 and 100 valid messages to delete.' });
+    res.json({ ok: true, deleted });
+  } catch (error) {
+    logger.error('Deleting group messages failed', error);
+    res.status(500).json({ ok: false, error: 'Could not delete the selected messages.' });
   }
 };
 

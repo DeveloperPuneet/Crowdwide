@@ -38,6 +38,8 @@ test('messages and comments need text, a GIF or a shared post', async () => {
   assert.equal(await failure(new Message({ sender: id(1), recipient: id(2), sharedPost: id(3) })), undefined);
   assert.ok(await failure(new GroupMessage({ group: id(1), sender: id(2) })));
   assert.equal(await failure(new GroupMessage({ group: id(1), sender: id(2), gif })), undefined);
+  assert.equal(Message.schema.path('replyTo').options.ref, 'Message');
+  assert.equal(GroupMessage.schema.path('replyTo').options.ref, 'GroupMessage');
   assert.ok(await failure(new Comment({ post: id(1), author: id(2) })));
   assert.equal(await failure(new Comment({ post: id(1), author: id(2), gif })), undefined);
 });

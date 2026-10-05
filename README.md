@@ -61,11 +61,19 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
 
 ### Messaging and notifications
 - Direct messages and group chat (up to 50 members) with GIFs, sharing of
-  posts and articles into chats, group admin tools (add/remove members,
-  rename, group picture, invite links).
+  posts and articles into chats, message replies, sender-only multi-select
+  deletion, and @mentions in group chats; group admin tools (add/remove
+  members, rename, group picture, invite links. Communities use a curated
+  category list when created or managed.
 - In-app notifications with grouping, per-type preferences, opt-in browser
   push notifications per device, and comment/reply alerts that can be limited
-  to @mentions.
+  to @mentions. Opening the notifications page does not mark items read;
+  unread notifications stay visible until marked read.
+- Chat messages, notifications, personal search history, recent-view history,
+  and search trend events are retained for 30 days. A daily maintenance worker
+  removes expired records; admins can run individual cleanup processes or all
+  processes from the Data cleanup tab. Admin audit logs are preserved, and
+  activity recaps are generated on demand rather than stored.
 - Security emails for new sign-ins, password changes and 2FA changes.
 
 ### Accounts and security

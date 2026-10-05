@@ -22,6 +22,7 @@ const { isRepeatPost } = require('../utils/spamDetection');
 const { getWordLimits } = require('../services/siteConfig');
 const { searchPublishedPosts } = require('../services/postSearch');
 const logger = require('../services/logger');
+const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -115,6 +116,7 @@ exports.dashboard = async (req, res) => {
 			selectedCommunityId: selectedQuest ? String(selectedQuest.community?._id) : '',
 			people,
 			coAuthorSuggestions,
+			communityCategories: COMMUNITY_CATEGORIES,
 			joinedCommunities: (user.joinedCommunities || []).map(String),
 			following: followingIds,
 			wordLimits,
@@ -421,10 +423,13 @@ exports.mediaStatus = async (req, res) => res.json({ clusters: await clusterStat
 
 exports.createCommunity = async (req, res) => {
 	const name = req.body.name?.trim();
-	if (name) {
-		const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-		await Community.create({ owner: req.session.user.id, name, slug, category: req.body.category?.trim().toLowerCase() || 'general', isPrivate: req.body.isPrivate === 'on', hashtags: parseHashtagList(req.body.hashtags), description: req.body.description?.trim() || `A new Crowdwide community for ${name}.`, members: [req.session.user.id], memberRoles: [{ user: req.session.user.id, role: 'member' }], membersCount: 1 });
+	const category = normalizeCommunityCategory(req.body.category || 'general');
+	if (!name || !category) {
+		req.session.flash = { type: 'error', message: !name ? 'Give your community a name.' : 'Choose a category from the list.' };
+		return res.redirect('/communities/mine');
 	}
+	const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+	await Community.create({ owner: req.session.user.id, name, slug, category, isPrivate: req.body.isPrivate === 'on', hashtags: parseHashtagList(req.body.hashtags), description: req.body.description?.trim() || `A new Crowdwide community for ${name}.`, members: [req.session.user.id], memberRoles: [{ user: req.session.user.id, role: 'member' }], membersCount: 1 });
 	res.redirect('/dashboard');
 };
 

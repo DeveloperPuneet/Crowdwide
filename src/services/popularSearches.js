@@ -97,7 +97,9 @@ async function getPopularSearches({ limit = 8, days = 14, now = Date.now(), env 
 }
 
 function clearPopularSearchesCache() {
+  const cleared = Boolean(cache);
   cache = null;
+  return cleared;
 }
 
 module.exports = { normalizeQuery, recordSearch, getPopularSearches, clearPopularSearchesCache, hrefFor, kindOf };

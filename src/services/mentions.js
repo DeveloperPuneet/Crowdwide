@@ -103,17 +103,18 @@ function renderRichBody(text = '') {
   }).join('');
 }
 
-async function notifyMentionedUsers(text, actorId, postId, communityId, message = 'mentioned you in a post.') {
+async function notifyMentionedUsers(text, actorId, postId, communityId, message = 'mentioned you in a post.', options = {}) {
   const handles = extractMentionHandles(text);
   if (!handles.length) return;
   const recipients = await Promise.all(handles.map((handle) => User.findOne({ email: new RegExp(`^${escapeRegex(handle)}@`, 'i'), isVerified: true }).select('_id notificationPreferences').lean()));
-  const eligible = recipients.filter((user) => user && String(user._id) !== String(actorId) && notificationPreferenceAllows(user.notificationPreferences, 'comments', 'mention'));
+  const allowedUserIds = options.allowedUserIds ? new Set(options.allowedUserIds.map(String)) : null;
+  const eligible = recipients.filter((user) => user && String(user._id) !== String(actorId) && (!allowedUserIds || allowedUserIds.has(String(user._id))) && notificationPreferenceAllows(user.notificationPreferences, 'comments', 'mention'));
   if (!eligible.length) return;
-  await Notification.insertMany(eligible.map((user) => ({ recipient: user._id, actor: actorId, type: 'mention', message, post: postId, community: communityId })));
+  await Notification.insertMany(eligible.map((user) => ({ recipient: user._id, actor: actorId, type: 'mention', message, post: postId, community: communityId, ...(options.url ? { url: options.url } : {}) })));
   await Promise.all(eligible.map((user) => sendPushToUser(user._id, {
     title: 'Crowdwide',
     body: message,
-    url: postId ? `/posts/${postId}` : '/notifications'
+    url: options.url || (postId ? `/posts/${postId}` : '/notifications')
   }).catch((error) => logger.error('Push notification failed', error))));
 }
 

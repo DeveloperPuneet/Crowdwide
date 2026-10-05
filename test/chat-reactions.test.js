@@ -4,6 +4,7 @@ const Message = require('../src/models/Message');
 const GroupMessage = require('../src/models/GroupMessage');
 const GroupConversation = require('../src/models/GroupConversation');
 const User = require('../src/models/User');
+const Notification = require('../src/models/Notification');
 const chatController = require('../src/controllers/chatController');
 
 function fakeReactionEntry(emoji, users) {
@@ -141,4 +142,83 @@ test('groupSearch returns results only for the authorized group', async (t) => {
   assert.equal(String(capturedFilter.group), groupId);
   assert.deepEqual(capturedFilter.kind, { $ne: 'system' });
   assert.equal(res.body.results[0].href, `/groups/${groupId}?focus=${messageId}`);
+});
+
+test('dmDeleteMessages deletes only selected messages sent by the viewer', async (t) => {
+  const viewerId = 'a'.repeat(24);
+  const personId = 'b'.repeat(24);
+  const ownId = 'c'.repeat(24);
+  const foreignId = 'd'.repeat(24);
+  t.mock.method(User, 'findById', (id) => ({
+    select: () => ({
+      lean: async () => String(id) === personId
+        ? { _id: personId, blockedUsers: [] }
+        : { blockedUsers: [] }
+    })
+  }));
+  let ownedFilter;
+  t.mock.method(Message, 'find', (filter) => {
+    ownedFilter = filter;
+    return { select: () => ({ lean: async () => [{ _id: ownId }] }) };
+  });
+  let deletedFilter;
+  t.mock.method(Message, 'deleteMany', async (filter) => {
+    deletedFilter = filter;
+    return { deletedCount: 1 };
+  });
+
+  const req = {
+    params: { id: personId },
+    session: { user: { id: viewerId } },
+    body: { messageIds: [ownId, foreignId] }
+  };
+  const res = mockRes();
+  await chatController.dmDeleteMessages(req, res);
+
+  assert.equal(res.body.ok, true);
+  assert.deepEqual(res.body.deleted, [ownId]);
+  assert.equal(String(ownedFilter.sender), viewerId);
+  assert.equal(String(ownedFilter.$or[0].recipient), personId);
+  assert.deepEqual(deletedFilter._id.$in, [ownId]);
+});
+
+test('groupDeleteMessages rejects non-members without querying or deleting messages', async (t) => {
+  t.mock.method(GroupConversation, 'findById', () => ({
+    select: () => ({ lean: async () => ({ members: ['member-id'] }) })
+  }));
+  const findMessages = t.mock.method(GroupMessage, 'find', () => { throw new Error('must not query messages'); });
+  const req = {
+    params: { id: 'group-id' },
+    session: { user: { id: 'stranger-id' } },
+    body: { messageIds: ['1'.repeat(24)] }
+  };
+  const res = mockRes();
+  await chatController.groupDeleteMessages(req, res);
+  assert.equal(res.statusCode, 404);
+  assert.equal(findMessages.mock.callCount(), 0);
+});
+
+test('notifyMessage refreshes the unread notification with the latest message in that chat', async (t) => {
+  const recent = { _id: 'notification-id' };
+  t.mock.method(Notification, 'findOne', () => ({
+    sort() { return this; },
+    select() { return this; },
+    lean: async () => recent
+  }));
+  let updateArgs;
+  t.mock.method(Notification, 'updateOne', async (...args) => { updateArgs = args; });
+
+  await chatController.notifyMessage({
+    recipient: 'recipient-id',
+    actor: 'sender-id',
+    text: 'sent a new message.',
+    actorName: 'Sender',
+    url: '/messages/sender-id'
+  });
+
+  assert.deepEqual(updateArgs[0], { _id: recent._id });
+  assert.equal(updateArgs[1].$set.message, 'sent a new message.');
+  assert.equal(updateArgs[1].$set.url, '/messages/sender-id');
+  assert.ok(updateArgs[1].$set.createdAt instanceof Date);
+  assert.deepEqual(updateArgs[2], { timestamps: false, overwriteImmutable: true });
 });

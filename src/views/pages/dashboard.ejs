@@ -130,14 +130,14 @@
 			<% } %>
 			<% communities.forEach((community) => { %>
 			<div class="discover-row">
-				<a href="/communities/<%= community.slug %>" class="community-glyph" style="color:inherit;"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></a>
+				<a href="/communities/<%= community.slug %>" class="community-glyph" style="color:inherit;"><% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-card-avatar-image"><% } else { %><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %><% } %></a>
 				<div><strong><a class="name-link" href="/communities/<%= community.slug %>"><%= community.name %></a></strong><span><%= (community.membersCount || 0).toLocaleString() %> members</span></div>
 				<% if (String(community.owner) === String(currentUser.id)) { %><a class="joined-mark" href="/communities/<%= community._id %>/manage">Manage</a>
 				<% } else if (!joinedCommunities.includes(String(community._id))) { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="round-action" aria-label="Join <%= community.name %>"><%- icon('plus', { size: 14 }) %></button></form>
 				<% } else { %><span class="joined-mark">Joined</span><% } %>
 			</div>
 			<% }) %>
-			<form class="create-community" method="post" action="/communities"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="name" placeholder="Create a community" required><input name="description" placeholder="What is it about?" required><input name="category" placeholder="Category e.g. design"><label class="privacy-check"><input type="checkbox" name="isPrivate"> Private community</label><button class="button button-dark button-small" type="submit">Create <span><%- icon('plus', { size: 14 }) %></span></button></form>
+			<form class="create-community" method="post" action="/communities"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="name" placeholder="Create a community" required><input name="description" placeholder="What is it about?" required><select name="category" aria-label="Community category"><% communityCategories.forEach((category) => { %><option value="<%= category.value %>"><%= category.label %></option><% }) %></select><label class="privacy-check"><input type="checkbox" name="isPrivate"> Private community</label><button class="button button-dark button-small" type="submit">Create <span><%- icon('plus', { size: 14 }) %></span></button></form>
 		</section>
 		<section class="discover-panel" id="people">
 			<div class="panel-heading"><h2>People to follow</h2><a href="/people">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>

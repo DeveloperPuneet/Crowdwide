@@ -7,6 +7,7 @@ const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const { parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners } = require('../services/discovery');
 const { getInterestProfile, topInterestTags, refreshPersonalization } = require('../services/feedService');
+const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 
 const loadCommunity = async (req, res, next) => {
   const community = await Community.findById(req.params.id);
@@ -208,7 +209,8 @@ exports.mine = async (req, res) => {
     title: 'Your communities',
     pagePath: '/communities/mine',
     noIndex: true,
-    communities
+    communities,
+    communityCategories: COMMUNITY_CATEGORIES
   });
 };
 
@@ -248,7 +250,7 @@ exports.manage = async (req, res) => {
     Quest.find({ community: req.community._id }).sort({ createdAt: -1 }).populate('creator', 'name').populate('participants', 'name').populate('completedBy', 'name').populate('winner', 'name').lean()
   ]);
   const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
 };
 
 exports.createQuest = async (req, res) => {
@@ -388,7 +390,12 @@ exports.update = async (req, res) => {
   req.community.name = req.body.name?.trim() || req.community.name;
   req.community.description = req.body.description?.trim() || req.community.description;
   req.community.guidelines = req.body.guidelines?.trim().slice(0, 4000) || req.community.guidelines;
-  req.community.category = req.body.category?.trim().toLowerCase() || req.community.category;
+  const category = normalizeCommunityCategory(req.body.category, req.community.category);
+  if (!category) {
+    req.session.flash = { type: 'error', message: 'Choose a category from the list.' };
+    return res.redirect(`/communities/${req.community._id}/manage`);
+  }
+  req.community.category = category;
   req.community.isPrivate = req.body.isPrivate === 'on';
   if (!req.community.isPrivate) req.community.inviteCode = undefined;
   req.community.showOnMap = showOnMap;

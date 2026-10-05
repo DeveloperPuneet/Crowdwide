@@ -2,16 +2,19 @@
 // undefined variable, ...) fails here instead of on a live page.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const ejs = require('ejs');
 const { icon } = require('../src/utils/icons');
 const { renderMentions, renderRichBody } = require('../src/services/mentions');
 const { sendMessageAttachment } = require('../src/controllers/chatController');
 const Post = require('../src/models/Post');
+const { COMMUNITY_CATEGORIES } = require('../src/utils/communityCategories');
+const { TASK_LABELS } = require('../src/services/maintenance');
 
 const views = path.join(__dirname, '..', 'src', 'views');
 const currentUser = { id: 'u1', name: 'Puneet K', email: 'p@x.com', role: 'user', profilePicture: '' };
-const base = { icon, renderMentions, renderRichBody, csrfToken: 'tok', flash: null, currentUser, appUrl: 'http://x', gifsEnabled: true };
+const base = { icon, renderMentions, renderRichBody, csrfToken: 'tok', flash: null, currentUser, appUrl: 'http://x', gifsEnabled: true, communityCategories: COMMUNITY_CATEGORIES };
 const render = (file, data = {}) => ejs.renderFile(path.join(views, file), { ...base, ...data });
 const post = (i, extra = {}) => ({ _id: `p${i}`, author: { _id: `a${i}`, name: `Author ${i}` }, body: `Hello #tag ${i}`, type: 'post', likes: [1, 2], commentsCount: 3, sharesCount: 4, viewsCount: 9, hashtags: ['tag'], community: null, createdAt: new Date(), status: 'published', reactions: {}, media: [], ...extra });
 
@@ -131,8 +134,13 @@ test('chat-message renders text, GIF, shared post, unavailable post and system r
   assert.match(multiline, /Hi,\nhow are you\?\nwassup/);
   const own = await msg({ sender: { _id: 'u1', name: 'Me' }, body: 'yo' });
   assert.match(own, /chat-msg is-own/);
+  assert.match(own, /data-reply-message/);
+  assert.match(own, /data-chat-select-message/);
   assert.doesNotMatch(own, /chat-sender/);
   assert.doesNotMatch(own, /aria-label="Report message"/);
+  const reply = await msg({ body: 'Agreed', replyTo: { _id: 'parent-id', body: 'Original note', sender: { name: 'Asha' } } });
+  assert.match(reply, /data-reply-jump="parent-id"/);
+  assert.match(reply, /Original note/);
   const gif = await msg({ gif: { url: 'https://media.giphy.com/x.gif', width: 200, height: 100 } });
   assert.match(gif, /class="chat-gif"/);
   assert.match(gif, /data-media-viewer data-media-src="https:\/\/media\.giphy\.com\/x\.gif"/);
@@ -263,7 +271,7 @@ test('dashboard still renders with the share button and share sheet in the foote
   const html = await render('pages/dashboard.ejs', {
     title: 't', pagePath: '/dashboard', noIndex: true,
     feed: { posts: [post(1)], visiblePosts: [post(1)], hasMore: true, activeTab: 'for-you', note: 'n' },
-    communities: [], composerCommunities: [{ _id: 'c1', name: 'Sketch Club' }],
+    communities: [{ _id: 'c1', name: 'Sketch Club', slug: 'sketch-club', avatarImage: '/uploads/sketch.png' }], communityCategories: COMMUNITY_CATEGORIES, composerCommunities: [{ _id: 'c1', name: 'Sketch Club' }],
     availableQuests: [{ _id: 'q1', title: 'Weekly sketch sprint', community: { _id: 'c1', name: 'Sketch Club' } }],
     selectedQuestId: 'q1', selectedCommunityId: 'c1',
     people: [], joinedCommunities: [], following: []
@@ -280,6 +288,7 @@ test('dashboard still renders with the share button and share sheet in the foote
   assert.doesNotMatch(html, /name="quest"[^>]*disabled/);
   assert.match(html, /value="c1" selected/);
   assert.match(html, /value="q1" data-community="c1" selected/);
+  assert.match(html, /src="\/uploads\/sketch\.png" alt="" class="community-card-avatar-image"/);
 });
 
 test('docs page renders the API endpoints, and info pages cover help', async () => {
@@ -355,13 +364,15 @@ test('community detail renders a quest board with member actions', async () => {
 });
 
 test('joined community detail renders a leave action and focused community styling', async () => {
+  const guidelines = 'Share your journey\nPost your progress';
   const html = await render('pages/community-detail.ejs', {
     title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
-    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', category: 'design', description: 'Share ideas', hashtags: [], membersCount: 12, isPrivate: false, owner: { _id: 'owner', name: 'Owner' }, members: ['u1'], moderators: [], pinnedPosts: [] },
+    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', category: 'design', description: 'Share ideas', guidelines, hashtags: [], membersCount: 12, isPrivate: false, owner: { _id: 'owner', name: 'Owner' }, members: ['u1'], moderators: [], pinnedPosts: [] },
     posts: [], members: [], moderatorIds: [], joined: true, requested: false, isOwner: false, locked: false, quests: []
   });
   assert.match(html, /action="\/communities\/c1\/leave"/);
   assert.match(html, /class="community-glyph community-detail-avatar">D<\/span>/);
+  assert.ok(html.includes(`<p class="community-guidelines-copy">${guidelines}</p>`));
   assert.match(html, /community-detail-layout/);
   assert.match(html, /href="\/css\/community-workspace\.css"/);
 });
@@ -463,12 +474,59 @@ test('reply post schema uses a word limit instead of the generic character limit
 test('community workspace renders its create form and owned community controls', async () => {
   const html = await render('pages/my-communities.ejs', {
     title: 'Your communities', pagePath: '/communities/mine', noIndex: true,
+    communityCategories: COMMUNITY_CATEGORIES,
     communities: [{ _id: 'c1', name: 'Sketch Club', slug: 'sketch-club', description: 'Draw together', category: 'art', membersCount: 12, isPrivate: false, avatarImage: '' }]
   });
   assert.match(html, /name="description"/);
+  assert.match(html, /<select name="category"/);
+  assert.match(html, /value="technology">Technology/);
   assert.match(html, /Sketch Club/);
   assert.match(html, /href="\/communities\/c1\/manage"/);
   assert.match(html, /12 members/);
+});
+
+test('Explore community cards render uploaded community logos', async () => {
+  const html = await render('pages/explore.ejs', {
+    title: 'Explore', pagePath: '/explore', noIndex: true,
+    query: '', category: '', categories: [], isBrowsing: true,
+    communities: [{
+      _id: 'c1', slug: 'sketch-club', name: 'Sketch Club', description: 'Draw together',
+      avatarImage: '/uploads/community.png', category: 'arts & crafts',
+      hashtags: [], membersCount: 12, isPrivate: false
+    }]
+  });
+  assert.match(html, /<img src="\/uploads\/community\.png" alt="" class="community-glyph"/);
+  assert.match(html, /Sketch Club/);
+});
+
+test('admin panel renders community categories and data cleanup controls', async () => {
+  const html = await render('pages/admin.ejs', {
+    title: 'Admin console', pagePath: '/admin', noIndex: true,
+    users: [], communities: [{
+      _id: 'c1', name: 'Sketch Club', owner: null, membersCount: 12,
+      isPrivate: false, requireApproval: false, category: 'technology',
+      description: 'Draw together', guidelines: '', bannedWords: []
+    }], posts: [], openReports: [], pendingActions: [],
+    pendingAppeals: [], moderators: [], auditLogs: [],
+    maintenanceRuns: [{
+      task: 'chats', status: 'success', scheduled: false, triggeredBy: { name: 'Operator' },
+      startedAt: new Date('2026-04-20T12:00:00Z'), results: { directMessages: 2 }
+    }],
+    maintenanceTaskLabels: TASK_LABELS, pinnedPostIds: new Set(),
+    siteSettings: {
+      siteName: '', tagline: '', registrationOpen: true, postApprovalDefault: false,
+      maintenanceMode: false, maintenanceMessage: '', announcement: '',
+      postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
+      postReviewThreshold: 2
+    },
+    stats: { users: 0, communities: 0, posts: 0, reports: 0 }
+  });
+  assert.match(html, /id="admin-panel-maintenance"/);
+  assert.match(html, /Run all cleanup processes/);
+  assert.match(html, /Recent cleanup runs/);
+  assert.match(html, /Run by Operator/);
+  assert.match(html, /directMessages&#34;:2/);
+  assert.match(html, /value="technology"\s+selected>Technology/);
 });
 
 test('personal recap renders activity totals and a monthly timeline', async () => {

@@ -19,8 +19,10 @@ async function getSiteConfig() {
 // Called by the admin controller right after a save so the new values take
 // effect immediately instead of waiting out the cache TTL.
 function clearSiteConfigCache() {
+  const cleared = Boolean(cached);
   cached = null;
   cachedAt = 0;
+  return cleared;
 }
 
 async function getWordLimits() {

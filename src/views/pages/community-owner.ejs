@@ -21,7 +21,10 @@
 			<label>Community banner<% if (community.coverImage) { %><img src="<%= community.coverImage %>" alt="" style="width:100%;max-width:360px;height:90px;object-fit:cover;border-radius:10px;margin-bottom:6px;"><% } %><input type="file" name="bannerImage" accept="image/*"><small>Up to 2MB.</small></label>
 			<label>Name<input name="name" value="<%= community.name %>" required></label>
 			<label>Description<textarea name="description" maxlength="280" required><%= community.description %></textarea></label>
-			<label>Category<input name="category" value="<%= community.category || 'general' %>" required></label>
+			<label>Category<select name="category" required>
+				<% if (!communityCategories.some((category) => category.value === (community.category || 'general'))) { %><option value="<%= community.category %>" selected><%= community.category %> (existing category)</option><% } %>
+				<% communityCategories.forEach((category) => { %><option value="<%= category.value %>" <%= (community.category || 'general') === category.value ? 'selected' : '' %>><%= category.label %></option><% }) %>
+			</select></label>
 			<label>Hashtags<input name="hashtags" value="<%= (community.hashtags || []).join(', ') %>" placeholder="woodworking, diy, makers"><small>Comma separated - helps people find this community.</small></label>
 			<fieldset class="community-location-settings">
 				<legend>Community map location</legend>

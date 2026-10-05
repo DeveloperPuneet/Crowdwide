@@ -16,7 +16,7 @@
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label>Name<input name="name" maxlength="80" required placeholder="Independent makers"></label>
         <label>Description<textarea name="description" maxlength="1000" required placeholder="What brings members together?"></textarea></label>
-        <label>Category<input name="category" maxlength="40" placeholder="Design, music, gardening..."></label>
+        <label>Category<select name="category" required><% communityCategories.forEach((category) => { %><option value="<%= category.value %>"><%= category.label %></option><% }) %></select></label>
         <label class="community-workspace-private"><input type="checkbox" name="isPrivate"><span>Private community</span></label>
         <button class="button button-primary" type="submit"><%- icon('plus', { size: 15 }) %> Create community</button>
       </form>

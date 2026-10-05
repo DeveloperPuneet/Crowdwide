@@ -125,7 +125,9 @@ async function searchGifs({ q = '', offset = 0, limit = PAGE_SIZE, env = process
 }
 
 function clearGifCache() {
+  const cleared = cache.size;
   cache.clear();
+  return cleared;
 }
 
 module.exports = { gifsEnabled, isAllowedGifUrl, sanitizeGif, gifFromBody, normalizeGiphyItem, searchGifs, clearGifCache, PAGE_SIZE };

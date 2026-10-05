@@ -8,9 +8,13 @@ const Report = require('../models/Report');
 const AuditLog = require('../models/AuditLog');
 const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
+const MaintenanceRun = require('../models/MaintenanceRun');
 const Appeal = require('../models/Appeal');
 const { logEvent } = require('../services/accountHistory');
 const { getSiteConfig, clearSiteConfigCache, getPostReviewThreshold } = require('../services/siteConfig');
+const { runMaintenance, TASK_LABELS } = require('../services/maintenance');
+const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
+const logger = require('../services/logger');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const audit = (req, action, targetType, target, details = {}) => AuditLog.create({ actor: req.roleUser._id, action, targetType, target, details, ipAddress: req.ip, userAgent: req.get('user-agent') });
@@ -108,7 +112,7 @@ async function attachActionContext(actions) {
 }
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, siteSettings] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
@@ -117,11 +121,31 @@ exports.admin = async (req, res) => {
     Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
     User.find({ role: 'moderator' }).select('name email moderatorId isVerified createdAt loginLockedUntil').sort({ createdAt: -1 }).lean(),
     AuditLog.find().sort({ createdAt: -1 }).limit(100).populate('actor', 'name email role moderatorId').lean(),
+    MaintenanceRun.find().sort({ createdAt: -1 }).limit(30).populate('triggeredBy', 'name').lean(),
     SiteSetting.getSingleton()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   await attachActionContext(pendingActions);
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, siteSettings, pinnedPostIds, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+};
+
+exports.runMaintenance = async (req, res) => {
+  const task = String(req.body.task || '');
+  if (task !== 'all' && !Object.hasOwn(TASK_LABELS, task)) {
+    flash(req, 'error', 'Choose a valid maintenance process.');
+    return res.redirect('/admin#maintenance');
+  }
+  try {
+    const run = await runMaintenance({ task, triggeredBy: req.roleUser._id });
+    await audit(req, 'run-maintenance-cleanup', 'maintenance', run._id, { task, status: run.status });
+    flash(req, run.status === 'success' ? 'success' : 'error', run.status === 'success'
+      ? `Maintenance process completed: ${TASK_LABELS[task] || 'all cleanup processes'}.`
+      : `Maintenance process completed with errors. Review the run log for details.`);
+  } catch (error) {
+    logger.error('Running admin maintenance failed', error);
+    flash(req, 'error', 'The maintenance process could not be completed. Check the server logs.');
+  }
+  res.redirect('/admin#maintenance');
 };
 
 // Resolving an appeal lifts (or upholds) a moderation action on a user's
@@ -243,7 +267,14 @@ exports.updateCommunity = async (req, res) => {
   if (req.body.name?.trim()) community.name = req.body.name.trim().slice(0, 100);
   if (req.body.description?.trim()) community.description = req.body.description.trim().slice(0, 280);
   community.guidelines = req.body.guidelines?.trim().slice(0, 4000) || '';
-  if (req.body.category?.trim()) community.category = req.body.category.trim().toLowerCase().slice(0, 40);
+  if (req.body.category?.trim()) {
+    const category = normalizeCommunityCategory(req.body.category, community.category);
+    if (!category) {
+      flash(req, 'error', 'Choose a category from the list.');
+      return res.redirect('/admin#communities');
+    }
+    community.category = category;
+  }
   community.isPrivate = req.body.isPrivate === 'on';
   community.requireApproval = req.body.requireApproval === 'on';
   community.bannedWords = (req.body.bannedWords || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean).slice(0, 100);

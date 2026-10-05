@@ -8,6 +8,11 @@
 <button class="chat-jump" data-chat-jump type="button" hidden><%- icon('arrow-right', { size: 14, className: 'chat-jump-arrow' }) %> New messages</button>
 <p class="chat-error" data-chat-error role="alert" hidden></p>
 <p class="chat-retention">Messages and attachments are deleted 30 days after sending. Attachments must be smaller than 3 MB.</p>
+<div class="chat-selection-bar" data-chat-selection-bar hidden>
+	<span data-chat-selection-count>0 selected</span>
+	<button type="button" data-chat-delete-selected disabled>Delete selected</button>
+	<button type="button" data-chat-selection-cancel>Cancel</button>
+</div>
 <% if (locals.pending) { %>
 <div class="chat-request-gate">
 	<p><%- icon('user-plus', { size: 16 }) %> <%= locals.requestPersonName %> isn't in your messages yet. Accept to reply, or decline to dismiss this request.</p>
@@ -27,6 +32,8 @@
 <% } else { %>
 <form class="chat-composer" data-chat-form method="post" action="<%= sendUrl %>" autocomplete="off" enctype="multipart/form-data">
 	<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+	<input type="hidden" name="replyTo" data-chat-reply-to>
+	<div class="chat-replying-to" data-chat-replying-to hidden><span><strong data-chat-reply-sender></strong><small data-chat-reply-body></small></span><button type="button" data-chat-reply-cancel aria-label="Cancel reply"><%- icon('x', { size: 15 }) %></button></div>
 	<% if (locals.gifsEnabled) { %><button class="chat-tool" type="button" data-gif-trigger aria-label="Send a GIF"><span class="gif-badge">GIF</span></button><% } %>
 	<label class="chat-tool chat-attachment-picker" title="Attach a file smaller than 3 MB" aria-label="Attach a file smaller than 3 MB"><span class="chat-attachment-plus" aria-hidden="true">+</span><input type="file" name="attachment" data-chat-attachment accept="image/*,video/mp4,video/webm,video/quicktime,application/pdf,text/plain" aria-label="Attach a file smaller than 3 MB"></label>
 	<span class="chat-attachment-selected" data-chat-attachment-selected hidden><span data-chat-attachment-name></span><button type="button" data-chat-attachment-remove aria-label="Remove attachment"><%- icon('x', { size: 15 }) %></button></span>

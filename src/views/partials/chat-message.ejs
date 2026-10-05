@@ -20,6 +20,7 @@
 	<div class="chat-msg-main">
 		<% if (!mine && inGroup) { %><span class="chat-sender"><%= m.sender?.name || 'Member' %></span><% } %>
 		<div class="chat-bubble<%= (m.gif?.url || m.postPreview || m.attachment?.contentType?.startsWith('image/') || m.attachment?.contentType?.startsWith('video/')) && !m.body ? ' is-media' : '' %>">
+			<% if (m.replyTo) { %><button class="chat-reply-quote" type="button" data-reply-jump="<%= m.replyTo._id %>"><strong><%= m.replyTo.sender?.name || 'Message' %></strong><span><%= m.replyTo.body || 'Attachment or shared media' %></span></button><% } %>
 			<% if (m.postPreview) { %>
 				<% if (m.postPreview.unavailable) { %>
 				<div class="chat-post is-unavailable"><%- icon('lock', { size: 15 }) %> <span>This post isn't available to you.</span></div>
@@ -43,7 +44,11 @@
 			<% if (isImage) { %><img class="chat-attachment-media" src="<%= attachmentUrl %>" data-media-viewer data-media-src="<%= attachmentUrl %>" alt="<%= m.attachment.filename %>" aria-label="View image: <%= m.attachment.filename %>" aria-haspopup="dialog" role="button" tabindex="0" loading="lazy"><% } else if (isVideo) { %><div class="chat-attachment-media-wrap media-viewer-trigger-wrap"><video class="chat-attachment-media" controls preload="metadata" playsinline data-media-src="<%= attachmentUrl %>" src="<%= attachmentUrl %>"></video><button class="media-expand-button" type="button" data-media-viewer-trigger aria-label="View video larger"><%- icon('arrow-up-right', { size: 15 }) %><span>View larger</span></button></div><% } %>
 			<a class="chat-attachment" href="<%= attachmentUrl %>" download><%- icon('paperclip', { size: 15 }) %><span><%= m.attachment.filename %></span><small><%= Math.ceil(m.attachment.size / 1024) %> KB</small></a>
 			<% } %>
-			<% if (m.body) { %><p class="chat-text"><%= m.body %></p><% } %>
+			<% if (m.body) { %><p class="chat-text"><% if (locals.renderedBody !== undefined) { %><%- locals.renderedBody %><% } else { %><%= m.body %><% } %></p><% } %>
+		</div>
+		<div class="chat-message-actions">
+			<button type="button" data-reply-message data-message-id="<%= m._id %>" data-sender-name="<%= m.sender?.name || 'Member' %>" data-reply-body="<%= m.body || (m.gif?.url ? 'GIF' : m.attachment?.filename ? m.attachment.filename : 'Shared media') %>">Reply</button>
+			<% if (mine) { %><label class="chat-message-select"><input type="checkbox" data-chat-select-message value="<%= m._id %>" aria-label="Select your message"><span>Select</span></label><% } %>
 		</div>
 		<time class="chat-time" datetime="<%= iso %>"></time>
 		<%- include('emoji-reaction-bar', { reactions, targetType: inGroup ? 'group' : 'dm', targetId: m._id, groupId: inGroup ? locals.groupId : null }) %>

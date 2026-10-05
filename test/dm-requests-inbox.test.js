@@ -86,7 +86,9 @@ test('dmThread: pending is true when the other person started the thread and the
       limit: () => ({
         select: () => ({
           populate: () => ({
-            lean: () => Promise.resolve([])
+            populate: () => ({
+              lean: () => Promise.resolve([])
+            })
           })
         })
       })
@@ -109,7 +111,9 @@ test('dmThread: pending is false once the viewer has already sent a reply', asyn
       limit: () => ({
         select: () => ({
           populate: () => ({
-            lean: () => Promise.resolve([])
+            populate: () => ({
+              lean: () => Promise.resolve([])
+            })
           })
         })
       })

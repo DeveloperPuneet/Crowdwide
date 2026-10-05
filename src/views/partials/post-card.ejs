@@ -16,7 +16,7 @@
 	<% } %>
 	<% if (post.quotedPost) { %><a class="quoted-post" href="/posts/<%= post.quotedPost._id %>"><strong><%= post.quotedPost.author?.name || 'Crowdwide member' %>'s post</strong><p><%= (post.quotedPost.body || '').slice(0, 240) %><%= (post.quotedPost.body || '').length > 240 ? '…' : '' %></p></a><% } %>
 	<% if (post.replyTo) { %><a class="quoted-post reply-source" href="/posts/<%= post.replyTo._id %>"><strong>Replying to <%= post.replyTo.author?.name || 'Crowdwide member' %></strong><p><%= (post.replyTo.body || '').slice(0, 240) %><%= (post.replyTo.body || '').length > 240 ? '…' : '' %></p></a><% } %>
-	<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
+	<% if ((post.hashtags || []).length) { %><div class="hashtag-row" style="margin-top: 20px;"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 	<% if (post.linkPreview?.title) { %>
 	<a class="link-preview-card" href="<%= post.linkPreview.url %>" target="_blank" rel="noopener noreferrer nofollow">
 		<% if (post.linkPreview.image) { %><img src="<%= post.linkPreview.image %>" alt="" loading="lazy"><% } %>

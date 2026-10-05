@@ -10,7 +10,7 @@
 		<div class="empty-feed"><h2>All quiet for now.</h2><p>Your interactions and community updates will appear here.</p></div>
 		<% } %>
 		<% notifications.forEach((notification) => {
-			const target = notification.post ? `/posts/${notification.post}` : notification.actor ? `/u/${notification.actor._id}` : null;
+			const target = notification.url || (notification.post ? `/posts/${notification.post}` : notification.actor ? `/u/${notification.actor._id}` : null);
 		%>
 		<a class="notification-item <%= notification.readAt ? '' : 'notification-unread' %>" href="<%= target || '#' %>" style="<%= target ? '' : 'pointer-events:none;' %>text-decoration:none;color:inherit;">
 			<%- include('../partials/avatar', { person: notification.actor || {}, size: 'tiny', link: false }) %>

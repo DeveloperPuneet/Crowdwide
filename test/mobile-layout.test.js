@@ -17,6 +17,8 @@ const files = ['style.css', 'responsive-media.css', 'responsive-layout.css'].map
   name,
   text: fs.readFileSync(path.join(__dirname, '..', 'public', 'css', name), 'utf8')
 }));
+const communityWorkspaceCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'community-workspace.css'), 'utf8');
+const chatUiCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'chat-ui.css'), 'utf8');
 
 // Very small CSS walker: strips comments, then yields { selectors, decls,
 // inMedia } for each rule, tracking whether it sits inside a @media block.
@@ -76,6 +78,20 @@ test('profile layout stops reserving a column when follow suggestions are hidden
   assert.match(responsive, /@media\s*\(max-width:\s*1180px\)\s*\{[\s\S]*?\.profile-layout\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(260px,\s*300px\)/);
   assert.match(base, /@media\s*\(max-width:\s*1150px\)\s*\{[\s\S]*?\.discover-column\s*\{\s*display:\s*none/);
   assert.match(responsive, /@media\s*\(max-width:\s*1150px\)\s*\{\s*\.profile-layout\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+});
+
+test('community detail collapses its sidebar column when responsive rules hide the sidebar', () => {
+  assert.match(files.find((file) => file.name === 'style.css').text, /@media\s*\(max-width:\s*1150px\)\s*\{[\s\S]*?\.discover-column\s*\{\s*display:\s*none/);
+  assert.match(communityWorkspaceCss, /@media\s*\(max-width:\s*1150px\)\s*\{\s*\.community-detail-layout\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(communityWorkspaceCss, /\.community-guidelines-copy\s*\{[^}]*white-space:\s*pre-wrap;[^}]*overflow-wrap:\s*anywhere/);
+  assert.match(communityWorkspaceCss, /linear-gradient\(145deg,\s*var\(--sf-1\),\s*var\(--sf-0\)\)/);
+});
+
+test('chat selection controls use theme colors and reflow on narrow screens', () => {
+  assert.match(chatUiCss, /\.chat-page \[data-chat-select-toggle\]\s*\{[^}]*background:\s*var\(--sf-2\);[^}]*color:\s*var\(--tx-hi\)/);
+  assert.match(chatUiCss, /\.chat-page \.chat-selection-bar\s*\{[^}]*flex-wrap:\s*wrap/);
+  assert.match(chatUiCss, /@media\s*\(max-width:\s*720px\)\s*\{[\s\S]*?\.chat-page \.chat-selection-bar button\s*\{[^}]*flex:\s*1 1 0/);
+  assert.match(files.find((file) => file.name === 'style.css').text, /\.chat-back, \.chat-header-action\s*\{[^}]*background:\s*transparent/);
 });
 
 test('audited page layouts provide narrow-screen and touch-friendly behavior', () => {

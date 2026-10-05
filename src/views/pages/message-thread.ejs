@@ -2,11 +2,12 @@
 <%- include('../partials/app-nav', { active: 'messages', currentUser }) %>
 <main class="chat-main">
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
-	<section class="chat-shell" data-chat data-kind="dm" data-poll-url="/messages/<%= person._id %>/poll" data-history-url="/messages/<%= person._id %>/history" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>" data-focus-id="<%= locals.focusId || '' %>">
+	<section class="chat-shell" data-chat data-kind="dm" data-poll-url="/messages/<%= person._id %>/poll" data-history-url="/messages/<%= person._id %>/history" data-delete-url="/messages/<%= person._id %>/delete" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>" data-focus-id="<%= locals.focusId || '' %>">
 		<header class="chat-header">
 			<a class="chat-back" href="/messages" aria-label="Back to inbox"><%- icon('arrow-left', { size: 20 }) %></a>
 			<%- include('../partials/avatar', { person, size: 'small', link: false }) %>
 			<div class="chat-title"><strong><%= person.name %></strong><a class="name-link" href="/u/<%= person._id %>">View profile</a></div>
+			<button class="chat-header-action" type="button" data-chat-select-toggle aria-pressed="false">Select</button>
 			<button class="chat-header-action chat-search-toggle" type="button" data-chat-search-toggle aria-expanded="false" aria-controls="chat-search-form" aria-label="Search this conversation"><%- icon('search', { size: 18 }) %></button>
 			<form class="chat-search" id="chat-search-form" data-message-search-form action="/messages/<%= person._id %>/search" role="search" aria-label="Search this conversation" hidden>
 				<input type="search" name="q" maxlength="100" placeholder="Search messages" aria-label="Search messages">

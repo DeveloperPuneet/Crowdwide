@@ -47,6 +47,13 @@ function clearInterestProfile(userId) {
   if (userId) profileCache.delete(String(userId));
 }
 
+function clearAllFeedCaches() {
+  const cleared = { feed: feedCache.size, interestProfiles: profileCache.size };
+  feedCache.clear();
+  profileCache.clear();
+  return cleared;
+}
+
 function refreshPersonalization(userId) {
   clearFeedCache(userId);
   clearInterestProfile(userId);
@@ -369,4 +376,4 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   };
 }
 
-module.exports = { getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, refreshPersonalization, buildRanking, candidateProjection, POOL_LIMIT, NOTES };
+module.exports = { getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, POOL_LIMIT, NOTES };

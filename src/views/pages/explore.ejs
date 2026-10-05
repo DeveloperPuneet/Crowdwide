@@ -25,7 +25,7 @@
 					<span class="community-radar-trend">+<%= community.recentPosts %> posts</span>
 				</div>
 				<div class="community-radar-name-row">
-					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
+					<span class="community-glyph community-card-avatar"><% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-card-avatar-image"><% } else { %><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %><% } %></span>
 					<strong><%= community.name %></strong>
 				</div>
 				<p><%= community.description %></p>

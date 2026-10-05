@@ -45,7 +45,7 @@ async function notify(recipient, actor, type, message, post, community, actorNam
   const recipientUser = await User.findById(recipient).select('name email notificationPreferences').lean();
   const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : type === 'message' ? 'messages' : ['comment', 'reply', 'mention'].includes(type) ? 'comments' : 'security';
   if (!notificationPreferenceAllows(recipientUser?.notificationPreferences, preferenceKey, type)) return;
-  await Notification.create({ recipient, actor, type, message, post, community });
+  await Notification.create({ recipient, actor, type, message, post, community, ...(url ? { url } : {}) });
   if (recipientUser?.notificationPreferences?.emailUnreadSummary !== false) {
     const unread = await Notification.countDocuments({ recipient, readAt: null });
     if (unread >= 5) {
@@ -439,10 +439,6 @@ exports.commentThread = async (req, res) => {
 
 exports.notifications = async (req, res) => {
   const viewer = await User.findById(req.session.user.id).select('blockedUsers mutedUsers').lean();
-  await Promise.all([
-    Notification.updateMany({ recipient: req.session.user.id, readAt: null }, { readAt: new Date() }),
-    User.updateOne({ _id: req.session.user.id }, { $unset: { unreadSummarySentAt: 1 } })
-  ]);
   const [notificationsRaw, unread] = await Promise.all([
     Notification.find({ recipient: req.session.user.id }).sort({ createdAt: -1 }).limit(50).populate('actor', 'name profilePicture').lean(),
     Notification.countDocuments({ recipient: req.session.user.id, readAt: null })
@@ -451,7 +447,7 @@ exports.notifications = async (req, res) => {
   const visibleNotifications = notificationsRaw.filter((notification) => !notification.actor || !hiddenIds.includes(String(notification.actor._id)));
   const grouped = new Map();
   visibleNotifications.forEach((notification) => {
-    const key = [notification.type, notification.post || '', notification.community || ''].join(':');
+    const key = [notification.type, notification.post || '', notification.community || '', notification.actor?._id || '', notification.url || ''].join(':');
     const existing = grouped.get(key);
     if (existing) {
       existing.count += 1;

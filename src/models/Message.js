@@ -15,6 +15,7 @@ const messageSchema = new mongoose.Schema({
     data: Buffer
   },
   sharedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
+  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
   readAt: Date,
   reactions: [{ emoji: { type: String, required: true }, users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] }]
 }, { timestamps: true });

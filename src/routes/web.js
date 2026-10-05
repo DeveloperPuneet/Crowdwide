@@ -38,6 +38,7 @@ router.get('/messages/:id/history', requireAuth, requireVerified, pollLimiter, c
 router.get('/messages/:id/:messageId/attachment', requireAuth, requireVerified, chatController.dmAttachment);
 router.post('/messages/:id/:messageId/report', requireAuth, requireVerified, interactionLimiter, chatController.dmReportMessage);
 router.post('/messages/:id', requireAuth, requireVerified, interactionLimiter, chatAttachmentUpload, csrfSynchronisedProtection, handleUploadError, validateChatAttachment, scanUploadsForViruses, chatController.dmSend);
+router.post('/messages/:id/delete', requireAuth, requireVerified, interactionLimiter, chatController.dmDeleteMessages);
 router.post('/messages/requests/:id/respond', requireAuth, requireVerified, interactionLimiter, chatController.dmRequestRespond);
 router.post('/messages/:id/react', requireAuth, requireVerified, interactionLimiter, chatController.dmReact);
 router.get('/groups', requireAuth, requireVerified, groupController.list);
@@ -51,6 +52,7 @@ router.get('/groups/:id/history', requireAuth, requireVerified, pollLimiter, cha
 router.get('/groups/:id/messages/:messageId/attachment', requireAuth, requireVerified, chatController.groupAttachment);
 router.post('/groups/:id/messages/:messageId/report', requireAuth, requireVerified, interactionLimiter, chatController.groupReportMessage);
 router.post('/groups/:id', requireAuth, requireVerified, interactionLimiter, chatAttachmentUpload, csrfSynchronisedProtection, handleUploadError, validateChatAttachment, scanUploadsForViruses, chatController.groupSend);
+router.post('/groups/:id/messages/delete', requireAuth, requireVerified, interactionLimiter, chatController.groupDeleteMessages);
 router.post('/groups/:id/messages/:messageId/react', requireAuth, requireVerified, interactionLimiter, chatController.groupReact);
 router.get('/groups/:id/info', requireAuth, requireVerified, groupController.info);
 router.post('/groups/:id/rename', requireAuth, requireVerified, interactionLimiter, groupController.rename);
@@ -144,6 +146,7 @@ router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin,
 router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateCommunity);
 router.post('/admin/communities/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteCommunity);
 router.post('/admin/settings', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateSiteSettings);
+router.post('/admin/maintenance/run', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.runMaintenance);
 router.get('/moderator', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.moderator);
 router.post('/moderator/actions', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.submitAction);
 router.post('/moderator/appeals/:id', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.resolveAppeal);

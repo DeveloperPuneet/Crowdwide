@@ -20,6 +20,7 @@
     <button type="button" class="admin-tab" id="admin-tab-queue" role="tab" aria-controls="admin-panel-queue" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-moderators" role="tab" aria-controls="admin-panel-moderators" data-tab="moderators">Moderators</button>
     <button type="button" class="admin-tab" id="admin-tab-settings" role="tab" aria-controls="admin-panel-settings" data-tab="settings">Site settings</button>
+    <button type="button" class="admin-tab" id="admin-tab-maintenance" role="tab" aria-controls="admin-panel-maintenance" data-tab="maintenance">Data cleanup</button>
     <button type="button" class="admin-tab" id="admin-tab-audit" role="tab" aria-controls="admin-panel-audit" data-tab="audit">Audit log</button>
   </nav>
 
@@ -167,7 +168,10 @@
             <form class="admin-edit-form" method="post" action="/admin/communities/<%= community._id %>/edit">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <label>Name<input type="text" name="name" value="<%= community.name %>"></label>
-              <label>Category<input type="text" name="category" value="<%= community.category %>"></label>
+              <label>Category<select name="category">
+                <% if (!communityCategories.some((category) => category.value === community.category)) { %><option value="<%= community.category %>" selected><%= community.category %> (existing category)</option><% } %>
+                <% communityCategories.forEach((category) => { %><option value="<%= category.value %>" <%= community.category === category.value ? 'selected' : '' %>><%= category.label %></option><% }) %>
+              </select></label>
               <label class="full-width">Description<textarea name="description"><%= community.description %></textarea></label>
               <label class="full-width">Guidelines<textarea name="guidelines"><%= community.guidelines || '' %></textarea></label>
               <label class="full-width">Banned words (comma separated)<input type="text" name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>"></label>
@@ -279,6 +283,36 @@
         <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save settings</button></div>
       </form>
     </section>
+  </section>
+
+  <!-- DATA CLEANUP -->
+  <section class="admin-panel" id="admin-panel-maintenance" role="tabpanel" aria-labelledby="admin-tab-maintenance" data-panel="maintenance">
+    <h2>Data cleanup</h2>
+    <p>Old chats, notifications, personal searches, recent-view history, and search trend events are removed after 30 days. The automatic cleanup runs daily. In-memory caches expire normally and can be cleared here. Recaps are generated live and have no stored history to clear. Admin audit logs are kept.</p>
+    <div class="settings-block admin-wide">
+      <h3>Run cleanup now</h3>
+      <form class="admin-edit-form" method="post" action="/admin/maintenance/run" data-confirm="Run the selected cleanup process now? Deleted data cannot be recovered.">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Cleanup process<select name="task" required><% Object.entries(maintenanceTaskLabels).forEach(([key, label]) => { %><option value="<%= key %>"><%= label %></option><% }) %></select></label>
+        <button class="button button-small button-ghost" type="submit">Run selected</button>
+      </form>
+      <form method="post" action="/admin/maintenance/run" data-confirm="Run every cleanup process now? Old chat, notification, and history data will be permanently deleted.">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="task" value="all">
+        <button class="button button-small button-danger" type="submit">Run all cleanup processes</button>
+      </form>
+    </div>
+    <h3>Recent cleanup runs</h3>
+    <% if (!maintenanceRuns.length) { %><p>No cleanup runs have been recorded yet.</p><% } %>
+    <% maintenanceRuns.forEach((entry) => { %>
+      <div class="device-row">
+        <div>
+          <strong><%= entry.task === 'all' ? 'All cleanup processes' : maintenanceTaskLabels[entry.task] || entry.task %> · <%= entry.status %></strong>
+          <span><%= entry.scheduled ? 'Automatic' : `Run by ${entry.triggeredBy?.name || 'admin'}` %> · <%= new Date(entry.startedAt).toLocaleString() %></span>
+          <small><%= JSON.stringify(entry.results) %></small>
+        </div>
+      </div>
+    <% }) %>
   </section>
 
   <!-- AUDIT LOG -->

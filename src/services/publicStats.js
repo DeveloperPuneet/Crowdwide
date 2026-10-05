@@ -99,6 +99,10 @@ async function getGrowthStats() {
   return value;
 }
 
-function clearGrowthStatsCache() { cache = null; }
+function clearGrowthStatsCache() {
+  const cleared = Boolean(cache);
+  cache = null;
+  return cleared;
+}
 
 module.exports = { getGrowthStats, computeGrowthStats, clearGrowthStatsCache, tierThresholds };
