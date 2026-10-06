@@ -1,6 +1,7 @@
 require('./utils/asyncErrors');
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const session = require('express-session');
 const morgan = require('morgan');
 const helmet = require('helmet');
@@ -40,16 +41,20 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   // Cloudflare Turnstile (optional managed CAPTCHA) needs its script, iframe
   // and verification origin allowed - only when it is actually configured.
   const turnstileOrigins = process.env.TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY ? ['https://challenges.cloudflare.com'] : [];
+  app.use((req, res, next) => {
+    res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+    next();
+  });
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
-        scriptSrc: ["'self'", ...turnstileOrigins],
+        scriptSrc: ["'self'", 'https://www.googletagmanager.com', (req, res) => `'nonce-${res.locals.cspNonce}'`, ...turnstileOrigins],
         frameSrc: ["'self'", ...turnstileOrigins],
-        connectSrc: ["'self'", 'https://api.maptiler.com', ...turnstileOrigins],
+        connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', ...turnstileOrigins],
         mediaSrc: ["'self'", ...mediaOrigins],
         // GIFs come from GIPHY's CDN; blob: lets upload previews render.
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://api.maptiler.com', ...mediaOrigins]
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://api.maptiler.com', 'https://www.google-analytics.com', ...mediaOrigins]
       }
     }
   }));

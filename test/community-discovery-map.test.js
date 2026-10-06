@@ -88,6 +88,23 @@ test('Leaflet map assets are served locally and CSP permits both tile providers'
   assert.equal(communitySettings.headers['referrer-policy'], 'strict-origin-when-cross-origin');
 });
 
+test('Google tag renders exactly once in the page head with an allowed CSP nonce', async () => {
+  const response = await request(createApp({ port: 3000 })).get('/docs');
+  assert.equal(response.status, 200);
+
+  const head = response.text.match(/<head>[\s\S]*?<\/head>/)?.[0];
+  assert.ok(head, 'page should contain a head element');
+  assert.equal((head.match(/https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=G-VW1V8S9J0V/g) || []).length, 1);
+  assert.equal((head.match(/gtag\('config', 'G-VW1V8S9J0V'\)/g) || []).length, 1);
+
+  const nonce = head.match(/<script nonce="([^"]+)">[\s\S]*?gtag\('config'/)?.[1];
+  assert.ok(nonce, 'inline Google tag should have a CSP nonce');
+  const policy = response.headers['content-security-policy'];
+  assert.ok(policy.includes('https://www.googletagmanager.com'));
+  assert.ok(policy.includes(`'nonce-${nonce}'`));
+  assert.ok(policy.includes('https://www.google-analytics.com'));
+});
+
 test('map tile loading follows OSM policy and falls back to CARTO and optional MapTiler', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'community-map.js'), 'utf8');
   const mountMap = (apiKey) => {
