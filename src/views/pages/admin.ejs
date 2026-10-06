@@ -31,6 +31,21 @@
       <p><%= pendingActions.length %> moderator action<%= pendingActions.length === 1 ? '' : 's' %> waiting for your approval, <%= openReports.length %> open report<%= openReports.length === 1 ? '' : 's' %>, <%= pendingAppeals.length %> pending appeal<%= pendingAppeals.length === 1 ? '' : 's' %>.</p>
       <% if (siteSettings.maintenanceMode) { %><p class="admin-badge status-suspended">Maintenance mode is ON — the site is showing a maintenance message to visitors.</p><% } %>
     </div>
+    <section class="settings-block admin-wide admin-storage-card" aria-labelledby="admin-storage-heading">
+      <div class="admin-storage-heading">
+        <div><p class="eyebrow">MongoDB clusters</p><h2 id="admin-storage-heading">Database storage</h2></div>
+        <% if (mongoStorage.available) { %><strong class="admin-storage-percent"><%= mongoStorage.percentUsed %>% used · <%= mongoStorage.percentRemaining %>% left</strong><% } %>
+      </div>
+      <% if (mongoStorage.available) { %>
+      <div class="admin-storage-meter<%= mongoStorage.percentUsed >= 80 ? ' is-near-limit' : '' %>" role="meter" aria-label="MongoDB filesystem storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= mongoStorage.barPercent %>" aria-valuetext="<%= mongoStorage.percentUsed %>% used, <%= mongoStorage.percentRemaining %>% left">
+        <span style="width:<%= mongoStorage.barPercent %>%"></span>
+      </div>
+      <div class="admin-storage-values"><strong><%= formatStorage(mongoStorage.usedBytes) %> / <%= formatStorage(mongoStorage.capacityBytes) %></strong><span><%= formatStorage(mongoStorage.remainingBytes) %> remaining across <%= mongoStorage.clusters %> cluster<%= mongoStorage.clusters === 1 ? '' : 's' %></span></div>
+      <p class="admin-storage-footnote">Combined filesystem figures reported by the configured MongoDB URLs; an Atlas plan quota may differ.</p>
+      <% } else { %>
+      <p class="admin-storage-message">MongoDB did not report filesystem usage and capacity for every configured cluster, so a combined storage percentage cannot be calculated. Check the application logs and cluster connections.</p>
+      <% } %>
+    </section>
   </section>
 
   <!-- USERS -->

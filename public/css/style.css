@@ -439,6 +439,62 @@ html { scrollbar-gutter: stable; }
 .profile-layout { max-width: 1240px; margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; padding: 40px var(--gutter) 70px; }
 .profile-banner { width: 100%; height: 200px; border-radius: 14px; overflow: hidden; background: linear-gradient(120deg, #232a5c, #171a30); margin-bottom: 20px; }
 .profile-banner img { width: 100%; height: 100%; object-fit: cover; }
+.profile-anniversary[hidden] { display: none; }
+.profile-anniversary {
+  position: relative;
+  display: flex;
+  min-height: 154px;
+  align-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  margin-bottom: 20px;
+  padding: 26px clamp(20px, 4vw, 40px);
+  border: 1px solid color-mix(in srgb, var(--theme-accent, var(--ac-blue)) 42%, var(--line));
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 89% 12%, color-mix(in srgb, #ffbd69 25%, transparent), transparent 31%),
+    radial-gradient(ellipse at 72% 110%, color-mix(in srgb, #ff6e9c 19%, transparent), transparent 39%),
+    linear-gradient(112deg, color-mix(in srgb, var(--theme-accent, var(--ac-blue)) 15%, var(--panel)), color-mix(in srgb, var(--cyan) 12%, var(--panel)));
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--theme-accent, var(--ac-blue)) 17%, transparent), inset 0 1px rgba(255, 255, 255, .14);
+}
+.profile-anniversary-copy { position: relative; z-index: 2; display: grid; gap: 7px; max-width: 62%; }
+.profile-anniversary-kicker { color: var(--theme-accent, var(--ac-blue)); font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+.profile-anniversary-copy strong { color: var(--theme-fg, var(--tx-hi)); font: 700 clamp(20px, 3vw, 27px)/1.15 'Space Grotesk', sans-serif; letter-spacing: -.6px; }
+.profile-anniversary-copy [data-anniversary-years] { color: var(--theme-muted, var(--tx-mid)); font-size: 13px; }
+.profile-anniversary-decor { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.anniversary-balloon { position: absolute; bottom: -48px; width: 33px; height: 42px; border-radius: 52% 48% 48% 52% / 48% 48% 52% 52%; background: var(--balloon-color); box-shadow: inset -7px -5px 0 rgba(0, 0, 0, .1), inset 5px 4px 0 rgba(255, 255, 255, .2), 0 7px 17px rgba(0, 0, 0, .12); animation: anniversary-float var(--float-duration) ease-in-out infinite; }
+.anniversary-balloon::before { position: absolute; bottom: -5px; left: 14px; width: 7px; height: 7px; background: var(--balloon-color); content: ''; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.anniversary-balloon::after { position: absolute; top: 45px; left: 17px; width: 1px; height: 84px; background: color-mix(in srgb, var(--balloon-color) 70%, transparent); content: ''; transform-origin: top; animation: anniversary-string 3s ease-in-out infinite; }
+.balloon-one { --balloon-color: #ff6f91; --float-duration: 6.8s; right: 34%; animation-delay: -2s; }
+.balloon-two { --balloon-color: #61c9d8; --float-duration: 7.4s; right: 20%; width: 29px; height: 37px; animation-delay: -4s; }
+.balloon-three { --balloon-color: #ffc15e; --float-duration: 6.2s; right: 6%; width: 35px; height: 44px; animation-delay: -1s; }
+.balloon-four { --balloon-color: #b69aff; --float-duration: 7.8s; right: 44%; width: 25px; height: 33px; animation-delay: -5s; }
+.balloon-five { --balloon-color: #ff9f70; --float-duration: 6.5s; right: 13%; width: 24px; height: 31px; animation-delay: -3s; }
+.anniversary-candy { position: absolute; top: 47%; width: 26px; height: 13px; border-radius: 5px; background: repeating-linear-gradient(110deg, #fff7df 0 5px, #fa7f94 5px 10px); box-shadow: 0 4px 12px rgba(0, 0, 0, .12); animation: anniversary-treat 4s ease-in-out infinite; }
+.anniversary-candy::before, .anniversary-candy::after { position: absolute; top: 3px; width: 7px; height: 7px; border: 2px solid #fa7f94; content: ''; transform: rotate(45deg); }
+.anniversary-candy::before { left: -5px; }
+.anniversary-candy::after { right: -5px; }
+.candy-one { right: 40%; }
+.candy-two { right: 2%; top: 25%; animation-delay: -2s; }
+.anniversary-sparkle { position: absolute; z-index: 1; color: #ffbd69; font-size: 22px; text-shadow: 0 0 17px rgba(255, 189, 105, .5); animation: anniversary-twinkle 2.4s ease-in-out infinite; }
+.sparkle-one { top: 14%; right: 28%; }
+.sparkle-two { right: 10%; bottom: 13%; animation-delay: -1.2s; }
+.anniversary-cake { position: absolute; z-index: 2; top: 13%; right: 3%; font-size: 25px; filter: drop-shadow(0 5px 8px rgba(0, 0, 0, .18)); animation: anniversary-cake-bob 3.8s ease-in-out infinite; }
+.anniversary-confetti { position: absolute; top: -12px; left: var(--confetti-x); width: 6px; height: 10px; border-radius: 2px; background: var(--confetti-color); opacity: .82; animation: anniversary-confetti-fall var(--confetti-speed) linear infinite; animation-delay: var(--confetti-delay); }
+.confetti-one { --confetti-x: 54%; --confetti-color: #ff6f91; --confetti-speed: 4.7s; --confetti-delay: -1s; }
+.confetti-two { --confetti-x: 63%; --confetti-color: #ffc15e; --confetti-speed: 5.4s; --confetti-delay: -3s; }
+.confetti-three { --confetti-x: 71%; --confetti-color: #61c9d8; --confetti-speed: 4.2s; --confetti-delay: -2s; }
+.confetti-four { --confetti-x: 80%; --confetti-color: #b69aff; --confetti-speed: 5.8s; --confetti-delay: -4.5s; }
+.confetti-five { --confetti-x: 91%; --confetti-color: #ff9f70; --confetti-speed: 4.9s; --confetti-delay: -2.8s; }
+.confetti-six { --confetti-x: 98%; --confetti-color: #61c9d8; --confetti-speed: 5.2s; --confetti-delay: -.5s; }
+.confetti-seven { --confetti-x: 58%; --confetti-color: #ffc15e; --confetti-speed: 6.1s; --confetti-delay: -5s; }
+.confetti-eight { --confetti-x: 87%; --confetti-color: #ff6f91; --confetti-speed: 4.4s; --confetti-delay: -3.6s; }
+@keyframes anniversary-float { 0%, 100% { translate: 0 0; rotate: -5deg; } 50% { translate: 0 -185px; rotate: 7deg; } }
+@keyframes anniversary-string { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(5deg); } }
+@keyframes anniversary-treat { 0%, 100% { translate: 0 0; rotate: -8deg; } 50% { translate: 0 -9px; rotate: 8deg; } }
+@keyframes anniversary-twinkle { 0%, 100% { opacity: .45; scale: .8; } 50% { opacity: 1; scale: 1.15; } }
+@keyframes anniversary-cake-bob { 0%, 100% { translate: 0 0; rotate: -5deg; } 50% { translate: 0 -7px; rotate: 5deg; } }
+@keyframes anniversary-confetti-fall { 0% { translate: 0 -8px; rotate: 0deg; } 100% { translate: 18px 178px; rotate: 470deg; } }
 /* Only the avatar pokes up into the banner (a common, intentional overlap);
    the name/handle text next to it stays in normal flow so it can never end
    up rendered on top of the (often busy) banner image - see profile.ejs. */
@@ -1193,6 +1249,14 @@ html { scrollbar-gutter: stable; }
 }
 
 @media (max-width: 700px) {
+  .profile-anniversary { min-height: 142px; padding: 18px; }
+  .profile-anniversary-copy { max-width: 68%; }
+  .anniversary-balloon { scale: .82; }
+  .balloon-one { right: 31%; }
+  .balloon-two { right: 17%; }
+  .balloon-three { right: 3%; }
+  .balloon-four { right: 43%; }
+  .anniversary-cake { right: 3%; font-size: 21px; }
   .app-nav { padding: 0 14px; gap: 10px; }
   .profile-community-highlights { grid-template-columns: 1fr; gap: 18px; }
   .recap-layout { padding-top: 28px; }
@@ -1698,12 +1762,10 @@ body[data-theme="light"] .post-card,
 body[data-theme="light"] .composer,
 body[data-theme="light"] .settings-block,
 body[data-theme="light"] .notification-item,
-body[data-theme="light"] .community-posts:not(.profile-posts),
 body[data-theme="pink"] .post-card,
 body[data-theme="pink"] .composer,
 body[data-theme="pink"] .settings-block,
-body[data-theme="pink"] .notification-item,
-body[data-theme="pink"] .community-posts:not(.profile-posts) { background: var(--panel); color: #282d38; border-color: var(--line); }
+body[data-theme="pink"] .notification-item { background: var(--panel); color: #282d38; border-color: var(--line); }
 body[data-theme="light"] .post-body,
 body[data-theme="light"] .profile-bio,
 body[data-theme="light"] .activity-row p,
@@ -2115,7 +2177,7 @@ body[data-theme="pink"] {
 :is(body[data-theme="light"], body[data-theme="pink"]) :is(.community-card, .community-post-link, .community-radar-card, .community-radar-preview) { border-color: transparent; background: var(--theme-surface); box-shadow: none; color: var(--theme-fg); }
 :is(body[data-theme="light"], body[data-theme="pink"]) :is(.community-card:hover, .community-post-link:hover, .community-radar-preview:hover) { border-color: transparent; background: var(--theme-soft); box-shadow: none; }
 :is(body[data-theme="light"], body[data-theme="pink"]) :is(.community-card footer, .community-detail-hero, .community-row, .community-posts .post-stat-row, .community-posts .post-actions) { border-color: transparent; }
-:is(body[data-theme="light"], body[data-theme="pink"]) .community-posts .post-card { border: 0; background: transparent; box-shadow: none; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .community-detail-layout .community-posts { background: transparent; border: 0; box-shadow: none; }
 :is(body[data-theme="light"], body[data-theme="pink"]) .community-posts > a.activity-row { border: 0; background: var(--theme-soft); box-shadow: none; color: var(--theme-fg); }
 :is(body[data-theme="light"], body[data-theme="pink"]) .community-posts > a.activity-row:hover { border: 0; background: color-mix(in srgb, var(--theme-accent) 11%, var(--theme-surface)); color: var(--theme-accent); }
 :is(body[data-theme="light"], body[data-theme="pink"]) :is(.community-detail-hero > p:not(.eyebrow), .directory-heading p:not(.eyebrow), .community-card p, .community-post-link p, .community-post-link span, .community-posts .post-body, .community-posts .activity-row p, .community-posts .activity-row small, .community-guidelines-copy) { color: var(--theme-muted); }

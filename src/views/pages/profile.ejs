@@ -7,6 +7,33 @@
 	<a class="back-link" href="/dashboard">← Back to feed</a>
 	<% if (profileUser.bannerImage) { %><div class="profile-banner"><img src="<%= profileUser.bannerImage %>" alt=""></div><% } %>
 	<section class="profile-hero">
+		<div class="profile-anniversary" data-profile-anniversary data-joined-at="<%= new Date(profileUser.createdAt).toISOString() %>" role="status" aria-live="polite" hidden>
+			<div class="profile-anniversary-copy">
+				<span class="profile-anniversary-kicker">A little something to celebrate</span>
+				<strong>Happy Crowdwide anniversary!</strong>
+				<span data-anniversary-years></span>
+			</div>
+			<div class="profile-anniversary-decor" aria-hidden="true">
+				<span class="anniversary-balloon balloon-one"></span>
+				<span class="anniversary-balloon balloon-two"></span>
+				<span class="anniversary-balloon balloon-three"></span>
+				<span class="anniversary-balloon balloon-four"></span>
+				<span class="anniversary-balloon balloon-five"></span>
+				<span class="anniversary-candy candy-one"></span>
+				<span class="anniversary-candy candy-two"></span>
+				<span class="anniversary-sparkle sparkle-one">✦</span>
+				<span class="anniversary-sparkle sparkle-two">✧</span>
+				<span class="anniversary-cake">🎂</span>
+				<span class="anniversary-confetti confetti-one"></span>
+				<span class="anniversary-confetti confetti-two"></span>
+				<span class="anniversary-confetti confetti-three"></span>
+				<span class="anniversary-confetti confetti-four"></span>
+				<span class="anniversary-confetti confetti-five"></span>
+				<span class="anniversary-confetti confetti-six"></span>
+				<span class="anniversary-confetti confetti-seven"></span>
+				<span class="anniversary-confetti confetti-eight"></span>
+			</div>
+		</div>
 		<div class="profile-hero-top">
 			<div class="profile-identity">
 				<div class="profile-avatar-slot<%= profileUser.bannerImage ? ' has-banner' : '' %>"><%- include('../partials/avatar', { person: profileUser, size: 'large', link: false }) %></div>
@@ -45,7 +72,7 @@
 			<a href="/u/<%= profileUser._id %>/following" style="color:inherit;text-decoration:none;"><strong><%= followingCount %></strong> following</a>
 			<span><strong><%= (profileUser.profileViews || 0).toLocaleString() %></strong> profile views</span>
 		</div>
-		<p class="profile-joined">Joined <%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) %></p>
+		<p class="profile-joined">Joined <time data-profile-joined-date datetime="<%= new Date(profileUser.createdAt).toISOString() %>"><%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) %></time></p>
 		<section class="profile-community-highlights" aria-label="Community roles and achievements">
 			<div class="profile-highlight-group">
 				<div class="profile-highlight-heading"><h2>Communities</h2><span><%= memberCommunities.length %></span></div>
@@ -174,4 +201,5 @@
 	<% } %>
 </main>
 <%- include('../partials/app-footer') %>
+<script defer src="/js/profile-anniversary.js"></script>
 <%- include('../partials/foot') %>

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const read = (...parts) => fs.readFileSync(path.join(__dirname, '..', ...parts), 'utf8');
 
@@ -105,7 +106,8 @@ test('light and pink themes set readable text, control, and surface colors', () 
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) :is\(\.app-nav nav a:hover, \.app-nav \.app-nav-active, \.site-nav \.nav-links a:hover\) \{ border: 0; background: transparent;/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) :is\(\.settings-tabs > a:hover, \.settings-nav > a:hover\) \{ border: 0; background: var\(--theme-soft\);/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.notification-button \{ border-color: transparent;/);
-  assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.community-posts \.post-card \{ border: 0; background: transparent;/);
+  assert.doesNotMatch(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.community-posts \.post-card \{ border: 0; background: transparent;/);
+  assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.community-detail-layout \.community-posts \{ background: transparent; border: 0; box-shadow: none;/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.message-thread \.chat-bubble|:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.chat-bubble \{ background: var\(--theme-soft\);/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.post-more > summary:hover \{ background: var\(--theme-soft\); color: var\(--theme-accent\);/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) :is\(\.chat-back:hover, \.chat-header-action:hover, \.post-back:hover\) \{ background: var\(--theme-soft\); color: var\(--theme-accent\);/);
@@ -124,8 +126,54 @@ test('profile post sections do not render an extra theme-dependent surface or bo
   const css = read('public', 'css', 'style.css');
   assert.equal((profile.match(/class="community-posts profile-posts(?: [^"]*)?"/g) || []).length, 6);
   assert.match(css, /\.profile-posts\s*\{[^}]*background:\s*transparent;[^}]*border:\s*0;[^}]*box-shadow:\s*none;/);
-  assert.match(css, /body\[data-theme="light"\] \.community-posts:not\(\.profile-posts\)/);
-  assert.match(css, /body\[data-theme="pink"\] \.community-posts:not\(\.profile-posts\)/);
+  assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) :is\(\.post-card, \.composer, \.post-view/);
+});
+
+test('profile anniversaries adapt to local dates and respect reduced motion', () => {
+  const css = read('public', 'css', 'style.css');
+  const script = read('public', 'js', 'profile-anniversary.js');
+  assert.match(css, /\.profile-anniversary\[hidden\]\s*\{\s*display:\s*none;/);
+  assert.match(css, /anniversary-confetti-fall/);
+  assert.match(css, /anniversary-cake-bob/);
+  assert.match(css, /\.balloon-five/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation-duration:\s*\.01ms !important/);
+  assert.match(script, /data-profile-joined-date/);
+
+  const shouldCelebrate = (joinedAt, today) => {
+    const celebration = {
+      hidden: true,
+      dataset: { joinedAt },
+      years: { textContent: '' },
+      querySelector() { return this.years; }
+    };
+    const document = {
+      querySelector(selector) {
+        return selector === '[data-profile-anniversary]' ? celebration : null;
+      },
+      addEventListener() {}
+    };
+    class LocalDate extends Date {
+      constructor(...args) {
+        super(...(args.length ? args : [today]));
+      }
+    }
+    vm.runInNewContext(script, {
+      Date: LocalDate,
+      document,
+      window: { setTimeout() {} }
+    });
+    return { visible: !celebration.hidden, label: celebration.years.textContent };
+  };
+
+  assert.deepEqual(shouldCelebrate('2021-04-15T12:00:00.000Z', '2026-04-15T12:00:00.000Z'), {
+    visible: true,
+    label: '5 years on Crowdwide'
+  });
+  assert.equal(shouldCelebrate('2021-04-15T12:00:00.000Z', '2026-04-16T12:00:00.000Z').visible, false);
+  assert.equal(shouldCelebrate('2026-04-15T12:00:00.000Z', '2026-04-15T12:00:00.000Z').visible, false);
+  assert.equal(shouldCelebrate('2020-02-29T12:00:00.000Z', '2021-02-28T12:00:00.000Z').visible, true);
+  assert.equal(shouldCelebrate('2020-02-29T12:00:00.000Z', '2024-02-29T12:00:00.000Z').visible, true);
+  assert.equal(shouldCelebrate('2020-02-29T12:00:00.000Z', '2024-02-28T12:00:00.000Z').visible, false);
 });
 
 test('public discovery surfaces use theme tokens and responsive filter/navigation layouts', () => {

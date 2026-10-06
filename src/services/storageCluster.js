@@ -30,6 +30,7 @@ const BUCKET_NAME = 'crowdwideMedia';
 let connections = [];
 let bucketCache = new Map();
 let ready = false;
+let configuredConnectionCount = 1;
 
 function discoverExtraClusterUris() {
   const uris = [];
@@ -53,6 +54,7 @@ async function initStorageClusters() {
   bucketCache = new Map();
 
   const extraUris = discoverExtraClusterUris();
+  configuredConnectionCount = extraUris.length + 1;
   for (const [offset, uri] of extraUris.entries()) {
     const clusterIndex = offset + 1;
     try {
@@ -78,6 +80,10 @@ function clusterCount() {
 
 function isReady() {
   return ready;
+}
+
+function allConfiguredClustersConnected() {
+  return ready && connections.length === configuredConnectionCount && connections.every((connection) => connection.readyState === 1);
 }
 
 function getBucket(clusterIndex) {
@@ -218,6 +224,21 @@ async function clusterStatus() {
   })));
 }
 
+async function databaseStorageStats() {
+  if (!allConfiguredClustersConnected()) {
+    throw new Error('One or more configured MongoDB storage clusters are not connected.');
+  }
+  return Promise.all(connections.map(async (connection, index) => {
+    if (!connection.db) throw new Error(`Storage cluster ${index} is not connected.`);
+    const stats = await connection.db.command({ dbStats: 1 });
+    return {
+      cluster: index,
+      filesystemUsedBytes: Number(stats.fsUsedSize),
+      filesystemTotalBytes: Number(stats.fsTotalSize)
+    };
+  }));
+}
+
 module.exports = {
   initStorageClusters,
   uploadBuffer,
@@ -227,5 +248,7 @@ module.exports = {
   mediaUrl,
   clusterCount,
   clusterStatus,
-  isReady
+  databaseStorageStats,
+  isReady,
+  allConfiguredClustersConnected
 };
