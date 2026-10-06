@@ -953,6 +953,7 @@ html { scrollbar-gutter: stable; }
 .community-detail-meta { display: flex; align-items: center; gap: 20px; color: var(--tx-faint); font-size: 12px; flex-wrap: wrap; }
 .community-detail-meta strong { color: var(--ac-orange); font: 600 22px 'Space Grotesk', sans-serif; }
 .community-posts { max-width: 1570px; width: 100%; padding-top: 34px; }
+.profile-posts { background: transparent; border: 0; box-shadow: none; color: inherit; }
 .community-posts .panel-heading { margin-bottom: 14px; }
 .privacy-check { display: flex !important; align-items: center; gap: 8px !important; }
 .privacy-check input { width: auto !important; }
@@ -1697,12 +1698,12 @@ body[data-theme="light"] .post-card,
 body[data-theme="light"] .composer,
 body[data-theme="light"] .settings-block,
 body[data-theme="light"] .notification-item,
-body[data-theme="light"] .community-posts,
+body[data-theme="light"] .community-posts:not(.profile-posts),
 body[data-theme="pink"] .post-card,
 body[data-theme="pink"] .composer,
 body[data-theme="pink"] .settings-block,
 body[data-theme="pink"] .notification-item,
-body[data-theme="pink"] .community-posts { background: var(--panel); color: #282d38; border-color: var(--line); }
+body[data-theme="pink"] .community-posts:not(.profile-posts) { background: var(--panel); color: #282d38; border-color: var(--line); }
 body[data-theme="light"] .post-body,
 body[data-theme="light"] .profile-bio,
 body[data-theme="light"] .activity-row p,

@@ -82,7 +82,7 @@
 	</nav>
 
 	<% if (isSelf && profileTab === 'activity') { %>
-	<section class="community-posts activity-section">
+	<section class="community-posts profile-posts activity-section">
 		<div class="panel-heading"><h2>Recent activity</h2><span>You</span></div>
 		<% activity.forEach((item) => { %>
 		<div class="activity-row">
@@ -97,7 +97,7 @@
 	</section>
 	<% } %>
 	<% if (profileTab === 'comments') { %>
-	<section class="community-posts activity-section">
+	<section class="community-posts profile-posts activity-section">
 		<div class="panel-heading"><h2><%= isSelf ? 'Your comments' : `${profileUser.name}'s comments` %></h2><span><%= profileComments.length %></span></div>
 		<% if (!profileComments.length) { %><div class="empty-feed"><h2>No comments yet.</h2><p>This profile has not joined a conversation yet.</p></div><% } %>
 		<% profileComments.forEach((comment) => { %>
@@ -108,7 +108,7 @@
 
 	<% if (isSelf && profileTab === 'stats') { %>
 	<% const maxMonthCount = Math.max(1, ...statsDetail.months.map((m) => m.count)); %>
-	<section class="community-posts stats-tab-section">
+	<section class="community-posts profile-posts stats-tab-section">
 		<div class="panel-heading"><h2>Posts over the last 6 months</h2><span><%= statsDetail.months.reduce((sum, m) => sum + m.count, 0) %> posts</span></div>
 		<div class="stats-bars">
 			<% statsDetail.months.forEach((m) => { %>
@@ -119,7 +119,7 @@
 			<% }) %>
 		</div>
 	</section>
-	<section class="community-posts stats-tab-section">
+	<section class="community-posts profile-posts stats-tab-section">
 		<div class="panel-heading"><h2>Post mix &amp; averages</h2></div>
 		<div class="engagement-grid stats-mix-grid">
 			<div><strong><%= statsDetail.typeCounts.post %></strong><span>Posts</span></div>
@@ -128,7 +128,7 @@
 			<div><strong><%= statsDetail.avgLikes %></strong><span>Avg likes / post</span></div>
 		</div>
 	</section>
-	<section class="community-posts">
+	<section class="community-posts profile-posts">
 		<div class="panel-heading"><h2>Your top posts</h2><span>By likes</span></div>
 		<% if (!statsDetail.topPosts.length) { %><div class="empty-feed"><h2>No published posts yet.</h2><p>Your best-performing posts will show up here once they've been out for a bit.</p></div><% } %>
 		<% statsDetail.topPosts.forEach((post, index) => { %>
@@ -144,7 +144,7 @@
 	<% } %>
 
 	<% if (profileTab !== 'activity' && profileTab !== 'comments' && profileTab !== 'stats') { %>
-	<section class="community-posts">
+	<section class="community-posts profile-posts">
 		<div class="panel-heading"><h2><%= profileTab === 'likes' ? `${profileUser.name}'s likes` : profileTab === 'saved' ? 'Saved posts' : isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= displayedPosts.length %></span></div>
 		<% if (!displayedPosts.length) { %>
 		<div class="empty-feed"><h2><%= profileTab === 'saved' ? 'No saved posts yet.' : 'No posts yet.' %></h2><p><%= isSelf ? 'Posts and conversations you collect will appear here.' : 'This person has not posted yet.' %></p></div>

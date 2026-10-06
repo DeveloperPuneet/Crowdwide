@@ -119,6 +119,15 @@ test('light and pink themes set readable text, control, and surface colors', () 
   assert.match(playerCss, /\.cw-player--audio \.cw-volume-range::-(webkit|moz)-slider-thumb \{ background: var\(--theme-accent\);/);
 });
 
+test('profile post sections do not render an extra theme-dependent surface or border', () => {
+  const profile = read('src', 'views', 'pages', 'profile.ejs');
+  const css = read('public', 'css', 'style.css');
+  assert.equal((profile.match(/class="community-posts profile-posts(?: [^"]*)?"/g) || []).length, 6);
+  assert.match(css, /\.profile-posts\s*\{[^}]*background:\s*transparent;[^}]*border:\s*0;[^}]*box-shadow:\s*none;/);
+  assert.match(css, /body\[data-theme="light"\] \.community-posts:not\(\.profile-posts\)/);
+  assert.match(css, /body\[data-theme="pink"\] \.community-posts:not\(\.profile-posts\)/);
+});
+
 test('public discovery surfaces use theme tokens and responsive filter/navigation layouts', () => {
   const css = read('public', 'css', 'style.css');
   const responsive = read('public', 'css', 'responsive-layout.css');
