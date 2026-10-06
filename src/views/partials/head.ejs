@@ -15,23 +15,24 @@
   <title><%= title %> · Crowdwide</title>
   <meta name="description" content="<%= locals.description || 'Crowdwide is a calmer social network for real discovery, thoughtful communities, and voices worth finding.' %>">
   <meta name="robots" content="<%= locals.noIndex ? 'noindex,nofollow' : 'index,follow' %>">
-  <link rel="canonical" href="<%= locals.canonicalUrl || 'http://localhost:3000' + (locals.pagePath || '/') %>">
-  <meta property="og:type" content="website">
+  <link rel="canonical" href="<%= locals.canonicalUrl || (locals.appUrl || 'http://localhost:3000').replace(/\/$/, '') + (locals.pagePath || '/') %>">
+  <meta property="og:type" content="<%= locals.ogType || 'website' %>">
   <meta property="og:site_name" content="Crowdwide">
   <meta property="og:title" content="<%= title %> · Crowdwide">
   <meta property="og:description" content="<%= locals.description || 'A fair chance at discovery.' %>">
-  <meta property="og:url" content="<%= locals.canonicalUrl || 'http://localhost:3000' + (locals.pagePath || '/') %>">
-  <meta property="og:image" content="/images/Crowdwide_cover.png">
+  <meta property="og:url" content="<%= locals.canonicalUrl || (locals.appUrl || 'http://localhost:3000').replace(/\/$/, '') + (locals.pagePath || '/') %>">
+  <meta property="og:image" content="<%= locals.ogImage || (locals.appUrl || 'http://localhost:3000').replace(/\/$/, '') + '/images/Crowdwide_cover.png' %>">
+  <meta property="og:image:alt" content="Crowdwide — a fair chance at discovery">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="<%= title %> · Crowdwide">
   <meta name="twitter:description" content="<%= locals.description || 'A fair chance at discovery.' %>">
-  <meta name="twitter:image" content="/images/Crowdwide_cover.png">
+  <meta name="twitter:image" content="<%= locals.ogImage || (locals.appUrl || 'http://localhost:3000').replace(/\/$/, '') + '/images/Crowdwide_cover.png' %>">
   <meta name="csrf-token" content="<%= csrfToken || '' %>">
   <meta name="app-url" content="<%= locals.appUrl || 'http://localhost:3000' %>">
   <link rel="alternate" type="application/rss+xml" title="Crowdwide RSS" href="/rss.xml">
   <link rel="icon" type="image/png" href="/images/Crowdwide_logo_192.png">
   <link rel="apple-touch-icon" href="/images/Crowdwide_logo_192.png">
-  <% if (locals.structuredData) { %><script type="application/ld+json"><%- JSON.stringify(locals.structuredData) %></script><% } %>
+  <% if (locals.structuredData) { %><script type="application/ld+json"><%- JSON.stringify(locals.structuredData).replace(/</g, '\\u003c') %></script><% } %>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <%# The web-font stylesheet is added by app.js after first paint (see loadWebFonts), so a slow or blocked font host can never hold the page back. %>

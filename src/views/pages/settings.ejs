@@ -58,7 +58,7 @@
         <legend>Email updates</legend>
         <p>Choose what Crowdwide sends to your inbox.</p>
         <label class="notification-option"><span><strong>Unread notification summary</strong><small>Email me when I have 5 unread notifications.</small></span><input type="checkbox" name="emailUnreadSummary" <%= user.notificationPreferences?.emailUnreadSummary !== false ? 'checked' : '' %>></label>
-        <label class="notification-option"><span><strong>Weekly email newsletter</strong><small>Engaging posts and recommendations matched to your interests. Each post is sent only once.</small></span><input type="checkbox" name="emailNewsletter" <%= user.notificationPreferences?.emailNewsletter !== false ? 'checked' : '' %>></label>
+        <label class="notification-option"><span><strong>Weekly email newsletter</strong><small>Up to 20 new picks: 10 for you, 5 trending, and 5 from relevant communities. Posts are not repeated.</small></span><input type="checkbox" name="emailNewsletter" <%= user.notificationPreferences?.emailNewsletter !== false ? 'checked' : '' %>></label>
       </fieldset>
       <button class="button button-primary" type="submit">Save notification settings <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
     </form>

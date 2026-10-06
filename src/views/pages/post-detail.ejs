@@ -4,7 +4,7 @@
 <% } else { %>
 <header class="site-nav container">
 	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
-	<a class="button button-small button-ghost" href="/auth/register">Join Crowdwide <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a>
+	<div class="post-guest-actions"><a class="button button-small button-ghost" href="/auth/login">Sign in</a><a class="button button-small button-primary" href="/auth/register">Join Crowdwide <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a></div>
 </header>
 <% } %>
 <main class="post-page">
@@ -27,7 +27,7 @@
 		<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
 		<div class="post-view-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
 		<% if (post.poll?.question && post.poll.options?.length) { %>
-		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %></section>
+		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %><% if (!currentUser) { %><a class="public-interaction-prompt" href="/auth/register">Create an account to vote in this poll</a><% } %></section>
 		<% } %>
 		<% if (post.quotedPost) { %><a class="quoted-post" href="/posts/<%= post.quotedPost._id %>"><strong><%= post.quotedPost.author?.name || 'Crowdwide member' %>'s post</strong><p><%= post.quotedPost.body %></p></a><% } %>
 		<% if (post.replyTo) { %><a class="quoted-post reply-source" href="/posts/<%= post.replyTo._id %>"><strong>Replying to <%= post.replyTo.author?.name || 'Crowdwide member' %></strong><p><%= post.replyTo.body %></p></a><% } %>
@@ -108,6 +108,8 @@
 		<div class="panel-heading"><h2>Comments</h2><span data-comment-total><%= comments.length %></span></div>
 		<% if (currentUser) { %>
 		<%- include('../partials/comment-form', { action: '/posts/' + post._id + '/comments', placeholder: 'Add a comment...', showAvatar: true, fieldId: 'comment-body', csrfToken }) %>
+		<% } else { %>
+		<div class="public-comments-join"><p>Reading the conversation is open to everyone. Create an account to add your voice.</p><a class="button button-primary button-small" href="/auth/register">Join the conversation</a></div>
 		<% } %>
 		<p class="no-comments" data-no-comments<%- comments.length ? ' hidden' : '' %>>No comments yet. Start the conversation.</p>
 		<div class="post-detail-thread">

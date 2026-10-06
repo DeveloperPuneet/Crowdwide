@@ -9,32 +9,45 @@ test('newsletter delivery is scheduled Sunday at 10:30 and email options default
   assert.equal(User.schema.path('notificationPreferences.emailUnreadSummary').defaultValue, true);
 });
 
-test('newsletter selection returns five engaged and seven interest posts without repeats or private posts', () => {
+test('newsletter selection returns 10 personalized, five trending, and five community posts without repeats', () => {
   const now = Date.now();
   const createdAt = new Date(now - 24 * 60 * 60 * 1000);
-  const engaged = Array.from({ length: 5 }, (_, index) => ({
-    _id: `engaged-${index}`, author: { _id: `author-${index}`, name: 'Member' }, createdAt,
-    hashtags: [], likes: Array(10 - index).fill('reader'), commentsCount: 0
-  }));
-  const interest = Array.from({ length: 8 }, (_, index) => ({
-    _id: `interest-${index}`, author: { _id: `maker-${index}`, name: 'Maker' }, createdAt,
+  const personalized = Array.from({ length: 10 }, (_, index) => ({
+    _id: `personalized-${index}`, author: { _id: `author-${index}`, name: 'Member' }, createdAt,
     hashtags: ['makers'], likes: []
   }));
+  const trending = Array.from({ length: 5 }, (_, index) => ({
+    _id: `trending-${index}`, author: { _id: `trending-author-${index}` }, createdAt,
+    hashtags: [], likes: Array(20 - index).fill('reader')
+  }));
+  const communityPosts = Array.from({ length: 5 }, (_, index) => ({
+    _id: `community-${index}`, author: { _id: `community-author-${index}` }, createdAt,
+    community: { _id: `joined-${index}`, name: 'A community', isPrivate: index === 0 },
+    hashtags: [], likes: []
+  }));
   const posts = [
-    ...engaged,
-    ...interest,
+    ...personalized,
+    ...trending,
+    ...communityPosts,
     { _id: 'already-sent', author: { _id: 'writer' }, createdAt, hashtags: ['makers'], likes: [] },
     { _id: 'private', author: { _id: 'writer' }, community: { _id: 'private-community', isPrivate: true }, createdAt, hashtags: ['makers'], likes: [1] }
   ];
-  const user = { _id: 'reader', newsletterSentPosts: ['already-sent'], joinedCommunities: [] };
+  const user = {
+    _id: 'reader',
+    newsletterSentPosts: ['already-sent'],
+    joinedCommunities: ['joined-0', 'joined-1', 'joined-2', 'joined-3', 'joined-4']
+  };
 
   const result = buildNewsletterSelection(posts, user, new Map([['makers', 1]]), now);
 
-  assert.equal(result.engagedPosts.length, 5);
-  assert.equal(result.interestPosts.length, 7);
-  const selectedIds = [...result.engagedPosts, ...result.interestPosts].map((post) => String(post._id));
-  assert.equal(new Set(selectedIds).size, 12);
+  assert.equal(result.personalizedPosts.length, 10);
+  assert.equal(result.trendingPosts.length, 5);
+  assert.equal(result.communityPosts.length, 5);
+  const selectedIds = [...result.personalizedPosts, ...result.trendingPosts, ...result.communityPosts].map((post) => String(post._id));
+  assert.equal(new Set(selectedIds).size, 20);
   assert.ok(!selectedIds.includes('already-sent'));
   assert.ok(!selectedIds.includes('private'));
-  assert.ok(result.interestPosts.every((post) => post.hashtags.includes('makers')));
+  assert.ok(result.personalizedPosts.every((post) => post.hashtags.includes('makers')));
+  assert.ok(result.trendingPosts.every((post) => post._id.startsWith('trending-')));
+  assert.ok(result.communityPosts.every((post) => post.community));
 });

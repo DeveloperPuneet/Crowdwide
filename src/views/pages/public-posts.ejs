@@ -1,0 +1,46 @@
+<%- include('../partials/head', { title, description, pagePath, canonicalUrl, ogType, structuredData, bodyClass: 'public-posts-body', noIndex }) %>
+<% if (locals.currentUser) { %>
+<%- include('../partials/app-nav', { active: 'posts', currentUser }) %>
+<% } else { %>
+<header class="site-nav container public-posts-nav">
+	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
+	<div><a class="button button-small button-ghost" href="/auth/login">Sign in</a><a class="button button-small button-primary" href="/auth/register">Join Crowdwide</a></div>
+</header>
+<% } %>
+<main class="public-posts-page container">
+	<header class="public-posts-hero">
+		<p class="eyebrow">Open discovery</p>
+		<h1>Good conversations are public.</h1>
+		<p>Read posts, articles, and polls from across Crowdwide. Join in whenever you are ready.</p>
+		<div class="public-posts-count"><strong><%= total.toLocaleString() %></strong> public <%= type ? `${type}s` : 'conversations' %></div>
+	</header>
+	<nav class="public-post-filters" aria-label="Filter public posts">
+		<a class="<%= !type ? 'is-active' : '' %>" href="/posts">All</a>
+		<a class="<%= type === 'post' ? 'is-active' : '' %>" href="/posts?type=post">Posts</a>
+		<a class="<%= type === 'article' ? 'is-active' : '' %>" href="/posts?type=article">Articles</a>
+		<a class="<%= type === 'poll' ? 'is-active' : '' %>" href="/posts?type=poll">Polls</a>
+	</nav>
+	<section class="public-post-feed" aria-label="<%= type ? `${type} posts` : 'Public posts' %>">
+		<% if (posts.length) { %>
+			<% posts.forEach((post) => { %><%- include('../partials/post-card', { post }) %><% }) %>
+		<% } else { %>
+			<div class="public-post-empty"><h2>No public posts here yet</h2><p>Try another filter or come back when the community has shared more.</p></div>
+		<% } %>
+	</section>
+	<% const pageUrl = (number) => `/posts${type ? `?type=${type}&` : '?'}page=${number}`; %>
+	<% if (page > 1 || hasMore) { %>
+	<nav class="public-post-pagination" aria-label="Public posts pages">
+		<% if (page > 1) { %><a class="button button-ghost" href="<%= pageUrl(page - 1) %>">← Newer posts</a><% } %>
+		<span>Page <%= page %></span>
+		<% if (hasMore) { %><a class="button button-ghost" href="<%= pageUrl(page + 1) %>">Older posts →</a><% } %>
+	</nav>
+	<% } %>
+	<% if (!locals.currentUser) { %>
+	<aside class="public-posts-join">
+		<div><strong>Find your people on Crowdwide.</strong><span>Create a free account to vote, like, comment, and share.</span></div>
+		<a class="button button-primary button-small" href="/auth/register">Create your account</a>
+	</aside>
+	<% } %>
+</main>
+<%- include('../partials/site-footer') %>
+<%- include('../partials/foot') %>

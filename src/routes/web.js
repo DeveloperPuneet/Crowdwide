@@ -67,6 +67,7 @@ router.post('/groups/:id/invite/revoke', requireAuth, requireVerified, interacti
 router.get('/gifs/search', requireAuth, requireVerified, gifLimiter, gifController.search);
 router.get('/share/targets', requireAuth, requireVerified, pollLimiter, shareController.targets);
 router.post('/posts/:id/share/send', requireAuth, requireVerified, interactionLimiter, shareController.send);
+router.get('/posts', controller.publicPosts);
 router.get('/posts/:id/edit', requireAuth, requireVerified, interactionController.editPostPage);
 router.get('/posts/:id/reply', requireAuth, requireVerified, interactionController.replyPostPage);
 router.get('/posts/:id', interactionController.postDetail);

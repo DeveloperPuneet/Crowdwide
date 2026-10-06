@@ -566,3 +566,61 @@ test('footers link to the new docs and help pages, and the GitHub link uses a re
   assert.doesNotMatch(footer, /aria-label="Crowdwide on GitHub">⌥/);
   assert.match(footer, /icon-github/);
 });
+
+test('public post listing renders guest-readable posts with account-gated interactions and SEO data', async () => {
+  const html = await render('pages/public-posts.ejs', {
+    currentUser: null,
+    title: 'Polls on Crowdwide',
+    description: 'Public polls',
+    pagePath: '/posts?type=poll',
+    canonicalUrl: 'https://crowdwide.example/posts?type=poll',
+    ogType: 'website',
+    structuredData: { '@context': 'https://schema.org', '@type': 'CollectionPage' },
+    noIndex: false,
+    type: 'poll',
+    posts: [post(101, {
+      type: 'poll',
+      poll: { question: 'What should we build next?', options: [{ label: 'Better discovery', votes: ['u1'] }] }
+    })],
+    page: 1,
+    hasMore: false,
+    total: 1
+  });
+
+  assert.match(html, /Good conversations are public/);
+  assert.match(html, /What should we build next/);
+  assert.match(html, /Create an account to vote/);
+  assert.match(html, /Join Crowdwide to like, comment, and share/);
+  assert.match(html, /https:\/\/crowdwide\.example\/posts\?type=poll/);
+  assert.match(html, /application\/ld\+json/);
+  assert.doesNotMatch(html, /<form[^>]+action="\/posts\/p101\/(?:like|poll\/vote)"/);
+});
+
+test('guests can read comment threads but only see account-gated comment actions', async () => {
+  const html = await render('pages/post-detail.ejs', {
+    currentUser: null,
+    title: 'Poll by A',
+    pagePath: '/posts/p102',
+    description: 'A public poll',
+    post: {
+      ...post(102),
+      type: 'poll',
+      poll: { question: 'Which topic?', options: [{ label: 'Craft', votes: ['u1'] }] },
+      liked: false,
+      bookmarked: false,
+      quotedPost: null,
+      replyTo: null
+    },
+    comments: [{ _id: 'c1' }],
+    commentTree: [{
+      _id: 'c1', author: { _id: 'a2', name: 'B' }, body: 'A readable comment',
+      createdAt: new Date(), likes: ['u1'], reactions: [], children: []
+    }]
+  });
+
+  assert.match(html, /A readable comment/);
+  assert.match(html, /Create an account to vote in this poll/);
+  assert.match(html, /Create an account to like this comment/);
+  assert.match(html, /Join the conversation/);
+  assert.doesNotMatch(html, /<form[^>]+action="\/(?:posts\/p102\/(?:like|poll\/vote|comments)|comments\/c1\/like)"/);
+});

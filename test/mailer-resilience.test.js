@@ -8,7 +8,7 @@ process.env.MAIL_PASS = 'test-pass';
 delete process.env.MAIL_PROVIDER; // use the generic SMTP branch, not gmail
 
 const nodemailer = require('nodemailer');
-const { sendVerificationCode, sendSecurityAlert, sendNewDeviceAlert, sendPasswordResetLink } = require('../src/services/mailer');
+const { sendVerificationCode, sendSecurityAlert, sendNewDeviceAlert, sendPasswordResetLink, sendWeeklyNewsletter } = require('../src/services/mailer');
 
 function mockFailingTransport(t) {
   t.mock.method(nodemailer, 'createTransport', () => ({
@@ -87,4 +87,30 @@ test('auth emails use branded layouts and escape user-controlled content', async
   assert.match(reset.html, /href="https:\/\/crowdwide\.test\/reset\?token=abc&amp;next=profile"/);
   assert.match(reset.html, /Choose a new password/);
   assert.match(reset.html, /expires in 30 minutes/);
+});
+
+test('weekly newsletter uses three responsive sections and links to all selected posts', async (t) => {
+  const sendMailCalls = mockWorkingTransport(t);
+  const posts = (prefix, count, extra = {}) => Array.from({ length: count }, (_, index) => ({
+    _id: `${prefix}-${index}`,
+    author: { name: 'Crowdwide member' },
+    body: `A useful idea ${index}`,
+    ...extra
+  }));
+  await sendWeeklyNewsletter({ email: 'reader@example.com', name: 'Pat Reader' }, {
+    personalizedPosts: posts('personal', 10),
+    trendingPosts: posts('trending', 5, { type: 'poll', poll: { question: 'Which idea should we explore?' } }),
+    communityPosts: posts('community', 5, { community: { name: 'Thoughtful Makers' } })
+  });
+
+  const [mail] = sendMailCalls;
+  assert.ok(mail);
+  assert.match(mail.html, /Picked for you/);
+  assert.match(mail.html, /Trending this week/);
+  assert.match(mail.html, /From communities you may like/);
+  assert.match(mail.html, /Thoughtful Makers/);
+  assert.match(mail.html, /Which idea should we explore\?/);
+  assert.match(mail.html, /Explore more posts/);
+  assert.equal((mail.html.match(/href="https:\/\/www\.crowdwide\.run\.place\/posts\/(?:personal|trending|community)-\d"/g) || []).length, 20);
+  assert.match(mail.text, /10 picks for you, 5 trending conversations, and 5 community posts/);
 });

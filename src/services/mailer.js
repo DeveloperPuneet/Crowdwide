@@ -353,34 +353,40 @@ async function sendPasswordResetLink(user, resetUrl) {
   await deliver(mail, `Password reset email for ${user.email} (reset link omitted)`);
 }
 
-function postEmailCard(post, appUrl) {
+function postEmailCard(post, appUrl, index) {
   const url = safeEmailUrl(`${appUrl}/posts/${post._id}`);
   if (!url) return '';
   const body = String(post.body || '').slice(0, 260);
   const author = post.author?.name || 'Crowdwide member';
-  return `<tr><td style="padding:14px 16px;border:1px solid #e0e2f0;border-radius:10px;background-color:#fbfbff;"><div style="margin-bottom:6px;color:#68708a;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(author)}</div><p style="margin:0 0 10px;color:#252b45;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;">${escapeHtml(body)}${String(post.body || '').length > 260 ? '…' : ''}</p><a href="${escapeHtml(url)}" style="color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read post &rarr;</a></td></tr><tr><td height="10" style="height:10px;font-size:0;line-height:0;">&nbsp;</td></tr>`;
+  const type = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post';
+  const community = post.community?.name ? `<span style="color:#737b91;"> · ${escapeHtml(post.community.name)}</span>` : '';
+  const pollQuestion = post.type === 'poll' && post.poll?.question ? `<p style="margin:0 0 8px;color:#252b45;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;line-height:1.5;">${escapeHtml(post.poll.question)}</p>` : '';
+  return `<tr><td style="padding:0 0 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border:1px solid #e2e5f0;border-radius:13px;background-color:#ffffff;"><tr><td style="padding:16px 18px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="color:#626a88;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;"><strong style="color:#414966;">${escapeHtml(author)}</strong>${community}</td><td align="right" style="color:#5962d7;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:.6px;">${escapeHtml(type.toUpperCase())} · ${index}</td></tr></table>${pollQuestion}<p style="margin:9px 0 13px;color:#30364b;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;">${escapeHtml(body)}${String(post.body || '').length > 260 ? '…' : ''}</p><a href="${escapeHtml(url)}" style="display:inline-block;padding:9px 13px;border-radius:8px;background-color:#f0f1ff;color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read conversation &nbsp;&rarr;</a></td></tr></table></td></tr>`;
 }
 
-async function sendWeeklyNewsletter(user, { engagedPosts = [], interestPosts = [] }) {
+async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPosts = [], communityPosts = [] }) {
   const appUrl = (safeEmailUrl(env('APP_URL') || 'https://www.crowdwide.run.place') || 'https://www.crowdwide.run.place').replace(/\/$/, '');
-  const posts = [...engagedPosts, ...interestPosts];
+  const posts = [...personalizedPosts, ...trendingPosts, ...communityPosts];
   if (!posts.length) return false;
-  const section = (heading, rows) => rows.length
-    ? `<h2 style="margin:22px 0 10px;color:#202641;font-family:Arial,sans-serif;font-size:17px;">${heading}</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl)).join('')}</table>`
+  let cardNumber = 0;
+  const section = (heading, description, rows) => rows.length
+    ? `<tr><td style="padding:20px 22px 0;"><div style="margin-bottom:5px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;">${rows.length} selected for you</div><h2 style="margin:0;color:#202641;font-family:Arial,sans-serif;font-size:19px;line-height:1.35;">${heading}</h2><p style="margin:5px 0 13px;color:#737b91;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">${description}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl, ++cardNumber)).join('')}</table></td></tr>`
     : '';
-  const html = `${section('Most engaged this week', engagedPosts)}${section('Picked for your interests', interestPosts)}`;
+  const html = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td style="padding:22px;background-color:#f2f3ff;border-bottom:1px solid #e0e2ff;"><div style="margin-bottom:7px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.4px;">YOUR PERSONALIZED EDITION</div><p style="margin:0;color:#252b45;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;line-height:1.5;">${posts.length} conversations, ideas, and communities to explore</p><p style="margin:5px 0 0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">A blend of your interests, what's trending, and communities you may enjoy.</p></td></tr>${section('Picked for you', 'Posts from people and topics that match your interests.', personalizedPosts)}${section('Trending this week', 'Conversations resonating across Crowdwide.', trendingPosts)}${section('From communities you may like', 'Community conversations connected to your interests.', communityPosts)}<tr><td style="padding:22px;"><a href="${escapeHtml(appUrl)}/posts" style="display:block;padding:13px 18px;border-radius:9px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;text-align:center;text-decoration:none;">Explore more posts &nbsp;&rarr;</a></td></tr></table>`;
   const text = posts.map((post) => `${post.author?.name || 'Crowdwide member'}: ${String(post.body || '').slice(0, 260)}\n${appUrl}/posts/${post._id}`).join('\n\n');
   return deliver({
     from: fromAddress(),
     to: user.email,
-    subject: 'Your Crowdwide weekly: conversations worth a look',
-    text: `A weekly selection of active and interest-matched posts.\n\n${text}\n\nManage this email in Settings: ${appUrl}/settings/notifications`,
+    subject: 'Your Crowdwide weekly: ideas and conversations for you',
+    text: `Your personalized Crowdwide edition: ${personalizedPosts.length} picks for you, ${trendingPosts.length} trending conversations, and ${communityPosts.length} community posts.\n\n${text}\n\nExplore more posts: ${appUrl}/posts\nManage this email in Settings: ${appUrl}/settings/notifications`,
     html: brandedEmail({
       heading: `A week on Crowdwide${user.name ? `, ${user.name.split(' ')[0]}` : ''}`,
-      message: 'Here are active conversations and posts matched to the topics you follow.',
-      preheader: 'Five active conversations and up to seven picks for your interests',
+      message: 'A considered mix of your interests, lively conversations, and communities worth discovering.',
+      preheader: `${posts.length} conversations and community posts selected for you`,
       eyebrow: 'YOUR WEEKLY DIGEST',
       contentHtml: html,
+      actionUrl: `${appUrl}/posts`,
+      actionLabel: 'Explore Crowdwide',
       note: `This weekly email is optional. You can turn it off any time in Settings: ${appUrl}/settings/notifications`
     })
   }, `Weekly newsletter for ${user.email}`);

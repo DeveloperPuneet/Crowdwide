@@ -31,7 +31,7 @@ const redirectBack = (req, res, payload = {}) => {
 
 const canAccessPost = async (post, userId) => {
   if (!post) return false;
-  if (['draft', 'scheduled'].includes(post.status) && String(post.author) !== String(userId)) return false;
+  if (post.status !== 'published' && String(post.author) !== String(userId)) return false;
   if (post.community) {
     const restricted = await Community.exists({ _id: post.community, isPrivate: true, members: { $ne: userId } });
     if (restricted) return false;
@@ -394,7 +394,7 @@ function buildCommentTree(comments) {
 
 exports.postDetail = async (req, res) => {
   const viewerId = req.session.user?.id;
-  const existing = await Post.findOne({ _id: req.params.id, $or: [{ status: { $nin: ['draft', 'scheduled'] } }, { author: viewerId || null }] }).select('author status community').lean();
+  const existing = await Post.findOne({ _id: req.params.id, $or: [{ status: 'published' }, { author: viewerId || null }] }).select('author status community').lean();
   if (!(await canAccessPost(existing, viewerId))) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } }, { new: true })
     .populate('author', 'name profilePicture')
@@ -427,7 +427,43 @@ exports.postDetail = async (req, res) => {
   const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean())
     .filter((comment) => !blockedIds.includes(String(comment.author?._id)));
   const commentTree = buildCommentTree(comments);
-  res.render('pages/post-detail', { title: `${post.author?.name || 'Crowdwide'} post`, pagePath: `/posts/${post._id}`, noIndex: false, post, comments, commentTree, postModerationRole });
+  const postType = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post';
+  const summary = post.type === 'poll' ? post.poll?.question || post.body : post.body;
+  const description = String(summary || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  const appUrl = String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const pageUrl = `${appUrl}/posts/${post._id}`;
+  const articleHeadline = String(post.body || '').split(/\r?\n/).find((line) => line.trim())?.trim().slice(0, 72) || 'Article';
+  const title = post.type === 'article'
+    ? `${articleHeadline} · Article`
+    : `${postType} by ${post.author?.name || 'Crowdwide member'}`;
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': post.type === 'article' ? 'Article' : 'SocialMediaPosting',
+    headline: title,
+    description,
+    datePublished: new Date(post.createdAt).toISOString(),
+    author: { '@type': 'Person', name: post.author?.name || 'Crowdwide member' },
+    mainEntityOfPage: pageUrl,
+    publisher: { '@type': 'Organization', name: 'Crowdwide', url: appUrl }
+  };
+  const imagePath = post.media?.find((media) => media.kind === 'image')?.url;
+  const ogImage = imagePath?.startsWith('https://') || imagePath?.startsWith('http://')
+    ? imagePath
+    : imagePath?.startsWith('/') ? `${appUrl}${imagePath}` : undefined;
+  res.render('pages/post-detail', {
+    title,
+    description,
+    pagePath: `/posts/${post._id}`,
+    canonicalUrl: pageUrl,
+    ogType: post.type === 'article' ? 'article' : 'website',
+    ogImage,
+    structuredData,
+    noIndex: false,
+    post,
+    comments,
+    commentTree,
+    postModerationRole
+  });
 };
 
 exports.commentThread = async (req, res) => {

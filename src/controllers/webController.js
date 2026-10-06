@@ -76,6 +76,80 @@ exports.home = async (req, res) => {
 	}
 };
 
+exports.publicPosts = async (req, res) => {
+	try {
+		const allowedTypes = new Set(['post', 'article', 'poll']);
+		const type = allowedTypes.has(req.query.type) ? req.query.type : '';
+		const requestedPage = Number.parseInt(req.query.page, 10);
+		const page = Math.min(Math.max(Number.isNaN(requestedPage) ? 1 : requestedPage, 1), 500);
+		const pageSize = 20;
+		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
+		const filter = {
+			status: 'published',
+			moderationStatus: { $ne: 'reported' },
+			community: { $nin: restrictedCommunityIds },
+			...(type ? { type } : {})
+		};
+		const [results, total] = await Promise.all([
+			Post.find(filter).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * pageSize).limit(pageSize + 1)
+				.populate('author', 'name profilePicture')
+				.populate('coAuthors', 'name profilePicture')
+				.populate('community', 'name slug isPrivate')
+				.lean(),
+			Post.countDocuments(filter)
+		]);
+		const hasMore = results.length > pageSize;
+		const posts = results.slice(0, pageSize);
+		const viewerId = req.session?.user?.id;
+		if (viewerId) {
+			posts.forEach((post) => {
+				post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
+			});
+		}
+		const pagePath = `/posts${type ? `?type=${type}` : ''}`;
+		const title = type === 'article' ? 'Articles on Crowdwide'
+			: type === 'poll' ? 'Polls on Crowdwide'
+				: type === 'post' ? 'Posts on Crowdwide' : 'Discover posts on Crowdwide';
+		const description = type === 'article' ? 'Read thoughtful articles shared by the Crowdwide community.'
+			: type === 'poll' ? 'Explore polls and opinions from public Crowdwide communities.'
+				: 'Discover public posts, articles, and polls from people and communities on Crowdwide.';
+		const appUrl = String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+		res.render('pages/public-posts', {
+			title,
+			description,
+			pagePath,
+			canonicalUrl: `${appUrl}${pagePath}`,
+			ogType: type === 'article' ? 'article' : 'website',
+			noIndex: page > 1,
+			type,
+			posts,
+			page,
+			hasMore,
+			total,
+			structuredData: {
+				'@context': 'https://schema.org',
+				'@type': 'CollectionPage',
+				name: title,
+				description,
+				url: `${appUrl}${pagePath}`,
+				mainEntity: {
+					'@type': 'ItemList',
+					numberOfItems: posts.length,
+					itemListElement: posts.map((post, index) => ({
+						'@type': 'ListItem',
+						position: (page - 1) * pageSize + index + 1,
+						url: `${appUrl}/posts/${post._id}`,
+						name: `${post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post'} by ${post.author?.name || 'Crowdwide member'}`
+					}))
+				}
+			}
+		});
+	} catch (error) {
+		logger.error('Unable to load public posts', error);
+		res.status(500).render('pages/not-found', { title: 'Public posts are temporarily unavailable' });
+	}
+};
+
 // Which feed tab a request is for. `view` is the tab; the older
 // `?feed=personalized` link still opens "My community".
 function resolveFeedView(query = {}) {
@@ -893,7 +967,27 @@ exports.robots = (req, res) => {
 	if (isStaging()) return res.type('text/plain').send('User-agent: *\nDisallow: /');
 	res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /auth/\nSitemap: ${(process.env.APP_URL || 'http://localhost:3000')}/sitemap.xml`);
 };
-exports.sitemap = (req, res) => { res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'].map((path) => `<url><loc>${(process.env.APP_URL || 'http://localhost:3000')}${path}</loc></url>`).join('')}</urlset>`); };
+
+exports.sitemap = async (req, res) => {
+	try {
+		const baseUrl = String(process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
+		const posts = await Post.find({
+			status: 'published',
+			moderationStatus: { $ne: 'reported' },
+			community: { $nin: restrictedCommunityIds }
+		}).sort({ updatedAt: -1 }).limit(1000).select('_id updatedAt').lean();
+		const pages = ['/', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
+		const urls = [
+			...pages.map((page) => `<url><loc>${escapeXml(`${baseUrl}${page}`)}</loc></url>`),
+			...posts.map((post) => `<url><loc>${escapeXml(`${baseUrl}/posts/${post._id}`)}</loc><lastmod>${new Date(post.updatedAt).toISOString()}</lastmod></url>`)
+		];
+		res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`);
+	} catch (error) {
+		logger.error('Sitemap generation failed', error);
+		res.status(500).type('text/plain').send('The sitemap is temporarily unavailable.');
+	}
+};
 
 // Public developer docs (kept in sync by hand with API.md in the repo - this
 // is the same information, laid out for the browser instead of a markdown

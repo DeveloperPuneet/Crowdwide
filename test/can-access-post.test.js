@@ -29,6 +29,13 @@ test('canAccessPost blocks a scheduled post for anyone but its author', async ()
   assert.equal(result, false);
 });
 
+test('canAccessPost keeps pending and rejected posts private to their author', async () => {
+  for (const status of ['pending', 'rejected']) {
+    assert.equal(await canAccessPost({ status, author: 'u2', community: null }, 'u1'), false);
+    assert.equal(await canAccessPost({ status, author: 'u1', community: null }, 'u1'), true);
+  }
+});
+
 test('canAccessPost blocks a post in a private community the viewer has not joined (the core fix)', async (t) => {
   t.mock.method(Community, 'exists', () => Promise.resolve(true));
   const result = await canAccessPost({ status: 'published', author: 'u2', community: 'c1' }, 'u1');

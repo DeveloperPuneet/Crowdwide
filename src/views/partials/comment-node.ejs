@@ -18,10 +18,14 @@
 	<% if (node.body) { %><p class="thread-comment-text" data-translatable data-original="<%= node.body %>"><%- renderMentions(node.body) %></p><% } %>
 	<% if (node.gif?.url) { %><img class="comment-gif" src="<%= node.gif.url %>" alt="<%= node.gif.title || 'GIF' %>" loading="lazy"<% if (node.gif.width && node.gif.height) { %> width="<%= node.gif.width %>" height="<%= node.gif.height %>"<% } %>><% } %>
 	<div class="thread-comment-actions">
+		<% if (currentUser) { %>
 		<form class="comment-like-form" data-async-interaction method="post" action="/comments/<%= node._id %>/like">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
 			<button type="submit" class="action-like" aria-label="Like comment" aria-pressed="false"><%- icon('heart', { size: 15 }) %><span class="count"><%= node.likes?.length || 0 %></span></button>
 		</form>
+		<% } else { %>
+		<a class="comment-guest-like" href="/auth/register" aria-label="Create an account to like this comment"><%- icon('heart', { size: 15 }) %><span><%= node.likes?.length || 0 %></span></a>
+		<% } %>
 		<% if (node.body) { %><button type="button" class="action-translate" data-translate-trigger><%- icon('globe', { size: 14 }) %> <span class="label">Translate</span></button><% } %>
 		<% if (isPostAuthor && String(node.author?._id) !== String(currentUser.id)) { %>
 		<form class="comment-author-heart-form" data-async-interaction method="post" action="/comments/<%= node._id %>/author-heart">
@@ -60,7 +64,7 @@
 		</details>
 		<% } %>
 	</div>
-	<%- include('emoji-reaction-bar', { reactions, targetType: 'comment', targetId: node._id }) %>
+	<% if (currentUser) { %><%- include('emoji-reaction-bar', { reactions, targetType: 'comment', targetId: node._id }) %><% } else if (reactions.length) { %><div class="comment-reactions" aria-label="Comment reactions"><% reactions.forEach((reaction) => { %><span><%= reaction.emoji %> <%= reaction.count %></span><% }) %></div><% } %>
 	<% (node.children || []).forEach((child) => { %>
 		<%- include('comment-node', { node: child, depth: depth + 1, postId, postAuthorId, csrfToken: csrf, canReply }) %>
 	<% }) %>

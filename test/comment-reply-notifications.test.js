@@ -11,6 +11,7 @@ test('replying to a comment notifies the parent comment author', async (t) => {
   const post = {
     _id: 'post-1',
     author: 'post-author',
+    status: 'published',
     community: null,
     commentsCount: 1,
     save: async () => {}

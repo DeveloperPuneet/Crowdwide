@@ -119,6 +119,16 @@ test('light and pink themes set readable text, control, and surface colors', () 
   assert.match(playerCss, /\.cw-player--audio \.cw-volume-range::-(webkit|moz)-slider-thumb \{ background: var\(--theme-accent\);/);
 });
 
+test('public discovery surfaces use theme tokens and responsive filter/navigation layouts', () => {
+  const css = read('public', 'css', 'style.css');
+  const responsive = read('public', 'css', 'responsive-layout.css');
+  for (const token of ['--theme-surface', '--theme-border', '--theme-fg', '--theme-muted', '--theme-accent']) {
+    assert.ok(css.includes(token), `public discovery should use ${token}`);
+  }
+  assert.match(responsive, /@media \(max-width: 760px\)[\s\S]*?\.public-posts-page/);
+  assert.match(responsive, /@media \(max-width: 480px\)[\s\S]*?\.public-comments-join/);
+});
+
 test('all dark themes boost supporting-text contrast and light themes recolor overlays and admin controls', () => {
   const css = read('public', 'css', 'style.css');
   assert.match(css, /:root\s*\{[^}]*--theme-muted:\s*#c3c6d4/s);

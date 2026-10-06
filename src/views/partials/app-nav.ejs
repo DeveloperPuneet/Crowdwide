@@ -4,6 +4,7 @@
   <nav>
     <a class="<%= active === 'home' ? 'app-nav-active' : '' %>" href="/dashboard"><%- icon('home', { size: 16 }) %><span>Home</span></a>
     <a class="<%= active === 'explore' ? 'app-nav-active' : '' %>" href="/explore"><%- icon('compass', { size: 16 }) %><span>Explore</span></a>
+    <a class="<%= active === 'posts' ? 'app-nav-active' : '' %>" href="/posts"><%- icon('file-text', { size: 16 }) %><span>Posts</span></a>
     <a class="<%= active === 'communities' ? 'app-nav-active' : '' %>" href="/communities"><%- icon('users', { size: 16 }) %><span>Communities</span></a>
     <a class="<%= active === 'messages' ? 'app-nav-active' : '' %>" href="/messages"><%- icon('mail', { size: 16 }) %><span>Messages</span></a>
     <a class="<%= active === 'groups' ? 'app-nav-active' : '' %>" href="/groups"><%- icon('message-circle', { size: 16 }) %><span>Groups</span></a>
@@ -29,6 +30,7 @@
     </form>
     <a href="/dashboard"><%- icon('home', { size: 18 }) %> Home feed</a>
     <a href="/explore"><%- icon('compass', { size: 18 }) %> Explore</a>
+    <a href="/posts"><%- icon('file-text', { size: 18 }) %> Public posts</a>
     <a href="/communities"><%- icon('users', { size: 18 }) %> Communities</a>
     <a href="/people"><%- icon('user-plus', { size: 18 }) %> People to follow</a>
     <a href="/messages"><%- icon('mail', { size: 18 }) %> Messages</a>
