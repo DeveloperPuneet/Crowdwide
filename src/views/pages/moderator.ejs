@@ -1,7 +1,23 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% const monetizationApplications = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
 <main class="explore-page admin-console"><%- include('../partials/flash') %>
   <p class="eyebrow">Restricted operations</p><h1>Moderator console</h1><p class="form-note">Identifier: <strong><%= moderator.moderatorId %></strong>. Personal emails, sessions, and account security data are hidden here. Every action you submit here is queued for an admin's approval before it takes effect.</p>
+
+  <section class="settings-block admin-wide" id="monetization"><h2>Community monetization screening</h2><p>Check eligibility and policy history. This review is a recommendation; an admin makes the final decision.</p>
+    <% if (!monetizationApplications.length) { %><p>No community monetization applications are waiting for review.</p><% } %>
+    <% monetizationApplications.forEach((community) => { %>
+    <article class="device-row" style="flex-direction:column;align-items:stretch;">
+      <div><strong><%= community.name %></strong><span>Owner <%= community.owner?.name || 'unknown' %> · submitted <%= new Date(community.monetizationApplication?.submittedAt || community.createdAt).toLocaleDateString() %></span><p><%= community.monetizationApplication?.goals || 'No application goals provided.' %></p><p>Public community · confirm recent activity, owner standing, and upheld policy reports before clearing.</p></div>
+      <form method="post" action="/moderator/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="text" name="reason" maxlength="500" placeholder="Review notes (required)" required style="flex:1;min-width:180px;">
+        <button class="button button-small button-primary" name="decision" value="cleared" type="submit">Clear for admin</button>
+        <button class="button button-small button-danger" name="decision" value="flagged" type="submit">Flag for admin</button>
+      </form>
+    </article>
+    <% }) %>
+  </section>
 
   <section class="settings-block admin-wide" id="advertisers"><h2>Advertiser applications</h2><p>Screen advertiser details and policy fit. An admin makes the final approval or rejection decision.</p>
     <% if (!pendingAdvertisers.length) { %><p>No advertiser applications are waiting for moderator review.</p><% } %>

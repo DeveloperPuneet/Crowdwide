@@ -1,6 +1,8 @@
 const Community = require('../models/Community');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const Report = require('../models/Report');
+const CampaignEvent = require('../models/CampaignEvent');
 const SiteSetting = require('../models/SiteSetting');
 const Quest = require('../models/Quest');
 const crypto = require('node:crypto');
@@ -14,7 +16,7 @@ const { getCommunityCampaigns } = require('../services/advertising');
 const logger = require('../services/logger');
 
 async function getMonetizationEligibility(communityId) {
-  const [settings, results] = await Promise.all([
+  const [settings, results, community] = await Promise.all([
     SiteSetting.getSingleton(),
     Post.aggregate([
       { $match: { community: communityId, status: 'published' } },
@@ -22,18 +24,54 @@ async function getMonetizationEligibility(communityId) {
         _id: null,
         posts: { $sum: 1 },
         likes: { $sum: { $size: { $ifNull: ['$likes', []] } } },
-        comments: { $sum: { $ifNull: ['$commentsCount', 0] } }
+        comments: { $sum: { $ifNull: ['$commentsCount', 0] } },
+        lastPostAt: { $max: '$createdAt' }
       } }
-    ])
+    ]),
+    Community.findById(communityId).select('owner createdAt isPrivate')
   ]);
   const totals = results[0] || { posts: 0, likes: 0, comments: 0 };
+  const [owner, confirmedViolations] = await Promise.all([
+    community ? User.findById(community.owner).select('isVerified suspendedUntil postingRestrictedUntil warnings').lean() : null,
+    (async () => {
+      const communityPostIds = await Post.distinct('_id', { community: communityId });
+      return Report.countDocuments({
+        status: 'resolved',
+        $or: [
+          { targetType: 'community', target: communityId },
+          { targetType: 'post', target: { $in: communityPostIds } }
+        ]
+      });
+    })()
+  ]);
+  const now = new Date();
+  const activityDays = Number(settings.monetizationRecentActivityDays ?? 30);
+  const activityCutoff = new Date(now.getTime() - activityDays * 24 * 60 * 60 * 1000);
+  const communityAgeDays = community?.createdAt
+    ? Math.floor((now.getTime() - new Date(community.createdAt).getTime()) / (24 * 60 * 60 * 1000))
+    : 0;
+  const recentWarningCutoff = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const recentWarnings = (owner?.warnings || []).filter((warning) => new Date(warning.createdAt || 0) >= recentWarningCutoff);
+  const ownerInGoodStanding = Boolean(
+    owner?.isVerified
+    && !(owner.suspendedUntil && owner.suspendedUntil > now)
+    && !(owner.postingRestrictedUntil && owner.postingRestrictedUntil > now)
+    && recentWarnings.length === 0
+  );
   const requirements = {
     posts: { label: 'Published posts', actual: Number(totals.posts || 0), minimum: Number(settings.monetizationMinimumPosts ?? 20) },
     likes: { label: 'Total post likes', actual: Number(totals.likes || 0), minimum: Number(settings.monetizationMinimumLikes ?? 30) },
-    comments: { label: 'Total comments', actual: Number(totals.comments || 0), minimum: Number(settings.monetizationMinimumComments ?? 10) }
+    comments: { label: 'Total comments', actual: Number(totals.comments || 0), minimum: Number(settings.monetizationMinimumComments ?? 10) },
+    age: { label: 'Community age (days)', actual: communityAgeDays, minimum: Number(settings.monetizationMinimumCommunityAgeDays ?? 30) },
+    activity: { label: `Published activity within ${activityDays} days`, actual: Boolean(totals.lastPostAt && new Date(totals.lastPostAt) >= activityCutoff), minimum: true },
+    ownerStanding: { label: 'Owner account in good standing', actual: ownerInGoodStanding, minimum: true },
+    policyHistory: { label: 'No upheld community policy violations', actual: Number(confirmedViolations) === 0, minimum: true },
+    public: { label: 'Public community', actual: Boolean(community && !community.isPrivate), minimum: true }
   };
   Object.values(requirements).forEach((requirement) => {
-    requirement.met = requirement.actual >= requirement.minimum;
+    requirement.met = typeof requirement.actual === 'boolean'
+      ? requirement.actual === requirement.minimum
+      : requirement.actual >= requirement.minimum;
   });
   return { requirements, eligible: Object.values(requirements).every((requirement) => requirement.met) };
 }
@@ -284,21 +322,33 @@ exports.detail = async (req, res) => {
   res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests, feedAds, sidebarAds });
 };
 exports.manage = async (req, res) => {
-  const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility] = await Promise.all([
+  const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, adEvents] = await Promise.all([
     User.find({ _id: { $in: req.community.members } }).select('name email profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'published' }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'pending' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
     User.find({ _id: { $in: req.community.joinRequests.map((request) => request.user) } }).select('name email').lean(),
     User.find({ _id: { $in: req.community.moderators } }).select('name email').lean(),
     Quest.find({ community: req.community._id }).sort({ createdAt: -1 }).populate('creator', 'name').populate('participants', 'name').populate('completedBy', 'name').populate('winner', 'name').lean(),
-    getMonetizationEligibility(req.community._id)
+    getMonetizationEligibility(req.community._id),
+    CampaignEvent.aggregate([
+      { $match: { community: req.community._id } },
+      { $group: { _id: '$eventType', count: { $sum: 1 } } }
+    ])
   ]);
+  const monetizationStats = {
+    impressions: Number(adEvents.find((event) => event._id === 'impression')?.count || 0),
+    clicks: Number(adEvents.find((event) => event._id === 'click')?.count || 0)
+  };
   const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, monetizationStats, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
 };
 
 exports.submitMonetizationApplication = async (req, res) => {
   const community = req.community;
+  if (community.monetizationApplication?.appealStatus === 'pending') {
+    req.session.flash = { type: 'error', message: 'A monetization appeal is already awaiting review.' };
+    return res.redirect(`/communities/${community._id}/manage#monetization`);
+  }
   if (['pending', 'approved'].includes(community.monetizationStatus)) {
     req.session.flash = { type: 'error', message: 'This community already has an active monetization application or approval.' };
     return res.redirect(`/communities/${community._id}/manage#monetization`);
@@ -314,9 +364,13 @@ exports.submitMonetizationApplication = async (req, res) => {
     ...previousMonetizationApplication,
     applicantName: req.session.user?.name || '',
     submittedAt: new Date(),
-    rejectionReason: ''
+    rejectionReason: '',
+    appealMessage: '',
+    appealStatus: '',
+    appealedAt: null
   };
   community.monetizationStatus = 'pending';
+  community.monetizationModeratorReview = { status: 'pending', reason: '', reviewedAt: null, reviewedBy: null };
   community.isMonetized = false;
   community.monetizationSettings = {
     ...(community.monetizationSettings?.toObject?.() || community.monetizationSettings || {}),
@@ -325,13 +379,45 @@ exports.submitMonetizationApplication = async (req, res) => {
   };
   community.monetizationHistory = [
     ...(community.monetizationHistory || []).slice(-9),
-    { status: 'pending', action: 'application-submitted', note: 'Community monetization application submitted.', createdAt: new Date(), actor: req.session.user.id }
+    { status: 'pending', action: 'application-submitted', note: 'Community monetization application submitted for moderator screening.', createdAt: new Date(), actor: req.session.user.id }
   ];
   community.monetizationUpdatedAt = new Date();
   await community.save();
 
   req.session.flash = { type: 'success', message: 'Your monetization application has been submitted for review.' };
   res.redirect(`/communities/${community._id}/manage#monetization`);
+};
+
+exports.submitMonetizationAppeal = async (req, res) => {
+  const community = req.community;
+  const application = community.monetizationApplication || {};
+  const message = String(req.body.message || '').trim().slice(0, 1000);
+  if (!['rejected', 'paused'].includes(community.monetizationStatus)) {
+    req.session.flash = { type: 'error', message: 'Only rejected or paused monetization decisions can be appealed.' };
+    return res.redirect(`/communities/${community._id}/manage#monetization`);
+  }
+  if (application.appealStatus === 'pending') {
+    req.session.flash = { type: 'error', message: 'A monetization appeal is already awaiting review.' };
+    return res.redirect(`/communities/${community._id}/manage#monetization`);
+  }
+  if (message.length < 20) {
+    req.session.flash = { type: 'error', message: 'Please include at least 20 characters explaining your appeal.' };
+    return res.redirect(`/communities/${community._id}/manage#monetization`);
+  }
+  community.monetizationApplication = {
+    ...(application.toObject?.() || application),
+    appealMessage: message,
+    appealStatus: 'pending',
+    appealedAt: new Date()
+  };
+  community.monetizationHistory = [
+    ...(community.monetizationHistory || []).slice(-19),
+    { status: community.monetizationStatus, action: 'appeal-submitted', note: message.slice(0, 500), createdAt: new Date(), actor: req.session.user.id }
+  ];
+  community.monetizationUpdatedAt = new Date();
+  await community.save();
+  req.session.flash = { type: 'success', message: 'Your monetization appeal has been submitted to the admin team.' };
+  return res.redirect(`/communities/${community._id}/manage#monetization`);
 };
 
 exports.getMonetizationEligibility = getMonetizationEligibility;

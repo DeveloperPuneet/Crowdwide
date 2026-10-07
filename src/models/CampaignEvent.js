@@ -6,6 +6,7 @@ const campaignEventSchema = new mongoose.Schema({
   viewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   eventType: { type: String, enum: ['impression', 'click'], required: true },
   eventToken: { type: String, required: true, maxlength: 36 },
+  viewerDayKey: { type: String, maxlength: 200, unique: true, sparse: true },
   createdAt: { type: Date, default: Date.now, index: true }
 });
 

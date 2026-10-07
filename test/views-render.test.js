@@ -8,13 +8,14 @@ const ejs = require('ejs');
 const { icon } = require('../src/utils/icons');
 const { renderMentions, renderRichBody } = require('../src/services/mentions');
 const { sendMessageAttachment } = require('../src/controllers/chatController');
+const webController = require('../src/controllers/webController');
 const Post = require('../src/models/Post');
 const { COMMUNITY_CATEGORIES } = require('../src/utils/communityCategories');
 const { TASK_LABELS } = require('../src/services/maintenance');
 
 const views = path.join(__dirname, '..', 'src', 'views');
 const currentUser = { id: 'u1', name: 'Puneet K', email: 'p@x.com', role: 'user', profilePicture: '' };
-const base = { icon, renderMentions, renderRichBody, csrfToken: 'tok', flash: null, currentUser, appUrl: 'http://x', gifsEnabled: true, communityCategories: COMMUNITY_CATEGORIES };
+const base = { icon, renderMentions, renderRichBody, csrfToken: 'tok', flash: null, currentUser, appUrl: 'http://x', gifsEnabled: true, communityCategories: COMMUNITY_CATEGORIES, promotionOffer: null };
 const render = (file, data = {}) => ejs.renderFile(path.join(views, file), { ...base, ...data });
 const post = (i, extra = {}) => ({ _id: `p${i}`, author: { _id: `a${i}`, name: `Author ${i}` }, body: `Hello #tag ${i}`, type: 'post', likes: [1, 2], commentsCount: 3, sharesCount: 4, viewsCount: 9, hashtags: ['tag'], community: null, createdAt: new Date(), status: 'published', reactions: {}, media: [], ...extra });
 
@@ -342,6 +343,34 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
   assert.match(html, /Choose a reason/);
 });
 
+test('post owners can buy a clearly labeled Waves promotion', async () => {
+  const html = await render('pages/post-detail.ejs', {
+    title: 'p', pagePath: '/posts/p1', comments: [], promotionOffer: { wavesCost: 25, durationHours: 24 },
+    post: {
+      ...post(1, { author: { _id: 'u1', name: 'Me' }, moderationStatus: 'good' }),
+      liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null
+    },
+    commentTree: []
+  });
+  assert.match(html, /Promote with Waves/);
+  assert.match(html, /Promoted posts are labeled/);
+  assert.match(html, /25 Waves/);
+  assert.match(html, /action="\/posts\/p1\/promote"/);
+  assert.match(html, /name="_csrf" value="tok"/);
+
+  const activeHtml = await render('pages/post-detail.ejs', {
+    title: 'p', pagePath: '/posts/p1', comments: [], promotionOffer: { wavesCost: 25, durationHours: 24 },
+    post: {
+      ...post(1, { author: { _id: 'u1', name: 'Me' }, moderationStatus: 'good', boostStatus: 'active', boostWavesCost: 25, boostUntil: new Date(Date.now() + 3600000) }),
+      liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null
+    },
+    commentTree: []
+  });
+  assert.match(activeHtml, /Promoted/);
+  assert.match(activeHtml, /Paid with 25 Waves/);
+  assert.doesNotMatch(activeHtml, /Promote with Waves/);
+});
+
 test('post moderation controls render visibly for staff outside the collapsed more-options menu', async () => {
   const html = await render('pages/post-detail.ejs', {
     title: 'p', pagePath: '/posts/p1', comments: [],
@@ -417,6 +446,28 @@ test('docs page renders the API endpoints, and info pages cover help', async () 
   });
   assert.match(help, /Answers, not tickets\./);
   assert.match(help, /Why verify\?/);
+});
+
+test('Waves and community monetization terms disclose platform-currency and payout limits', async () => {
+  for (const [pagePath, expected] of [
+    ['/waves/terms', /not money, cryptocurrency, stored value/],
+    ['/community-monetization/terms', /Revenue and payouts are not available/]
+  ]) {
+    let page;
+    await webController.infoPage({ path: pagePath }, {
+      render(view, data) {
+        page = { view, data };
+      }
+    });
+    assert.equal(page.view, 'pages/info');
+    const html = await render('pages/info.ejs', page.data);
+    assert.match(html, expected);
+    if (pagePath === '/waves/terms') {
+      assert.match(html, /Post promotions/);
+      assert.match(html, /Promoted · paid with Waves/);
+      assert.doesNotMatch(html, /No unlaunched premium, ad-free, post-promotion/);
+    }
+  }
 });
 
 test('landing page applies the member theme and renders real profile avatars', async () => {
@@ -699,7 +750,8 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       siteName: '', tagline: '', registrationOpen: true, postApprovalDefault: false,
       maintenanceMode: false, maintenanceMessage: '', announcement: '',
       postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
-      postReviewThreshold: 2
+      postReviewThreshold: 2, postPromotionEnabled: true,
+      postPromotionWavesCost: 40, postPromotionDurationHours: 36
     },
     mongoStorage: { available: true, percentUsed: 72, percentRemaining: 28, barPercent: 72, usedBytes: 512 * 1024 ** 2, capacityBytes: 712 * 1024 ** 2, remainingBytes: 200 * 1024 ** 2, clusters: 2 },
     formatStorage,
@@ -707,6 +759,9 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   });
   assert.match(html, /id="admin-panel-maintenance"/);
   assert.match(html, /Run all cleanup processes/);
+  assert.match(html, /name="postPromotionEnabled"/);
+  assert.match(html, /name="postPromotionWavesCost"[^>]+value="40"/);
+  assert.match(html, /name="postPromotionDurationHours"[^>]+value="36"/);
   assert.match(html, /Recent cleanup runs/);
   assert.match(html, /Run by Operator/);
   assert.match(html, /directMessages&#34;:2/);

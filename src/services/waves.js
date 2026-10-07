@@ -12,6 +12,9 @@ async function updateWavesBalance({ userId, delta, type = 'adjustment', descript
   const amount = normalizeAmount(delta, 'delta');
   const user = await User.findById(userId);
   if (!user) throw new Error('User not found for Waves update.');
+  if (amount < 0 && type !== 'adjustment' && user.wavesSuspendedUntil && user.wavesSuspendedUntil > new Date()) {
+    throw new Error('Your Waves account is temporarily held from spending.');
+  }
 
   const nextBalance = Number(((user.wavesBalance || 0) + amount).toFixed(6));
   if (nextBalance < 0) throw new Error('Insufficient Waves balance.');
@@ -212,10 +215,12 @@ async function rewardWavesForAction({ userId, actorId = null, action, referenceT
     throw error;
   }
 
-  let user;
   try {
     user = await User.findById(userId);
     if (!user) throw new Error('User not found for Waves reward.');
+    if (user.wavesSuspendedUntil && user.wavesSuspendedUntil > now) {
+      throw new Error('Your Waves account is temporarily held from earning.');
+    }
     user.wavesBalance = Number(((user.wavesBalance || 0) + amount).toFixed(6));
     user.wavesTotalEarned = Number(((user.wavesTotalEarned || 0) + amount).toFixed(6));
     await user.save();

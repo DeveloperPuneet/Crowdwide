@@ -31,6 +31,8 @@ const siteSettingSchema = new mongoose.Schema({
   monetizationMinimumPosts: { type: Number, default: 20, min: 0, max: 10000 },
   monetizationMinimumLikes: { type: Number, default: 30, min: 0, max: 100000 },
   monetizationMinimumComments: { type: Number, default: 10, min: 0, max: 100000 },
+  monetizationMinimumCommunityAgeDays: { type: Number, default: 30, min: 0, max: 3650 },
+  monetizationRecentActivityDays: { type: Number, default: 30, min: 1, max: 365 },
   wavesPostReward: { type: wavesRewardRangeSchema, default: () => ({}) },
   wavesCommentReward: { type: wavesRewardRangeSchema, default: () => ({}) },
   wavesLikeReward: { type: wavesRewardRangeSchema, default: () => ({ minimum: 0.1, maximum: 1 }) },
@@ -41,6 +43,9 @@ const siteSettingSchema = new mongoose.Schema({
   wavesDailyEarningLimit: { type: Number, default: 20, min: 0, max: 100000 },
   wavesMaxTransferAmount: { type: Number, default: 100, min: 0, max: 1000000 },
   wavesDailyTransferLimit: { type: Number, default: 500, min: 0, max: 10000000 },
+  postPromotionEnabled: { type: Boolean, default: true },
+  postPromotionWavesCost: { type: Number, default: 25, min: 1, max: 10000 },
+  postPromotionDurationHours: { type: Number, default: 24, min: 1, max: 168 },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

@@ -85,6 +85,7 @@ router.get('/posts/:id/edit', requireAuth, requireVerified, interactionControlle
 router.get('/posts/:id/reply', requireAuth, requireVerified, interactionController.replyPostPage);
 router.get('/posts/:id', interactionController.postDetail);
 router.post('/posts/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editPost);
+router.post('/posts/:id/promote', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, interactionController.promotePost);
 router.post('/posts/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deletePost);
 router.post('/posts/:id/moderate', requireAuth, requireVerified, requireModerator, adminController.moderatePost);
 router.get('/posts/:id/comments', interactionController.commentThread);
@@ -139,6 +140,7 @@ router.get('/communities/:id/manage', requireAuth, requireVerified, communityCon
 router.post('/communities/:id/invite', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.createInvite);
 router.post('/communities/:id/invite/revoke', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.revokeInvite);
 router.post('/communities/:id/monetization', requireAuth, requireVerified, communityController.ownerOnly, interactionLimiter, csrfSynchronisedProtection, communityController.submitMonetizationApplication);
+router.post('/communities/:id/monetization/appeal', requireAuth, requireVerified, communityController.ownerOnly, interactionLimiter, csrfSynchronisedProtection, communityController.submitMonetizationAppeal);
 router.post('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityUpload, csrfSynchronisedProtection, handleUploadError, validateCommunityUpload, scanUploadsForViruses, communityController.update);
 router.post('/communities/:id/moderators', requireAuth, requireVerified, communityController.ownerOnly, communityController.addModerator);
 router.post('/communities/:id/posts/:postId/review', requireAuth, requireVerified, communityController.moderationOnly, communityController.reviewPost);
@@ -159,7 +161,9 @@ router.post('/admin/posts/:id/edit', requireAuth, requireVerified, requireAdmin,
 router.post('/admin/users/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteUser);
 router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateUser);
 router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateCommunity);
-router.post('/admin/communities/:id/monetization', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.reviewMonetization);
+router.post('/admin/communities/:id/monetization', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewMonetization);
+router.post('/admin/ad-abuse/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdAbuseSignal);
+router.post('/moderator/communities/:id/monetization', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewCommunityMonetizationAsModerator);
 router.post('/admin/advertisers/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdvertiser);
 router.post('/moderator/advertisers/:id/review', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewAdvertiserAsModerator);
 router.post('/admin/campaigns/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewCampaign);
@@ -192,7 +196,7 @@ router.get('/settings/account/download', requireAuth, requireVerified, settingsC
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
 router.get('/docs', controller.docs);
-['/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
+['/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);
 router.get('/sitemap.xml', controller.sitemap);
 

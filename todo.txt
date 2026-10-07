@@ -71,68 +71,25 @@
 - About-page community charts now use real data: average views per post for new vs. established communities and average weekly posts per community by size tier, computed from published posts in public communities and cached for ten minutes. Unit-tested.
 - Async route errors are forwarded to the error handler (Express 4 previously left the request hanging on a rejected promise).
 - Settings and profile layouts keep a fixed navigation column and stable width when switching sections.
-- Monetization pages and links removed from the frontend for now.
+- Community monetization application, owner status, and admin review surfaces are available; real-money revenue sharing and payouts remain disabled pending provider and legal approval.
 - Translation (posts/comments) tries LibreTranslate first and uses Google Translate only as an explicitly configured paid fallback. Libre failures now fall back correctly, and 401/403 logs explain that `LIBRETRANSLATE_URL` must point to the LibreTranslate service (not the Crowdwide website) and that an API key may be required. Render setup docs use separate services rather than Docker commands in the app build. Unit-tested; live provider access still requires valid deployment configuration.
 - Moderators (not just admins) can now resolve appeals, from a new "Pending appeals" section on `/moderator`. Same approve/lift-or-deny logic as the admin console, same audit log and account-history entry. Unit-tested.
+- Advertisement event integrity: impression and click counts are limited to one per authenticated viewer, campaign, community, event type, and UTC day using a durable unique key, so page refreshes with a new event token cannot inflate campaign reporting. Repeated blocked attempts are grouped into an admin review queue and retained with campaign/community/viewer context and reviewer notes.
+- Community monetization eligibility now checks configurable community age and recent published activity, engagement thresholds, public visibility, verified owner standing, current suspensions/restrictions, recent owner warnings, and resolved reports on community posts.
+- Community monetization now uses moderator screening before admin approval/rejection, requires decision reasons where appropriate, records review history, supports owner appeals, and lets admins immediately pause monetization with an audit reason.
+- Community owners can see monetization status, review history, and measured ad impressions/clicks. Earnings and payouts are explicitly shown as unavailable because no external provider or approved revenue-sharing/payment arrangement is configured.
+- Waves abuse controls: administrators can place reasoned temporary Waves holds; held accounts cannot earn, transfer, spend, or fund campaigns, while administrative ledger corrections remain possible. The admin overview exposes recent Waves ledger activity, current holds, and reciprocal reward signals as review leads rather than automatic abuse findings.
+- Published Waves Terms and Community Monetization Terms define the closed-loop Waves rules, transfer/abuse controls, community eligibility/review, advertiser integrity, and the pre-launch provider/legal/payout gates. Advertising Terms and the privacy notice now accurately disclose current ad delivery and first-party event measurement.
+- Post promotion with Waves: owners can promote eligible published posts for an admin-configured price and duration; promotion spending is recorded in the Waves ledger, active placements are labeled in eligible feeds, and owners see promotion status and expiry.
 
 ## Making:
-Waves / Platform Currency
-
-Add Waves anti-farming/anti-abuse system
-
-Add self-interaction/fake-engagement detection
-
 Waves Usage
-
-Allow Waves to be used for future premium features
 
 Add Ad-Free feature using Waves if premium is introduced
 
-Add post promotion/boosting using Waves
-
 Add community promotion using Waves
 
-Advertisement Statistics
-
-Add protection against fake clicks/impressions
-
-Community Monetization
-
-Add minimum community age requirement
-
-Require community to be active
-
-Require community owner/account to be in good standing
-
-Require no serious policy violations
-
-Add moderator review
-
-Add admin review
-
-Add monetization approval/rejection system
-
-Add rejection reason
-
-Add monetization review history
-
-Add monetization appeal system
-
-Add monetization suspension system
-
-Allow admin to disable monetization at any time
-
-Add monetization status to community/admin panels
-
 Community Revenue
-
-Create community monetization dashboard
-
-Show community monetization status
-
-Show community advertising impressions
-
-Show community advertising clicks
 
 Show community earnings
 
@@ -164,39 +121,15 @@ Add revenue audit logs
 
 Advertiser Refunds / Campaign Handling
 
-Handle suspended campaigns
-
 Handle invalid/fraudulent activity
 
 Admin Panel
-
-Add Waves management
-
-Add Waves economy statistics
-
-Add advertiser management
-
-Add campaign management
-
-Add advertisement review queue
-
-Add advertisement moderation history
-
-Add community monetization applications
-
-Add community monetization management
 
 Add community revenue overview
 
 Add community revenue breakdown
 
 Add payout management
-
-Add suspicious activity dashboard
-
-Add Waves fraud/abuse dashboard
-
-Add monetization audit logs
 
 Add configurable revenue-sharing percentage
 
@@ -218,39 +151,13 @@ Detect suspicious Waves transfers
 
 Detect suspicious advertising activity
 
-Detect fake clicks/impressions
-
-Add transaction limits
-
-Add temporary holds for suspicious activity
-
 Add account/community/campaign suspension system
 
-Keep audit logs for all financial/economy-related changes
-
 Policies / Legal
-
-Create Waves Terms
-
-Create Advertising Terms
-
-Create Community Monetization Terms
-
-Define Waves usage rules
-
-Define Waves transfer rules
-
-Define monetization eligibility rules
-
-Define advertiser rules
-
-Define prohibited advertisement categories
 
 Define payout rules
 
 Define refund/adjustment rules
-
-Define suspension/revocation rules
 
 Review real-money revenue-sharing/payment/tax requirements before launching payouts
 

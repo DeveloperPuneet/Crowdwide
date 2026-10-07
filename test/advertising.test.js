@@ -5,6 +5,7 @@ const Advertiser = require('../src/models/Advertiser');
 const Appeal = require('../src/models/Appeal');
 const AuditLog = require('../src/models/AuditLog');
 const Campaign = require('../src/models/Campaign');
+const CampaignAbuseSignal = require('../src/models/CampaignAbuseSignal');
 const CampaignEvent = require('../src/models/CampaignEvent');
 const Community = require('../src/models/Community');
 const Report = require('../src/models/Report');
@@ -445,17 +446,20 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   };
   const updateCalls = [];
   let duplicateEvent = false;
+  let recordedEvent;
+  const abuseSignal = t.mock.method(CampaignAbuseSignal, 'findOneAndUpdate', async () => ({}));
   t.mock.method(Community, 'findById', () => ({ lean: async () => community }));
   t.mock.method(Campaign, 'findById', () => ({
     populate() { return this; },
     lean: async () => campaign
   }));
-  t.mock.method(CampaignEvent, 'create', async () => {
+  t.mock.method(CampaignEvent, 'create', async (event) => {
     if (duplicateEvent) {
       const error = new Error('duplicate event');
       error.code = 11000;
       throw error;
     }
+    recordedEvent = event;
     return { _id: 'event-1' };
   });
   t.mock.method(Campaign, 'findOneAndUpdate', async (...args) => {
@@ -475,17 +479,54 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   assert.equal(updateCalls.length, 1);
   assert.equal(updateCalls[0][1][0].$set.impressions.$add[1], 1);
   assert.equal(updateCalls[0][1][0].$set.clicks.$add[1], 0);
+  assert.match(recordedEvent.viewerDayKey, /^campaign-1:community-1:viewer-1:impression:\d{4}-\d{2}-\d{2}$/);
 
+  // A newly-rendered token must not let the same viewer inflate the same
+  // campaign/community's daily event count.
   duplicateEvent = true;
   const duplicate = await recordCampaignEvent({
     campaignId: 'campaign-1',
     communityId: 'community-1',
     viewerId: 'viewer-1',
     eventType: 'impression',
-    eventToken: '12345678-1234-4123-8123-123456789abc'
+    eventToken: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
   });
   assert.equal(duplicate.recorded, false);
   assert.equal(updateCalls.length, 1);
+  assert.equal(abuseSignal.mock.callCount(), 1);
+  assert.equal(abuseSignal.mock.calls[0].arguments[1].$setOnInsert.attempts, 0);
+  assert.equal(abuseSignal.mock.calls[0].arguments[1].$inc.attempts, 1);
+});
+
+test('admin closes an advertisement abuse signal with a reason and audit record', async (t) => {
+  const signal = {
+    _id: 'signal-1',
+    campaign: 'campaign-1',
+    community: 'community-1',
+    viewer: 'viewer-1',
+    eventType: 'click',
+    attempts: 4,
+    status: 'open',
+    async save() { return this; }
+  };
+  t.mock.method(CampaignAbuseSignal, 'findOne', async () => signal);
+  const auditCreate = t.mock.method(AuditLog, 'create', async (entry) => entry);
+  const req = {
+    params: { id: signal._id },
+    body: { reviewNote: 'Duplicate daily clicks were reviewed.' },
+    roleUser: { _id: 'admin-1' },
+    ip: '127.0.0.1',
+    get: () => 'test-agent',
+    session: { flash: null }
+  };
+  const res = { redirect(path) { this.path = path; } };
+
+  await adminController.reviewAdAbuseSignal(req, res);
+
+  assert.equal(signal.status, 'reviewed');
+  assert.equal(signal.reviewNote, req.body.reviewNote);
+  assert.equal(auditCreate.mock.callCount(), 1);
+  assert.equal(res.path, '/admin#overview');
 });
 
 test('campaign clicks reject non-HTTP destinations instead of redirecting to arbitrary schemes', async (t) => {

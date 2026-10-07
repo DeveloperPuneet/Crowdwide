@@ -25,6 +25,16 @@
 			</div>
 		</header>
 		<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
+		<% if (post.boostStatus === 'active' && post.boostUntil && new Date(post.boostUntil) > new Date()) { %>
+		<p class="post-source"><strong>Promoted</strong><% if (currentUser && String(post.author?._id) === String(currentUser.id)) { %> · Paid with <%= post.boostWavesCost %> Waves · ends <time datetime="<%= new Date(post.boostUntil).toISOString() %>"><%= new Date(post.boostUntil).toLocaleString() %></time><% } %></p>
+		<% } %>
+		<% if (currentUser && promotionOffer && String(post.author?._id) === String(currentUser.id) && post.status === 'published' && ['unreviewed', 'good'].includes(post.moderationStatus) && !post.replyTo && !post.community?.isPrivate && post.boostStatus !== 'active' && (String(post.body || '').trim() || (post.media || []).length)) { %>
+		<form class="post-promotion-action" method="post" action="/posts/<%= post._id %>/promote" data-confirm="Spend <%= promotionOffer.wavesCost %> Waves to promote this post for <%= promotionOffer.durationHours %> hours?">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<p>Promote this post in the feed for <%= promotionOffer.durationHours %> hours. Promoted posts are labeled and cost <strong><%= promotionOffer.wavesCost %> Waves</strong>.</p>
+			<button class="button button-primary button-small" type="submit">Promote with Waves</button>
+		</form>
+		<% } %>
 		<div class="post-view-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
 		<% if (post.poll?.question && post.poll.options?.length) { %>
 		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %><% if (!currentUser) { %><a class="public-interaction-prompt" href="/auth/register">Create an account to vote in this poll</a><% } %></section>

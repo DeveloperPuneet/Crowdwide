@@ -36,6 +36,26 @@
       <% if (siteSettings.maintenanceMode) { %><p class="admin-badge status-suspended">Maintenance mode is ON — the site is showing a maintenance message to visitors.</p><% } %>
     </div>
     <% const rewardSignals = Array.isArray(locals.suspiciousRewardPairs) ? locals.suspiciousRewardPairs : []; %>
+    <% const economyRows = Array.isArray(locals.wavesEconomy) ? locals.wavesEconomy : []; %>
+    <% const heldWavesAccounts = Array.isArray(locals.heldWavesUsers) ? locals.heldWavesUsers : []; %>
+    <% const repeatedAdEvents = Array.isArray(locals.suspiciousAdEvents) ? locals.suspiciousAdEvents : []; %>
+    <section class="settings-block admin-wide">
+      <h2>Waves activity · last 30 days</h2>
+      <% if (!economyRows.length) { %><p>No posted Waves ledger activity in the last 30 days.</p><% } %>
+      <div class="admin-stats" aria-label="Waves economy totals">
+        <% economyRows.forEach((row) => { %><article class="admin-stat"><span><%= row._id.replace(/-/g, ' ') %></span><strong><%= Number(row.entries || 0).toLocaleString() %></strong><small>entries · net <%= Number(row.netWaves || 0).toLocaleString() %> Waves</small></article><% }) %>
+      </div>
+      <h3>Temporary Waves holds</h3>
+      <% if (!heldWavesAccounts.length) { %><p>No accounts currently have a Waves hold.</p><% } %>
+      <% heldWavesAccounts.forEach((heldUser) => { %><div class="device-row"><div><strong><%= heldUser.name %> · <%= heldUser.email %></strong><span><%= Number(heldUser.wavesBalance || 0).toLocaleString() %> Waves · held until <%= new Date(heldUser.wavesSuspendedUntil).toLocaleString() %></span><small><%= heldUser.wavesSuspensionReason || 'No reason recorded' %></small></div></div><% }) %>
+      <p>Holds are review controls, not automatic findings or proof of abuse. Adjust or lift them from the user management panel.</p>
+    </section>
+    <section class="settings-block admin-wide">
+      <h2>Repeated advertisement events</h2>
+      <p>Events that hit a viewer's daily campaign/community limit are excluded from advertiser totals and grouped here for staff review. These signals are not proof of bot or coordinated activity.</p>
+      <% if (!repeatedAdEvents.length) { %><p>No repeated ad-event signals are waiting for review.</p><% } %>
+      <% repeatedAdEvents.forEach((signal) => { %><div class="device-row"><div><strong><%= signal.eventType %> · <%= signal.campaign?.title || 'Campaign' %></strong><span><%= signal.viewer?.name || 'Member' %> · <%= signal.community?.name || 'Community' %> · <%= Number(signal.attempts || 0).toLocaleString() %> repeated attempts · last seen <%= new Date(signal.lastSeenAt).toLocaleString() %></span><small><%= signal.reason %></small></div><form method="post" action="/admin/ad-abuse/<%= signal._id %>/review"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Review note<input name="reviewNote" maxlength="500" required></label><button class="button button-small button-primary" type="submit">Mark reviewed</button></form></div><% }) %>
+    </section>
     <section class="settings-block admin-wide">
       <h2>Possible coordinated Waves rewards</h2>
       <p>Behavior-only review signals: reciprocal rewarded likes/comments across multiple posts and days. These are leads, not proof of linked accounts; no automatic account action is taken.</p>
@@ -120,6 +140,16 @@
               <label class="full-width">Restriction reason (shown to admins only)<input type="text" name="postingRestrictionReason" value="<%= user.postingRestrictionReason || '' %>"></label>
               <label>Waves adjustment<input type="number" step="1" name="wavesAdjustment" placeholder="e.g. 50 or -25"></label>
               <label class="full-width">Waves reason<input type="text" name="wavesAdjustmentReason" placeholder="Reason to log in the ledger"></label>
+              <label>Waves activity hold
+                <select name="wavesHold">
+                  <option value="">No change<% if (user.wavesSuspendedUntil && new Date(user.wavesSuspendedUntil) > new Date()) { %> · currently held until <%= new Date(user.wavesSuspendedUntil).toLocaleString() %><% } %></option>
+                  <option value="24h">Hold for 24 hours</option>
+                  <option value="72h">Hold for 3 days</option>
+                  <option value="7d">Hold for 7 days</option>
+                  <option value="off">Lift Waves hold</option>
+                </select>
+              </label>
+              <label class="full-width">Waves hold reason<input type="text" name="wavesSuspensionReason" value="<%= user.wavesSuspensionReason || '' %>" placeholder="Required for a hold"></label>
               <% } %>
               <div class="admin-edit-form-actions">
                 <button class="button button-small button-primary" type="submit">Save</button>
@@ -277,6 +307,8 @@
           <strong><%= community.name %></strong>
           <span>Owner <%= community.owner?.name || 'unknown' %> · submitted <%= new Date(community.monetizationApplication?.submittedAt || community.createdAt).toLocaleDateString() %></span>
           <p><%= community.monetizationApplication?.goals || 'No goals provided yet.' %></p>
+          <p>Moderator screening: <strong><%= community.monetizationModeratorReview?.status || 'not reviewed' %></strong> · <%= community.monetizationModeratorReview?.reason || '' %></p>
+          <% if (community.monetizationApplication?.appealStatus === 'pending') { %><p><strong>Appeal filed:</strong> <%= community.monetizationApplication.appealMessage %></p><% } %>
         </div>
         <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -285,8 +317,13 @@
           <label>Ad placement<select name="adPlacement"><option value="feed">Feed</option><option value="sidebar">Sidebar</option><option value="all">Feed and sidebar</option></select></label>
           <label>Show after every<input type="number" name="adFrequency" min="1" max="10" step="1" value="1" style="max-width:90px;"> posts</label>
           <input type="text" name="note" placeholder="Decision note (optional)" style="flex:1;min-width:140px;">
-          <button class="button button-small button-primary" name="decision" value="approve" type="submit">Approve</button>
-          <button class="button button-small button-ghost" name="decision" value="reject" type="submit">Reject</button>
+          <% if (community.monetizationApplication?.appealStatus === 'pending') { %>
+          <button class="button button-small button-primary" name="decision" value="approve-appeal" type="submit">Approve appeal</button>
+          <button class="button button-small button-danger" name="decision" value="deny-appeal" type="submit">Deny appeal</button>
+          <% } else { %>
+          <button class="button button-small button-primary" name="decision" value="approve" type="submit" <%= community.monetizationModeratorReview?.status === 'cleared' ? '' : 'disabled' %>>Approve</button>
+          <button class="button button-small button-ghost" name="decision" value="reject" type="submit" <%= ['cleared', 'flagged'].includes(community.monetizationModeratorReview?.status) ? '' : 'disabled' %>>Reject</button>
+          <% } %>
           <button class="button button-small button-danger" name="decision" value="pause" type="submit">Pause</button>
         </form>
       </div>
@@ -336,6 +373,22 @@
                 <button class="button button-small button-primary" type="submit">Save</button>
               </div>
             </form>
+            <% if (community.monetizationStatus === 'approved') { %>
+            <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="text" name="note" maxlength="500" placeholder="Required reason for monetization suspension" required>
+              <button class="button button-small button-danger" name="decision" value="pause" type="submit">Suspend monetization now</button>
+            </form>
+            <% } else if (community.monetizationStatus === 'paused' && community.monetizationModeratorReview?.status === 'cleared') { %>
+            <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <label class="checkbox-field"><input type="checkbox" name="adsEnabled"> Re-enable ads</label>
+              <label>Placement<select name="adPlacement"><option value="feed">Feed</option><option value="sidebar">Sidebar</option><option value="all">Feed and sidebar</option></select></label>
+              <label>Frequency<input type="number" name="adFrequency" min="1" max="10" value="1"></label>
+              <input type="text" name="note" maxlength="500" placeholder="Reinstatement reason" required>
+              <button class="button button-small button-primary" name="decision" value="approve" type="submit">Restore monetization</button>
+            </form>
+            <% } %>
             <form method="post" action="/admin/communities/<%= community._id %>/delete" data-confirm="Delete this community and all of its posts?" style="margin-top:8px;">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="button button-small button-danger" type="submit">Delete community</button>
@@ -438,6 +491,8 @@
         <label>Monetization minimum posts<input type="number" name="monetizationMinimumPosts" min="0" max="10000" value="<%= siteSettings.monetizationMinimumPosts ?? 20 %>"></label>
         <label>Monetization minimum likes<input type="number" name="monetizationMinimumLikes" min="0" max="100000" value="<%= siteSettings.monetizationMinimumLikes ?? 30 %>"></label>
         <label>Monetization minimum comments<input type="number" name="monetizationMinimumComments" min="0" max="100000" value="<%= siteSettings.monetizationMinimumComments ?? 10 %>"></label>
+        <label>Minimum community age (days)<input type="number" name="monetizationMinimumCommunityAgeDays" min="0" max="3650" value="<%= siteSettings.monetizationMinimumCommunityAgeDays ?? 30 %>"></label>
+        <label>Recent activity window (days)<input type="number" name="monetizationRecentActivityDays" min="1" max="365" value="<%= siteSettings.monetizationRecentActivityDays ?? 30 %>"></label>
         <label>Post reward minimum Waves<input type="number" name="wavesPostRewardMinimum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesPostReward?.minimum ?? 1 %>"></label>
         <label>Post reward maximum Waves<input type="number" name="wavesPostRewardMaximum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesPostReward?.maximum ?? 3 %>"></label>
         <label>Comment reward minimum Waves<input type="number" name="wavesCommentRewardMinimum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesCommentReward?.minimum ?? 1 %>"></label>
@@ -455,6 +510,9 @@
         <label>Daily Waves earning limit<input type="number" name="wavesDailyEarningLimit" min="0" max="100000" step="0.01" value="<%= siteSettings.wavesDailyEarningLimit ?? 20 %>"></label>
         <label>Maximum Waves per transfer<input type="number" name="wavesMaxTransferAmount" min="0" max="1000000" step="0.01" value="<%= siteSettings.wavesMaxTransferAmount ?? 100 %>"></label>
         <label>Daily Waves transfer limit<input type="number" name="wavesDailyTransferLimit" min="0" max="10000000" step="0.01" value="<%= siteSettings.wavesDailyTransferLimit ?? 500 %>"></label>
+        <label class="checkbox-field"><input type="checkbox" name="postPromotionEnabled" <%= siteSettings.postPromotionEnabled !== false ? 'checked' : '' %>> Allow post promotions paid with Waves</label>
+        <label>Post promotion price (Waves)<input type="number" name="postPromotionWavesCost" min="1" max="10000" step="1" value="<%= siteSettings.postPromotionWavesCost ?? 25 %>"></label>
+        <label>Post promotion duration (hours)<input type="number" name="postPromotionDurationHours" min="1" max="168" step="1" value="<%= siteSettings.postPromotionDurationHours ?? 24 %>"></label>
         <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save settings</button></div>
       </form>
     </section>

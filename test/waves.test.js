@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const User = require('../src/models/User');
 const SiteSetting = require('../src/models/SiteSetting');
 const WavesLedgerEntry = require('../src/models/WavesLedgerEntry');
-const { creditWaves, transferWaves, rewardWavesForAction, getReciprocalRewardSignals } = require('../src/services/waves');
+const { creditWaves, debitWaves, transferWaves, adjustWaves, rewardWavesForAction, getReciprocalRewardSignals } = require('../src/services/waves');
 
 test('creditWaves updates balance and total earned', async (t) => {
   const user = {
@@ -110,6 +110,45 @@ test('transferWaves enforces configured per-transfer and daily limits', async (t
     amount: 6
   }), /daily transfer limit is 15 Waves/i);
   assert.equal(ledgerCreate.mock.callCount(), 0);
+});
+
+test('a temporary Waves hold prevents earning and spending while preserving admin adjustments', async (t) => {
+  const user = {
+    _id: 'held-user',
+    wavesBalance: 20,
+    wavesTotalEarned: 20,
+    wavesTotalSpent: 0,
+    wavesSuspendedUntil: new Date(Date.now() + 60_000),
+    async save() { return this; }
+  };
+  t.mock.method(User, 'findById', async () => user);
+  t.mock.method(SiteSetting, 'getSingleton', async () => ({
+    wavesPostReward: { minimum: 1, maximum: 1 },
+    wavesDailyEarningLimit: 20
+  }));
+  t.mock.method(WavesLedgerEntry, 'aggregate', async () => []);
+  let rewardClaim;
+  const createEntry = t.mock.method(WavesLedgerEntry, 'create', async (entry) => {
+    rewardClaim = { ...entry, async save() { return this; } };
+    return rewardClaim;
+  });
+
+  await assert.rejects(() => debitWaves({
+    userId: 'held-user',
+    amount: 2,
+    description: 'Spend while held'
+  }), /temporarily held from spending/i);
+  await assert.rejects(() => rewardWavesForAction({
+    userId: 'held-user',
+    action: 'post',
+    referenceType: 'post',
+    referenceId: 'post-held'
+  }), /temporarily held from earning/i);
+  assert.equal(createEntry.mock.callCount(), 1);
+  assert.equal(rewardClaim.status, 'reversed');
+
+  await adjustWaves({ userId: 'held-user', delta: -1, reason: 'Correct fraud loss', actorId: 'admin' });
+  assert.equal(createEntry.mock.callCount(), 2);
 });
 
 test('rewardWavesForAction credits within the configured range and daily cap', async (t) => {

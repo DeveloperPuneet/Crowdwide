@@ -337,6 +337,34 @@ async function recencyFallback({ user, view }) {
   return posts.map((post) => ({ id: String(post._id), source: 'Fresh from Crowdwide', lane: 'discovery' }));
 }
 
+async function prependActivePromotion(entries, user, view, now) {
+  if (view === 'my-community') return entries;
+  try {
+    const restricted = await getRestrictedCommunityIds(user._id);
+    const types = ranker.TAB_CONFIG[view].types;
+    const promoted = await Post.findOne({
+      status: 'published',
+      boostStatus: 'active',
+      boostUntil: { $gt: new Date(now) },
+      moderationStatus: { $in: ['unreviewed', 'good'] },
+      replyTo: null,
+      community: { $nin: restricted },
+      author: { $nin: [...(user.blockedUsers || []), ...(user.mutedUsers || []), user._id] },
+      ...(types ? { type: { $in: types } } : {})
+    }).sort({ boostStartedAt: -1, createdAt: -1 }).select('_id').lean();
+    if (!promoted) return entries;
+
+    const id = String(promoted._id);
+    return [
+      { id, source: 'Promoted · paid with Waves', lane: 'promoted' },
+      ...entries.filter((entry) => entry.id !== id)
+    ];
+  } catch (error) {
+    logger.error('Could not load active post promotions', error);
+    return entries;
+  }
+}
+
 async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(), force = false, user: preloaded = null }) {
   const tab = ranker.isFeedTab(view) ? view : 'for-you';
   const pageNumber = Math.max(1, Number.parseInt(page, 10) || 1);
@@ -358,8 +386,14 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
       logger.error('Feed ranking failed; falling back to newest-first', error);
       entries = await recencyFallback({ user, view: tab });
     }
-    remember(feedCache, key, { at: now, entries });
   }
+  entries = await prependActivePromotion(
+    entries.filter((entry) => entry.source !== 'Promoted · paid with Waves'),
+    user,
+    tab,
+    now
+  );
+  if (!reuse) remember(feedCache, key, { at: now, entries });
 
   const start = (pageNumber - 1) * ranker.PAGE_SIZE;
   const slice = entries.slice(start, start + ranker.PAGE_SIZE);
@@ -376,4 +410,4 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   };
 }
 
-module.exports = { getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, POOL_LIMIT, NOTES };
+module.exports = { getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, prependActivePromotion, POOL_LIMIT, NOTES };

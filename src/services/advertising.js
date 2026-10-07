@@ -3,6 +3,7 @@ const Campaign = require('../models/Campaign');
 const User = require('../models/User');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const CampaignEvent = require('../models/CampaignEvent');
+const CampaignAbuseSignal = require('../models/CampaignAbuseSignal');
 const Community = require('../models/Community');
 
 const ADVERTISING_TERMS_VERSION = '2026-10-07';
@@ -264,15 +265,23 @@ async function fundCampaign({ campaignId, actorId = null }) {
   }
 
   const debit = await User.updateOne(
-    { _id: advertiser.user, wavesBalance: { $gte: amount } },
+    {
+      _id: advertiser.user,
+      wavesBalance: { $gte: amount },
+      $or: [
+        { wavesSuspendedUntil: { $exists: false } },
+        { wavesSuspendedUntil: null },
+        { wavesSuspendedUntil: { $lte: new Date() } }
+      ]
+    },
     { $inc: { wavesBalance: -amount, wavesTotalSpent: amount } }
   );
   if (!debit.modifiedCount) {
     entry.status = 'reversed';
-    entry.reason = 'Campaign funding failed: insufficient Waves balance.';
+    entry.reason = 'Campaign funding failed: insufficient Waves balance or active Waves hold.';
     entry.rewardKey = undefined;
     await entry.save();
-    throw new Error('Insufficient Waves balance to fund this campaign.');
+    throw new Error('Insufficient Waves balance or an active Waves hold prevents campaign funding.');
   }
 
   const user = await User.findById(advertiser.user).select('wavesBalance').lean();
@@ -569,9 +578,38 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
   }
 
   try {
-    await CampaignEvent.create({ campaign: campaign._id, community: community._id, viewer: viewerId, eventType, eventToken });
+    const eventDay = now.toISOString().slice(0, 10);
+    await CampaignEvent.create({
+      campaign: campaign._id,
+      community: community._id,
+      viewer: viewerId,
+      eventType,
+      eventToken,
+      viewerDayKey: `${campaign._id}:${community._id}:${viewerId}:${eventType}:${eventDay}`
+    });
   } catch (error) {
-    if (error?.code === 11000) return { recorded: false, destinationUrl };
+    if (error?.code === 11000) {
+      const signalKey = `${campaign._id}:${community._id}:${viewerId}:${eventType}`;
+      await CampaignAbuseSignal.findOneAndUpdate(
+        { signalKey },
+        {
+          $setOnInsert: {
+            signalKey,
+            campaign: campaign._id,
+            community: community._id,
+            viewer: viewerId,
+            eventType,
+            reason: 'Repeated ad event rejected by per-viewer daily limit.',
+            firstSeenAt: now,
+            attempts: 0
+          },
+          $set: { lastSeenAt: now, status: 'open', reviewedAt: null, reviewedBy: null, reviewNote: '' },
+          $inc: { attempts: 1 }
+        },
+        { upsert: true, new: true }
+      );
+      return { recorded: false, destinationUrl };
+    }
     throw error;
   }
 

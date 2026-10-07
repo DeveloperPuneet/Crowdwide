@@ -1,5 +1,7 @@
 const Post = require('../models/Post');
 const Community = require('../models/Community');
+const { getPostPromotionOffer, promotePost } = require('../services/postPromotion');
+const logger = require('../services/logger');
 const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
@@ -18,7 +20,6 @@ const { createImageThumbnail, getImageSize } = require('../services/storage');
 const { mediaDetailsFor } = require('../utils/mediaDetails');
 const { getWordLimits } = require('../services/siteConfig');
 const { toggleReaction } = require('../utils/reactions');
-const logger = require('../services/logger');
 const { sendUnreadNotificationSummary } = require('../services/mailer');
 const { notificationPreferenceAllows } = require('../utils/notificationPreferences');
 const { rewardWavesForAction } = require('../services/waves');
@@ -150,7 +151,7 @@ exports.editPost = async (req, res) => {
 exports.editPostPage = async (req, res) => {
   const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id })
     .populate('author', 'name profilePicture')
-    .populate('community', 'name slug')
+    .populate('community', 'name slug isPrivate')
     .lean();
   if (!post) {
     req.session.flash = { type: 'error', message: 'Post not found or you do not own it.' };
@@ -473,10 +474,31 @@ exports.postDetail = async (req, res) => {
     structuredData,
     noIndex: false,
     post,
+    promotionOffer: viewerId && String(post.author?._id) === String(viewerId)
+      ? await getPostPromotionOffer()
+      : null,
     comments,
     commentTree,
     postModerationRole
   });
+};
+
+exports.promotePost = async (req, res) => {
+  try {
+    const result = await promotePost({ postId: req.params.id, userId: req.session.user.id });
+    req.session.flash = {
+      type: 'success',
+      message: `Your post is promoted for ${result.durationHours} hours for ${result.wavesCost} Waves.`
+    };
+  } catch (error) {
+    logger.warn('Post promotion could not be completed', { userId: req.session.user.id, postId: req.params.id, error });
+    const expected = /Only the author|Only published|already has an active|already being processed|private or unavailable|Add text or media|temporarily held|not enough Waves|currently unavailable|not configured|contact support/i.test(error.message);
+    req.session.flash = {
+      type: 'error',
+      message: expected ? error.message : 'The post promotion could not be completed. Please try again later.'
+    };
+  }
+  return res.redirect(`/posts/${encodeURIComponent(req.params.id)}`);
 };
 
 exports.commentThread = async (req, res) => {

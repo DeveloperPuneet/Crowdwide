@@ -20,6 +20,9 @@ const monetizationApplicationSchema = new mongoose.Schema({
   goals: { type: String, trim: true, default: '' },
   notes: { type: String, trim: true, default: '' },
   rejectionReason: { type: String, trim: true, default: '' },
+  appealMessage: { type: String, trim: true, maxlength: 1000, default: '' },
+  appealStatus: { type: String, enum: ['', 'pending', 'approved', 'denied'], default: '' },
+  appealedAt: Date,
   submittedAt: { type: Date, default: Date.now },
   reviewedAt: Date,
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
@@ -69,6 +72,12 @@ const communitySchema = new mongoose.Schema({
   isMonetized: { type: Boolean, default: false },
   monetizationApplication: { type: monetizationApplicationSchema, default: () => ({}) },
   monetizationSettings: { type: monetizationSettingsSchema, default: () => ({}) },
+  monetizationModeratorReview: {
+    status: { type: String, enum: ['pending', 'cleared', 'flagged'], default: 'pending' },
+    reason: { type: String, trim: true, maxlength: 500, default: '' },
+    reviewedAt: Date,
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  },
   monetizationHistory: [monetizationHistoryEntrySchema],
   monetizationApprovedAt: Date,
   monetizationUpdatedAt: Date

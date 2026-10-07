@@ -63,21 +63,48 @@
 
 		<section class="settings-block" id="monetization">
 			<h2>Community monetization</h2>
+			<p><a href="/community-monetization/terms">Community Monetization Terms</a> · <a href="/advertising/terms">Advertising Terms</a></p>
 			<% const monetizationStatus = community.monetizationStatus || 'none'; %>
 			<% const monetizationChecklist = locals.monetizationEligibility || { eligible: false, requirements: {
 				posts: { label: 'Published posts', actual: 0, minimum: 20, met: false },
 				likes: { label: 'Total post likes', actual: 0, minimum: 30, met: false },
 				comments: { label: 'Total comments', actual: 0, minimum: 10, met: false }
 			} }; %>
+			<% const adStats = locals.monetizationStats || { impressions: 0, clicks: 0 }; %>
 			<% if (monetizationStatus === 'approved') { %>
 			<p class="admin-badge status-good">Application approved.</p>
+			<div class="admin-stats" aria-label="Community advertising totals">
+				<article class="admin-stat"><span>Delivery</span><strong><%= adStats.impressions.toLocaleString() %></strong><small>impressions</small></article>
+				<article class="admin-stat"><span>Engagement</span><strong><%= adStats.clicks.toLocaleString() %></strong><small>clicks</small></article>
+				<article class="admin-stat"><span>Revenue</span><strong>Not available</strong><small>external provider and payout approvals required</small></article>
+			</div>
+			<p>Impressions and clicks are platform-measured activity, not proof of billable ad revenue. No earnings or payout is calculated until an advertising provider and revenue-sharing arrangement are approved.</p>
 			<% } else if (monetizationStatus === 'pending') { %>
-			<p class="admin-badge status-reviewing">Application is pending admin review.</p>
+			<p class="admin-badge status-reviewing">Application is pending staged review. Moderator screening: <strong><%= community.monetizationModeratorReview?.status || 'pending' %></strong><% if (community.monetizationModeratorReview?.reason) { %> — <%= community.monetizationModeratorReview.reason %><% } %></p>
 			<% } else if (monetizationStatus === 'rejected') { %>
 			<p class="admin-badge status-suspended">Application was rejected.</p>
 			<% if (community.monetizationApplication?.rejectionReason) { %><p><%= community.monetizationApplication.rejectionReason %></p><% } %>
+			<% if (community.monetizationApplication?.appealStatus === 'pending') { %><p>Your appeal is awaiting admin review.</p><% } else { %>
+			<form method="post" action="/communities/<%= community._id %>/monetization/appeal">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<label>Appeal this decision<textarea name="message" minlength="20" maxlength="1000" required placeholder="Explain why the decision should be reconsidered."></textarea></label>
+				<button class="button button-ghost button-small" type="submit">Submit appeal</button>
+			</form>
+			<% } %>
 			<% } else if (monetizationStatus === 'paused') { %>
 			<p class="admin-badge status-suspended">Monetization has been paused.</p>
+			<% if (community.monetizationApplication?.appealStatus === 'pending') { %><p>Your appeal is awaiting admin review.</p><% } else { %>
+			<form method="post" action="/communities/<%= community._id %>/monetization/appeal">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<label>Appeal this suspension<textarea name="message" minlength="20" maxlength="1000" required placeholder="Explain why the suspension should be reconsidered."></textarea></label>
+				<button class="button button-ghost button-small" type="submit">Submit appeal</button>
+			</form>
+			<% } %>
+			<% } %>
+			<% if ((community.monetizationHistory || []).length) { %>
+			<details><summary>Monetization review history (<%= community.monetizationHistory.length %>)</summary>
+				<% community.monetizationHistory.slice().reverse().forEach((entry) => { %><p><strong><%= entry.action.replace(/-/g, ' ') %></strong> · <%= new Date(entry.createdAt).toLocaleString() %><% if (entry.note) { %><br><%= entry.note %><% } %></p><% }) %>
+			</details>
 			<% } %>
 			<% if (monetizationStatus !== 'pending' && monetizationStatus !== 'approved') { %>
 			<p>Meet each requirement to apply:</p>
@@ -85,7 +112,7 @@
 				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 				<div class="settings-form compact">
 					<% Object.values(monetizationChecklist.requirements).forEach((requirement) => { %>
-					<label class="checkbox-field" style="display:flex;align-items: center;"><input type="checkbox" aria-label="<%= requirement.label %> requirement met" <%= requirement.met ? 'checked' : '' %> disabled> <%= requirement.label %>: <%= requirement.actual %> / <%= requirement.minimum %></label>
+					<label class="checkbox-field" style="display:flex;align-items: center;"><input type="checkbox" aria-label="<%= requirement.label %> requirement met" <%= requirement.met ? 'checked' : '' %> disabled> <%= requirement.label %>: <%= typeof requirement.actual === 'boolean' ? (requirement.actual ? 'Yes' : 'No') : `${requirement.actual} / ${requirement.minimum}` %></label>
 					<% }) %>
 				</div>
 				<button class="button button-primary button-small" style="margin-top:25px;" type="submit" <%= monetizationChecklist.eligible ? '' : 'disabled' %>>Apply for monetization</button>
