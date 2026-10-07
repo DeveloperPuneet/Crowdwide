@@ -32,7 +32,7 @@ const monetizationSettingsSchema = new mongoose.Schema({
   adsEnabled: { type: Boolean, default: false },
   adPlacement: { type: String, enum: ['feed', 'sidebar', 'all', 'none'], default: 'feed' },
   adFrequency: { type: Number, min: 1, max: 10, default: 1 },
-  revenueSharePercent: { type: Number, min: 0, max: 100, default: 0 },
+  revenueSharePercent: { type: Number, min: 0, max: 100, default: 50 },
   requiresAdminReview: { type: Boolean, default: true }
 }, { _id: false });
 

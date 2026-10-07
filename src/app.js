@@ -80,14 +80,16 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     next();
   });
   if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
+  const sessionStore = process.env.MONGODB_URI ? connectMongo.create({
+    mongoUrl: process.env.MONGODB_URI,
+    ttl: Math.floor(sessionDurationMs / 1000)
+  }) : undefined;
+  app.locals.sessionStore = sessionStore;
   app.use(session({
     secret: process.env.SESSION_SECRET || 'crowdwide-development-secret',
     resave: false,
     saveUninitialized: false,
-    store: process.env.MONGODB_URI ? connectMongo.create({
-      mongoUrl: process.env.MONGODB_URI,
-      ttl: Math.floor(sessionDurationMs / 1000)
-    }) : undefined,
+    store: sessionStore,
     cookie: { maxAge: sessionDurationMs, httpOnly: true, sameSite: 'lax' }
   }));
   app.use(csrfProtection);

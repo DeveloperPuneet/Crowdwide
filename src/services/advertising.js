@@ -6,6 +6,8 @@ const CampaignEvent = require('../models/CampaignEvent');
 const CampaignAbuseSignal = require('../models/CampaignAbuseSignal');
 const Community = require('../models/Community');
 const SiteSetting = require('../models/SiteSetting');
+const { calculateCommunityAdShare } = require('./communityRevenue');
+const wavesService = require('./waves');
 const logger = require('./logger');
 
 const ADVERTISING_TERMS_VERSION = '2026-10-07-v2';
@@ -641,7 +643,7 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
 
   const [community, campaign] = await Promise.all([
     deliveryContext === 'community' ? Community.findById(communityId).lean() : Promise.resolve(null),
-    Campaign.findById(campaignId).populate('advertiser', 'businessName website status').lean()
+    Campaign.findById(campaignId).populate('advertiser', 'businessName website status user').lean()
   ]);
   if (deliveryContext === 'community'
     && (!community || community.isPrivate || !community.isMonetized || community.monetizationStatus !== 'approved'
@@ -677,16 +679,60 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
     }
   }
 
+  const spend = Number(eventType === 'impression'
+    ? campaign.impressionCostWaves ?? 0.1
+    : campaign.clickCostWaves ?? 1);
+  if (!Number.isFinite(spend) || spend < 0) {
+    throw new Error('Campaign advertising prices are invalid.');
+  }
+  const ownerId = community?.owner;
+  const viewerIsOwner = ownerId && String(ownerId) === String(viewerId);
+  const viewerIsAdvertiser = campaign.advertiser?.user && String(campaign.advertiser.user) === String(viewerId);
+  const requestedRevenueSharePercent = Number(community?.monetizationSettings?.revenueSharePercent ?? 0);
+  const communityShareEligible = deliveryContext === 'community' && ownerId && !viewerIsOwner && !viewerIsAdvertiser;
+  const revenueSharePercent = communityShareEligible ? requestedRevenueSharePercent : 0;
+  const ownerShare = communityShareEligible
+    ? calculateCommunityAdShare({ campaignSpendWaves: spend, communityOwnerSharePercent: revenueSharePercent })
+    : calculateCommunityAdShare({ campaignSpendWaves: spend, communityOwnerSharePercent: 0 });
+  const communityOwnerShareWaves = ownerShare?.communityOwnerShareWaves || 0;
+  const viewerDayKey = `${campaign._id}:${community?._id || 'sitewide'}:${viewerId}:${eventType}:${now.toISOString().slice(0, 10)}`;
+
+  const settleCommunityShare = async (event) => {
+    if (!event || event.communityShareStatus !== 'pending' || !(event.communityOwnerShareWaves > 0)) return false;
+    const result = await wavesService.creditCommunityAdShare({
+      userId: event.communityOwner,
+      amount: event.communityOwnerShareWaves,
+      communityId: event.community,
+      eventId: event._id,
+      viewerId: event.viewer,
+      revenueSharePercent: event.communityOwnerSharePercent
+    });
+    if (result.duplicate || result.amount > 0) {
+      await CampaignEvent.updateOne(
+        { _id: event._id, communityShareStatus: 'pending' },
+        { $set: { communityShareStatus: 'posted' } }
+      );
+      return true;
+    }
+    return false;
+  };
+
+  let createdEvent;
   try {
-    const eventDay = now.toISOString().slice(0, 10);
-    await CampaignEvent.create({
+    createdEvent = await CampaignEvent.create({
       campaign: campaign._id,
       community: community?._id || null,
       deliveryContext,
       viewer: viewerId,
       eventType,
       eventToken,
-      viewerDayKey: `${campaign._id}:${community?._id || 'sitewide'}:${viewerId}:${eventType}:${eventDay}`
+      viewerDayKey,
+      wavesCharged: spend,
+      communityOwner: communityOwnerShareWaves > 0 ? ownerId : null,
+      communityOwnerSharePercent: revenueSharePercent,
+      communityOwnerShareWaves,
+      crowdwideShareWaves: ownerShare.crowdwideShareWaves,
+      communityShareStatus: communityOwnerShareWaves > 0 ? 'pending' : 'not-eligible'
     });
   } catch (error) {
     if (error?.code === 11000) {
@@ -701,14 +747,15 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
             viewer: viewerId,
             eventType,
             reason: 'Repeated ad event rejected by per-viewer daily limit.',
-            firstSeenAt: now,
-            attempts: 0
+            firstSeenAt: now
           },
           $set: { lastSeenAt: now, status: 'open', reviewedAt: null, reviewedBy: null, reviewNote: '' },
           $inc: { attempts: 1 }
         },
         { upsert: true, new: true }
       );
+      const existingEvent = await CampaignEvent.findOne({ viewerDayKey }).lean();
+      await settleCommunityShare(existingEvent);
       return { recorded: false, destinationUrl };
     }
     throw error;
@@ -716,13 +763,6 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
 
   const impressionIncrement = eventType === 'impression' ? 1 : 0;
   const clickIncrement = eventType === 'click' ? 1 : 0;
-  const spend = Number(eventType === 'impression'
-    ? campaign.impressionCostWaves ?? 0.1
-    : campaign.clickCostWaves ?? 1);
-  if (!Number.isFinite(spend) || spend < 0) {
-    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community?._id || null, deliveryContext, eventType, eventToken });
-    throw new Error('Campaign advertising prices are invalid.');
-  }
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentDailySpend = {
     $cond: [
@@ -780,6 +820,7 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
     await CampaignEvent.deleteOne({ campaign: campaign._id, community: community?._id || null, deliveryContext, eventType, eventToken });
     throw unavailableAdvertisement('This advertisement is no longer available.');
   }
+  await settleCommunityShare(createdEvent);
   let botActivitySignal = false;
   try {
     const recentEventCount = await CampaignEvent.countDocuments({

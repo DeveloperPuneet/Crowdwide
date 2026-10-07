@@ -44,4 +44,24 @@ function calculateRevenueShares({
   };
 }
 
-module.exports = { calculateRevenueShares };
+function calculateCommunityAdShare({ campaignSpendWaves, communityOwnerSharePercent }) {
+  if (!Number.isFinite(campaignSpendWaves) || campaignSpendWaves < 0) {
+    throw new TypeError('campaignSpendWaves must be a non-negative number.');
+  }
+  const spendMicroWaves = Math.round(campaignSpendWaves * 1_000_000);
+  if (!Number.isSafeInteger(spendMicroWaves)) {
+    throw new RangeError('campaignSpendWaves exceeds the supported precision.');
+  }
+  const shares = calculateRevenueShares({
+    grossRevenueMinorUnits: spendMicroWaves,
+    communityOwnerSharePercent
+  });
+  return {
+    campaignSpendWaves: spendMicroWaves / 1_000_000,
+    communityOwnerSharePercent: shares.communityOwnerSharePercent,
+    communityOwnerShareWaves: shares.communityOwnerShareMinorUnits / 1_000_000,
+    crowdwideShareWaves: shares.crowdwideShareMinorUnits / 1_000_000
+  };
+}
+
+module.exports = { calculateRevenueShares, calculateCommunityAdShare };

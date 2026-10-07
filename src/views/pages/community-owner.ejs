@@ -99,9 +99,25 @@
 			<div class="admin-stats" aria-label="Community advertising totals">
 				<article class="admin-stat"><span>Delivery</span><strong><%= adStats.impressions.toLocaleString() %></strong><small>impressions</small></article>
 				<article class="admin-stat"><span>Engagement</span><strong><%= adStats.clicks.toLocaleString() %></strong><small>clicks</small></article>
-				<article class="admin-stat" data-community-earnings-status="unavailable"><span>Earnings</span><strong>Unavailable</strong><small>Provider and payout approvals required</small></article>
+				<article class="admin-stat"><span>Campaign spend</span><strong><%= Number(adStats.campaignSpendWaves || 0).toLocaleString() %></strong><small>Waves charged to campaigns</small></article>
+				<article class="admin-stat"><span>Owner share</span><strong><%= Number(adStats.ownerShareWaves || 0).toLocaleString() %></strong><small><%= Number(community.monetizationSettings?.revenueSharePercent || 0) %>% · credited Waves</small></article>
 			</div>
-			<p>Impressions and clicks are platform-measured activity, not proof of billable ad revenue. Earnings and payouts remain unavailable until an advertising provider and revenue-sharing arrangement are approved.</p>
+			<p>Your share is <%= Number(community.monetizationSettings?.revenueSharePercent || 0) %>% of eligible, deduplicated campaign spend in this public community, credited directly to your Waves wallet. Waves are platform currency, not external advertising revenue; they have no cash value and cannot be withdrawn.</p>
+			<section class="community-ad-earnings-history" aria-labelledby="community-ad-earnings-heading">
+				<h3 id="community-ad-earnings-heading">Recent Waves earnings</h3>
+				<% const earningsHistory = Array.isArray(locals.ownerEarningsHistory) ? locals.ownerEarningsHistory : []; %>
+				<% if (earningsHistory.length) { %>
+				<div class="community-ad-earnings-list">
+					<% earningsHistory.forEach((entry) => { %>
+					<div class="community-ad-earnings-row">
+						<span><%= entry.status === 'posted' ? 'Credited' : 'Pending' %><small><%= new Date(entry.createdAt).toLocaleString() %></small></span>
+						<strong>+<%= Number(entry.amount || 0).toLocaleString() %> Waves</strong>
+					</div>
+					<% }) %>
+				</div>
+				<% } else { %><p>No campaign-funded Waves shares have been credited yet.</p><% } %>
+				<p><a href="/wallet">View your full Waves wallet history</a></p>
+			</section>
 			<% } else if (monetizationStatus === 'pending') { %>
 			<p class="admin-badge status-reviewing">Application is pending staged review. Moderator screening: <strong><%= community.monetizationModeratorReview?.status || 'pending' %></strong><% if (community.monetizationModeratorReview?.reason) { %> — <%= community.monetizationModeratorReview.reason %><% } %></p>
 			<% } else if (monetizationStatus === 'rejected') { %>

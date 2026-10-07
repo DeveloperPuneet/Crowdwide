@@ -30,7 +30,8 @@ async function startTestDatabase() {
   return { stop };
 }
 
-async function stopTestDatabase(handle) {
+async function stopTestDatabase(handle, app = null) {
+  await app?.locals?.sessionStore?.close();
   await mongoose.connection.dropDatabase();
   await mongoose.disconnect();
   await handle.stop();

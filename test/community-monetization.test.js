@@ -188,6 +188,32 @@ test('admin cannot approve monetization before moderator clearance', async (t) =
   assert.equal(res.path, '/admin#communities');
 });
 
+test('admin monetization approval rejects an invalid community Waves share', async (t) => {
+  const community = {
+    _id: 'community-invalid-share',
+    monetizationStatus: 'pending',
+    monetizationModeratorReview: { status: 'cleared' },
+    async save() {
+      this.saved = true;
+    }
+  };
+  t.mock.method(Community, 'findById', async () => community);
+  const req = {
+    params: { id: community._id },
+    body: { decision: 'approve', revenueSharePercent: '100.001' },
+    roleUser: { _id: 'admin-share' },
+    session: { flash: null }
+  };
+  const res = { redirect(path) { this.path = path; } };
+
+  await adminController.reviewMonetization(req, res);
+
+  assert.equal(community.saved, undefined);
+  assert.equal(community.monetizationStatus, 'pending');
+  assert.match(req.session.flash.message, /between 0 and 100%/);
+  assert.equal(res.path, '/admin#communities');
+});
+
 test('moderator screening is reasoned, excludes the community owner, and logs a clear decision', async (t) => {
   const community = {
     _id: 'community-screened',

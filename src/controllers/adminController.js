@@ -15,11 +15,12 @@ const MaintenanceRun = require('../models/MaintenanceRun');
 const Appeal = require('../models/Appeal');
 const Advertiser = require('../models/Advertiser');
 const Campaign = require('../models/Campaign');
+const CampaignEvent = require('../models/CampaignEvent');
 const { logEvent } = require('../services/accountHistory');
 const { getSiteConfig, clearSiteConfigCache, getPostReviewThreshold } = require('../services/siteConfig');
 const { runMaintenance, TASK_LABELS } = require('../services/maintenance');
 const { getMongoStorage, formatStorage } = require('../services/mongoStorage');
-const { adjustWaves, getReciprocalRewardSignals } = require('../services/waves');
+const { adjustWaves, getReciprocalRewardSignals, creditCommunityAdShare } = require('../services/waves');
 const { reviewAdvertiserAsModerator, reviewCampaignAsModerator, updateAdvertiserStatus, updateCampaignStatus } = require('../services/advertising');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const logger = require('../services/logger');
@@ -30,6 +31,14 @@ const panelRoles = { admin: ['admin'], moderator: ['admin', 'moderator'] };
 const postModerationActions = ['delete-post', 'suspend-user', 'rate-good-post', 'rate-bad-post', 'report-post'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SUSPENSION_MS = 365 * DAY_MS; // fallback used only where a site-config lookup isn't already in hand
+const validRevenueSharePercent = (value) => {
+  const percent = Number(value);
+  return String(value ?? '').trim() !== ''
+    && Number.isFinite(percent)
+    && percent >= 0
+    && percent <= 100
+    && Math.abs(percent * 100 - Math.round(percent * 100)) <= 1e-8;
+};
 
 async function applyPostModerationAction(req, action, post, reason) {
   if (action === 'delete-post') await Post.deleteOne({ _id: post._id });
@@ -120,7 +129,7 @@ async function attachActionContext(actions) {
 }
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason wavesSuspendedUntil wavesSuspensionReason wavesBalance warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts monetizationStatus monetizationApplication monetizationSettings createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
@@ -148,11 +157,77 @@ exports.admin = async (req, res) => {
     ]),
     User.find({ wavesSuspendedUntil: { $gt: new Date() } }).sort({ wavesSuspendedUntil: 1 }).limit(30).select('name email wavesSuspendedUntil wavesSuspensionReason wavesBalance').lean(),
     CampaignAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('campaign', 'title').populate('community', 'name slug').populate('viewer', 'name email').lean(),
-    WavesAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('sender', 'name email').populate('recipient', 'name email').lean()
+    WavesAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('sender', 'name email').populate('recipient', 'name email').lean(),
+    WavesLedgerEntry.aggregate([
+      { $match: { type: 'earn', status: 'posted', referenceType: 'community-ad-share', community: { $ne: null } } },
+      { $group: { _id: '$community', totalWaves: { $sum: '$amount' }, entries: { $sum: 1 }, lastEarnedAt: { $max: '$createdAt' } } },
+      { $sort: { lastEarnedAt: -1 } },
+      { $limit: 50 }
+    ]),
+    CampaignEvent.find({
+      communityShareStatus: 'pending',
+      community: { $ne: null },
+      communityOwner: { $ne: null },
+      communityOwnerShareWaves: { $gt: 0 }
+    })
+      .sort({ createdAt: 1 })
+      .limit(100)
+      .populate('campaign', 'title')
+      .populate('community', 'name slug')
+      .populate('communityOwner', 'name email')
+      .lean()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   await attachActionContext(pendingActions);
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  const communityAdShareIds = communityAdShares.map((row) => row._id);
+  const communityAdShareCommunities = communityAdShareIds.length
+    ? await Community.find({ _id: { $in: communityAdShareIds } }).select('name slug owner').populate('owner', 'name email').lean()
+    : [];
+  const communityAdShareById = new Map(communityAdShareCommunities.map((community) => [String(community._id), community]));
+  communityAdShares.forEach((row) => { row.community = communityAdShareById.get(String(row._id)) || null; });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+};
+
+exports.retryCommunityAdShare = async (req, res) => {
+  const event = await CampaignEvent.findOne({
+    _id: req.params.id,
+    communityShareStatus: 'pending',
+    community: { $ne: null },
+    communityOwner: { $ne: null },
+    communityOwnerShareWaves: { $gt: 0 }
+  });
+  if (!event) {
+    flash(req, 'error', 'That community ad share is no longer pending.');
+    return res.redirect('/admin#overview');
+  }
+  try {
+    const result = await creditCommunityAdShare({
+      userId: event.communityOwner,
+      amount: event.communityOwnerShareWaves,
+      communityId: event.community,
+      eventId: event._id,
+      viewerId: event.viewer,
+      revenueSharePercent: event.communityOwnerSharePercent
+    });
+    if (result.amount > 0 || result.duplicate) {
+      await CampaignEvent.updateOne(
+        { _id: event._id, communityShareStatus: 'pending' },
+        { $set: { communityShareStatus: 'posted' } }
+      );
+      await audit(req, 'retry-community-ad-share', 'community', event.community, {
+        event: event._id,
+        amount: event.communityOwnerShareWaves,
+        owner: event.communityOwner
+      });
+      flash(req, 'success', 'The community ad share was credited to the owner wallet.');
+    } else {
+      flash(req, 'error', 'The share is already being processed. Refresh shortly to check its status.');
+    }
+  } catch (error) {
+    logger.warn('Community ad share retry failed', { eventId: event._id, error });
+    flash(req, 'error', error.message || 'The community ad share could not be credited.');
+  }
+  return res.redirect('/admin#overview');
 };
 
 exports.reviewAdvertiser = async (req, res) => {
@@ -469,11 +544,18 @@ exports.reviewMonetization = async (req, res) => {
   const decision = String(req.body.decision || '');
   const note = req.body.note?.trim().slice(0, 500) || '';
 
-  if (decision === 'approve') {
-    if (community.monetizationModeratorReview?.status !== 'cleared') {
-      flash(req, 'error', 'A moderator must clear this application before final admin approval.');
+  if (decision === 'approve' && community.monetizationModeratorReview?.status !== 'cleared') {
+    flash(req, 'error', 'A moderator must clear this application before final admin approval.');
+    return res.redirect('/admin#communities');
+  }
+  if (['approve', 'approve-appeal'].includes(decision)) {
+    if (!validRevenueSharePercent(req.body.revenueSharePercent)) {
+      flash(req, 'error', 'Set a community Waves share between 0 and 100%, using at most two decimal places.');
       return res.redirect('/admin#communities');
     }
+  }
+
+  if (decision === 'approve') {
     const adPlacement = String(req.body.adPlacement || 'feed');
     const adFrequency = Number(req.body.adFrequency || 1);
     if (!['feed', 'sidebar', 'all'].includes(adPlacement) || !Number.isInteger(adFrequency) || adFrequency < 1 || adFrequency > 10) {
@@ -494,7 +576,7 @@ exports.reviewMonetization = async (req, res) => {
       adsEnabled: req.body.adsEnabled === 'on',
       adPlacement,
       adFrequency,
-      revenueSharePercent: Number(req.body.revenueSharePercent) || community.monetizationSettings?.revenueSharePercent || 0,
+      revenueSharePercent: Number(req.body.revenueSharePercent),
       requiresAdminReview: true
     };
     community.monetizationHistory = [
@@ -546,7 +628,11 @@ exports.reviewMonetization = async (req, res) => {
       community.monetizationStatus = 'approved';
       community.isMonetized = true;
       community.monetizationApprovedAt = new Date();
-      community.monetizationSettings = { ...(community.monetizationSettings || {}), adsEnabled: false };
+      community.monetizationSettings = {
+        ...(community.monetizationSettings || {}),
+        adsEnabled: false,
+        revenueSharePercent: Number(req.body.revenueSharePercent)
+      };
     }
     community.monetizationHistory = [
       ...(community.monetizationHistory || []).slice(-19),
@@ -681,6 +767,7 @@ exports.updateCommunity = async (req, res) => {
   community.requireApproval = req.body.requireApproval === 'on';
   community.bannedWords = (req.body.bannedWords || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean).slice(0, 100);
   let advertisingSettingsUpdated = false;
+  let revenueShareUpdated = false;
   if (req.body.updateAdvertisingSettings === 'on') {
     if (community.monetizationStatus !== 'approved' || !community.isMonetized) {
       flash(req, 'error', 'Advertising settings are available only for actively monetized communities.');
@@ -688,25 +775,32 @@ exports.updateCommunity = async (req, res) => {
     }
     const adPlacement = String(req.body.adPlacement || '');
     const adFrequency = Number(req.body.adFrequency);
-    if (!['feed', 'sidebar', 'all'].includes(adPlacement) || !Number.isInteger(adFrequency) || adFrequency < 1 || adFrequency > 10) {
-      flash(req, 'error', 'Choose a valid ad placement and a frequency between 1 and 10 posts.');
+    if (!['feed', 'sidebar', 'all'].includes(adPlacement)
+      || !Number.isInteger(adFrequency)
+      || adFrequency < 1
+      || adFrequency > 10
+      || !validRevenueSharePercent(req.body.revenueSharePercent)) {
+      flash(req, 'error', 'Choose a valid ad placement, a frequency between 1 and 10 posts, and a Waves share from 0 to 100% (up to two decimal places).');
       return res.redirect('/admin#communities');
     }
     community.monetizationSettings = {
       ...(community.monetizationSettings || {}),
       adsEnabled: req.body.adsEnabled === 'on',
       adPlacement,
-      adFrequency
+      adFrequency,
+      revenueSharePercent: Number(req.body.revenueSharePercent)
     };
     advertisingSettingsUpdated = true;
+    revenueShareUpdated = true;
   }
   await community.save();
-  const auditDetails = { name: community.name, advertisingSettingsUpdated };
+  const auditDetails = { name: community.name, advertisingSettingsUpdated, revenueShareUpdated };
   if (advertisingSettingsUpdated) {
     auditDetails.advertisingSettings = {
       adsEnabled: community.monetizationSettings.adsEnabled,
       adPlacement: community.monetizationSettings.adPlacement,
-      adFrequency: community.monetizationSettings.adFrequency
+      adFrequency: community.monetizationSettings.adFrequency,
+      revenueSharePercent: community.monetizationSettings.revenueSharePercent
     };
   }
   await audit(req, 'edit-community', 'community', community._id, auditDetails);

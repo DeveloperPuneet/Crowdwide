@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Report = require('../models/Report');
 const CampaignEvent = require('../models/CampaignEvent');
+const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const SiteSetting = require('../models/SiteSetting');
 const Quest = require('../models/Quest');
 const crypto = require('node:crypto');
@@ -332,7 +333,7 @@ exports.detail = async (req, res) => {
   res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests, feedAds, sidebarAds });
 };
 exports.manage = async (req, res) => {
-  const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, adEvents, communityPromotionOffer] = await Promise.all([
+  const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, adEvents, communityPromotionOffer, ownerEarnings, ownerEarningsHistory] = await Promise.all([
     User.find({ _id: { $in: req.community.members } }).select('name email profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'published' }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'pending' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
@@ -342,16 +343,33 @@ exports.manage = async (req, res) => {
     getMonetizationEligibility(req.community._id),
     CampaignEvent.aggregate([
       { $match: { community: req.community._id } },
-      { $group: { _id: '$eventType', count: { $sum: 1 } } }
+      { $group: {
+        _id: '$eventType',
+        count: { $sum: 1 },
+        campaignSpendWaves: { $sum: { $ifNull: ['$wavesCharged', 0] } }
+      } }
     ]),
-    getCommunityPromotionOffer()
+    getCommunityPromotionOffer(),
+    WavesLedgerEntry.aggregate([
+      { $match: { user: req.community.owner, community: req.community._id, type: 'earn', status: 'posted', referenceType: 'community-ad-share' } },
+      { $group: { _id: null, total: { $sum: '$amount' }, entries: { $sum: 1 } } }
+    ]),
+    WavesLedgerEntry.find({
+      user: req.community.owner,
+      community: req.community._id,
+      type: 'earn',
+      referenceType: 'community-ad-share'
+    }).sort({ createdAt: -1, _id: -1 }).limit(20).lean()
   ]);
   const monetizationStats = {
     impressions: Number(adEvents.find((event) => event._id === 'impression')?.count || 0),
-    clicks: Number(adEvents.find((event) => event._id === 'click')?.count || 0)
+    clicks: Number(adEvents.find((event) => event._id === 'click')?.count || 0),
+    campaignSpendWaves: Number(adEvents.reduce((total, event) => total + Number(event.campaignSpendWaves || 0), 0)),
+    ownerShareWaves: Number(ownerEarnings[0]?.total || 0),
+    ownerShareEntries: Number(ownerEarnings[0]?.entries || 0)
   };
   const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, monetizationStats, communityPromotionOffer, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, monetizationStats, ownerEarningsHistory, communityPromotionOffer, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
 };
 
 exports.promoteCommunity = async (req, res) => {

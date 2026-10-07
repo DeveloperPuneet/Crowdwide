@@ -35,7 +35,7 @@
           <tr>
             <td><%= new Date(entry.createdAt).toLocaleString() %></td>
             <td><%= entry.type.replace(/-/g, ' ') %> · <%= entry.status %></td>
-            <td><%= entry.description || entry.reason || 'Waves transaction' %><% if (entry.relatedUser?.name) { %> · <%= entry.relatedUser.name %><% } %></td>
+            <td><%= entry.description || entry.reason || 'Waves transaction' %><% if (entry.community?.name) { %> · <a href="/communities/<%= entry.community.slug %>"><%= entry.community.name %></a><% } %><% if (entry.relatedUser?.name) { %> · <%= entry.relatedUser.name %><% } %></td>
             <td><%= entry.amount > 0 ? '+' : '' %><%= Number(entry.amount).toLocaleString() %></td>
             <td><%= Number(entry.balanceAfter || 0).toLocaleString() %></td>
           </tr>

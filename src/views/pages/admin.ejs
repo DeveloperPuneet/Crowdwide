@@ -42,6 +42,8 @@
     <% const heldWavesAccounts = Array.isArray(locals.heldWavesUsers) ? locals.heldWavesUsers : []; %>
     <% const repeatedAdEvents = Array.isArray(locals.suspiciousAdEvents) ? locals.suspiciousAdEvents : []; %>
     <% const transferSignals = Array.isArray(locals.suspiciousWavesTransfers) ? locals.suspiciousWavesTransfers : []; %>
+    <% const communityAdShares = Array.isArray(locals.communityAdShares) ? locals.communityAdShares : []; %>
+    <% const pendingCommunityAdShares = Array.isArray(locals.pendingCommunityShares) ? locals.pendingCommunityShares : []; %>
     <section class="settings-block admin-wide">
       <h2>Waves activity · last 30 days</h2>
       <% if (!economyRows.length) { %><p>No posted Waves ledger activity in the last 30 days.</p><% } %>
@@ -52,6 +54,29 @@
       <% if (!heldWavesAccounts.length) { %><p>No accounts currently have a Waves hold.</p><% } %>
       <% heldWavesAccounts.forEach((heldUser) => { %><div class="device-row"><div><strong><%= heldUser.name %> · <%= heldUser.email %></strong><span><%= Number(heldUser.wavesBalance || 0).toLocaleString() %> Waves · held until <%= new Date(heldUser.wavesSuspendedUntil).toLocaleString() %></span><small><%= heldUser.wavesSuspensionReason || 'No reason recorded' %></small></div></div><% }) %>
       <p>Holds are review controls, not automatic findings or proof of abuse. Adjust or lift them from the user management panel.</p>
+    </section>
+    <section class="settings-block admin-wide">
+      <h2>Community ad shares · lifetime</h2>
+      <p>These are internal Waves credited from eligible, deduplicated community campaign spend. They are not external ad revenue or cash payouts.</p>
+      <% if (!communityAdShares.length) { %><p>No community ad shares have been credited.</p><% } %>
+      <% communityAdShares.forEach((row) => { %>
+      <% if (row.community) { %>
+      <div class="device-row">
+        <div><strong><a href="/communities/<%= row.community.slug %>"><%= row.community.name %></a> · owner <%= row.community.owner?.name || 'unknown' %></strong><span><%= Number(row.entries || 0).toLocaleString() %> credited events · <%= Number(row.totalWaves || 0).toLocaleString() %> Waves · last <%= new Date(row.lastEarnedAt).toLocaleString() %></span></div>
+      </div>
+      <% } %>
+      <% }) %>
+    </section>
+    <section class="settings-block admin-wide">
+      <h2>Pending community Waves shares</h2>
+      <p>Pending entries are retained for retry if an owner account was temporarily ineligible or a credit could not be finalized.</p>
+      <% if (!pendingCommunityAdShares.length) { %><p>No community ad shares are pending.</p><% } %>
+      <% pendingCommunityAdShares.forEach((event) => { %>
+      <div class="device-row">
+        <div><strong><%= event.community?.name || 'Community' %> · <%= event.communityOwner?.name || 'Owner account unavailable' %></strong><span><%= event.campaign?.title || 'Campaign' %> · <%= Number(event.communityOwnerShareWaves || 0).toLocaleString() %> Waves · <%= event.eventType %> · <%= new Date(event.createdAt).toLocaleString() %></span></div>
+        <form method="post" action="/admin/community-ad-shares/<%= event._id %>/retry"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" type="submit">Retry credit</button></form>
+      </div>
+      <% }) %>
     </section>
     <section class="settings-block admin-wide">
       <h2>Suspicious Waves transfer activity</h2>
@@ -367,7 +392,7 @@
         </div>
         <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="number" name="revenueSharePercent" min="0" max="100" value="<%= community.monetizationSettings?.revenueSharePercent || 0 %>" placeholder="Revenue share" style="max-width:120px;">
+          <label>Owner Waves share (%)<input type="number" name="revenueSharePercent" min="0" max="100" step="0.01" value="<%= community.monetizationSettings?.revenueSharePercent ?? 50 %>" required></label>
           <label class="checkbox-field"><input type="checkbox" name="adsEnabled"> Enable ads after approval</label>
           <label>Ad placement<select name="adPlacement"><option value="feed">Feed</option><option value="sidebar">Sidebar</option><option value="all">Feed and sidebar</option></select></label>
           <label>Show after every<input type="number" name="adFrequency" min="1" max="10" step="1" value="1" style="max-width:90px;"> posts</label>
@@ -422,6 +447,7 @@
                   <option value="all" <%= community.monetizationSettings?.adPlacement === 'all' ? 'selected' : '' %>>Feed and sidebar</option>
                 </select></label>
                 <label>Frequency (posts between ads)<input type="number" name="adFrequency" min="1" max="10" step="1" value="<%= community.monetizationSettings?.adFrequency || 1 %>"></label>
+                <label>Owner Waves share (%)<input type="number" name="revenueSharePercent" min="0" max="100" step="0.01" value="<%= community.monetizationSettings?.revenueSharePercent ?? 50 %>" required></label>
               </fieldset>
               <% } %>
               <div class="admin-edit-form-actions">

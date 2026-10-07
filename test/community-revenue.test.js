@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { calculateRevenueShares } = require('../src/services/communityRevenue');
+const { calculateRevenueShares, calculateCommunityAdShare } = require('../src/services/communityRevenue');
 
 test('revenue shares split net minor units and reconcile exactly', () => {
   assert.deepEqual(calculateRevenueShares({
@@ -40,4 +40,36 @@ test('share calculation requires valid amounts and an explicit valid owner perce
   ]) {
     assert.throws(() => calculateRevenueShares(input));
   }
+});
+
+test('community ad share applies the configured percentage to campaign Waves spend', () => {
+  assert.deepEqual(calculateCommunityAdShare({
+    campaignSpendWaves: 1.5,
+    communityOwnerSharePercent: 50
+  }), {
+    campaignSpendWaves: 1.5,
+    communityOwnerSharePercent: 50,
+    communityOwnerShareWaves: 0.75,
+    crowdwideShareWaves: 0.75
+  });
+});
+
+test('community ad share rounds to micro-Waves and validates its inputs', () => {
+  assert.deepEqual(calculateCommunityAdShare({
+    campaignSpendWaves: 0.000001,
+    communityOwnerSharePercent: 50
+  }), {
+    campaignSpendWaves: 0.000001,
+    communityOwnerSharePercent: 50,
+    communityOwnerShareWaves: 0.000001,
+    crowdwideShareWaves: 0
+  });
+  assert.throws(() => calculateCommunityAdShare({
+    campaignSpendWaves: 1,
+    communityOwnerSharePercent: 101
+  }));
+  assert.throws(() => calculateCommunityAdShare({
+    campaignSpendWaves: Number.MAX_SAFE_INTEGER,
+    communityOwnerSharePercent: 50
+  }));
 });

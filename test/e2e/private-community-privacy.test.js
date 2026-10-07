@@ -19,7 +19,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
-  await stopTestDatabase(dbHandle);
+  await stopTestDatabase(dbHandle, app);
 });
 
 async function loginAs(agent, email, password) {

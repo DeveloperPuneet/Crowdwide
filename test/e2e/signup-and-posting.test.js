@@ -14,7 +14,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
-  await stopTestDatabase(dbHandle);
+  await stopTestDatabase(dbHandle, app);
 });
 
 test('signup -> verify -> login -> create a post shows up on the dashboard', async () => {

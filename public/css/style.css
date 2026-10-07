@@ -2754,6 +2754,40 @@ body[data-theme="light"] .button-primary *, body[data-theme="pink"] .button-prim
 .community-owner-layout .owner-posts article {
   overflow-wrap: anywhere;
 }
+.community-ad-earnings-history {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.community-ad-earnings-history h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.community-ad-earnings-list {
+  display: grid;
+}
+.community-ad-earnings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.community-ad-earnings-row > span {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+.community-ad-earnings-row small {
+  color: var(--tx-faint);
+  font-size: 10px;
+}
+.community-ad-earnings-row strong {
+  color: var(--ac-green, #60d3a3);
+  font-size: 12px;
+  text-align: right;
+}
 
 @media (max-width: 760px) {
   .community-owner-layout .owner-grid {

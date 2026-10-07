@@ -65,6 +65,72 @@ async function creditWaves({ userId, amount, description, reason, actorId, refer
   });
 }
 
+async function creditCommunityAdShare({ userId, amount, communityId, eventId, viewerId, revenueSharePercent }) {
+  const value = normalizeAmount(amount, 'community ad share');
+  if (value <= 0) return { amount: 0, duplicate: false };
+  if (!communityId || !eventId) throw new Error('Community and advertisement event are required for a revenue share.');
+
+  const rewardKey = `community-ad-share:${eventId}`;
+  try {
+    await WavesLedgerEntry.create({
+      user: userId,
+      community: communityId,
+      amount: value,
+      type: 'earn',
+      status: 'pending',
+      description: 'Community ad share',
+      reason: `${revenueSharePercent}% share of eligible campaign spend`,
+      actor: viewerId || null,
+      referenceType: 'community-ad-share',
+      referenceId: eventId,
+      rewardKey
+    });
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+  }
+
+  const now = new Date();
+  const claim = await WavesLedgerEntry.findOneAndUpdate(
+    {
+      rewardKey,
+      status: 'pending',
+      $or: [{ processingUntil: null }, { processingUntil: { $lte: now } }]
+    },
+    { $set: { status: 'processing', processingUntil: new Date(now.getTime() + 2 * 60 * 1000) } },
+    { new: true }
+  );
+  if (!claim) {
+    const existing = await WavesLedgerEntry.findOne({ rewardKey }).lean();
+    return { amount: 0, duplicate: existing?.status === 'posted', pending: existing?.status !== 'posted' };
+  }
+
+  let user;
+  try {
+    user = await User.findById(userId);
+    if (!user) throw new Error('Community owner account was not found.');
+    if (!user.isVerified || (user.suspendedUntil && user.suspendedUntil > now)
+      || (user.postingRestrictedUntil && user.postingRestrictedUntil > now)
+      || (user.wavesSuspendedUntil && user.wavesSuspendedUntil > now)) {
+      throw new Error('Community owner is not currently eligible to receive Waves.');
+    }
+    user.wavesBalance = Number(((user.wavesBalance || 0) + value).toFixed(6));
+    user.wavesTotalEarned = Number(((user.wavesTotalEarned || 0) + value).toFixed(6));
+    await user.save();
+  } catch (error) {
+    await WavesLedgerEntry.updateOne(
+      { _id: claim._id, status: 'processing' },
+      { $set: { status: 'pending', processingUntil: null } }
+    );
+    throw error;
+  }
+
+  claim.balanceAfter = user.wavesBalance;
+  claim.status = 'posted';
+  claim.processingUntil = null;
+  await claim.save();
+  return { amount: value, balance: user.wavesBalance, duplicate: false };
+}
+
 async function debitWaves({ userId, amount, description, reason, actorId, referenceType, referenceId }) {
   const value = normalizeAmount(amount, 'amount');
   return updateWavesBalance({
@@ -351,6 +417,7 @@ async function getReciprocalRewardSignals(now = new Date()) {
 
 module.exports = {
   creditWaves,
+  creditCommunityAdShare,
   debitWaves,
   transferWaves,
   adjustWaves,

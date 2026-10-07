@@ -32,8 +32,12 @@
 - Community and quest Waves rewards — configurable rewards for joining/creating communities and completing quests, once per user/action target and subject to the daily cap.
 - Community monetization application foundation — owner eligibility checklist and application, configurable post/like/comment thresholds with server-side enforcement, and admin review/approval workflow.
 - Community monetization status and ad-configuration scaffolding.
-- Community revenue status visibility — community owners see advertising impressions and clicks plus a clear unavailable earnings state until an advertising provider and revenue-sharing arrangement are approved; no synthetic earnings or payouts are shown.
-- Revenue-sharing calculation foundation — a validated, currency-agnostic minor-unit calculator applies supplied deductions and an explicit community-owner percentage, then computes the Crowdwide remainder without losing rounding units. It is not connected to ad revenue or payouts; provider approval and a configured share percentage are still required.
+- [x] Community ad-spend Waves shares — validated campaign events split eligible Waves spend using a 50% default owner share (admin-configurable per community); accepted shares are credited to the owner's Waves ledger and the remainder stays with Crowdwide. This is closed-loop Waves, not external ad revenue or cash.
+- [x] Community owner Waves earnings/history — owners see ad stats, share rate, lifetime credited Waves, and recent earnings history in community management; community ad-share credits also appear in wallet history.
+- [x] Admin community Waves-share controls — admins can configure each community's share rate, review lifetime credited totals, and retry pending credits with audited actions.
+- [x] Community ad-share anti-abuse — only unique, server-validated, billed events can earn shares; owner/advertiser self-events are excluded, owner eligibility is checked, and idempotent pending credits can be retried without charging the campaign again.
+- [x] Community revenue status visibility — community owners see advertising impressions, clicks, Waves spend, and credited Waves earnings; external advertising revenue and cash payouts remain unavailable until an approved provider and payment arrangement exist.
+- [x] Revenue-sharing calculation integration — the validated minor-unit calculator now calculates community ad shares at micro-Wave precision and feeds the idempotent Waves ledger credit flow; external ad revenue and payouts remain separate.
 - Community Galaxy — Interactive Community Discovery Map 🌐
 - Rising Communities Radar — Discover Growing Communities 📡
 - Posts, articles, polls, drafts, scheduled publishing, media uploads, alt text, hashtags, mentions, quote posts, and linked post replies.
@@ -102,43 +106,32 @@ Waves Usage
 
 Add Ad-Free feature using Waves if premium is introduced
 
-Community Revenue
+External Community Revenue
 
-Track gross advertising revenue
+Track gross external advertising revenue
 
-Track applicable deductions/adjustments
+Track applicable external-revenue deductions/adjustments
 
-Calculate Crowdwide share
+Calculate Crowdwide share of external advertising revenue
 
-Calculate community-owners share
+Calculate community-owners share of external advertising revenue
 
-Track pending earnings
+Track pending external-revenue earnings
 
-Track finalized earnings
+Track finalized external-revenue earnings
 
-Add payout threshold
-
-Add payout verification
-
-Add payout history
-
-Add failed-payout handling
-
-Add revenue adjustment system
-
-Add revenue audit logs
 
 Advertiser Refunds / Campaign Handling
 
 Admin Panel
 
-Add community revenue overview
+Add external community advertising revenue overview
 
-Add community revenue breakdown
+Add external community advertising revenue breakdown
 
 Add payout management
 
-Add configurable revenue-sharing percentage
+Add configurable external revenue-sharing percentage
 
 Add configurable advertising limits
 
@@ -147,35 +140,6 @@ Add admin override controls
 Security / Anti-Abuse
 
 Detect multiple-account abuse
-
-
-Detect suspicious advertising activity
-
-Policies / Legal
-
-Define payout rules
-
-Define refund/adjustment rules
-
-Review real-money revenue-sharing/payment/tax requirements before launching payouts
-
-External Advertising / Revenue System
-
-Determine the advertising provider/platform arrangement
-
-Verify that Crowdwide is allowed to run advertisements under the intended model
-
-Verify whether community-level revenue sharing is permitted
-
-Verify required approval/partnership requirements
-
-Determine how advertising revenue will be received
-
-Determine how community-owner revenue shares can legally/technically be paid
-
-Implement the approved revenue/accounting flow
-
-Keep external advertising revenue separate from Waves
 
 ## Planned
 

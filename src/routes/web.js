@@ -161,8 +161,9 @@ router.post('/admin/posts/:id/delete', requireAuth, requireVerified, requireAdmi
 router.post('/admin/posts/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updatePost);
 router.post('/admin/users/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteUser);
 router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateUser);
-router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateCommunity);
+router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.updateCommunity);
 router.post('/admin/communities/:id/monetization', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewMonetization);
+router.post('/admin/community-ad-shares/:id/retry', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.retryCommunityAdShare);
 router.post('/admin/ad-abuse/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdAbuseSignal);
 router.post('/admin/waves-abuse/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewWavesAbuseSignal);
 router.post('/moderator/communities/:id/monetization', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewCommunityMonetizationAsModerator);

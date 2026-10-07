@@ -10,6 +10,7 @@ exports.wallet = async (req, res) => {
       .sort({ createdAt: -1, _id: -1 })
       .limit(50)
       .populate('relatedUser', 'name')
+      .populate('community', 'name slug')
       .lean()
   ]);
   if (!wallet) {

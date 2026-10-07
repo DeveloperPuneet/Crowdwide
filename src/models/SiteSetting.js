@@ -56,9 +56,11 @@ const siteSettingSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 siteSettingSchema.statics.getSingleton = async function () {
-  let doc = await this.findOne({ key: 'singleton' });
-  if (!doc) doc = await this.create({ key: 'singleton' });
-  return doc;
+  return this.findOneAndUpdate(
+    { key: 'singleton' },
+    { $setOnInsert: { key: 'singleton' } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
 };
 
 module.exports = mongoose.model('SiteSetting', siteSettingSchema);

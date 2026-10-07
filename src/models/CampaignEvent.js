@@ -8,6 +8,12 @@ const campaignEventSchema = new mongoose.Schema({
   eventType: { type: String, enum: ['impression', 'click'], required: true },
   eventToken: { type: String, required: true, maxlength: 36 },
   viewerDayKey: { type: String, maxlength: 200, unique: true, sparse: true },
+  wavesCharged: { type: Number, min: 0, default: 0 },
+  communityOwner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  communityOwnerSharePercent: { type: Number, min: 0, max: 100, default: 0 },
+  communityOwnerShareWaves: { type: Number, min: 0, default: 0 },
+  crowdwideShareWaves: { type: Number, min: 0, default: 0 },
+  communityShareStatus: { type: String, enum: ['not-eligible', 'pending', 'posted'], default: 'not-eligible', index: true },
   createdAt: { type: Date, default: Date.now, index: true }
 });
 

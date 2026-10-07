@@ -5,7 +5,7 @@ const User = require('../src/models/User');
 const SiteSetting = require('../src/models/SiteSetting');
 const WavesLedgerEntry = require('../src/models/WavesLedgerEntry');
 const WavesAbuseSignal = require('../src/models/WavesAbuseSignal');
-const { creditWaves, debitWaves, transferWaves, adjustWaves, rewardWavesForAction, getReciprocalRewardSignals } = require('../src/services/waves');
+const { creditWaves, creditCommunityAdShare, debitWaves, transferWaves, adjustWaves, rewardWavesForAction, getReciprocalRewardSignals } = require('../src/services/waves');
 
 test('creditWaves updates balance and total earned', async (t) => {
   const user = {
@@ -33,6 +33,71 @@ test('creditWaves updates balance and total earned', async (t) => {
   assert.equal(findById.mock.callCount(), 1);
   assert.equal(createEntry.mock.callCount(), 1);
   assert.equal(createEntry.mock.calls[0].arguments[0].type, 'earn');
+});
+
+test('community ad shares are credited once with community and event ledger references', async (t) => {
+  const user = {
+    isVerified: true,
+    wavesBalance: 8,
+    wavesTotalEarned: 12,
+    async save() { return this; }
+  };
+  const claim = {
+    _id: 'share-ledger-1',
+    async save() { return this; }
+  };
+  let ledgerEntry;
+  const create = t.mock.method(WavesLedgerEntry, 'create', async (entry) => {
+    ledgerEntry = entry;
+    return entry;
+  });
+  const acquire = t.mock.method(WavesLedgerEntry, 'findOneAndUpdate', async (query, update) => {
+    assert.equal(query.rewardKey, 'community-ad-share:event-1');
+    assert.equal(update.$set.status, 'processing');
+    return claim;
+  });
+  t.mock.method(User, 'findById', async () => user);
+
+  const result = await creditCommunityAdShare({
+    userId: 'owner-1',
+    amount: 0.75,
+    communityId: 'community-1',
+    eventId: 'event-1',
+    viewerId: 'viewer-1',
+    revenueSharePercent: 50
+  });
+
+  assert.equal(result.amount, 0.75);
+  assert.equal(result.balance, 8.75);
+  assert.equal(user.wavesTotalEarned, 12.75);
+  assert.equal(ledgerEntry.community, 'community-1');
+  assert.equal(ledgerEntry.referenceType, 'community-ad-share');
+  assert.equal(ledgerEntry.referenceId, 'event-1');
+  assert.equal(ledgerEntry.actor, 'viewer-1');
+  assert.equal(ledgerEntry.rewardKey, 'community-ad-share:event-1');
+  assert.equal(claim.status, 'posted');
+  assert.equal(acquire.mock.callCount(), 1);
+  assert.equal(create.mock.callCount(), 1);
+});
+
+test('community ad share retries do not credit a previously posted event twice', async (t) => {
+  const duplicateError = Object.assign(new Error('duplicate key'), { code: 11000 });
+  t.mock.method(WavesLedgerEntry, 'create', async () => { throw duplicateError; });
+  t.mock.method(WavesLedgerEntry, 'findOneAndUpdate', async () => null);
+  t.mock.method(WavesLedgerEntry, 'findOne', () => ({ lean: async () => ({ status: 'posted' }) }));
+  t.mock.method(User, 'findById', async () => {
+    throw new Error('Posted shares must not reload the owner.');
+  });
+
+  const result = await creditCommunityAdShare({
+    userId: 'owner-1',
+    amount: 0.75,
+    communityId: 'community-1',
+    eventId: 'event-1',
+    revenueSharePercent: 50
+  });
+
+  assert.deepEqual(result, { amount: 0, duplicate: true, pending: false });
 });
 
 test('transferWaves rejects self-transfers and debits/credits both accounts', async (t) => {

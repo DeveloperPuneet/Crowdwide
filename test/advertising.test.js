@@ -11,6 +11,7 @@ const Community = require('../src/models/Community');
 const Report = require('../src/models/Report');
 const User = require('../src/models/User');
 const WavesLedgerEntry = require('../src/models/WavesLedgerEntry');
+const wavesService = require('../src/services/waves');
 const {
   calculateCtr,
   createCampaign,
@@ -530,6 +531,7 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   let recordedEvent;
   const abuseSignal = t.mock.method(CampaignAbuseSignal, 'findOneAndUpdate', async () => ({}));
   t.mock.method(CampaignEvent, 'countDocuments', async () => rapidEventCount);
+  t.mock.method(CampaignEvent, 'findOne', () => ({ lean: async () => null }));
   t.mock.method(Community, 'findById', () => ({ lean: async () => community }));
   t.mock.method(Campaign, 'findById', () => ({
     populate() { return this; },
@@ -583,7 +585,7 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   assert.equal(duplicate.recorded, false);
   assert.equal(updateCalls.length, 1);
   assert.equal(abuseSignal.mock.callCount(), 1);
-  assert.equal(abuseSignal.mock.calls[0].arguments[1].$setOnInsert.attempts, 0);
+  assert.equal(abuseSignal.mock.calls[0].arguments[1].$setOnInsert.attempts, undefined);
   assert.equal(abuseSignal.mock.calls[0].arguments[1].$inc.attempts, 1);
 
   duplicateEvent = false;
@@ -603,6 +605,72 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   assert.equal(abuseSignal.mock.callCount(), 2);
   assert.equal(abuseSignal.mock.calls[1].arguments[1].$setOnInsert.eventType, 'bot-activity');
   assert.match(abuseSignal.mock.calls[1].arguments[1].$setOnInsert.reason, /20 unique events within one minute/);
+});
+
+test('community campaign spend credits the configured Waves share and excludes owner self-events', async (t) => {
+  const community = {
+    _id: 'community-share',
+    owner: 'owner-share',
+    isPrivate: false,
+    isMonetized: true,
+    monetizationStatus: 'approved',
+    monetizationSettings: { adsEnabled: true, adPlacement: 'feed', revenueSharePercent: 60 }
+  };
+  const campaign = {
+    _id: 'campaign-share',
+    status: 'active',
+    fundingStatus: 'funded',
+    remainingBudget: 50,
+    impressionCostWaves: 0.25,
+    dailyBudget: 10,
+    targetCommunities: ['community-share'],
+    advertiser: { status: 'approved', user: 'advertiser-share' }
+  };
+  let viewerId = 'member-share';
+  let createdEvent;
+  t.mock.method(Community, 'findById', () => ({ lean: async () => community }));
+  t.mock.method(Campaign, 'findById', () => ({
+    populate() { return this; },
+    lean: async () => campaign
+  }));
+  t.mock.method(CampaignEvent, 'create', async (event) => {
+    createdEvent = { ...event, _id: `event-${viewerId}` };
+    return createdEvent;
+  });
+  t.mock.method(CampaignEvent, 'updateOne', async () => ({ modifiedCount: 1 }));
+  t.mock.method(CampaignEvent, 'countDocuments', async () => 1);
+  t.mock.method(CampaignAbuseSignal, 'findOneAndUpdate', async () => ({}));
+  t.mock.method(Campaign, 'findOneAndUpdate', async () => ({ _id: campaign._id }));
+  const creditShare = t.mock.method(wavesService, 'creditCommunityAdShare', async () => ({ amount: 0.15 }));
+
+  await recordCampaignEvent({
+    campaignId: campaign._id,
+    communityId: community._id,
+    viewerId,
+    eventType: 'impression',
+    eventToken: '12345678-1234-4123-8123-123456789abc'
+  });
+  assert.equal(createdEvent.wavesCharged, 0.25);
+  assert.equal(createdEvent.communityOwner, community.owner);
+  assert.equal(createdEvent.communityOwnerSharePercent, 60);
+  assert.equal(createdEvent.communityOwnerShareWaves, 0.15);
+  assert.equal(createdEvent.crowdwideShareWaves, 0.1);
+  assert.equal(createdEvent.communityShareStatus, 'pending');
+  assert.equal(creditShare.mock.calls[0].arguments[0].communityId, community._id);
+  assert.equal(creditShare.mock.calls[0].arguments[0].eventId, createdEvent._id);
+
+  viewerId = community.owner;
+  await recordCampaignEvent({
+    campaignId: campaign._id,
+    communityId: community._id,
+    viewerId,
+    eventType: 'impression',
+    eventToken: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+  });
+  assert.equal(createdEvent.communityOwnerShareWaves, 0);
+  assert.equal(createdEvent.crowdwideShareWaves, 0.25);
+  assert.equal(createdEvent.communityShareStatus, 'not-eligible');
+  assert.equal(creditShare.mock.callCount(), 1);
 });
 
 test('sitewide campaign events are charged and tracked only during the no-monetized-community fallback', async (t) => {
@@ -806,7 +874,7 @@ test('admin can configure or temporarily disable ads on an approved community', 
   t.mock.method(AuditLog, 'create', async (entry) => { auditEntry = entry; });
   const req = {
     params: { id: 'community-1' },
-    body: { updateAdvertisingSettings: 'on', adPlacement: 'sidebar', adFrequency: '3' },
+    body: { updateAdvertisingSettings: 'on', adPlacement: 'sidebar', adFrequency: '3', revenueSharePercent: '35.5' },
     roleUser: { _id: 'admin-1' },
     ip: '127.0.0.1',
     get: () => 'test-agent',
@@ -819,10 +887,11 @@ test('admin can configure or temporarily disable ads on an approved community', 
   assert.equal(community.monetizationSettings.adsEnabled, false);
   assert.equal(community.monetizationSettings.adPlacement, 'sidebar');
   assert.equal(community.monetizationSettings.adFrequency, 3);
+  assert.equal(community.monetizationSettings.revenueSharePercent, 35.5);
   assert.equal(community.saved, true);
   assert.equal(auditEntry.action, 'edit-community');
   assert.deepEqual(auditEntry.details.advertisingSettings, {
-    adsEnabled: false, adPlacement: 'sidebar', adFrequency: 3
+    adsEnabled: false, adPlacement: 'sidebar', adFrequency: 3, revenueSharePercent: 35.5
   });
 });
 

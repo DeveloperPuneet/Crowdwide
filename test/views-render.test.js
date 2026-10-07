@@ -127,11 +127,23 @@ test('public community owner can purchase a Waves promotion and see its status',
 
   const monetized = await render('pages/community-owner.ejs', {
     ...common,
-    monetizationStats: { impressions: 1200, clicks: 34 },
-    community: { ...common.community, monetizationStatus: 'approved', isMonetized: true }
+    monetizationStats: { impressions: 1200, clicks: 34, campaignSpendWaves: 20, ownerShareWaves: 12 },
+    community: {
+      ...common.community,
+      monetizationStatus: 'approved',
+      isMonetized: true,
+      monetizationSettings: { revenueSharePercent: 60 }
+    },
+    ownerEarningsHistory: [{
+      status: 'posted',
+      amount: 12,
+      createdAt: new Date('2026-10-07T10:00:00Z')
+    }]
   });
-  assert.match(monetized, /data-community-earnings-status="unavailable"/);
-  assert.match(monetized, /Earnings<\/span><strong>Unavailable<\/strong>/);
+  assert.match(monetized, /Owner share/);
+  assert.match(monetized, /60% · credited Waves/);
+  assert.match(monetized, /Recent Waves earnings/);
+  assert.match(monetized, /\+12 Waves/);
   assert.match(monetized, /1,200/);
   assert.match(monetized, /34/);
 });
@@ -618,7 +630,7 @@ test('docs page renders the API endpoints, and info pages cover help', async () 
 test('Waves and community monetization terms disclose platform-currency and payout limits', async () => {
   for (const [pagePath, expected] of [
     ['/waves/terms', /not money, cryptocurrency, stored value/],
-    ['/community-monetization/terms', /Revenue and payouts are not available/]
+    ['/community-monetization/terms', /internal Waves share only/]
   ]) {
     let page;
     await webController.infoPage({ path: pagePath }, {
