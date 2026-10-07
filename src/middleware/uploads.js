@@ -12,6 +12,8 @@ const PROFILE_PICTURE_LIMIT = 1.5 * 1024 * 1024;
 const PROFILE_BANNER_LIMIT = 1.5 * 1024 * 1024;
 const COMMUNITY_AVATAR_LIMIT = 1.5 * 1024 * 1024;
 const COMMUNITY_BANNER_LIMIT = 2 * 1024 * 1024;
+const ADVERTISER_LOGO_LIMIT = 1.5 * 1024 * 1024;
+const ADVERTISER_BANNER_LIMIT = 2 * 1024 * 1024;
 const REPORT_EVIDENCE_LIMIT = 2 * 1024 * 1024;
 const GROUP_AVATAR_LIMIT = 1.5 * 1024 * 1024;
 const AD_BANNER_LIMIT = 2 * 1024 * 1024;
@@ -63,6 +65,12 @@ const advertisementBannerUpload = multer({
   limits: { fileSize: AD_BANNER_LIMIT + 1, files: 1 },
   fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
 }).single('banner');
+
+const advertiserApplicationUpload = multer({
+  storage,
+  limits: { fileSize: ADVERTISER_BANNER_LIMIT + 1, files: 2 },
+  fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
+}).fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 1 }]);
 
 const chatAttachmentUpload = multer({
   storage,
@@ -146,6 +154,34 @@ function validateCommunityUpload(req, res, next) {
   next();
 }
 
+async function validateAdvertiserApplicationUpload(req, res, next) {
+  const logo = req.files?.logo?.[0];
+  const banner = req.files?.banner?.[0];
+  if (logo && logo.size >= ADVERTISER_LOGO_LIMIT) {
+    req.session.flash = { type: 'error', message: 'Advertiser logos must be smaller than 1.5MB.' };
+    return res.redirect('/advertising');
+  }
+  if (banner && banner.size >= ADVERTISER_BANNER_LIMIT) {
+    req.session.flash = { type: 'error', message: 'Advertiser banners must be smaller than 2MB.' };
+    return res.redirect('/advertising');
+  }
+  try {
+    const { getImageSize } = require('../services/storage');
+    for (const file of [logo, banner].filter(Boolean)) {
+      if (!await getImageSize(file.buffer)) {
+        req.session.flash = { type: 'error', message: `Choose a valid image for the advertiser ${file.fieldname}.` };
+        return res.redirect('/advertising');
+      }
+      file.mediaKind = 'image';
+    }
+    return next();
+  } catch (error) {
+    logger.error('Advertiser application image validation failed', error);
+    req.session.flash = { type: 'error', message: 'The advertiser images could not be validated.' };
+    return res.redirect('/advertising');
+  }
+}
+
 async function validateAdvertisementBanner(req, res, next) {
   if (!req.file) return next();
   if (req.file.size >= AD_BANNER_LIMIT) {
@@ -198,8 +234,9 @@ function handleUploadError(error, req, res, next) {
   if (req.path.startsWith('/groups')) return res.redirect(req.get('referer') || '/groups');
   if (req.path.startsWith('/messages')) return res.redirect(req.get('referer') || '/messages');
   if (req.path.startsWith('/settings')) return res.redirect('/settings/profile');
+  if (req.path.startsWith('/advertising')) return res.redirect('/advertising');
   if (req.path.includes('/manage') || req.path.includes('/report')) return res.redirect(req.get('referer') || '/dashboard');
   res.redirect('/dashboard');
 }
 
-module.exports = { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, chatAttachmentUpload, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateAdvertisementBanner, validateReportUpload, scanUploadsForViruses, handleUploadError };
+module.exports = { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, chatAttachmentUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };

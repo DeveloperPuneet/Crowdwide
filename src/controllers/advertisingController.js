@@ -110,9 +110,10 @@ exports.submitAdvertiserAppeal = async (req, res) => {
 
 exports.apply = async (req, res) => {
   const name = String(req.body.businessName || '').trim();
+  const businessDescription = String(req.body.businessDescription || '').trim();
   const website = String(req.body.website || '').trim();
-  if (!name) {
-    flash(req, 'error', 'Enter your business or organization name.');
+  if (!name || !businessDescription) {
+    flash(req, 'error', 'Enter your business name and a short business description.');
     return res.redirect('/advertising');
   }
   if (req.body.acceptAdvertisingTerms !== 'on') {
@@ -130,14 +131,27 @@ exports.apply = async (req, res) => {
       flash(req, 'error', 'Your advertiser profile already has an active review or approval.');
       return res.redirect('/advertising');
     }
+    const logoFile = req.files?.logo?.[0];
+    const bannerFile = req.files?.banner?.[0];
+    const [storedLogo, storedBanner] = await Promise.all([
+      logoFile
+        ? uploadBuffer(logoFile.buffer, logoFile.originalname, logoFile.mimetype, { kind: 'advertiser-logo', owner: req.session.user.id })
+        : null,
+      bannerFile
+        ? uploadBuffer(bannerFile.buffer, bannerFile.originalname, bannerFile.mimetype, { kind: 'advertiser-banner', owner: req.session.user.id })
+        : null
+    ]);
     await registerAdvertiser({
       userId: req.session.user.id,
       businessName: name,
+      businessDescription,
       website,
+      logoUrl: storedLogo ? mediaUrl(storedLogo) : '',
+      bannerUrl: storedBanner ? mediaUrl(storedBanner) : '',
       notes: String(req.body.notes || '').trim().slice(0, 2000),
       acceptedTerms: true
     });
-    flash(req, 'success', 'Advertiser application submitted for admin review.');
+    flash(req, 'success', 'Advertiser application submitted for moderator screening and admin review.');
   } catch (error) {
     logger.error('Advertiser application failed', error);
     flash(req, 'error', 'The advertiser application could not be saved. Please try again.');
@@ -176,6 +190,10 @@ exports.createCampaign = async (req, res) => {
   }
   if (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt) {
     flash(req, 'error', 'Accept the current Advertising Terms before creating or submitting campaigns.');
+    return res.redirect('/advertising');
+  }
+  if (req.body.confirmAdvertisingRights !== 'on') {
+    flash(req, 'error', 'Confirm that you own or are authorized to advertise the item and its submitted creative.');
     return res.redirect('/advertising');
   }
 
@@ -231,6 +249,10 @@ exports.createCampaign = async (req, res) => {
     await createCampaign({
       advertiserId: advertiser._id,
       title: req.body.title,
+      campaignType: req.body.campaignType,
+      productName: req.body.productName,
+      productPrice: req.body.productPrice,
+      advertisingRightsConfirmed: true,
       description: req.body.description,
       destinationUrl: destination.toString(),
       bannerUrl,

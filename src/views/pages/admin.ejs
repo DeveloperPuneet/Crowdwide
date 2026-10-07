@@ -19,6 +19,8 @@
     <button type="button" class="admin-tab" id="admin-tab-users" role="tab" aria-controls="admin-panel-users" data-tab="users">Users</button>
     <button type="button" class="admin-tab" id="admin-tab-posts" role="tab" aria-controls="admin-panel-posts" data-tab="posts">Posts</button>
     <button type="button" class="admin-tab" id="admin-tab-communities" role="tab" aria-controls="admin-panel-communities" data-tab="communities">Communities</button>
+    <button type="button" class="admin-tab" id="admin-tab-advertisers" role="tab" aria-controls="admin-panel-advertisers" data-tab="advertisers">Advertisers<% if (pendingAdvertiserList.length) { %> (<%= pendingAdvertiserList.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-campaigns" role="tab" aria-controls="admin-panel-campaigns" data-tab="campaigns">Campaigns<% if (pendingCampaignList.length) { %> (<%= pendingCampaignList.length %> pending)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (openReports.length) { %> (<%= openReports.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-queue" role="tab" aria-controls="admin-panel-queue" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
@@ -222,35 +224,74 @@
     </table>
   </section>
 
-  <!-- COMMUNITIES -->
-  <section class="admin-panel" id="admin-panel-communities" role="tabpanel" aria-labelledby="admin-tab-communities" data-panel="communities">
-    <h2>Communities</h2>
+  <!-- ADVERTISERS -->
+  <section class="admin-panel" id="admin-panel-advertisers" role="tabpanel" aria-labelledby="admin-tab-advertisers" data-panel="advertisers">
+    <h2>Advertiser applications</h2>
+    <p>Moderator screening is required before final admin approval. Applications waiting for moderator review are shown here with their submitted business details.</p>
+    <% if (!pendingAdvertiserList.length) { %><p>No advertiser applications are waiting for review.</p><% } %>
     <% if (pendingAdvertiserList.length) { %>
     <section class="settings-block">
-      <h3>Advertiser applications</h3>
       <% pendingAdvertiserList.forEach((advertiser) => { %>
-      <div class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'unknown' %> · <%= advertiser.user?.email || '' %></span><p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleString() %><% } %></p><% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener"><%= advertiser.website %></a></p><% } %><% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %><p>Moderator review: <strong><%= advertiser.moderatorReview?.status || 'pending' %></strong> · <%= advertiser.moderatorReview?.reason || '' %></p>
+      <article class="device-row advertiser-application-card" style="flex-direction:column;align-items:stretch;">
+        <% if (advertiser.bannerUrl) { %><img class="advertiser-application-banner" src="<%= advertiser.bannerUrl %>" alt="<%= advertiser.businessName %> banner" loading="lazy"><% } %>
+        <div class="advertiser-application-identity">
+          <% if (advertiser.logoUrl) { %><img class="advertiser-application-logo" src="<%= advertiser.logoUrl %>" alt="<%= advertiser.businessName %> logo" loading="lazy"><% } %>
+          <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'unknown' %> · <%= advertiser.user?.email || '' %></span></div>
+        </div>
+        <% if (advertiser.businessDescription) { %><p><%= advertiser.businessDescription %></p><% } %>
+        <% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener noreferrer"><%= advertiser.website %></a></p><% } %>
+        <% if (advertiser.notes) { %><p>Additional information: <%= advertiser.notes %></p><% } %>
+        <p>Application status: <strong><%= advertiser.moderatorReview?.status === 'cleared' ? 'Awaiting admin decision' : advertiser.moderatorReview?.status === 'flagged' ? 'Flagged by moderator' : 'Awaiting moderator screening' %></strong></p>
+        <p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleString() %><% } %></p>
+        <p>Moderator review: <strong><%= advertiser.moderatorReview?.status || 'pending' %></strong><% if (advertiser.moderatorReview?.reason) { %> · <%= advertiser.moderatorReview.reason %><% } %></p>
           <details><summary>Advertiser review history (<%= (advertiser.moderationHistory || []).length %>)</summary>
             <% (advertiser.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
           </details>
+        <div class="advertiser-review-actions">
+          <% if (advertiser.moderatorReview?.status === 'cleared') { %>
+          <form method="post" action="/admin/advertisers/<%= advertiser._id %>/review">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve and verify advertiser</button>
+          </form>
+          <% } else if (advertiser.moderatorReview?.status === 'flagged') { %>
+          <p>Moderator flagged this application. Read the reason and history before deciding.</p>
+          <% } else { %>
+          <p>Awaiting moderator screening. The Approve button appears here after a moderator clears the application.</p>
+          <% } %>
+          <form method="post" action="/admin/advertisers/<%= advertiser._id %>/review" class="advertiser-reject-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label>Rejection reason<input type="text" name="reason" maxlength="500" placeholder="Required to reject" required></label>
+            <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject application</button>
+          </form>
         </div>
-        <form method="post" action="/admin/advertisers/<%= advertiser._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="text" name="reason" maxlength="500" placeholder="Reason (required for reject)" style="flex:1;min-width:180px;">
-          <% if (advertiser.moderatorReview?.status === 'cleared') { %><button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve and verify</button><% } %>
-          <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject</button>
-        </form>
-      </div>
+      </article>
       <% }) %>
     </section>
     <% } %>
+  </section>
+
+  <!-- CAMPAIGNS -->
+  <section class="admin-panel" id="admin-panel-campaigns" role="tabpanel" aria-labelledby="admin-tab-campaigns" data-panel="campaigns">
+    <h2>Advertisement campaigns</h2>
+    <p>Campaigns cleared or flagged by moderators wait here for your final decision. Approved campaigns still need advertiser activation before they can serve.</p>
+    <% if (!pendingCampaignList.length) { %><p>No campaign decisions are waiting for admin review.</p><% } %>
     <% if (pendingCampaignList.length) { %>
     <section class="settings-block">
-      <h3>Campaign review queue</h3>
+      <h3>Campaign review queue (<%= pendingCampaignList.length %>)</h3>
       <% pendingCampaignList.forEach((campaign) => { %>
-      <div class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span><p><%= campaign.description || 'No ad details provided.' %></p><% if (campaign.bannerUrl) { %><img src="<%= campaign.bannerUrl %>" alt="Campaign banner for <%= campaign.title %>" style="display:block;max-width:100%;max-height:180px;object-fit:contain;margin:8px 0;"><% } %><% if (campaign.destinationUrl) { %><p>Ad destination: <a href="<%= campaign.destinationUrl %>" rel="nofollow noopener noreferrer"><%= campaign.destinationUrl %></a></p><% } %><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · <%= campaign.sitewideFallback ? 'normal-feed fallback (only while no public community is monetized)' : `Targets: ${(campaign.targetCommunities || []).length} communities` %></p><p>Rates: <%= Number(campaign.impressionCostWaves ?? 0.1) %> Waves/impression · <%= Number(campaign.clickCostWaves ?? 1) %> Waves/click</p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleString() %><% } %></p><p>Moderator review: <strong><%= campaign.moderatorReview?.status || 'pending' %></strong> · <%= campaign.moderatorReview?.reason || '' %><% if (campaign.moderatorReview?.flaggedCategory) { %> · category: <%= campaign.moderatorReview.flaggedCategory %><% } %><% if (campaign.moderatorReview?.policyChecks?.length) { %> · checks confirmed: <%= campaign.moderatorReview.policyChecks.join(', ') %><% } %></p>
+      <article class="device-row" style="flex-direction:column;align-items:stretch;">
+        <div>
+          <strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong>
+          <span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span>
+          <% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-displayed price: <%= campaign.productPrice %></p><% } %>
+          <p><%= campaign.description || 'No ad details provided.' %></p>
+          <% if (campaign.bannerUrl) { %><img src="<%= campaign.bannerUrl %>" alt="Campaign banner for <%= campaign.productName || campaign.title %>" style="display:block;max-width:100%;max-height:180px;object-fit:contain;margin:8px 0;"><% } %>
+          <% if (campaign.destinationUrl) { %><p>Ad destination: <a href="<%= campaign.destinationUrl %>" rel="nofollow noopener noreferrer"><%= campaign.destinationUrl %></a></p><% } %>
+          <p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · <%= campaign.sitewideFallback ? 'normal-feed fallback (only while no public community is monetized)' : `Targets: ${(campaign.targetCommunities || []).length} communities` %></p>
+          <p>Rates: <%= Number(campaign.impressionCostWaves ?? 0.1) %> Waves/impression · <%= Number(campaign.clickCostWaves ?? 1) %> Waves/click</p>
+          <p>Moderator review: <strong><%= campaign.moderatorReview?.status || 'pending' %></strong> · <%= campaign.moderatorReview?.reason || '' %><% if (campaign.moderatorReview?.reviewedBy?.name) { %> · <%= campaign.moderatorReview.reviewedBy.name %><% } %><% if (campaign.moderatorReview?.reviewedAt) { %> · <%= new Date(campaign.moderatorReview.reviewedAt).toLocaleString() %><% } %><% if (campaign.moderatorReview?.flaggedCategory) { %> · category: <%= campaign.moderatorReview.flaggedCategory %><% } %><% if (campaign.moderatorReview?.policyChecks?.length) { %> · checks confirmed: <%= campaign.moderatorReview.policyChecks.join(', ') %><% } %></p>
+          <p>Rights attestation: <%= campaign.rightsConfirmedAt ? `confirmed ${new Date(campaign.rightsConfirmedAt).toLocaleString()}` : 'not recorded for this legacy campaign' %></p>
+          <p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleString() %><% } %></p>
           <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
             <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
           </details>
@@ -261,7 +302,7 @@
           <% if (campaign.moderatorReview?.status === 'cleared') { %><button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve campaign</button><% } %>
           <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject and refund</button>
         </form>
-      </div>
+      </article>
       <% }) %>
     </section>
     <% } %>
@@ -272,8 +313,9 @@
       <% managedCampaignList.forEach((campaign) => { %>
       <article class="device-row" style="flex-direction:column;align-items:stretch;">
         <div>
-          <strong><%= campaign.title %></strong>
-          <span><%= campaign.status %> · <%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span>
+          <strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong>
+          <span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.status %> · <%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span>
+          <% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-listed price: <%= campaign.productPrice %></p><% } %>
           <p><%= campaign.description || 'No description provided.' %></p>
           <p><%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining · <%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves spent · <%= campaign.sitewideFallback ? 'normal-feed fallback' : `${(campaign.targetCommunities || []).length} target communities` %></p>
           <% if (campaign.suspensionReason) { %><p>Suspension reason: <%= campaign.suspensionReason %></p><% } %>
@@ -305,6 +347,12 @@
       <% }) %>
     </section>
     <% } %>
+    <% if (!pendingCampaignList.length && !managedCampaignList.length) { %><p>No campaign review or management items right now.</p><% } %>
+  </section>
+
+  <!-- COMMUNITIES -->
+  <section class="admin-panel" id="admin-panel-communities" role="tabpanel" aria-labelledby="admin-tab-communities" data-panel="communities">
+    <h2>Communities</h2>
     <% if (pendingMonetizationList.length) { %>
     <section class="settings-block">
       <h3>Monetization applications</h3>

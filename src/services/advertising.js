@@ -8,7 +8,7 @@ const Community = require('../models/Community');
 const SiteSetting = require('../models/SiteSetting');
 const logger = require('./logger');
 
-const ADVERTISING_TERMS_VERSION = '2026-10-07';
+const ADVERTISING_TERMS_VERSION = '2026-10-07-v2';
 const BOT_ACTIVITY_EVENT_THRESHOLD = 20;
 const BOT_ACTIVITY_WINDOW_MS = 60 * 1000;
 const ADVERTISING_POLICY_CATEGORIES = [
@@ -48,7 +48,17 @@ function unavailableAdvertisement(message) {
   return error;
 }
 
-async function registerAdvertiser({ userId, businessName, website = '', notes = '', isVerified = false, acceptedTerms = false }) {
+async function registerAdvertiser({
+  userId,
+  businessName,
+  businessDescription = '',
+  website = '',
+  logoUrl = '',
+  bannerUrl = '',
+  notes = '',
+  isVerified = false,
+  acceptedTerms = false
+}) {
   if (!userId) throw new Error('Advertiser user ID is required.');
 
   const name = String(businessName || '').trim();
@@ -60,7 +70,10 @@ async function registerAdvertiser({ userId, businessName, website = '', notes = 
     {
       user: userId,
       businessName: name,
+      businessDescription: String(businessDescription || '').trim().slice(0, 500),
       website: String(website || '').trim().slice(0, 300),
+      logoUrl: String(logoUrl || '').trim().slice(0, 500),
+      bannerUrl: String(bannerUrl || '').trim().slice(0, 500),
       notes: String(notes || '').trim().slice(0, 2000),
       isVerified: Boolean(isVerified),
       status: 'pending',
@@ -153,6 +166,10 @@ async function updateAdvertiserStatus({ advertiserId, status, reason = '', actor
 async function createCampaign({
   advertiserId,
   title,
+  campaignType = 'other',
+  productName = '',
+  productPrice = '',
+  advertisingRightsConfirmed = false,
   description = '',
   totalBudget,
   dailyBudget = 0,
@@ -182,9 +199,21 @@ async function createCampaign({
   }
   if (status !== 'draft') throw new Error('New campaigns must start as drafts and be submitted for review separately.');
   if (!isWavesFunded) throw new Error('Campaign funding is currently supported only with Waves.');
+  if (advertisingRightsConfirmed !== true) {
+    throw new Error('Confirm that you own or are authorized to advertise this item and its submitted creative.');
+  }
 
   const cleanedTitle = String(title || '').trim();
   if (!cleanedTitle) throw new Error('Campaign title is required.');
+  const allowedCampaignTypes = ['product', 'service', 'article', 'event', 'other'];
+  if (!allowedCampaignTypes.includes(campaignType)) {
+    throw new Error('Choose a valid advertisement type.');
+  }
+  const cleanedProductName = String(productName || '').trim().slice(0, 120);
+  const cleanedProductPrice = String(productPrice || '').trim().slice(0, 60);
+  if (campaignType === 'product' && !cleanedProductName) {
+    throw new Error('Add the name of the product you are advertising.');
+  }
 
   const budget = normalizePositiveNumber(totalBudget, 'totalBudget');
   const minimum = normalizePositiveNumber(minimumBudget, 'minimumBudget');
@@ -213,6 +242,10 @@ async function createCampaign({
   const campaign = await Campaign.create({
     advertiser: advertiserId,
     title: cleanedTitle,
+    campaignType,
+    productName: cleanedProductName,
+    productPrice: cleanedProductPrice,
+    rightsConfirmedAt: new Date(),
     description: String(description || '').trim().slice(0, 2000),
     destinationUrl: cleanedDestinationUrl,
     bannerUrl: String(bannerUrl || '').trim().slice(0, 500),
@@ -567,13 +600,14 @@ async function getCommunityCampaigns(communityId, now = new Date()) {
       { $or: [{ endDate: null }, { endDate: { $gte: now } }] }
     ]
   }).sort({ createdAt: 1 }).limit(30)
-    .populate('advertiser', 'businessName website status')
+    .populate('advertiser', 'businessName website logoUrl status')
     .lean();
   return campaigns.filter((campaign) => campaign.advertiser?.status === 'approved');
 }
 
 async function hasMonetizedPublicCommunity() {
   return Boolean(await Community.exists({
+    isPrivate: false,
     isMonetized: true,
     monetizationStatus: 'approved'
   }));
@@ -592,7 +626,7 @@ async function getSitewideFeedCampaigns(now = new Date()) {
       { $or: [{ endDate: null }, { endDate: { $gte: now } }] }
     ]
   }).sort({ createdAt: 1 }).limit(30)
-    .populate('advertiser', 'businessName website status')
+    .populate('advertiser', 'businessName website logoUrl status')
     .lean();
   return campaigns.filter((campaign) => campaign.advertiser?.status === 'approved');
 }
@@ -614,8 +648,12 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
       || !community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none')) {
     throw unavailableAdvertisement('Advertisements are not enabled for this community.');
   }
+  // A feed card may already be open when community monetization begins; let
+  // its click finish, but never record a new sitewide impression afterward.
   if (deliveryContext === 'sitewide'
-    && (await hasMonetizedPublicCommunity() || !campaign?.sitewideFallback || (campaign.targetCommunities || []).length)) {
+    && ((eventType === 'impression' && await hasMonetizedPublicCommunity())
+      || !campaign?.sitewideFallback
+      || (campaign.targetCommunities || []).length)) {
     throw unavailableAdvertisement('Crowdwide-feed advertisements are unavailable.');
   }
   const now = new Date();

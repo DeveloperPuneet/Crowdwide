@@ -8,13 +8,29 @@
     <a class="<%= active === 'communities' ? 'app-nav-active' : '' %>" href="/communities"><%- icon('users', { size: 16 }) %><span>Communities</span></a>
     <a class="<%= active === 'messages' ? 'app-nav-active' : '' %>" href="/messages"><%- icon('mail', { size: 16 }) %><span>Messages</span></a>
     <a class="<%= active === 'groups' ? 'app-nav-active' : '' %>" href="/groups"><%- icon('message-circle', { size: 16 }) %><span>Groups</span></a>
+    <% if (locals.currentUser) { %>
+    <details class="app-nav-more <%= active === 'advertising' ? 'app-nav-more-active' : '' %>">
+      <summary aria-label="More navigation options">More <%- icon('chevron-down', { size: 14 }) %></summary>
+      <div class="app-nav-more-menu">
+        <a href="/advertising"><%- icon('megaphone', { size: 16 }) %><span>Advertiser dashboard</span></a>
+        <a href="/wallet"><span aria-hidden="true">◈</span><span>Waves wallet</span></a>
+        <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 16 }) %><span>Your profile</span></a>
+        <a href="/recap"><%- icon('trending-up', { size: 16 }) %><span>Your recap</span></a>
+        <a href="/settings/account"><%- icon('settings', { size: 16 }) %><span>Account settings</span></a>
+        <a href="/communities/mine"><%- icon('users', { size: 16 }) %><span>Your communities</span></a>
+        <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 16 }) %><span>Admin console</span></a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 16 }) %><span>Moderator console</span></a><% } %>
+      </div>
+    </details>
+    <% } %>
   </nav>
   <form class="nav-search" method="get" action="/search">
     <span class="nav-search-icon"><%- icon('search', { size: 15 }) %></span>
     <input type="search" name="q" placeholder="Search Crowdwide" aria-label="Search Crowdwide" value="<%= locals.searchQuery || '' %>">
   </form>
   <div class="app-nav-actions">
-    <% if (locals.currentUser) { %><a class="button button-small button-ghost" href="/wallet" aria-label="Waves balance: <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves"><span aria-hidden="true">◈</span> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a><% } %>
+    <% if (locals.currentUser) { %>
+    <a class="button button-small button-ghost" href="/wallet" aria-label="Waves balance: <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves"><span aria-hidden="true">◈</span> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
+    <% } %>
     <a class="icon-button" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
     <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden>0</b></a>
     <% if (locals.currentUser) { %><span class="welcome">Hey, <%= currentUser.name.split(' ')[0] %></span><% } %>
@@ -39,12 +55,15 @@
     <a href="/notifications"><%- icon('bell', { size: 18 }) %> Notifications</a>
     <% if (locals.currentUser) { %>
     <a href="/wallet"><span aria-hidden="true">◈</span> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
-    <a href="/advertising">Advertiser dashboard</a>
-    <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Your profile</a>
-    <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>
-    <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Account settings</a>
-    <a href="/communities/mine"><%- icon('users', { size: 18 }) %> Your communities</a>
-    <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>
+    <details class="nav-drawer-more">
+      <summary>More <%- icon('chevron-down', { size: 16 }) %></summary>
+      <a class="nav-drawer-advertising" href="/advertising"><%- icon('megaphone', { size: 18 }) %> Advertiser dashboard</a>
+      <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Your profile</a>
+      <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>
+      <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Account settings</a>
+      <a href="/communities/mine"><%- icon('users', { size: 18 }) %> Your communities</a>
+      <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>
+    </details>
     <% } %>
     <hr class="nav-drawer-hr">
     <% if (locals.currentUser) { %>

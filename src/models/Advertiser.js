@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const advertiserSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   businessName: { type: String, required: true, trim: true, maxlength: 120 },
+  businessDescription: { type: String, trim: true, maxlength: 500, default: '' },
   website: { type: String, trim: true, maxlength: 300, default: '' },
+  logoUrl: { type: String, trim: true, maxlength: 500, default: '' },
+  bannerUrl: { type: String, trim: true, maxlength: 500, default: '' },
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected', 'suspended'],

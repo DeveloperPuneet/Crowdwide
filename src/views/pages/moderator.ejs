@@ -23,14 +23,15 @@
     <% if (!pendingAdvertisers.length) { %><p>No advertiser applications are waiting for moderator review.</p><% } %>
     <% pendingAdvertisers.forEach((advertiser) => { %>
     <article class="device-row" style="flex-direction:column;align-items:stretch;">
-      <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'member' %></span>
-        <% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener"><%= advertiser.website %></a></p><% } %>
+      <% if (advertiser.bannerUrl) { %><img class="advertiser-application-banner" src="<%= advertiser.bannerUrl %>" alt="<%= advertiser.businessName %> banner" loading="lazy"><% } %>
+      <div class="advertiser-application-identity"><% if (advertiser.logoUrl) { %><img class="advertiser-application-logo" src="<%= advertiser.logoUrl %>" alt="<%= advertiser.businessName %> logo" loading="lazy"><% } %><div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'member' %></span></div></div>
+        <% if (advertiser.businessDescription) { %><p><%= advertiser.businessDescription %></p><% } %>
+        <% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener noreferrer"><%= advertiser.website %></a></p><% } %>
         <% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %>
         <p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p>
         <details><summary>Advertiser review history (<%= (advertiser.moderationHistory || []).length %>)</summary>
           <% (advertiser.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
         </details>
-      </div>
       <form method="post" action="/moderator/advertisers/<%= advertiser._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="text" name="reason" maxlength="500" placeholder="Review notes (required)" required style="flex:1;min-width:180px;">
@@ -41,11 +42,11 @@
     <% }) %>
   </section>
 
-  <section class="settings-block admin-wide" id="campaigns"><h2>Advertisement campaign review</h2><p>Review submitted campaigns for policy concerns. An admin makes the final approval or rejection decision.</p>
-    <% if (!pendingCampaigns.length) { %><p>No submitted campaigns are waiting for moderator review.</p><% } %>
+  <section class="settings-block admin-wide" id="campaigns"><h2>Advertisement campaign review</h2><p>Review submitted campaigns for policy concerns. Once you clear or flag a campaign, it leaves this queue for the final admin decision. After admin approval, the advertiser must activate it before it can serve.</p>
+    <% if (!pendingCampaigns.length) { %><p>No campaigns are waiting for moderator screening. Cleared or flagged campaigns are no longer shown in this queue.</p><% } %>
     <% pendingCampaigns.forEach((campaign) => { %>
     <article class="device-row" style="flex-direction:column;align-items:stretch;">
-      <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.name || 'member' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · <%= campaign.sitewideFallback ? 'normal-feed fallback (only while no community is monetized)' : `targets: ${(campaign.targetCommunities || []).length} communities` %></p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p></div>
+      <div><strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong><span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.name || 'member' %></span><% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-displayed price: <%= campaign.productPrice %></p><% } %><p><%= campaign.description || 'No description provided.' %></p><p>Rights attestation: <%= campaign.rightsConfirmedAt ? `confirmed ${new Date(campaign.rightsConfirmedAt).toLocaleString()}` : 'not recorded for this legacy campaign' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · <%= campaign.sitewideFallback ? 'normal-feed fallback (only while no community is monetized)' : `targets: ${(campaign.targetCommunities || []).length} communities` %></p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p></div>
       <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
         <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
       </details>

@@ -152,7 +152,10 @@ test('registerAdvertiser creates an advertiser profile for a user', async (t) =>
     _id: 'advertiser-1',
     user: query.user,
     businessName: update.businessName,
+    businessDescription: update.businessDescription,
     website: update.website,
+    logoUrl: update.logoUrl,
+    bannerUrl: update.bannerUrl,
     notes: update.notes,
     isVerified: update.isVerified,
     status: update.status,
@@ -163,15 +166,21 @@ test('registerAdvertiser creates an advertiser profile for a user', async (t) =>
   const advertiser = await registerAdvertiser({
     userId: 'user-1',
     businessName: 'Crowdwide Ads',
+    businessDescription: 'A creative studio offering commissioned artwork.',
     website: 'https://example.com',
+    logoUrl: 'https://cdn.example.test/logo.png',
+    bannerUrl: 'https://cdn.example.test/banner.png',
     notes: 'Launch campaign soon',
     isVerified: true,
     acceptedTerms: true
   });
 
   assert.equal(advertiser.businessName, 'Crowdwide Ads');
+  assert.equal(advertiser.businessDescription, 'A creative studio offering commissioned artwork.');
+  assert.equal(advertiser.logoUrl, 'https://cdn.example.test/logo.png');
+  assert.equal(advertiser.bannerUrl, 'https://cdn.example.test/banner.png');
   assert.equal(advertiser.status, 'pending');
-  assert.equal(advertiser.termsVersion, '2026-10-07');
+  assert.equal(advertiser.termsVersion, '2026-10-07-v2');
   assert.ok(advertiser.termsAcceptedAt instanceof Date);
   assert.equal(stub.mock.callCount(), 1);
 
@@ -183,7 +192,7 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
     if (String(id) === 'advertiser-1') {
       return { _id: 'advertiser-1', status: 'pending' };
     }
-    return { _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07', termsAcceptedAt: new Date() };
+    return { _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date() };
   });
 
   await assert.rejects(() => createCampaign({
@@ -198,6 +207,10 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
   const campaign = await createCampaign({
     advertiserId: 'advertiser-2',
     title: 'Launch campaign',
+    campaignType: 'product',
+    productName: 'Crowdwide Mug',
+    productPrice: '$19.99',
+    advertisingRightsConfirmed: true,
     totalBudget: 100,
     dailyBudget: 40,
     destinationUrl: 'https://example.test/product',
@@ -210,6 +223,10 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
   });
 
   assert.equal(campaign.status, 'draft');
+  assert.equal(campaign.campaignType, 'product');
+  assert.equal(campaign.productName, 'Crowdwide Mug');
+  assert.equal(campaign.productPrice, '$19.99');
+  assert.ok(campaign.rightsConfirmedAt instanceof Date);
   assert.equal(campaign.remainingBudget, 0);
   assert.equal(campaign.destinationUrl, 'https://example.test/product');
   assert.equal(campaign.bannerUrl, '/media/banner-1');
@@ -220,16 +237,27 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
 
 test('campaign creation rejects budgets below the configured minimum and unsafe destination schemes', async (t) => {
   t.mock.method(Advertiser, 'findById', async () => ({
-    _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07', termsAcceptedAt: new Date()
+    _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date()
   }));
   await assert.rejects(() => createCampaign({
     advertiserId: 'advertiser-2', title: 'Too small', totalBudget: 10,
-    minimumBudget: 25
+    minimumBudget: 25, advertisingRightsConfirmed: true
   }), /at least 25 Waves/);
   await assert.rejects(() => createCampaign({
     advertiserId: 'advertiser-2', title: 'Unsafe link', totalBudget: 50,
-    destinationUrl: 'javascript:alert(1)'
+    destinationUrl: 'javascript:alert(1)', advertisingRightsConfirmed: true
   }), /valid http or https destination link/);
+  await assert.rejects(() => createCampaign({
+    advertiserId: 'advertiser-2', title: 'Missing rights confirmation', totalBudget: 50
+  }), /own or are authorized to advertise/i);
+  await assert.rejects(() => createCampaign({
+    advertiserId: 'advertiser-2', title: 'Invalid campaign type', totalBudget: 50,
+    campaignType: 'unsupported', advertisingRightsConfirmed: true
+  }), /valid advertisement type/i);
+  await assert.rejects(() => createCampaign({
+    advertiserId: 'advertiser-2', title: 'Unnamed product', totalBudget: 50,
+    campaignType: 'product', advertisingRightsConfirmed: true
+  }), /product you are advertising/i);
 });
 
 test('submitting a campaign escrows its budget and records a deduplicated Waves ledger entry', async (t) => {
@@ -256,7 +284,7 @@ test('submitting a campaign escrows its budget and records a deduplicated Waves 
     }
   };
   t.mock.method(Campaign, 'findById', async () => campaign);
-  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-1', status: 'approved', termsVersion: '2026-10-07', termsAcceptedAt: new Date() }));
+  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-1', status: 'approved', termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date() }));
   t.mock.method(WavesLedgerEntry, 'create', async (entry) => Object.assign(ledgerEntry, entry));
   t.mock.method(User, 'updateOne', async () => ({ modifiedCount: 1 }));
   t.mock.method(User, 'findById', () => ({
@@ -297,7 +325,7 @@ test('campaign budget submission fails cleanly when wallet balance is insufficie
     }
   };
   t.mock.method(Campaign, 'findById', async () => campaign);
-  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-poor', status: 'approved', termsVersion: '2026-10-07', termsAcceptedAt: new Date() }));
+  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-poor', status: 'approved', termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date() }));
   t.mock.method(WavesLedgerEntry, 'create', async (entry) => Object.assign(ledgerEntry, entry));
   t.mock.method(User, 'updateOne', async () => ({ modifiedCount: 0 }));
 
@@ -439,6 +467,7 @@ test('sitewide fallback campaigns are available only when no community is moneti
   t.mock.method(Community, 'exists', async (filter) => {
     assert.equal(filter.monetizationStatus, 'approved');
     assert.equal(filter.isMonetized, true);
+    assert.equal(filter.isPrivate, false);
     return hasMonetizedCommunity ? { _id: 'monetized-community' } : null;
   });
   const campaign = { _id: 'campaign-global', sitewideFallback: true, advertiser: { status: 'approved' } };
@@ -614,6 +643,43 @@ test('sitewide campaign events are charged and tracked only during the no-moneti
   assert.equal(result.destinationUrl, 'https://example.test/store');
   assert.equal(result.wavesCharged, 2);
   assert.equal(update.mock.callCount(), 1);
+});
+
+test('clicks on already-rendered sitewide ads still reach their destination after monetization starts', async (t) => {
+  const campaign = {
+    _id: 'campaign-global', status: 'active', fundingStatus: 'funded', remainingBudget: 20,
+    impressionCostWaves: 0.5, clickCostWaves: 2, dailyBudget: 10,
+    sitewideFallback: true, targetCommunities: [],
+    destinationUrl: 'https://example.test/store',
+    advertiser: { status: 'approved', website: 'https://example.test' }
+  };
+  t.mock.method(Community, 'exists', async () => ({ _id: 'newly-monetized-community' }));
+  t.mock.method(Campaign, 'findById', () => ({
+    populate() { return this; },
+    lean: async () => campaign
+  }));
+  t.mock.method(CampaignEvent, 'create', async () => ({ _id: 'event-global-click' }));
+  t.mock.method(CampaignEvent, 'countDocuments', async () => 1);
+  t.mock.method(CampaignAbuseSignal, 'findOneAndUpdate', async () => ({}));
+  t.mock.method(Campaign, 'findOneAndUpdate', async () => ({ _id: campaign._id }));
+
+  const result = await recordCampaignEvent({
+    campaignId: campaign._id,
+    deliveryContext: 'sitewide',
+    viewerId: 'viewer-global',
+    eventType: 'click',
+    eventToken: '11111111-2222-4333-8444-555555555555'
+  });
+
+  assert.equal(result.destinationUrl, 'https://example.test/store');
+  assert.equal(result.wavesCharged, 2);
+  await assert.rejects(() => recordCampaignEvent({
+    campaignId: campaign._id,
+    deliveryContext: 'sitewide',
+    viewerId: 'another-viewer',
+    eventType: 'impression',
+    eventToken: '11111111-2222-4333-8444-666666666666'
+  }), /Crowdwide-feed advertisements are unavailable/i);
 });
 
 test('admin closes an advertisement abuse signal with a reason and audit record', async (t) => {

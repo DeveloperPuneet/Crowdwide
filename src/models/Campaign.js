@@ -3,9 +3,13 @@ const mongoose = require('mongoose');
 const campaignSchema = new mongoose.Schema({
   advertiser: { type: mongoose.Schema.Types.ObjectId, ref: 'Advertiser', required: true, index: true },
   title: { type: String, required: true, trim: true, maxlength: 120 },
+  campaignType: { type: String, enum: ['product', 'service', 'article', 'event', 'other'], default: 'other', index: true },
+  productName: { type: String, trim: true, maxlength: 120, default: '' },
+  productPrice: { type: String, trim: true, maxlength: 60, default: '' },
   description: { type: String, trim: true, maxlength: 2000, default: '' },
   destinationUrl: { type: String, trim: true, maxlength: 1000, default: '' },
   bannerUrl: { type: String, trim: true, maxlength: 500, default: '' },
+  rightsConfirmedAt: Date,
   status: {
     type: String,
     enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'suspended', 'cancelled', 'completed'],

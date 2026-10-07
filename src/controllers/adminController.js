@@ -138,8 +138,8 @@ exports.admin = async (req, res) => {
         { 'monetizationApplication.appealStatus': 'pending' }
       ]
     }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationModeratorReview monetizationStatus monetizationSettings monetizationHistory createdAt').populate('owner', 'name email').lean(),
-    Advertiser.find({ status: 'pending', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').populate('moderationHistory.actor', 'name role').lean(),
-    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean(),
+    Advertiser.find({ status: 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').populate('moderationHistory.actor', 'name role').populate('moderatorReview.reviewedBy', 'name role').lean(),
+    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderatorReview.reviewedBy', 'name role').populate('moderationHistory.actor', 'name role').lean(),
     Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean(),
     getReciprocalRewardSignals(),
     WavesLedgerEntry.aggregate([
@@ -171,7 +171,7 @@ exports.reviewAdvertiser = async (req, res) => {
     logger.warn('Admin advertiser review failed', { advertiserId: req.params.id, error });
     flash(req, 'error', error.message || 'Advertiser review could not be completed.');
   }
-  res.redirect('/admin#communities');
+  res.redirect('/admin#advertisers');
 };
 
 exports.reviewAdvertiserAsModerator = async (req, res) => {
@@ -198,7 +198,7 @@ exports.reviewCampaign = async (req, res) => {
   const reason = String(req.body.reason || '').trim().slice(0, 500);
   if (!['approved', 'rejected'].includes(decision)) {
     flash(req, 'error', 'Choose approve or reject for campaign review.');
-    return res.redirect('/admin#communities');
+    return res.redirect('/admin#campaigns');
   }
   try {
     const campaign = await updateCampaignStatus({
@@ -213,7 +213,7 @@ exports.reviewCampaign = async (req, res) => {
     logger.warn('Admin campaign review failed', { campaignId: req.params.id, error });
     flash(req, 'error', error.message || 'Campaign review could not be completed.');
   }
-  res.redirect('/admin#communities');
+  res.redirect('/admin#campaigns');
 };
 
 exports.manageCampaign = async (req, res) => {
@@ -223,11 +223,11 @@ exports.manageCampaign = async (req, res) => {
   const status = statusByAction[action];
   if (!status) {
     flash(req, 'error', 'Choose suspend, reinstate, or remove for this campaign.');
-    return res.redirect('/admin#communities');
+    return res.redirect('/admin#campaigns');
   }
   if (!reason) {
     flash(req, 'error', 'Provide a reason for this campaign action.');
-    return res.redirect('/admin#communities');
+    return res.redirect('/admin#campaigns');
   }
   try {
     const campaign = await updateCampaignStatus({
@@ -249,7 +249,7 @@ exports.manageCampaign = async (req, res) => {
     logger.warn('Admin campaign management failed', { campaignId: req.params.id, action, error });
     flash(req, 'error', error.message || 'Campaign action could not be completed.');
   }
-  res.redirect('/admin#communities');
+  res.redirect('/admin#campaigns');
 };
 
 exports.reviewCampaignAsModerator = async (req, res) => {
@@ -916,7 +916,11 @@ exports.moderator = async (req, res) => {
       ...(reportedOnly ? { moderationStatus: 'reported' } : {})
     }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean(),
     Appeal.find({ status: 'pending', actionType: { $ne: 'advertiser' } }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
-    Campaign.find({ status: 'submitted', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).populate('moderationHistory.actor', 'name role').lean(),
+    Campaign.find({
+      status: 'submitted',
+      'moderatorReview.status': 'pending',
+      'moderatorReview.reviewedAt': null
+    }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).populate('moderationHistory.actor', 'name role').lean(),
     Advertiser.find({ status: 'pending', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name').populate('moderationHistory.actor', 'name role').lean(),
     Community.find({
       monetizationStatus: 'pending',

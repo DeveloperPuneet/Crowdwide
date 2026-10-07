@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const {
   validatePostUpload,
   validateProfileUpload,
-  validateCommunityUpload
+  validateCommunityUpload,
+  validateAdvertiserApplicationUpload
 } = require('../src/middleware/uploads');
 
 function fakeReq(overrides = {}) {
@@ -106,6 +107,32 @@ test('validateCommunityUpload passes when no files were submitted', () => {
   let calledNext = false;
   validateCommunityUpload(req, res, () => { calledNext = true; });
   assert.equal(calledNext, true);
+});
+
+test('validateAdvertiserApplicationUpload rejects an oversized logo before image decoding', async () => {
+  const req = fakeReq({
+    path: '/advertising/apply',
+    files: { logo: [{ fieldname: 'logo', size: 1.5 * 1024 * 1024 }] }
+  });
+  const res = fakeRes();
+  let calledNext = false;
+  await validateAdvertiserApplicationUpload(req, res, () => { calledNext = true; });
+  assert.equal(calledNext, false);
+  assert.equal(res.redirected, '/advertising');
+  assert.match(req.session.flash.message, /advertiser logos must be smaller than 1\.5MB/i);
+});
+
+test('validateAdvertiserApplicationUpload rejects an oversized banner independently', async () => {
+  const req = fakeReq({
+    path: '/advertising/apply',
+    files: { banner: [{ fieldname: 'banner', size: 2 * 1024 * 1024 }] }
+  });
+  const res = fakeRes();
+  let calledNext = false;
+  await validateAdvertiserApplicationUpload(req, res, () => { calledNext = true; });
+  assert.equal(calledNext, false);
+  assert.equal(res.redirected, '/advertising');
+  assert.match(req.session.flash.message, /advertiser banners must be smaller than 2MB/i);
 });
 
 test('validateReportUpload rejects an oversized evidence file', () => {
