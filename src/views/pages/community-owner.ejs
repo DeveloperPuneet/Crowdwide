@@ -99,9 +99,9 @@
 			<div class="admin-stats" aria-label="Community advertising totals">
 				<article class="admin-stat"><span>Delivery</span><strong><%= adStats.impressions.toLocaleString() %></strong><small>impressions</small></article>
 				<article class="admin-stat"><span>Engagement</span><strong><%= adStats.clicks.toLocaleString() %></strong><small>clicks</small></article>
-				<article class="admin-stat"><span>Revenue</span><strong>Not available</strong><small>external provider and payout approvals required</small></article>
+				<article class="admin-stat" data-community-earnings-status="unavailable"><span>Earnings</span><strong>Unavailable</strong><small>Provider and payout approvals required</small></article>
 			</div>
-			<p>Impressions and clicks are platform-measured activity, not proof of billable ad revenue. No earnings or payout is calculated until an advertising provider and revenue-sharing arrangement are approved.</p>
+			<p>Impressions and clicks are platform-measured activity, not proof of billable ad revenue. Earnings and payouts remain unavailable until an advertising provider and revenue-sharing arrangement are approved.</p>
 			<% } else if (monetizationStatus === 'pending') { %>
 			<p class="admin-badge status-reviewing">Application is pending staged review. Moderator screening: <strong><%= community.monetizationModeratorReview?.status || 'pending' %></strong><% if (community.monetizationModeratorReview?.reason) { %> — <%= community.monetizationModeratorReview.reason %><% } %></p>
 			<% } else if (monetizationStatus === 'rejected') { %>

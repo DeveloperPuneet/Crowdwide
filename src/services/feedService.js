@@ -362,7 +362,6 @@ function interleaveEntriesWithAds(entries, ads) {
 }
 
 async function addActiveSponsoredPosts(entries, user, view, now) {
-  if (view === 'my-community') return entries;
   try {
     const restricted = await getRestrictedCommunityIds(user._id);
     const types = ranker.TAB_CONFIG[view].types;
@@ -378,19 +377,25 @@ async function addActiveSponsoredPosts(entries, user, view, now) {
     }).sort({ boostStartedAt: -1, createdAt: -1 }).limit(30).select('_id').lean();
     if (!candidates.length) return entries;
 
-    const organicIds = new Set(entries.map((entry) => entry.id));
-    const available = candidates.filter((post) => !organicIds.has(String(post._id)));
-    for (let index = available.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [available[index], available[swapIndex]] = [available[swapIndex], available[index]];
+    const pageIds = new Set(entries.map((entry) => entry.id));
+    const inPageCandidates = candidates.filter((post) => pageIds.has(String(post._id)));
+    const otherCandidates = candidates.filter((post) => !pageIds.has(String(post._id)));
+    for (const group of [inPageCandidates, otherCandidates]) {
+      for (let index = group.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [group[index], group[swapIndex]] = [group[swapIndex], group[index]];
+      }
     }
-    const adCount = entries.length >= 10 ? 2 : 1;
-    const ads = available.slice(0, adCount).map((post) => ({
+    const shuffledCandidates = [...inPageCandidates, ...otherCandidates];
+    const promotedIds = new Set(candidates.map((post) => String(post._id)));
+    const organicEntries = entries.filter((entry) => !promotedIds.has(entry.id));
+    const adCount = organicEntries.length >= 10 ? 2 : 1;
+    const ads = shuffledCandidates.slice(0, adCount).map((post) => ({
       id: String(post._id),
       source: 'Sponsored',
       lane: 'sponsored'
     }));
-    return interleaveEntriesWithAds(entries, ads);
+    return interleaveEntriesWithAds(organicEntries, ads);
   } catch (error) {
     logger.error('Could not load sponsored posts for the feed', error);
     return entries;

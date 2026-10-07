@@ -9,7 +9,6 @@ test('active sponsored posts are randomly placed between organic feed posts, inc
   t.mock.method(Math, 'random', () => 0.999);
   const promotedPosts = [
     { _id: 'promoted-owned' },
-    { _id: 'promoted-other' },
     { _id: 'promoted-third' }
   ];
   t.mock.method(Community, 'find', () => ({ distinct: async () => [] }));
@@ -42,19 +41,23 @@ test('active sponsored posts are randomly placed between organic feed posts, inc
     })),
     { id: 'promoted-third', source: 'From your communities', lane: 'network' }
   ];
-  const result = await addActiveSponsoredPosts(entries, {
+  const viewer = {
     _id: 'owner-user',
     blockedUsers: ['blocked-user'],
     mutedUsers: ['muted-user']
-  }, 'for-you', Date.now());
+  };
+  const result = await addActiveSponsoredPosts(entries, viewer, 'for-you', Date.now());
 
   const sponsored = result.filter((entry) => entry.source === 'Sponsored');
   assert.equal(sponsored.length, 2);
   assert.ok(sponsored.some((entry) => entry.id === 'promoted-owned'));
+  assert.ok(sponsored.some((entry) => entry.id === 'promoted-third'), 'a promoted post already in the organic page is shown as a sponsored placement');
   assert.ok(sponsored.every((entry) => entry.lane === 'sponsored'));
   assert.ok(result.indexOf(sponsored[0]) >= 3, 'first sponsored post follows at least three ordinary posts');
   assert.ok(result.indexOf(sponsored[1]) >= result.indexOf(sponsored[0]) + 5, 'sponsored placements are spaced apart');
   assert.equal(result.filter((entry) => entry.id.startsWith('regular-')).length, 16);
-  assert.ok(!result.some((entry) => entry.id === 'promoted-third' && entry.source === 'Sponsored'), 'only two sponsored posts are shown in one feed page');
-  assert.equal(result.filter((entry) => entry.id === 'promoted-third').length, 1, 'an organic post is not duplicated as a sponsored post');
+  assert.equal(result.filter((entry) => entry.id === 'promoted-third').length, 1, 'an organic promoted post is moved instead of duplicated');
+
+  const communityFeed = await addActiveSponsoredPosts(entries, viewer, 'my-community', Date.now());
+  assert.equal(communityFeed.filter((entry) => entry.source === 'Sponsored').length, 2, 'the My community feed also includes sponsored placements');
 });

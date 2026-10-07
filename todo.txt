@@ -26,6 +26,8 @@
 - Community and quest Waves rewards — configurable rewards for joining/creating communities and completing quests, once per user/action target and subject to the daily cap.
 - Community monetization application foundation — owner eligibility checklist and application, configurable post/like/comment thresholds with server-side enforcement, and admin review/approval workflow.
 - Community monetization status and ad-configuration scaffolding.
+- Community revenue status visibility — community owners see advertising impressions and clicks plus a clear unavailable earnings state until an advertising provider and revenue-sharing arrangement are approved; no synthetic earnings or payouts are shown.
+- Revenue-sharing calculation foundation — a validated, currency-agnostic minor-unit calculator applies supplied deductions and an explicit community-owner percentage, then computes the Crowdwide remainder without losing rounding units. It is not connected to ad revenue or payouts; provider approval and a configured share percentage are still required.
 - Community Galaxy — Interactive Community Discovery Map 🌐
 - Rising Communities Radar — Discover Growing Communities 📡
 - Posts, articles, polls, drafts, scheduled publishing, media uploads, alt text, hashtags, mentions, quote posts, and linked post replies.
@@ -95,10 +97,6 @@ Waves Usage
 Add Ad-Free feature using Waves if premium is introduced
 
 Community Revenue
-
-Show community earnings
-
-Create revenue-sharing calculation system
 
 Track gross advertising revenue
 

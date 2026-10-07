@@ -124,6 +124,16 @@ test('public community owner can purchase a Waves promotion and see its status',
   assert.match(active, /Promoted · paid with 50 Waves/);
   assert.match(active, /eligible for labeled promoted placements/);
   assert.doesNotMatch(active, /Promote with Waves/);
+
+  const monetized = await render('pages/community-owner.ejs', {
+    ...common,
+    monetizationStats: { impressions: 1200, clicks: 34 },
+    community: { ...common.community, monetizationStatus: 'approved', isMonetized: true }
+  });
+  assert.match(monetized, /data-community-earnings-status="unavailable"/);
+  assert.match(monetized, /Earnings<\/span><strong>Unavailable<\/strong>/);
+  assert.match(monetized, /1,200/);
+  assert.match(monetized, /34/);
 });
 
 test('advertiser dashboard renders application form and campaign metrics', async () => {
@@ -470,7 +480,8 @@ test('dashboard still renders with the share button and share sheet in the foote
   assert.match(html, /data-share-open/);
   assert.match(html, /data-share-sheet/);
   assert.match(html, /data-sponsored-post/);
-  assert.match(html, /sponsored-post-label[^>]*>Sponsored/);
+  assert.match(html, /class="sponsored-post-notice" aria-label="Sponsored post"><strong>Sponsored<\/strong><span>Promoted with Waves<\/span>/);
+  assert.match(html, /class="post-card[^"]*is-sponsored-post/);
   assert.match(html, /feed-sentinel/);
   assert.doesNotMatch(html, /Ranked for you:/);
   assert.match(html, /composer-options/);
