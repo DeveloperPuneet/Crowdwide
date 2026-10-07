@@ -508,7 +508,9 @@ exports.createCommunity = async (req, res) => {
 		return res.redirect('/communities/mine');
 	}
 	const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-	await Community.create({ owner: req.session.user.id, name, slug, category, isPrivate: req.body.isPrivate === 'on', hashtags: parseHashtagList(req.body.hashtags), description: req.body.description?.trim() || `A new Crowdwide community for ${name}.`, members: [req.session.user.id], memberRoles: [{ user: req.session.user.id, role: 'member' }], membersCount: 1 });
+	const community = await Community.create({ owner: req.session.user.id, name, slug, category, isPrivate: req.body.isPrivate === 'on', hashtags: parseHashtagList(req.body.hashtags), description: req.body.description?.trim() || `A new Crowdwide community for ${name}.`, members: [req.session.user.id], memberRoles: [{ user: req.session.user.id, role: 'member' }], membersCount: 1 });
+	rewardWavesForAction({ userId: req.session.user.id, action: 'communityCreate', referenceType: 'community', referenceId: community._id })
+		.catch((error) => logger.error('Could not award Waves for creating a community', error));
 	res.redirect('/dashboard');
 };
 

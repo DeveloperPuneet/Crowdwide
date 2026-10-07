@@ -15,6 +15,7 @@ const appealController = require('../controllers/appealController');
 const adminController = require('../controllers/adminController');
 const translateController = require('../controllers/translateController');
 const wavesController = require('../controllers/wavesController');
+const advertisingController = require('../controllers/advertisingController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
 
 router.get('/', controller.home);
@@ -24,6 +25,11 @@ router.get('/u/:id/rss.xml', controller.profileRss);
 router.get('/api/v1/posts', apiLimiter, controller.apiPosts);
 router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
 router.get('/wallet', requireAuth, requireVerified, wavesController.wallet);
+router.post('/wallet/transfer', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.transfer);
+router.get('/advertising', requireAuth, requireVerified, advertisingController.dashboard);
+router.post('/advertising/apply', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.apply);
+router.post('/advertising/campaigns', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.createCampaign);
+router.post('/advertising/campaigns/:id/action', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.campaignAction);
 router.get('/recap', requireAuth, requireVerified, controller.activityRecap);
 router.get('/dashboard/feed/more', requireAuth, requireVerified, controller.moreFeedPosts);
 router.get('/media/signed-upload', requireAuth, requireVerified, controller.signedUpload);
@@ -149,6 +155,8 @@ router.post('/admin/users/:id/delete', requireAuth, requireVerified, requireAdmi
 router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateUser);
 router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateCommunity);
 router.post('/admin/communities/:id/monetization', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.reviewMonetization);
+router.post('/admin/advertisers/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdvertiser);
+router.post('/admin/campaigns/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewCampaign);
 router.post('/admin/communities/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteCommunity);
 router.post('/admin/settings', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateSiteSettings);
 router.post('/admin/maintenance/run', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.runMaintenance);

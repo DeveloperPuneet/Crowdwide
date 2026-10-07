@@ -9,6 +9,8 @@ const { parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners } = require('../services/discovery');
 const { getInterestProfile, topInterestTags, refreshPersonalization } = require('../services/feedService');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
+const { rewardWavesForAction } = require('../services/waves');
+const logger = require('../services/logger');
 
 async function getMonetizationEligibility(communityId) {
   const [settings, results] = await Promise.all([
@@ -401,6 +403,10 @@ exports.completeQuest = async (req, res) => {
     quest.winner = null;
   }
   await quest.save();
+  if (!isCompleted) {
+    rewardWavesForAction({ userId, action: 'questCompletion', referenceType: 'quest', referenceId: quest._id })
+      .catch((error) => logger.error('Could not award Waves for quest completion', error));
+  }
   req.session.flash = { type: 'success', message: isCompleted ? 'Quest marked as not completed.' : 'Quest marked as complete.' };
   res.redirect(req.get('referer') || `/communities/${req.community.slug}`);
 };
@@ -532,6 +538,8 @@ exports.joinByInvite = async (req, res) => {
     community.membersCount = community.members.length;
     await community.save();
     await User.findByIdAndUpdate(userId, { $addToSet: { joinedCommunities: community._id } });
+    rewardWavesForAction({ userId, action: 'communityJoin', referenceType: 'community', referenceId: community._id })
+      .catch((error) => logger.error('Could not award Waves for joining a community', error));
     refreshPersonalization(userId);
   }
   req.session.flash = { type: 'success', message: `You joined ${community.name}.` };
@@ -607,6 +615,8 @@ exports.requestJoin = async (req, res) => {
     community.membersCount = community.members.length;
     await community.save();
     await User.findByIdAndUpdate(userId, { $addToSet: { joinedCommunities: community._id } });
+    rewardWavesForAction({ userId, action: 'communityJoin', referenceType: 'community', referenceId: community._id })
+      .catch((error) => logger.error('Could not award Waves for joining a community', error));
     refreshPersonalization(userId);
   }
   res.redirect(req.get('referer') || `/communities/${community.slug}`);
@@ -659,6 +669,8 @@ exports.reviewRequest = async (req, res) => {
     req.community.memberRoles.push({ user: request.user, role: 'member' });
     req.community.membersCount = req.community.members.length;
     await User.findByIdAndUpdate(request.user, { $addToSet: { joinedCommunities: req.community._id } });
+    rewardWavesForAction({ userId: request.user, action: 'communityJoin', referenceType: 'community', referenceId: req.community._id })
+      .catch((error) => logger.error('Could not award Waves for joining a community', error));
   }
   req.community.joinRequests = req.community.joinRequests.filter((item) => String(item.user) !== req.params.userId);
   await req.community.save();

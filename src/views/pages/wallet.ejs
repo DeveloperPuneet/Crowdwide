@@ -14,6 +14,16 @@
     <div class="recap-stat"><span>Total spent</span><strong><%= wallet.totalSpent.toLocaleString() %></strong></div>
   </section>
   <section class="recap-panel">
+    <div class="recap-section-heading"><div><p class="eyebrow">Send Waves</p><h2>Transfer to another user</h2></div></div>
+    <form method="post" action="/wallet/transfer" class="admin-edit-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>Recipient email<input type="email" name="recipientEmail" maxlength="254" required autocomplete="email"></label>
+      <label>Amount in Waves<input type="number" name="amount" min="0.01" step="0.01" max="<%= wallet.balance %>" required></label>
+      <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Send Waves</button></div>
+    </form>
+    <p class="recap-muted">Transfers are subject to per-transfer and daily limits set by the platform.</p>
+  </section>
+  <section class="recap-panel">
     <div class="recap-section-heading"><div><p class="eyebrow">Wallet activity</p><h2>Recent transactions</h2></div><span class="recap-muted">Latest 50 entries</span></div>
     <% if (transactions.length) { %>
     <div style="overflow-x:auto;">

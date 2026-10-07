@@ -91,6 +91,25 @@ test('community invite and sharing UI are rendered for private community owners'
   assert.match(html, /communities\/c1\/invite\/revoke/);
 });
 
+test('advertiser dashboard renders application form and campaign metrics', async () => {
+  const html = await render('pages/advertising-dashboard.ejs', {
+    title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
+    advertiser: { businessName: 'Example Co', status: 'approved', isVerified: true },
+    campaigns: [{
+      _id: 'campaign-1', title: 'Launch', status: 'approved', fundingStatus: 'funded',
+      impressions: 100, clicks: 5, ctr: 5, wavesSpent: 2, remainingBudget: 18,
+      totalBudget: 20, description: 'Campaign description'
+    }],
+    communities: [{ _id: 'community-1', name: 'Public Community' }],
+    totals: { impressions: 100, clicks: 5, ctr: 5, wavesSpent: 2, remainingBudget: 18 }
+  });
+  assert.match(html, /Advertising dashboard/);
+  assert.match(html, /performance totals/);
+  assert.match(html, /5% CTR/);
+  assert.match(html, /Your campaigns/);
+  assert.match(html, /Fund and submit|Activate/);
+});
+
 test('community invite landing renders a join confirmation page', async () => {
   const html = await render('pages/community-invite.ejs', {
     title: 'Join Sketch Club', pagePath: '/communities/invite/token', noIndex: true,

@@ -39,6 +39,7 @@
     <a href="/notifications"><%- icon('bell', { size: 18 }) %> Notifications</a>
     <% if (locals.currentUser) { %>
     <a href="/wallet"><span aria-hidden="true">◈</span> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
+    <a href="/advertising">Advertiser dashboard</a>
     <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Your profile</a>
     <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>
     <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Account settings</a>

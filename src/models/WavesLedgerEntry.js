@@ -16,7 +16,8 @@ const wavesLedgerEntrySchema = new mongoose.Schema({
   reason: { type: String, trim: true, maxlength: 500, default: '' },
   actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   referenceType: { type: String, trim: true, maxlength: 40, default: '' },
-  referenceId: { type: mongoose.Schema.Types.ObjectId, default: null }
+  referenceId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  rewardKey: { type: String, trim: true, maxlength: 500, unique: true, sparse: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('WavesLedgerEntry', wavesLedgerEntrySchema);

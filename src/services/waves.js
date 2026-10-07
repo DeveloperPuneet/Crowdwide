@@ -76,6 +76,36 @@ async function transferWaves({ fromUserId, toUserId, amount, description = 'Tran
   if (value <= 0) throw new Error('Transfer amount must be greater than zero.');
   if (String(fromUserId) === String(toUserId)) throw new Error('A user cannot transfer Waves to themselves.');
 
+  const [settings, sender, recipient] = await Promise.all([
+    SiteSetting.getSingleton(),
+    User.findById(fromUserId),
+    User.findById(toUserId)
+  ]);
+  if (!sender) throw new Error('Sender account was not found.');
+  if (!recipient) throw new Error('Recipient account was not found.');
+  const now = new Date();
+  if (sender.wavesSuspendedUntil && sender.wavesSuspendedUntil > now) {
+    throw new Error('Your Waves account is temporarily suspended from transfers.');
+  }
+  if (recipient.wavesSuspendedUntil && recipient.wavesSuspendedUntil > now) {
+    throw new Error('The recipient cannot receive Waves right now.');
+  }
+
+  const maxTransfer = normalizeAmount(settings.wavesMaxTransferAmount ?? 100, 'maximum transfer amount');
+  const dailyLimit = normalizeAmount(settings.wavesDailyTransferLimit ?? 500, 'daily transfer limit');
+  if (maxTransfer < 0 || dailyLimit < 0) throw new Error('Waves transfer limits are invalid.');
+  if (value > maxTransfer) throw new Error(`A single transfer cannot exceed ${maxTransfer} Waves.`);
+
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const transferredToday = await WavesLedgerEntry.aggregate([
+    { $match: { user: fromUserId, type: 'transfer-out', status: 'posted', createdAt: { $gte: dayStart } } },
+    { $group: { _id: null, total: { $sum: { $abs: '$amount' } } } }
+  ]);
+  const sentToday = Number(transferredToday[0]?.total || 0);
+  if (sentToday + value > dailyLimit) {
+    throw new Error(`Your daily transfer limit is ${dailyLimit} Waves.`);
+  }
+
   await updateWavesBalance({
     userId: fromUserId,
     delta: -Math.abs(value),
@@ -123,13 +153,21 @@ async function getWalletSummary(userId) {
   };
 }
 
-async function rewardWavesForAction({ userId, action, referenceType, referenceId }) {
+async function rewardWavesForAction({ userId, actorId = null, action, referenceType, referenceId }) {
   const rewardConfigs = {
     post: { configKey: 'wavesPostReward', description: 'Published post reward' },
-    comment: { configKey: 'wavesCommentReward', description: 'Comment reward' }
+    comment: { configKey: 'wavesCommentReward', description: 'Comment reward' },
+    receivedLike: { configKey: 'wavesLikeReward', description: 'Received like reward' },
+    receivedComment: { configKey: 'wavesReceivedCommentReward', description: 'Received comment reward' },
+    communityJoin: { configKey: 'wavesCommunityJoinReward', description: 'Community join reward' },
+    communityCreate: { configKey: 'wavesCommunityCreateReward', description: 'Community creation reward' },
+    questCompletion: { configKey: 'wavesQuestCompletionReward', description: 'Quest completion reward' }
   };
   const rewardConfig = rewardConfigs[action];
   if (!rewardConfig) throw new Error(`Unsupported Waves reward action: ${action}`);
+  if (['receivedLike', 'receivedComment'].includes(action) && actorId && String(userId) === String(actorId)) {
+    return { amount: 0, balance: null };
+  }
 
   const settings = await SiteSetting.getSingleton();
   const range = settings[rewardConfig.configKey] || {};
@@ -154,14 +192,42 @@ async function rewardWavesForAction({ userId, action, referenceType, referenceId
   const amount = Number(Math.min(remainingLimit, randomValue).toFixed(6));
   if (amount <= 0) return { amount: 0, balance: null };
 
-  const user = await creditWaves({
-    userId,
-    amount,
-    description: rewardConfig.description,
-    reason: `Platform reward for ${action}`,
-    referenceType,
-    referenceId
-  });
+  const rewardKey = `reward:${userId}:${action}:${referenceType || ''}:${referenceId || ''}:${actorId || ''}`;
+  let claim;
+  try {
+    claim = await WavesLedgerEntry.create({
+      user: userId,
+      amount,
+      type: 'earn',
+      status: 'pending',
+      description: rewardConfig.description,
+      reason: `Platform reward for ${action}`,
+      actor: actorId || null,
+      referenceType: String(referenceType || '').trim().slice(0, 40),
+      referenceId: referenceId || null,
+      rewardKey
+    });
+  } catch (error) {
+    if (error?.code === 11000) return { amount: 0, balance: null };
+    throw error;
+  }
+
+  let user;
+  try {
+    user = await User.findById(userId);
+    if (!user) throw new Error('User not found for Waves reward.');
+    user.wavesBalance = Number(((user.wavesBalance || 0) + amount).toFixed(6));
+    user.wavesTotalEarned = Number(((user.wavesTotalEarned || 0) + amount).toFixed(6));
+    await user.save();
+  } catch (error) {
+    claim.status = 'reversed';
+    claim.reason = `${claim.reason}; reward failed before posting`.slice(0, 500);
+    await claim.save();
+    throw error;
+  }
+  claim.balanceAfter = user.wavesBalance;
+  claim.status = 'posted';
+  await claim.save();
   return { amount, balance: user.wavesBalance };
 }
 

@@ -1,0 +1,94 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<main class="explore-page admin-wide">
+  <%- include('../partials/flash') %>
+  <header class="admin-page-header">
+    <div><p class="eyebrow">Advertiser tools</p><h1>Advertising dashboard</h1><p>Manage campaigns funded with Waves and review their delivery statistics.</p></div>
+    <a class="button button-small button-ghost" href="/wallet">◈ <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
+  </header>
+
+  <% if (!advertiser) { %>
+  <section class="settings-block admin-wide">
+    <h2>Apply as an advertiser</h2>
+    <p>Advertisers are reviewed before campaign creation is enabled.</p>
+    <form class="admin-edit-form" method="post" action="/advertising/apply">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>Business or organization name<input name="businessName" maxlength="120" required></label>
+      <label>Website<input type="url" name="website" maxlength="300" placeholder="https://example.com"></label>
+      <label class="full-width">Additional information<textarea name="notes" maxlength="2000" rows="3"></textarea></label>
+      <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Submit application</button></div>
+    </form>
+  </section>
+  <% } else { %>
+  <section class="settings-block admin-wide">
+    <h2><%= advertiser.businessName %></h2>
+    <p>Advertiser status: <strong><%= advertiser.status %></strong><% if (advertiser.isVerified) { %> · Verified<% } %></p>
+    <% if (advertiser.status === 'pending') { %><p>Your advertiser application is awaiting admin review.</p><% } %>
+    <% if (advertiser.status === 'rejected') { %><p><%= advertiser.rejectionReason || 'Application not approved.' %></p><% } %>
+    <% if (advertiser.status === 'suspended') { %><p>Your advertiser account is suspended. Contact support for assistance.</p><% } %>
+  </section>
+
+  <% if (advertiser.status === 'approved') { %>
+  <div class="admin-stats" aria-label="Campaign performance totals">
+    <article class="admin-stat"><span>Delivery</span><strong><%= totals.impressions.toLocaleString() %></strong><small>impressions</small></article>
+    <article class="admin-stat"><span>Engagement</span><strong><%= totals.clicks.toLocaleString() %></strong><small>clicks</small></article>
+    <article class="admin-stat"><span>Performance</span><strong><%= totals.ctr %>%</strong><small>CTR</small></article>
+    <article class="admin-stat"><span>Budget</span><strong><%= totals.remainingBudget.toLocaleString() %></strong><small>Waves remaining</small></article>
+    <article class="admin-stat"><span>Spend</span><strong><%= totals.wavesSpent.toLocaleString() %></strong><small>Waves spent</small></article>
+  </div>
+
+  <section class="settings-block admin-wide">
+    <h2>Create campaign draft</h2>
+    <p>Submitting a campaign escrows its Waves budget and sends it for admin review. It cannot run until approved.</p>
+    <form class="admin-edit-form" method="post" action="/advertising/campaigns">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>Campaign title<input name="title" maxlength="120" required></label>
+      <label>Total budget (Waves)<input type="number" name="totalBudget" min="0.01" step="0.01" required></label>
+      <label>Daily budget (Waves)<input type="number" name="dailyBudget" min="0" step="0.01" value="0"></label>
+      <label>Start date<input type="date" name="startDate"></label>
+      <label>End date<input type="date" name="endDate"></label>
+      <label class="full-width">Campaign description<textarea name="description" maxlength="2000" rows="3"></textarea></label>
+      <% if (communities.length) { %>
+      <fieldset class="full-width">
+        <legend>Target monetized communities</legend>
+        <% communities.forEach((community) => { %>
+        <label class="checkbox-field"><input type="checkbox" name="targetCommunities" value="<%= community._id %>"> <%= community.name %></label>
+        <% }) %>
+      </fieldset>
+      <% } else { %><p class="full-width">There are currently no public monetized communities accepting advertisements.</p><% } %>
+      <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save draft</button></div>
+    </form>
+  </section>
+
+  <section class="settings-block admin-wide">
+    <h2>Your campaigns</h2>
+    <% if (!campaigns.length) { %><p>No campaigns yet.</p><% } %>
+    <% campaigns.forEach((campaign) => { %>
+    <article class="device-row" style="flex-direction:column;align-items:stretch;">
+      <div><strong><%= campaign.title %></strong> · <%= campaign.status %> · Funding: <%= campaign.fundingStatus %>
+        <p><%= campaign.description || 'No description provided.' %></p>
+        <% if (campaign.rejectionReason) { %><p>Review reason: <%= campaign.rejectionReason %></p><% } %>
+        <p><%= Number(campaign.impressions || 0).toLocaleString() %> impressions · <%= Number(campaign.clicks || 0).toLocaleString() %> clicks · <%= Number(campaign.ctr || 0) %>% CTR · <%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves spent · <%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <% if (campaign.status === 'draft') { %>
+        <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" name="action" value="submit" type="submit">Fund and submit</button></form>
+        <% } %>
+        <% if (campaign.status === 'approved' || campaign.status === 'paused') { %>
+        <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" name="action" value="activate" type="submit">Activate</button></form>
+        <% } %>
+        <% if (campaign.status === 'approved' || campaign.status === 'active') { %>
+        <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" name="action" value="pause" type="submit">Pause</button></form>
+        <% } %>
+        <% if (['draft', 'submitted', 'approved', 'active', 'paused'].includes(campaign.status)) { %>
+        <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action" data-confirm="Cancel this campaign and refund unused funded Waves?"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-danger" name="action" value="cancel" type="submit">Cancel</button></form>
+        <% } %>
+      </div>
+    </article>
+    <% }) %>
+  </section>
+  <% } %>
+  <% } %>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

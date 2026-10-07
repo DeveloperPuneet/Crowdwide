@@ -10,11 +10,14 @@ const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
 const MaintenanceRun = require('../models/MaintenanceRun');
 const Appeal = require('../models/Appeal');
+const Advertiser = require('../models/Advertiser');
+const Campaign = require('../models/Campaign');
 const { logEvent } = require('../services/accountHistory');
 const { getSiteConfig, clearSiteConfigCache, getPostReviewThreshold } = require('../services/siteConfig');
 const { runMaintenance, TASK_LABELS } = require('../services/maintenance');
 const { getMongoStorage, formatStorage } = require('../services/mongoStorage');
 const { adjustWaves } = require('../services/waves');
+const { updateAdvertiserStatus, updateCampaignStatus } = require('../services/advertising');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const logger = require('../services/logger');
 
@@ -114,7 +117,7 @@ async function attachActionContext(actions) {
 }
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts monetizationStatus monetizationApplication monetizationSettings createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
@@ -126,11 +129,55 @@ exports.admin = async (req, res) => {
     MaintenanceRun.find().sort({ createdAt: -1 }).limit(30).populate('triggeredBy', 'name').lean(),
     SiteSetting.getSingleton(),
     getMongoStorage(),
-    Community.find({ monetizationStatus: 'pending' }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationStatus monetizationSettings createdAt').populate('owner', 'name email').lean()
+    Community.find({ monetizationStatus: 'pending' }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationStatus monetizationSettings createdAt').populate('owner', 'name email').lean(),
+    Advertiser.find({ status: 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').lean(),
+    Campaign.find({ status: 'submitted' }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name email' } }).lean()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   await attachActionContext(pendingActions);
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+};
+
+exports.reviewAdvertiser = async (req, res) => {
+  const status = req.body.decision;
+  const reason = String(req.body.reason || '').trim().slice(0, 500);
+  try {
+    const advertiser = await updateAdvertiserStatus({
+      advertiserId: req.params.id,
+      status,
+      reason,
+      actorId: req.roleUser._id
+    });
+    await audit(req, `advertiser-${status}`, 'advertiser', advertiser._id, { reason });
+    flash(req, 'success', `Advertiser application ${status}.`);
+  } catch (error) {
+    logger.warn('Admin advertiser review failed', { advertiserId: req.params.id, error });
+    flash(req, 'error', error.message || 'Advertiser review could not be completed.');
+  }
+  res.redirect('/admin#communities');
+};
+
+exports.reviewCampaign = async (req, res) => {
+  const decision = req.body.decision;
+  const reason = String(req.body.reason || '').trim().slice(0, 500);
+  if (!['approved', 'rejected'].includes(decision)) {
+    flash(req, 'error', 'Choose approve or reject for campaign review.');
+    return res.redirect('/admin#communities');
+  }
+  try {
+    const campaign = await updateCampaignStatus({
+      campaignId: req.params.id,
+      status: decision,
+      rejectionReason: reason,
+      actorId: req.roleUser._id
+    });
+    await audit(req, `campaign-${decision}`, 'campaign', campaign._id, { reason });
+    flash(req, 'success', `Campaign ${decision}${campaign.fundingStatus === 'refunded' ? '; unused Waves were refunded.' : '.'}`);
+  } catch (error) {
+    logger.warn('Admin campaign review failed', { campaignId: req.params.id, error });
+    flash(req, 'error', error.message || 'Campaign review could not be completed.');
+  }
+  res.redirect('/admin#communities');
 };
 
 exports.runMaintenance = async (req, res) => {
@@ -384,7 +431,15 @@ exports.updateSiteSettings = async (req, res) => {
   if (Number.isFinite(monetizationMinimumLikes) && monetizationMinimumLikes >= 0) settings.monetizationMinimumLikes = Math.min(100000, Math.round(monetizationMinimumLikes));
   const monetizationMinimumComments = Number(req.body.monetizationMinimumComments);
   if (Number.isFinite(monetizationMinimumComments) && monetizationMinimumComments >= 0) settings.monetizationMinimumComments = Math.min(100000, Math.round(monetizationMinimumComments));
-  for (const [field, formName] of [['wavesPostReward', 'post'], ['wavesCommentReward', 'comment']]) {
+  for (const [field, formName] of [
+    ['wavesPostReward', 'post'],
+    ['wavesCommentReward', 'comment'],
+    ['wavesLikeReward', 'like'],
+    ['wavesReceivedCommentReward', 'receivedComment'],
+    ['wavesCommunityJoinReward', 'communityJoin'],
+    ['wavesCommunityCreateReward', 'communityCreate'],
+    ['wavesQuestCompletionReward', 'questCompletion']
+  ]) {
     const minimum = Number(req.body[`waves${formName[0].toUpperCase()}${formName.slice(1)}RewardMinimum`]);
     const maximum = Number(req.body[`waves${formName[0].toUpperCase()}${formName.slice(1)}RewardMaximum`]);
     if (Number.isFinite(minimum) && Number.isFinite(maximum) && minimum >= 0 && maximum >= minimum) {
@@ -393,6 +448,10 @@ exports.updateSiteSettings = async (req, res) => {
   }
   const wavesDailyEarningLimit = Number(req.body.wavesDailyEarningLimit);
   if (Number.isFinite(wavesDailyEarningLimit) && wavesDailyEarningLimit >= 0) settings.wavesDailyEarningLimit = Math.min(100000, wavesDailyEarningLimit);
+  const wavesMaxTransferAmount = Number(req.body.wavesMaxTransferAmount);
+  if (Number.isFinite(wavesMaxTransferAmount) && wavesMaxTransferAmount >= 0) settings.wavesMaxTransferAmount = Math.min(1000000, wavesMaxTransferAmount);
+  const wavesDailyTransferLimit = Number(req.body.wavesDailyTransferLimit);
+  if (Number.isFinite(wavesDailyTransferLimit) && wavesDailyTransferLimit >= 0) settings.wavesDailyTransferLimit = Math.min(10000000, wavesDailyTransferLimit);
   settings.updatedBy = req.roleUser._id;
   await settings.save();
   clearSiteConfigCache();

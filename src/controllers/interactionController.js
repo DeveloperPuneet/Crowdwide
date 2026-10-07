@@ -80,6 +80,10 @@ exports.toggleLike = async (req, res) => {
     refreshPersonalization(req.session.user.id); // a new like should shape "for you" on the very next load, not up to 5 minutes later
   }
   await post.save();
+  if (!alreadyLiked && String(post.author) !== String(req.session.user.id)) {
+    rewardWavesForAction({ userId: post.author, actorId: req.session.user.id, action: 'receivedLike', referenceType: 'post', referenceId: post._id })
+      .catch((error) => logger.error('Could not award Waves for received post like', error));
+  }
   redirectBack(req, res, { liked: !alreadyLiked, likes: post.likes.length });
 };
 
@@ -194,10 +198,16 @@ exports.comment = async (req, res) => {
     replyRecipient = parentComment.author;
   }
   const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, ...(gif ? { gif } : {}) });
-  rewardWavesForAction({ userId: req.session.user.id, action: 'comment', referenceType: 'comment', referenceId: comment._id })
-    .catch((error) => logger.error('Could not award Waves for comment', error));
+  if (String(post.author) !== String(req.session.user.id)) {
+    rewardWavesForAction({ userId: req.session.user.id, action: 'comment', referenceType: 'comment', referenceId: comment._id })
+      .catch((error) => logger.error('Could not award Waves for comment', error));
+  }
   post.commentsCount += 1;
   await post.save();
+  if (String(post.author) !== String(req.session.user.id)) {
+    rewardWavesForAction({ userId: post.author, actorId: req.session.user.id, action: 'receivedComment', referenceType: 'post-comment', referenceId: post._id })
+      .catch((error) => logger.error('Could not award Waves for received comment', error));
+  }
   refreshPersonalization(req.session.user.id);
   await notify(replyRecipient || post.author, req.session.user.id, parent ? 'reply' : 'comment', parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
   if (body) await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');

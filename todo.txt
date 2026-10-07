@@ -3,8 +3,14 @@
 ## Completed
 
 - Advertiser and campaign foundation — approved advertiser registration, campaign submission flow, moderation lifecycle, CTR tracking, and budget controls.
+- Advertiser campaign dashboard — advertiser applications and verification, draft creation, Waves-funded submission, admin campaign approval/rejection, pause/resume/cancellation controls, and per-campaign/aggregate performance and budget statistics.
+- Waves-funded campaign budgets — campaigns start as drafts, escrow the configured Waves budget on submission, and record funding/refund entries in the Waves ledger. Cancellation, rejection, and completion refund the remaining budget once.
+- Campaign daily budget enforcement — budget spend is rejected when it would exceed the configured daily cap and the daily counter resets on the next calendar day.
 - Waves currency foundation — user balances, ledger entries, credit/debit/transfer services, admin adjustments with reasons, visible signed-in balance, and wallet transaction history.
+- User Waves transfers — wallet send form and recipient lookup, with self-transfer/recipient suspension checks plus configurable per-transfer and daily limits.
 - Initial Waves rewards — configurable random post/comment reward ranges, admin controls, and a configurable daily earning cap.
+- Received-engagement Waves rewards — configurable rewards for genuine post likes and comments, with self-interaction rejection and durable duplicate-claim keys.
+- Community and quest Waves rewards — configurable rewards for joining/creating communities and completing quests, once per user/action target and subject to the daily cap.
 - Community monetization application foundation — owner eligibility checklist and application, configurable post/like/comment thresholds with server-side enforcement, and admin review/approval workflow.
 - Community monetization status and ad-configuration scaffolding.
 - Community Galaxy — Interactive Community Discovery Map 🌐
@@ -63,23 +69,7 @@ Waves / Platform Currency
 
 Create Waves earning system
 
-Add Waves rewards for receiving likes
-
-Add Waves rewards for receiving comments
-
-Add Waves rewards for joining communities
-
-Add Waves rewards for creating communities
-
-Add Waves rewards for community activity
-
-Add Waves rewards for completing quests
-
 Add Waves spending system
-
-Add Waves transfer system between users
-
-Add transfer limits
 
 Add Waves anti-farming/anti-abuse system
 
@@ -104,32 +94,6 @@ Keep Waves separate from real-money advertising revenue
 Advertising System
 
 Create advertiser system
-
-Create advertiser dashboard
-
-Create advertising campaign system
-
-Allow advertisers to create campaigns using Waves
-
-Add campaign budget
-
-Add daily budget
-
-Add campaign start/end date
-
-Allow advertisers to select target communities
-
-Add campaign draft system
-
-Add campaign submit/review system
-
-Add campaign approval/rejection system
-
-Add campaign pause/resume system
-
-Add campaign cancellation system
-
-Add advertiser verification
 
 Add advertisement review system
 
@@ -186,8 +150,6 @@ Track campaign performance over time
 Track performance by community
 
 Track communities reached
-
-Add advertiser statistics dashboard
 
 Add protection against fake clicks/impressions
 
@@ -275,17 +237,9 @@ Add revenue audit logs
 
 Advertiser Refunds / Campaign Handling
 
-Add refund handling for cancelled campaigns
-
-Add refund handling for rejected campaigns where applicable
-
-Handle unused campaign budget
-
 Handle suspended campaigns
 
 Handle invalid/fraudulent activity
-
-Keep complete campaign transaction history
 
 Admin Panel
 
@@ -294,8 +248,6 @@ Add Waves management
 Add Waves economy statistics
 
 Add advertiser management
-
-Add advertiser verification
 
 Add campaign management
 
@@ -395,4 +347,4 @@ Keep external advertising revenue separate from Waves
 
 ## Planned
 
-1. Implement action-triggered Waves rewards with configurable reward ranges and earning limits.
+1. Build advertiser campaign management and statistics screens on top of the funded campaign lifecycle.
