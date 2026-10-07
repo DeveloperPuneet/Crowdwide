@@ -448,9 +448,10 @@ test('share sheet and group join pages render', async () => {
 });
 
 test('dashboard still renders with the share button and share sheet in the footer', async () => {
+  const promotedPost = { ...post(1), feedSource: 'Sponsored' };
   const html = await render('pages/dashboard.ejs', {
     title: 't', pagePath: '/dashboard', noIndex: true,
-    feed: { posts: [post(1)], visiblePosts: [post(1)], hasMore: true, activeTab: 'for-you', note: 'n' },
+    feed: { posts: [promotedPost], visiblePosts: [promotedPost], hasMore: true, activeTab: 'for-you', note: 'n' },
     sitewideFeedAds: [{
       afterPost: 1,
       contextType: 'sitewide',
@@ -468,6 +469,8 @@ test('dashboard still renders with the share button and share sheet in the foote
   });
   assert.match(html, /data-share-open/);
   assert.match(html, /data-share-sheet/);
+  assert.match(html, /data-sponsored-post/);
+  assert.match(html, /sponsored-post-label[^>]*>Sponsored/);
   assert.match(html, /feed-sentinel/);
   assert.doesNotMatch(html, /Ranked for you:/);
   assert.match(html, /composer-options/);
