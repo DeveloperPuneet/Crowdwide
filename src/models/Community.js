@@ -80,9 +80,15 @@ const communitySchema = new mongoose.Schema({
   },
   monetizationHistory: [monetizationHistoryEntrySchema],
   monetizationApprovedAt: Date,
-  monetizationUpdatedAt: Date
+  monetizationUpdatedAt: Date,
+  promotionStatus: { type: String, enum: ['disabled', 'pending', 'active', 'expired'], default: 'disabled', index: true },
+  promotionStartedAt: Date,
+  promotionUntil: Date,
+  promotionWavesCost: { type: Number, min: 0 },
+  promotionPurchaseKey: { type: String, trim: true, maxlength: 100 }
 }, { timestamps: true });
 
 communitySchema.index({ isPrivate: 1, showOnMap: 1, locationLat: 1, locationLng: 1 });
+communitySchema.index({ isPrivate: 1, promotionStatus: 1, promotionUntil: 1 });
 
 module.exports = mongoose.model('Community', communitySchema);

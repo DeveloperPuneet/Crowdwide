@@ -139,6 +139,7 @@ router.post('/communities/:id/quests/:questId/reward', requireAuth, requireVerif
 router.get('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityController.manage);
 router.post('/communities/:id/invite', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.createInvite);
 router.post('/communities/:id/invite/revoke', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.revokeInvite);
+router.post('/communities/:id/promote', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, communityController.ownerOnly, communityController.promoteCommunity);
 router.post('/communities/:id/monetization', requireAuth, requireVerified, communityController.ownerOnly, interactionLimiter, csrfSynchronisedProtection, communityController.submitMonetizationApplication);
 router.post('/communities/:id/monetization/appeal', requireAuth, requireVerified, communityController.ownerOnly, interactionLimiter, csrfSynchronisedProtection, communityController.submitMonetizationAppeal);
 router.post('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityUpload, csrfSynchronisedProtection, handleUploadError, validateCommunityUpload, scanUploadsForViruses, communityController.update);

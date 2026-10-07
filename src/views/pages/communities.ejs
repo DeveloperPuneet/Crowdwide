@@ -1,12 +1,28 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'communities', currentUser }) %>
 <main class="community-directory">
+  <% const promotedList = locals.promotedCommunities || []; %>
   <header class="directory-heading">
     <p class="eyebrow">Rooms for every curiosity</p>
     <h1>Communities, separate from Explore.</h1>
     <p>Find established spaces, new beginnings, and communities gaining momentum.</p>
     <a class="button button-primary community-create-shortcut" href="/communities/mine"><%- icon('plus', { size: 16 }) %> Create or manage your communities</a>
   </header>
+  <% if (promotedList.length) { %>
+  <section class="directory-section" aria-labelledby="promoted-communities-heading">
+    <div class="panel-heading"><h2 id="promoted-communities-heading">Promoted communities</h2><span>Paid with Waves</span></div>
+    <div class="community-directory-grid">
+      <% promotedList.forEach((community) => { %>
+      <a class="community-card" href="/communities/<%= community.slug %>">
+        <div class="community-card-top"><span class="community-glyph"><% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;"><% } else { %><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %><% } %></span><span class="community-category">Promoted · paid with Waves</span></div>
+        <h2><%= community.name %></h2>
+        <p><%= community.description %></p>
+        <footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span>Open <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></span></footer>
+      </a>
+      <% }) %>
+    </div>
+  </section>
+  <% } %>
   <% const groups = [['Larger communities', largerCommunities], ['New communities', newCommunities], ['Growing communities', growingCommunities]]; %>
   <% groups.forEach(([heading, items]) => { %>
   <section class="directory-section">

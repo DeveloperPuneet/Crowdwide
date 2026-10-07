@@ -2,6 +2,7 @@
 <%- include('../partials/app-nav', { active: 'explore', currentUser, searchQuery: query }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="explore-page">
+	<% const promotedList = locals.promotedCommunities || []; %>
 	<section class="explore-hero">
 		<p class="eyebrow">Find your people</p>
 		<h1>There is a community<br><em>for your kind of curious.</em></h1>
@@ -14,6 +15,24 @@
 	</section>
 
 	<% if (!isBrowsing) { %>
+	<% if (promotedList.length) { %>
+	<section class="explore-section" aria-labelledby="promoted-communities-heading">
+		<div class="panel-heading"><h2 id="promoted-communities-heading">Promoted communities</h2><span>Paid with Waves</span></div>
+		<div class="explore-grid">
+			<% promotedList.forEach((community) => { %>
+			<a class="community-card" href="/communities/<%= community.slug %>">
+				<div class="community-card-top">
+					<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" class="community-glyph" style="object-fit:cover;"><% } else { %><span class="community-glyph"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
+					<span class="community-category">Promoted · paid with Waves</span>
+				</div>
+				<h2><%= community.name %></h2>
+				<p><%= community.description %></p>
+				<footer><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span>Open community <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></span></footer>
+			</a>
+			<% }) %>
+		</div>
+	</section>
+	<% } %>
 	<% if (risingCommunities.length) { %>
 	<section class="explore-section">
 		<div class="panel-heading"><h2>Rising this week</h2><a href="/communities/rising">View radar</a></div>

@@ -749,6 +749,11 @@ exports.updateSiteSettings = async (req, res) => {
   if (Number.isFinite(postPromotionWavesCost) && postPromotionWavesCost >= 1) settings.postPromotionWavesCost = Math.min(10000, postPromotionWavesCost);
   const postPromotionDurationHours = Number(req.body.postPromotionDurationHours);
   if (Number.isFinite(postPromotionDurationHours) && postPromotionDurationHours >= 1) settings.postPromotionDurationHours = Math.min(168, Math.round(postPromotionDurationHours));
+  settings.communityPromotionEnabled = req.body.communityPromotionEnabled === 'on';
+  const communityPromotionWavesCost = Number(req.body.communityPromotionWavesCost);
+  if (Number.isFinite(communityPromotionWavesCost) && communityPromotionWavesCost >= 1) settings.communityPromotionWavesCost = Math.min(10000, Math.round(communityPromotionWavesCost));
+  const communityPromotionDurationHours = Number(req.body.communityPromotionDurationHours);
+  if (Number.isFinite(communityPromotionDurationHours) && communityPromotionDurationHours >= 1) settings.communityPromotionDurationHours = Math.min(168, Math.round(communityPromotionDurationHours));
   settings.updatedBy = req.roleUser._id;
   await settings.save();
   clearSiteConfigCache();

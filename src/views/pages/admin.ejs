@@ -513,6 +513,9 @@
         <label class="checkbox-field"><input type="checkbox" name="postPromotionEnabled" <%= siteSettings.postPromotionEnabled !== false ? 'checked' : '' %>> Allow post promotions paid with Waves</label>
         <label>Post promotion price (Waves)<input type="number" name="postPromotionWavesCost" min="1" max="10000" step="1" value="<%= siteSettings.postPromotionWavesCost ?? 25 %>"></label>
         <label>Post promotion duration (hours)<input type="number" name="postPromotionDurationHours" min="1" max="168" step="1" value="<%= siteSettings.postPromotionDurationHours ?? 24 %>"></label>
+        <label class="checkbox-field"><input type="checkbox" name="communityPromotionEnabled" <%= siteSettings.communityPromotionEnabled !== false ? 'checked' : '' %>> Allow new community promotion purchases paid with Waves</label>
+        <label>Community promotion price (Waves)<input type="number" name="communityPromotionWavesCost" min="1" max="10000" step="1" value="<%= siteSettings.communityPromotionWavesCost ?? 50 %>"></label>
+        <label>Community promotion duration (hours)<input type="number" name="communityPromotionDurationHours" min="1" max="168" step="1" value="<%= siteSettings.communityPromotionDurationHours ?? 48 %>"></label>
         <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save settings</button></div>
       </form>
     </section>

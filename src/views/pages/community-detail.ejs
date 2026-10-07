@@ -8,7 +8,7 @@
 	<section class="community-detail-hero">
 		<div class="community-detail-identity">
 			<% if (community.avatarImage) { %><img class="community-detail-avatar" src="<%= community.avatarImage %>" alt=""><% } else { %><span class="community-glyph community-detail-avatar"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
-			<div><p class="eyebrow"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p><h1><%= community.name %></h1></div>
+			<div><p class="eyebrow"><%= community.category || 'general' %> · <%= community.isPrivate ? 'Private community' : 'Open community' %></p><% if (community.promotionStatus === 'active' && community.promotionUntil && new Date(community.promotionUntil) > new Date()) { %><span class="post-source">Promoted · paid with Waves</span><% } %><h1><%= community.name %></h1></div>
 		</div>
 		<p><%= community.description %></p>
 		<% if ((community.hashtags || []).length) { %><div class="hashtag-row" style="margin-top: 25px;"><% community.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>

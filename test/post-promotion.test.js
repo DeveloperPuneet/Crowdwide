@@ -48,7 +48,8 @@ function stubPromotionModels(t, { reservation, account = { wavesBalance: 75 }, a
   User.findById = () => query(account);
   WavesLedgerEntry.create = async (entry) => {
     calls.ledger.push(entry);
-    return { ...entry, save: async function save() {} };
+    entry.save = async function save() {};
+    return entry;
   };
   t.after(() => {
     SiteSetting.getSingleton = originals.setting;
@@ -73,6 +74,7 @@ test('promoting an owned eligible post atomically charges Waves and records a pa
   assert.equal(calls.debitFilter.wavesBalance.$gte, 25);
   assert.equal(calls.ledger[0].type, 'spend');
   assert.equal(calls.ledger[0].amount, -25);
+  assert.equal(calls.ledger[0].status, 'posted');
   assert.equal(calls.ledger[0].referenceType, 'post-promotion');
   assert.equal(calls.activation.update.$set.boostStatus, 'active');
   assert.equal(calls.activation.update.$set.boostWavesCost, 25);
@@ -93,6 +95,7 @@ test('insufficient Waves release the reserved post promotion without a ledger de
     promotePost({ postId: 'post-1', userId: 'owner' }),
     /not have enough Waves/
   );
-  assert.equal(calls.ledger.length, 0);
+  assert.equal(calls.ledger.length, 1);
+  assert.equal(calls.ledger[0].status, 'reversed');
   assert.equal(calls.release.update.$set.boostStatus, 'disabled');
 });

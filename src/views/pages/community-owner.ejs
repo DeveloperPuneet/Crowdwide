@@ -2,6 +2,7 @@
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="owner-layout">
+	<% const promotionOffer = locals.communityPromotionOffer || null; %>
 	<% if (community.coverImage) { %><div class="profile-banner" style="margin-bottom:26px;"><img src="<%= community.coverImage %>" alt=""></div><% } %>
 	<section class="owner-hero">
 		<p class="eyebrow">Community owner dashboard</p>
@@ -12,6 +13,28 @@
 		<p><%= community.description %></p>
 		<span class="owner-stat"><strong><%= community.membersCount %></strong> members</span>
 		<a href="/communities/<%= community.slug %>" class="settings-link" style="display:inline-block;margin-left:16px;">View public page →</a>
+	</section>
+	<section class="settings-block" id="promotion">
+		<h2>Community promotion</h2>
+		<% const promotionActive = community.promotionStatus === 'active' && community.promotionUntil && new Date(community.promotionUntil) > new Date(); %>
+		<% if (promotionActive) { %>
+		<p class="admin-badge status-good">Promoted · paid with <%= community.promotionWavesCost %> Waves</p>
+		<p>Your community is eligible for labeled promoted placements in Explore and Communities until <time datetime="<%= new Date(community.promotionUntil).toISOString() %>"><%= new Date(community.promotionUntil).toLocaleString() %></time>. Placements do not guarantee views or new members.</p>
+		<% } else if (community.promotionStatus === 'active') { %>
+		<p>Your previous promotion has ended.</p>
+		<% } %>
+		<% if (community.isPrivate) { %>
+		<p>Private communities cannot be promoted. Make the community public before purchasing a promotion.</p>
+		<% } else if (promotionOffer && !promotionActive) { %>
+		<p>Place your public community in clearly labeled discovery placements for <%= promotionOffer.durationHours %> hours. This does not guarantee views, members, or engagement. Price: <strong><%= promotionOffer.wavesCost %> Waves</strong>.</p>
+		<form method="post" action="/communities/<%= community._id %>/promote" data-confirm="Spend <%= promotionOffer.wavesCost %> Waves to promote this community for <%= promotionOffer.durationHours %> hours?">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<button class="button button-primary button-small" type="submit">Promote with Waves</button>
+		</form>
+		<% } else if (!promotionOffer && !promotionActive) { %>
+		<p>Community promotions are currently unavailable.</p>
+		<% } %>
+		<p><a href="/waves/terms">Waves Terms</a></p>
 	</section>
 	<section class="owner-grid">
 		<form class="settings-block" method="post" action="/communities/<%= community._id %>/manage" enctype="multipart/form-data">

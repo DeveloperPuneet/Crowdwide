@@ -81,13 +81,12 @@
 - Waves abuse controls: administrators can place reasoned temporary Waves holds; held accounts cannot earn, transfer, spend, or fund campaigns, while administrative ledger corrections remain possible. The admin overview exposes recent Waves ledger activity, current holds, and reciprocal reward signals as review leads rather than automatic abuse findings.
 - Published Waves Terms and Community Monetization Terms define the closed-loop Waves rules, transfer/abuse controls, community eligibility/review, advertiser integrity, and the pre-launch provider/legal/payout gates. Advertising Terms and the privacy notice now accurately disclose current ad delivery and first-party event measurement.
 - Post promotion with Waves: owners can promote eligible published posts for an admin-configured price and duration; promotion spending is recorded in the Waves ledger, active placements are labeled in eligible feeds, and owners see promotion status and expiry.
+- Community promotion with Waves: verified owners can buy a time-limited, labeled public-community placement in Explore and Communities; the owner dashboard shows its status and expiry, and admins configure availability, price, and duration.
 
 ## Making:
 Waves Usage
 
 Add Ad-Free feature using Waves if premium is introduced
-
-Add community promotion using Waves
 
 Community Revenue
 
@@ -139,10 +138,6 @@ Add admin override controls
 
 Security / Anti-Abuse
 
-Prevent Waves farming
-
-Detect fake engagement
-
 Detect bot activity
 
 Detect multiple-account abuse
@@ -150,8 +145,6 @@ Detect multiple-account abuse
 Detect suspicious Waves transfers
 
 Detect suspicious advertising activity
-
-Add account/community/campaign suspension system
 
 Policies / Legal
 

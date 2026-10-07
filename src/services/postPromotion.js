@@ -51,6 +51,8 @@ async function promotePost({ postId, userId, now = new Date() }) {
 
   let chargedUser = null;
   let ledgerEntry = null;
+  let debitAttempted = false;
+  let debitOutcomeKnown = false;
   try {
     if (!String(post.body || '').trim() && !(post.media || []).length) {
       throw new Error('Add text or media to the post before promoting it.');
@@ -61,6 +63,21 @@ async function promotePost({ postId, userId, now = new Date() }) {
       if (!publicCommunity) throw new Error('Posts in private or unavailable communities cannot be promoted.');
     }
 
+    ledgerEntry = await WavesLedgerEntry.create({
+      user: userId,
+      amount: -offer.wavesCost,
+      balanceAfter: 0,
+      type: 'spend',
+      status: 'pending',
+      description: 'Post promotion',
+      reason: `Promoted post for ${offer.durationHours} hours.`,
+      actor: userId,
+      referenceType: 'post-promotion',
+      referenceId: postId,
+      rewardKey: `post-promotion:${purchaseKey}`
+    });
+
+    debitAttempted = true;
     chargedUser = await User.findOneAndUpdate({
       _id: userId,
       wavesBalance: { $gte: offer.wavesCost },
@@ -71,8 +88,12 @@ async function promotePost({ postId, userId, now = new Date() }) {
     }, {
       $inc: { wavesBalance: -offer.wavesCost, wavesTotalSpent: offer.wavesCost }
     }, { new: true }).select('wavesBalance');
+    debitOutcomeKnown = true;
 
     if (!chargedUser) {
+      ledgerEntry.status = 'reversed';
+      ledgerEntry.reason = 'Promotion was not charged because the wallet update found no eligible balance.';
+      await ledgerEntry.save();
       const account = await User.findById(userId).select('wavesBalance wavesSuspendedUntil').lean();
       if (account?.wavesSuspendedUntil && account.wavesSuspendedUntil > now) {
         throw new Error('Your Waves account is temporarily held from spending.');
@@ -80,19 +101,9 @@ async function promotePost({ postId, userId, now = new Date() }) {
       throw new Error('You do not have enough Waves for this promotion.');
     }
 
-    ledgerEntry = await WavesLedgerEntry.create({
-      user: userId,
-      amount: -offer.wavesCost,
-      balanceAfter: chargedUser.wavesBalance,
-      type: 'spend',
-      status: 'posted',
-      description: 'Post promotion',
-      reason: `Promoted post for ${offer.durationHours} hours.`,
-      actor: userId,
-      referenceType: 'post-promotion',
-      referenceId: postId,
-      rewardKey: `post-promotion:${purchaseKey}`
-    });
+    ledgerEntry.balanceAfter = chargedUser.wavesBalance;
+    ledgerEntry.status = 'posted';
+    await ledgerEntry.save();
 
     const endsAt = new Date(now.getTime() + offer.durationHours * 60 * 60 * 1000);
     const activated = await Post.updateOne({
@@ -115,6 +126,12 @@ async function promotePost({ postId, userId, now = new Date() }) {
     require('./feedService').clearFeedCache();
     return { wavesCost: offer.wavesCost, durationHours: offer.durationHours, endsAt };
   } catch (error) {
+    if (debitAttempted && !debitOutcomeKnown) {
+      logger.error('Post promotion Waves debit outcome is unknown and requires reconciliation', {
+        userId, postId, purchaseKey, error
+      });
+      throw new Error('The promotion payment needs review. Please contact support before retrying.');
+    }
     if (chargedUser) {
       try {
         const refundedUser = await User.findOneAndUpdate({ _id: userId }, {

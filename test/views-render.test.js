@@ -90,6 +90,40 @@ test('community invite and sharing UI are rendered for private community owners'
   assert.match(html, /data-share-invite/);
   assert.match(html, /Share on X/);
   assert.match(html, /communities\/c1\/invite\/revoke/);
+  assert.match(html, /Private communities cannot be promoted/);
+});
+
+test('public community owner can purchase a Waves promotion and see its status', async () => {
+  const offer = { wavesCost: 50, durationHours: 48 };
+  const common = {
+    title: 'Community controls', pagePath: '/communities/c1/manage', noIndex: true,
+    communityPromotionOffer: offer,
+    community: {
+      _id: 'c1', slug: 'sketch-club', name: 'Sketch Club', description: 'Draw together',
+      owner: 'u1', membersCount: 8, members: [], moderators: [], joinRequests: [],
+      pinnedPosts: [], hashtags: [], bannedWords: [], isPrivate: false
+    },
+    inviteUrl: '', members: [], posts: [], pendingPosts: [], requests: [],
+    moderators: [], quests: [], isOwner: true
+  };
+  const ready = await render('pages/community-owner.ejs', common);
+  assert.match(ready, /Place your public community/);
+  assert.match(ready, /50 Waves/);
+  assert.match(ready, /action="\/communities\/c1\/promote"/);
+  assert.match(ready, /name="_csrf" value="tok"/);
+
+  const active = await render('pages/community-owner.ejs', {
+    ...common,
+    community: {
+      ...common.community,
+      promotionStatus: 'active',
+      promotionWavesCost: 50,
+      promotionUntil: new Date(Date.now() + 60 * 60 * 1000)
+    }
+  });
+  assert.match(active, /Promoted · paid with 50 Waves/);
+  assert.match(active, /eligible for labeled promoted placements/);
+  assert.doesNotMatch(active, /Promote with Waves/);
 });
 
 test('advertiser dashboard renders application form and campaign metrics', async () => {
@@ -464,6 +498,7 @@ test('Waves and community monetization terms disclose platform-currency and payo
     assert.match(html, expected);
     if (pagePath === '/waves/terms') {
       assert.match(html, /Post promotions/);
+      assert.match(html, /Community promotions/);
       assert.match(html, /Promoted · paid with Waves/);
       assert.doesNotMatch(html, /No unlaunched premium, ad-free, post-promotion/);
     }
@@ -712,6 +747,30 @@ test('Explore community cards render uploaded community logos', async () => {
   assert.match(html, /Sketch Club/);
 });
 
+test('paid community promotions are separately and transparently labeled in discovery pages', async () => {
+  const promoted = [{
+    _id: 'c-paid', slug: 'makers', name: 'Makers', description: 'A public maker space',
+    category: 'arts', membersCount: 8, isPrivate: false, isPromoted: true
+  }];
+  const explore = await render('pages/explore.ejs', {
+    title: 'Explore', pagePath: '/explore', noIndex: true, query: '', category: '',
+    isBrowsing: false, communities: [], promotedCommunities: promoted,
+    categories: [], newPeople: [], popularPeople: [], viralPosts: [], risingCommunities: []
+  });
+  assert.match(explore, /Promoted communities/);
+  assert.match(explore, /Promoted · paid with Waves/);
+  assert.match(explore, /href="\/communities\/makers"/);
+
+  const directory = await render('pages/communities.ejs', {
+    title: 'Communities', pagePath: '/communities', noIndex: true,
+    promotedCommunities: promoted, largerCommunities: [], newCommunities: [],
+    growingCommunities: [], viralPosts: [], newPosts: [], viralArticles: [],
+    latestArticles: [], latestPosts: []
+  });
+  assert.match(directory, /Promoted communities/);
+  assert.match(directory, /Promoted · paid with Waves/);
+});
+
 test('admin panel renders MongoDB storage, community categories, and data cleanup controls', async () => {
   const { formatStorage } = require('../src/services/mongoStorage');
   const html = await render('pages/admin.ejs', {
@@ -751,7 +810,9 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       maintenanceMode: false, maintenanceMessage: '', announcement: '',
       postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
       postReviewThreshold: 2, postPromotionEnabled: true,
-      postPromotionWavesCost: 40, postPromotionDurationHours: 36
+      postPromotionWavesCost: 40, postPromotionDurationHours: 36,
+      communityPromotionEnabled: true, communityPromotionWavesCost: 65,
+      communityPromotionDurationHours: 72
     },
     mongoStorage: { available: true, percentUsed: 72, percentRemaining: 28, barPercent: 72, usedBytes: 512 * 1024 ** 2, capacityBytes: 712 * 1024 ** 2, remainingBytes: 200 * 1024 ** 2, clusters: 2 },
     formatStorage,
@@ -759,6 +820,9 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   });
   assert.match(html, /id="admin-panel-maintenance"/);
   assert.match(html, /Run all cleanup processes/);
+  assert.match(html, /name="communityPromotionEnabled"/);
+  assert.match(html, /name="communityPromotionWavesCost"[^>]+value="65"/);
+  assert.match(html, /name="communityPromotionDurationHours"[^>]+value="72"/);
   assert.match(html, /name="postPromotionEnabled"/);
   assert.match(html, /name="postPromotionWavesCost"[^>]+value="40"/);
   assert.match(html, /name="postPromotionDurationHours"[^>]+value="36"/);
@@ -807,7 +871,8 @@ test('admin panel exposes suspend, reinstate, and remove controls for approved c
       siteName: '', tagline: '', registrationOpen: true, postApprovalDefault: false,
       maintenanceMode: false, maintenanceMessage: '', announcement: '',
       postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
-      postReviewThreshold: 2
+      postReviewThreshold: 2, communityPromotionEnabled: true,
+      communityPromotionWavesCost: 65, communityPromotionDurationHours: 72
     },
     mongoStorage: { available: false }, formatStorage,
     stats: { users: 0, communities: 0, posts: 0, reports: 0 }

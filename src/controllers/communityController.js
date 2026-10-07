@@ -13,6 +13,7 @@ const { getInterestProfile, topInterestTags, refreshPersonalization } = require(
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
 const { getCommunityCampaigns } = require('../services/advertising');
+const { getCommunityPromotionOffer, getActiveCommunityPromotions, promoteCommunity } = require('../services/communityPromotion');
 const logger = require('../services/logger');
 
 async function getMonetizationEligibility(communityId) {
@@ -204,15 +205,20 @@ exports.explore = async (req, res) => {
   }
   if (category) filter.category = category;
   const isBrowsing = Boolean(query || category);
-  const [communities, categories, newPeople, popularPeople, viralPosts, risingCommunities] = await Promise.all([
+  const [communities, categories, newPeople, popularPeople, viralPosts, risingCommunities, promotedCommunities] = await Promise.all([
     Community.find(filter).sort({ membersCount: -1, createdAt: -1 }).limit(30).lean(),
     Community.distinct('category'),
     isBrowsing ? Promise.resolve([]) : User.find({ _id: { $ne: req.session.user.id }, isVerified: true }).sort({ createdAt: -1 }).limit(6).select('name bio profilePicture createdAt').lean(),
     isBrowsing ? Promise.resolve([]) : getPopularPeople(6, [req.session.user.id]),
     isBrowsing ? Promise.resolve([]) : getViralPosts(4),
-    isBrowsing ? Promise.resolve([]) : getRisingCommunities(4)
+    isBrowsing ? Promise.resolve([]) : getRisingCommunities(4),
+    isBrowsing ? Promise.resolve([]) : getActiveCommunityPromotions()
   ]);
-  res.render('pages/explore', { title: 'Explore', pagePath: '/explore', noIndex: true, communities, categories, query: query || '', category: category || '', newPeople, popularPeople, viralPosts, risingCommunities, isBrowsing });
+  const promotedIds = new Set(promotedCommunities.map((community) => String(community._id)));
+  const communityList = isBrowsing
+    ? communities
+    : communities.filter((community) => !promotedIds.has(String(community._id)));
+  res.render('pages/explore', { title: 'Explore', pagePath: '/explore', noIndex: true, communities: communityList, categories, query: query || '', category: category || '', newPeople, popularPeople, viralPosts, risingCommunities, promotedCommunities, isBrowsing });
 };
 
 // A dedicated, always-full-width page for people recommendations - the
@@ -248,19 +254,23 @@ exports.peopleToFollow = async (req, res) => {
 };
 
 exports.directory = async (req, res) => {
-  const [communities, viralPosts, newPosts] = await Promise.all([
+  const [communities, viralPosts, newPosts, promotedCommunities] = await Promise.all([
     Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(60).lean(),
     getViralPosts(8),
-    Post.find({ status: 'published', community: { $exists: true } }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean()
+    Post.find({ status: 'published', community: { $exists: true } }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').populate('community', 'name slug').lean(),
+    getActiveCommunityPromotions()
   ]);
-  const latestCommunityIds = new Set(communities.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8).map((community) => String(community._id)));
-  const growing = communities.filter((community) => !latestCommunityIds.has(String(community._id))).sort((a, b) => (b.membersCount || 0) - (a.membersCount || 0));
+  const promotedIds = new Set(promotedCommunities.map((community) => String(community._id)));
+  const regularCommunities = communities.filter((community) => !promotedIds.has(String(community._id)));
+  const latestCommunityIds = new Set(regularCommunities.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8).map((community) => String(community._id)));
+  const growing = regularCommunities.filter((community) => !latestCommunityIds.has(String(community._id))).sort((a, b) => (b.membersCount || 0) - (a.membersCount || 0));
   res.render('pages/communities', {
     title: 'Communities',
     pagePath: '/communities',
     noIndex: true,
-    largerCommunities: communities.slice(0, 8),
-    newCommunities: communities.filter((community) => latestCommunityIds.has(String(community._id))),
+    promotedCommunities,
+    largerCommunities: regularCommunities.slice(0, 8),
+    newCommunities: regularCommunities.filter((community) => latestCommunityIds.has(String(community._id))),
     growingCommunities: growing.slice(0, 8),
     viralPosts,
     newPosts,
@@ -322,7 +332,7 @@ exports.detail = async (req, res) => {
   res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests, feedAds, sidebarAds });
 };
 exports.manage = async (req, res) => {
-  const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, adEvents] = await Promise.all([
+  const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, adEvents, communityPromotionOffer] = await Promise.all([
     User.find({ _id: { $in: req.community.members } }).select('name email profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'published' }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'pending' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
@@ -333,14 +343,37 @@ exports.manage = async (req, res) => {
     CampaignEvent.aggregate([
       { $match: { community: req.community._id } },
       { $group: { _id: '$eventType', count: { $sum: 1 } } }
-    ])
+    ]),
+    getCommunityPromotionOffer()
   ]);
   const monetizationStats = {
     impressions: Number(adEvents.find((event) => event._id === 'impression')?.count || 0),
     clicks: Number(adEvents.find((event) => event._id === 'click')?.count || 0)
   };
   const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, monetizationStats, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, monetizationStats, communityPromotionOffer, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+};
+
+exports.promoteCommunity = async (req, res) => {
+  try {
+    const result = await promoteCommunity({ communityId: req.community._id, userId: req.session.user.id });
+    req.session.flash = {
+      type: 'success',
+      message: `Your community is promoted for ${result.durationHours} hours for ${result.wavesCost} Waves.`
+    };
+  } catch (error) {
+    logger.warn('Community promotion could not be completed', {
+      userId: req.session.user.id,
+      communityId: req.community._id,
+      error
+    });
+    const expected = /Only the community owner|Private communities|already has an active|already being processed|temporarily held|Suspended accounts|active posting restriction|verified account|not have enough Waves|currently unavailable|not configured|contact support/i.test(error.message);
+    req.session.flash = {
+      type: 'error',
+      message: expected ? error.message : 'The community promotion could not be completed. Please try again later.'
+    };
+  }
+  return res.redirect(`/communities/${req.community._id}/manage#promotion`);
 };
 
 exports.submitMonetizationApplication = async (req, res) => {
