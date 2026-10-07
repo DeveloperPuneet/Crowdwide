@@ -53,6 +53,375 @@
 - Translation (posts/comments) tries LibreTranslate first and uses Google Translate only as an explicitly configured paid fallback. Libre failures now fall back correctly, and 401/403 logs explain that `LIBRETRANSLATE_URL` must point to the LibreTranslate service (not the Crowdwide website) and that an API key may be required. Render setup docs use separate services rather than Docker commands in the app build. Unit-tested; live provider access still requires valid deployment configuration.
 - Moderators (not just admins) can now resolve appeals, from a new "Pending appeals" section on `/moderator`. Same approve/lift-or-deny logic as the admin console, same audit log and account-history entry. Unit-tested.
 
+## Making:
+Waves / Platform Currency
+
+Create Waves as Crowdwide's internal platform currency
+
+Create Waves wallet/balance system
+
+Create Waves transaction/ledger system
+
+Create Waves earning system
+
+Add Waves rewards for posting
+
+Add Waves rewards for commenting
+
+Add Waves rewards for receiving likes
+
+Add Waves rewards for receiving comments
+
+Add Waves rewards for joining communities
+
+Add Waves rewards for creating communities
+
+Add Waves rewards for community activity
+
+Add Waves rewards for completing quests
+
+Use configurable/range-based Waves rewards instead of fixed rewards for every action
+
+Add Waves spending system
+
+Add Waves transfer system between users
+
+Add Waves transaction history
+
+Add transfer limits
+
+Add Waves anti-farming/anti-abuse system
+
+Add multiple-account abuse detection
+
+Add self-interaction/fake-engagement detection
+
+Add admin Waves adjustment system with reason logging
+
+Add configurable Waves earning limits
+
+Waves Usage
+
+Allow Waves to be used for advertising
+
+Allow Waves to be used for future premium features
+
+Add Ad-Free feature using Waves if premium is introduced
+
+Add post promotion/boosting using Waves
+
+Add community promotion using Waves
+
+Keep Waves separate from real-money advertising revenue
+
+Advertising System
+
+Create advertiser system
+
+Create advertiser dashboard
+
+Create advertising campaign system
+
+Allow advertisers to create campaigns using Waves
+
+Add campaign budget
+
+Add daily budget
+
+Add campaign start/end date
+
+Allow advertisers to select target communities
+
+Add campaign draft system
+
+Add campaign submit/review system
+
+Add campaign approval/rejection system
+
+Add campaign pause/resume system
+
+Add campaign cancellation system
+
+Add advertiser verification
+
+Add advertisement review system
+
+Add advertisement reporting system
+
+Add advertiser policy/terms
+
+Advertisement Moderation
+
+Moderator reviews advertisers
+
+Admin reviews advertisers
+
+Moderator reviews advertisements
+
+Admin gives final approval/rejection
+
+Do not allow advertisements to go live before approval
+
+Reject 18+ advertisements
+
+Reject erotic/sexually explicit advertisements
+
+Reject gambling/betting advertisements
+
+Reject pornography
+
+Reject other inappropriate advertisements
+
+Add rejection reason
+
+Allow admin to suspend/remove an already-approved advertisement
+
+Add advertiser appeal system
+
+Add advertisement moderation history
+
+Add moderation/admin audit logs
+
+Advertisement Statistics
+
+Track impressions
+
+Track clicks
+
+Track CTR
+
+Track Waves spent
+
+Track remaining campaign budget
+
+Track campaign performance over time
+
+Track performance by community
+
+Track communities reached
+
+Add advertiser statistics dashboard
+
+Add protection against fake clicks/impressions
+
+Community Monetization
+
+Add Apply for Monetization to communities
+
+Create community monetization application
+
+Add configurable monetization requirements
+
+Initial requirement: minimum 20 posts
+
+Initial requirement: minimum 30 total likes
+
+Initial requirement: minimum 10 comments
+
+Add minimum community age requirement
+
+Require community to be active
+
+Require community owner/account to be in good standing
+
+Require no serious policy violations
+
+Add moderator review
+
+Add admin review
+
+Add monetization approval/rejection system
+
+Add rejection reason
+
+Add monetization review history
+
+Add monetization appeal system
+
+Add monetization suspension system
+
+Allow admin to disable monetization at any time
+
+Add monetization status to community/admin panels
+
+Ads in Communities
+
+Show approved advertisements inside monetized communities
+
+Only show ads in communities with active monetization
+
+Add configurable ad placement
+
+Add configurable ad frequency
+
+Add community-specific advertising settings
+
+Allow admin to temporarily disable ads for a community
+
+Track advertisement performance separately for each community
+
+Community Revenue
+
+Create community monetization dashboard
+
+Show community monetization status
+
+Show community advertising impressions
+
+Show community advertising clicks
+
+Show community earnings
+
+Create revenue-sharing calculation system
+
+Track gross advertising revenue
+
+Track applicable deductions/adjustments
+
+Calculate Crowdwide share
+
+Calculate community-owner share
+
+Track pending earnings
+
+Track finalized earnings
+
+Add payout threshold
+
+Add payout verification
+
+Add payout history
+
+Add failed-payout handling
+
+Add revenue adjustment system
+
+Add revenue audit logs
+
+Advertiser Refunds / Campaign Handling
+
+Add refund handling for cancelled campaigns
+
+Add refund handling for rejected campaigns where applicable
+
+Handle unused campaign budget
+
+Handle suspended campaigns
+
+Handle invalid/fraudulent activity
+
+Keep complete campaign transaction history
+
+Admin Panel
+
+Add Waves management
+
+Add Waves economy statistics
+
+Add advertiser management
+
+Add advertiser verification
+
+Add campaign management
+
+Add advertisement review queue
+
+Add advertisement moderation history
+
+Add community monetization applications
+
+Add community monetization management
+
+Add community revenue overview
+
+Add community revenue breakdown
+
+Add payout management
+
+Add suspicious activity dashboard
+
+Add Waves fraud/abuse dashboard
+
+Add monetization audit logs
+
+Add configurable Waves rewards
+
+Add configurable monetization requirements
+
+Add configurable revenue-sharing percentage
+
+Add configurable advertising limits
+
+Add admin override controls
+
+Security / Anti-Abuse
+
+Prevent Waves farming
+
+Detect fake engagement
+
+Detect bot activity
+
+Detect multiple-account abuse
+
+Detect suspicious Waves transfers
+
+Detect suspicious advertising activity
+
+Detect fake clicks/impressions
+
+Add transaction limits
+
+Add temporary holds for suspicious activity
+
+Add account/community/campaign suspension system
+
+Keep audit logs for all financial/economy-related changes
+
+Policies / Legal
+
+Create Waves Terms
+
+Create Advertising Terms
+
+Create Community Monetization Terms
+
+Define Waves usage rules
+
+Define Waves transfer rules
+
+Define monetization eligibility rules
+
+Define advertiser rules
+
+Define prohibited advertisement categories
+
+Define payout rules
+
+Define refund/adjustment rules
+
+Define suspension/revocation rules
+
+Review real-money revenue-sharing/payment/tax requirements before launching payouts
+
+External Advertising / Revenue System
+
+Determine the advertising provider/platform arrangement
+
+Verify that Crowdwide is allowed to run advertisements under the intended model
+
+Verify whether community-level revenue sharing is permitted
+
+Verify required approval/partnership requirements
+
+Determine how advertising revenue will be received
+
+Determine how community-owner revenue shares can legally/technically be paid
+
+Implement the approved revenue/accounting flow
+
+Keep external advertising revenue separate from Waves
+
 ## Planned
 
 1. Monetization, to be designed and added back later.
