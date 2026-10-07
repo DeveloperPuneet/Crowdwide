@@ -14,6 +14,7 @@ const twoFactorController = require('../controllers/twoFactorController');
 const appealController = require('../controllers/appealController');
 const adminController = require('../controllers/adminController');
 const translateController = require('../controllers/translateController');
+const wavesController = require('../controllers/wavesController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
 
 router.get('/', controller.home);
@@ -22,6 +23,7 @@ router.get('/rss.xml', controller.rss);
 router.get('/u/:id/rss.xml', controller.profileRss);
 router.get('/api/v1/posts', apiLimiter, controller.apiPosts);
 router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
+router.get('/wallet', requireAuth, requireVerified, wavesController.wallet);
 router.get('/recap', requireAuth, requireVerified, controller.activityRecap);
 router.get('/dashboard/feed/more', requireAuth, requireVerified, controller.moreFeedPosts);
 router.get('/media/signed-upload', requireAuth, requireVerified, controller.signedUpload);
@@ -125,6 +127,7 @@ router.post('/communities/:id/quests/:questId/reward', requireAuth, requireVerif
 router.get('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityController.manage);
 router.post('/communities/:id/invite', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.createInvite);
 router.post('/communities/:id/invite/revoke', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.revokeInvite);
+router.post('/communities/:id/monetization', requireAuth, requireVerified, communityController.ownerOnly, interactionLimiter, csrfSynchronisedProtection, communityController.submitMonetizationApplication);
 router.post('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityUpload, csrfSynchronisedProtection, handleUploadError, validateCommunityUpload, scanUploadsForViruses, communityController.update);
 router.post('/communities/:id/moderators', requireAuth, requireVerified, communityController.ownerOnly, communityController.addModerator);
 router.post('/communities/:id/posts/:postId/review', requireAuth, requireVerified, communityController.moderationOnly, communityController.reviewPost);
@@ -145,6 +148,7 @@ router.post('/admin/posts/:id/edit', requireAuth, requireVerified, requireAdmin,
 router.post('/admin/users/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteUser);
 router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateUser);
 router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateCommunity);
+router.post('/admin/communities/:id/monetization', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.reviewMonetization);
 router.post('/admin/communities/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteCommunity);
 router.post('/admin/settings', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateSiteSettings);
 router.post('/admin/maintenance/run', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.runMaintenance);

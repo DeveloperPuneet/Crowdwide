@@ -14,6 +14,7 @@
     <input type="search" name="q" placeholder="Search Crowdwide" aria-label="Search Crowdwide" value="<%= locals.searchQuery || '' %>">
   </form>
   <div class="app-nav-actions">
+    <% if (locals.currentUser) { %><a class="button button-small button-ghost" href="/wallet" aria-label="Waves balance: <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves"><span aria-hidden="true">◈</span> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a><% } %>
     <a class="icon-button" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
     <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden>0</b></a>
     <% if (locals.currentUser) { %><span class="welcome">Hey, <%= currentUser.name.split(' ')[0] %></span><% } %>
@@ -37,6 +38,7 @@
     <a href="/groups"><%- icon('message-circle', { size: 18 }) %> Groups</a>
     <a href="/notifications"><%- icon('bell', { size: 18 }) %> Notifications</a>
     <% if (locals.currentUser) { %>
+    <a href="/wallet"><span aria-hidden="true">◈</span> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
     <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Your profile</a>
     <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>
     <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Account settings</a>

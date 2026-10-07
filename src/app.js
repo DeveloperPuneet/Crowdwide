@@ -15,6 +15,7 @@ const { gifsEnabled } = require('./services/gif');
 const logger = require('./services/logger');
 const { stagingMiddleware } = require('./services/environment');
 const { alertOnCriticalError } = require('./services/alerting');
+const User = require('./models/User');
 
 function createApp({ port = process.env.PORT || 3000 } = {}) {
   const app = express();
@@ -91,17 +92,27 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   }));
   app.use(csrfProtection);
 
-  app.use((req, res, next) => {
-    res.locals.currentUser = req.session.user || null;
-    res.locals.flash = req.session.flash || null;
-    res.locals.csrfToken = generateToken(req);
-    res.locals.appUrl = process.env.APP_URL || `http://localhost:${port}`;
-    res.locals.renderMentions = renderMentions;
-    res.locals.renderRichBody = renderRichBody;
-    res.locals.icon = icon;
-    res.locals.gifsEnabled = gifsEnabled();
-    delete req.session.flash;
-    next();
+  app.use(async (req, res, next) => {
+    try {
+      const sessionUser = req.session.user || null;
+      let currentUser = sessionUser;
+      if (sessionUser?.id) {
+        const wallet = await User.findById(sessionUser.id).select('wavesBalance').lean();
+        currentUser = { ...sessionUser, wavesBalance: Number(wallet?.wavesBalance || 0) };
+      }
+      res.locals.currentUser = currentUser;
+      res.locals.flash = req.session.flash || null;
+      res.locals.csrfToken = generateToken(req);
+      res.locals.appUrl = process.env.APP_URL || `http://localhost:${port}`;
+      res.locals.renderMentions = renderMentions;
+      res.locals.renderRichBody = renderRichBody;
+      res.locals.icon = icon;
+      res.locals.gifsEnabled = gifsEnabled();
+      delete req.session.flash;
+      next();
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.use('/', webRoutes);

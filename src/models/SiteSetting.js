@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 
+const wavesRewardRangeSchema = new mongoose.Schema({
+  minimum: { type: Number, min: 0, max: 10000, default: 1 },
+  maximum: { type: Number, min: 0, max: 10000, default: 3 }
+}, { _id: false });
+
 // Singleton document (there is only ever one row) holding the site-wide
 // controls the admin panel exposes: identity, registration, and a
 // maintenance/announcement banner shown to everyone.
@@ -23,6 +28,12 @@ const siteSettingSchema = new mongoose.Schema({
   // of everyone's moderation queue - no point re-showing something 5+
   // people already judged.
   postReviewThreshold: { type: Number, default: 5, min: 1, max: 50 },
+  monetizationMinimumPosts: { type: Number, default: 20, min: 0, max: 10000 },
+  monetizationMinimumLikes: { type: Number, default: 30, min: 0, max: 100000 },
+  monetizationMinimumComments: { type: Number, default: 10, min: 0, max: 100000 },
+  wavesPostReward: { type: wavesRewardRangeSchema, default: () => ({}) },
+  wavesCommentReward: { type: wavesRewardRangeSchema, default: () => ({}) },
+  wavesDailyEarningLimit: { type: Number, default: 20, min: 0, max: 100000 },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

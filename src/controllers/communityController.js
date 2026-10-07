@@ -1,6 +1,7 @@
 const Community = require('../models/Community');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const SiteSetting = require('../models/SiteSetting');
 const Quest = require('../models/Quest');
 const crypto = require('node:crypto');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
@@ -8,6 +9,31 @@ const { parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners } = require('../services/discovery');
 const { getInterestProfile, topInterestTags, refreshPersonalization } = require('../services/feedService');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
+
+async function getMonetizationEligibility(communityId) {
+  const [settings, results] = await Promise.all([
+    SiteSetting.getSingleton(),
+    Post.aggregate([
+      { $match: { community: communityId, status: 'published' } },
+      { $group: {
+        _id: null,
+        posts: { $sum: 1 },
+        likes: { $sum: { $size: { $ifNull: ['$likes', []] } } },
+        comments: { $sum: { $ifNull: ['$commentsCount', 0] } }
+      } }
+    ])
+  ]);
+  const totals = results[0] || { posts: 0, likes: 0, comments: 0 };
+  const requirements = {
+    posts: { label: 'Published posts', actual: Number(totals.posts || 0), minimum: Number(settings.monetizationMinimumPosts ?? 20) },
+    likes: { label: 'Total post likes', actual: Number(totals.likes || 0), minimum: Number(settings.monetizationMinimumLikes ?? 30) },
+    comments: { label: 'Total comments', actual: Number(totals.comments || 0), minimum: Number(settings.monetizationMinimumComments ?? 10) }
+  };
+  Object.values(requirements).forEach((requirement) => {
+    requirement.met = requirement.actual >= requirement.minimum;
+  });
+  return { requirements, eligible: Object.values(requirements).every((requirement) => requirement.met) };
+}
 
 const loadCommunity = async (req, res, next) => {
   const community = await Community.findById(req.params.id);
@@ -241,17 +267,57 @@ exports.detail = async (req, res) => {
   res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests });
 };
 exports.manage = async (req, res) => {
-  const [members, posts, pendingPosts, requests, moderators, quests] = await Promise.all([
+  const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility] = await Promise.all([
     User.find({ _id: { $in: req.community.members } }).select('name email profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'published' }).sort({ createdAt: -1 }).limit(20).populate('author', 'name profilePicture').lean(),
     Post.find({ community: req.community._id, status: 'pending' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
     User.find({ _id: { $in: req.community.joinRequests.map((request) => request.user) } }).select('name email').lean(),
     User.find({ _id: { $in: req.community.moderators } }).select('name email').lean(),
-    Quest.find({ community: req.community._id }).sort({ createdAt: -1 }).populate('creator', 'name').populate('participants', 'name').populate('completedBy', 'name').populate('winner', 'name').lean()
+    Quest.find({ community: req.community._id }).sort({ createdAt: -1 }).populate('creator', 'name').populate('participants', 'name').populate('completedBy', 'name').populate('winner', 'name').lean(),
+    getMonetizationEligibility(req.community._id)
   ]);
   const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
+  res.render('pages/community-owner', { title: `${req.community.name} controls`, pagePath: `/communities/${req.community._id}/manage`, noIndex: true, includeLeaflet: true, mapApiKey: process.env.MAPTILER_API_KEY || '', community: req.community, communityCategories: COMMUNITY_CATEGORIES, inviteUrl: req.community.inviteCode ? `${base.replace(/\/$/, '')}/communities/invite/${req.community.inviteCode}` : '', members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, isOwner: req.isOwner ?? String(req.community.owner) === String(req.session.user.id) });
 };
+
+exports.submitMonetizationApplication = async (req, res) => {
+  const community = req.community;
+  if (['pending', 'approved'].includes(community.monetizationStatus)) {
+    req.session.flash = { type: 'error', message: 'This community already has an active monetization application or approval.' };
+    return res.redirect(`/communities/${community._id}/manage#monetization`);
+  }
+  const eligibility = await getMonetizationEligibility(community._id);
+  if (!eligibility.eligible) {
+    req.session.flash = { type: 'error', message: 'This community does not yet meet all monetization requirements.' };
+    return res.redirect(`/communities/${community._id}/manage#monetization`);
+  }
+
+  const previousMonetizationApplication = community.monetizationApplication && typeof community.monetizationApplication.toObject === 'function' ? community.monetizationApplication.toObject() : (community.monetizationApplication || {});
+  community.monetizationApplication = {
+    ...previousMonetizationApplication,
+    applicantName: req.session.user?.name || '',
+    submittedAt: new Date(),
+    rejectionReason: ''
+  };
+  community.monetizationStatus = 'pending';
+  community.isMonetized = false;
+  community.monetizationSettings = {
+    ...(community.monetizationSettings?.toObject?.() || community.monetizationSettings || {}),
+    adsEnabled: false,
+    requiresAdminReview: true
+  };
+  community.monetizationHistory = [
+    ...(community.monetizationHistory || []).slice(-9),
+    { status: 'pending', action: 'application-submitted', note: 'Community monetization application submitted.', createdAt: new Date(), actor: req.session.user.id }
+  ];
+  community.monetizationUpdatedAt = new Date();
+  await community.save();
+
+  req.session.flash = { type: 'success', message: 'Your monetization application has been submitted for review.' };
+  res.redirect(`/communities/${community._id}/manage#monetization`);
+};
+
+exports.getMonetizationEligibility = getMonetizationEligibility;
 
 exports.createQuest = async (req, res) => {
   const title = req.body.title?.trim();

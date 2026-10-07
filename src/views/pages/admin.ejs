@@ -1,5 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% const pendingMonetizationList = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
 <main class="explore-page admin-console admin-wide"><%- include('../partials/flash') %>
   <header class="admin-page-header"><div><p class="eyebrow">Restricted operations</p><h1>Admin console</h1><p>Monitor the community, resolve reports, and manage platform settings.</p></div><span class="admin-access-badge"><%- icon('shield', { size: 15 }) %> Admin access</span></header>
   <div class="admin-stats" aria-label="Platform overview">
@@ -99,6 +100,8 @@
                 </select>
               </label>
               <label class="full-width">Restriction reason (shown to admins only)<input type="text" name="postingRestrictionReason" value="<%= user.postingRestrictionReason || '' %>"></label>
+              <label>Waves adjustment<input type="number" step="1" name="wavesAdjustment" placeholder="e.g. 50 or -25"></label>
+              <label class="full-width">Waves reason<input type="text" name="wavesAdjustmentReason" placeholder="Reason to log in the ledger"></label>
               <% } %>
               <div class="admin-edit-form-actions">
                 <button class="button button-small button-primary" type="submit">Save</button>
@@ -167,8 +170,30 @@
   <!-- COMMUNITIES -->
   <section class="admin-panel" id="admin-panel-communities" role="tabpanel" aria-labelledby="admin-tab-communities" data-panel="communities">
     <h2>Communities</h2>
+    <% if (pendingMonetizationList.length) { %>
+    <section class="settings-block">
+      <h3>Monetization applications</h3>
+      <% pendingMonetizationList.forEach((community) => { %>
+      <div class="device-row" style="flex-direction:column;align-items:stretch;">
+        <div>
+          <strong><%= community.name %></strong>
+          <span>Owner <%= community.owner?.name || 'unknown' %> · submitted <%= new Date(community.monetizationApplication?.submittedAt || community.createdAt).toLocaleDateString() %></span>
+          <p><%= community.monetizationApplication?.goals || 'No goals provided yet.' %></p>
+        </div>
+        <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="number" name="revenueSharePercent" min="0" max="100" value="<%= community.monetizationSettings?.revenueSharePercent || 0 %>" placeholder="Revenue share" style="max-width:120px;">
+          <input type="text" name="note" placeholder="Decision note (optional)" style="flex:1;min-width:140px;">
+          <button class="button button-small button-primary" name="decision" value="approve" type="submit">Approve</button>
+          <button class="button button-small button-ghost" name="decision" value="reject" type="submit">Reject</button>
+          <button class="button button-small button-danger" name="decision" value="pause" type="submit">Pause</button>
+        </form>
+      </div>
+      <% }) %>
+    </section>
+    <% } %>
     <table class="admin-table">
-      <thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Privacy</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Privacy</th><th>Monetization</th><th></th></tr></thead>
       <tbody>
       <% communities.forEach((community) => { %>
         <tr>
@@ -176,10 +201,11 @@
           <td data-label="Owner"><%= community.owner?.name || 'unknown' %></td>
           <td data-label="Members"><%= community.membersCount %></td>
           <td data-label="Privacy"><%= community.isPrivate ? 'Private' : 'Public' %> · <%= community.requireApproval ? 'approval on' : 'approval off' %></td>
+          <td data-label="Monetization"><%= community.monetizationStatus || 'none' %></td>
           <td><button type="button" class="admin-row-toggle" data-edit-toggle="community-edit-<%= community._id %>">Edit</button></td>
         </tr>
         <tr class="admin-editrow" id="community-edit-<%= community._id %>">
-          <td colspan="5">
+          <td colspan="6">
             <form class="admin-edit-form" method="post" action="/admin/communities/<%= community._id %>/edit">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <label>Name<input type="text" name="name" value="<%= community.name %>"></label>
@@ -295,6 +321,14 @@
         <label>Article word limit<input type="number" name="articleWordLimit" min="50" max="20000" value="<%= siteSettings.articleWordLimit %>"></label>
         <label>Default suspension length (days)<input type="number" name="suspensionDefaultDays" min="1" max="3650" value="<%= siteSettings.suspensionDefaultDays %>"></label>
         <label>Moderators needed to clear a post<input type="number" name="postReviewThreshold" min="1" max="50" value="<%= siteSettings.postReviewThreshold %>"></label>
+        <label>Monetization minimum posts<input type="number" name="monetizationMinimumPosts" min="0" max="10000" value="<%= siteSettings.monetizationMinimumPosts ?? 20 %>"></label>
+        <label>Monetization minimum likes<input type="number" name="monetizationMinimumLikes" min="0" max="100000" value="<%= siteSettings.monetizationMinimumLikes ?? 30 %>"></label>
+        <label>Monetization minimum comments<input type="number" name="monetizationMinimumComments" min="0" max="100000" value="<%= siteSettings.monetizationMinimumComments ?? 10 %>"></label>
+        <label>Post reward minimum Waves<input type="number" name="wavesPostRewardMinimum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesPostReward?.minimum ?? 1 %>"></label>
+        <label>Post reward maximum Waves<input type="number" name="wavesPostRewardMaximum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesPostReward?.maximum ?? 3 %>"></label>
+        <label>Comment reward minimum Waves<input type="number" name="wavesCommentRewardMinimum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesCommentReward?.minimum ?? 1 %>"></label>
+        <label>Comment reward maximum Waves<input type="number" name="wavesCommentRewardMaximum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesCommentReward?.maximum ?? 3 %>"></label>
+        <label>Daily Waves earning limit<input type="number" name="wavesDailyEarningLimit" min="0" max="100000" step="0.01" value="<%= siteSettings.wavesDailyEarningLimit ?? 20 %>"></label>
         <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save settings</button></div>
       </form>
     </section>

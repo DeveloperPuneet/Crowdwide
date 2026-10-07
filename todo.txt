@@ -2,6 +2,11 @@
 
 ## Completed
 
+- Advertiser and campaign foundation — approved advertiser registration, campaign submission flow, moderation lifecycle, CTR tracking, and budget controls.
+- Waves currency foundation — user balances, ledger entries, credit/debit/transfer services, admin adjustments with reasons, visible signed-in balance, and wallet transaction history.
+- Initial Waves rewards — configurable random post/comment reward ranges, admin controls, and a configurable daily earning cap.
+- Community monetization application foundation — owner eligibility checklist and application, configurable post/like/comment thresholds with server-side enforcement, and admin review/approval workflow.
+- Community monetization status and ad-configuration scaffolding.
 - Community Galaxy — Interactive Community Discovery Map 🌐
 - Rising Communities Radar — Discover Growing Communities 📡
 - Posts, articles, polls, drafts, scheduled publishing, media uploads, alt text, hashtags, mentions, quote posts, and linked post replies.
@@ -56,17 +61,7 @@
 ## Making:
 Waves / Platform Currency
 
-Create Waves as Crowdwide's internal platform currency
-
-Create Waves wallet/balance system
-
-Create Waves transaction/ledger system
-
 Create Waves earning system
-
-Add Waves rewards for posting
-
-Add Waves rewards for commenting
 
 Add Waves rewards for receiving likes
 
@@ -80,13 +75,9 @@ Add Waves rewards for community activity
 
 Add Waves rewards for completing quests
 
-Use configurable/range-based Waves rewards instead of fixed rewards for every action
-
 Add Waves spending system
 
 Add Waves transfer system between users
-
-Add Waves transaction history
 
 Add transfer limits
 
@@ -95,10 +86,6 @@ Add Waves anti-farming/anti-abuse system
 Add multiple-account abuse detection
 
 Add self-interaction/fake-engagement detection
-
-Add admin Waves adjustment system with reason logging
-
-Add configurable Waves earning limits
 
 Waves Usage
 
@@ -205,18 +192,6 @@ Add advertiser statistics dashboard
 Add protection against fake clicks/impressions
 
 Community Monetization
-
-Add Apply for Monetization to communities
-
-Create community monetization application
-
-Add configurable monetization requirements
-
-Initial requirement: minimum 20 posts
-
-Initial requirement: minimum 30 total likes
-
-Initial requirement: minimum 10 comments
 
 Add minimum community age requirement
 
@@ -344,10 +319,6 @@ Add Waves fraud/abuse dashboard
 
 Add monetization audit logs
 
-Add configurable Waves rewards
-
-Add configurable monetization requirements
-
 Add configurable revenue-sharing percentage
 
 Add configurable advertising limits
@@ -424,4 +395,4 @@ Keep external advertising revenue separate from Waves
 
 ## Planned
 
-1. Monetization, to be designed and added back later.
+1. Implement action-triggered Waves rewards with configurable reward ranges and earning limits.

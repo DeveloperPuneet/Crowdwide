@@ -14,6 +14,7 @@ const { logEvent } = require('../services/accountHistory');
 const { getSiteConfig, clearSiteConfigCache, getPostReviewThreshold } = require('../services/siteConfig');
 const { runMaintenance, TASK_LABELS } = require('../services/maintenance');
 const { getMongoStorage, formatStorage } = require('../services/mongoStorage');
+const { adjustWaves } = require('../services/waves');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const logger = require('../services/logger');
 
@@ -113,9 +114,9 @@ async function attachActionContext(actions) {
 }
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason warnings').lean(),
-    Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts createdAt').populate('owner', 'name email').lean(),
+    Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts monetizationStatus monetizationApplication monetizationSettings createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(80).populate('reporter', 'name email').lean(),
     ModerationAction.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('moderator', 'name moderatorId').lean(),
@@ -124,11 +125,12 @@ exports.admin = async (req, res) => {
     AuditLog.find().sort({ createdAt: -1 }).limit(100).populate('actor', 'name email role moderatorId').lean(),
     MaintenanceRun.find().sort({ createdAt: -1 }).limit(30).populate('triggeredBy', 'name').lean(),
     SiteSetting.getSingleton(),
-    getMongoStorage()
+    getMongoStorage(),
+    Community.find({ monetizationStatus: 'pending' }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationStatus monetizationSettings createdAt').populate('owner', 'name email').lean()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   await attachActionContext(pendingActions);
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
 exports.runMaintenance = async (req, res) => {
@@ -219,6 +221,18 @@ exports.updateUser = async (req, res) => {
   }
   Object.assign(user, changes);
   await user.save();
+  if (!isSelf && req.body.wavesAdjustment && req.body.wavesAdjustment !== '') {
+    const amount = Number(req.body.wavesAdjustment);
+    if (Number.isFinite(amount) && amount !== 0) {
+      await adjustWaves({
+        userId: user._id,
+        delta: amount,
+        reason: req.body.wavesAdjustmentReason?.trim() || 'Admin Waves adjustment',
+        actorId: req.roleUser._id,
+        referenceType: 'admin-user-adjustment'
+      });
+    }
+  }
   if ('suspendedUntil' in changes) logEvent(user._id, changes.suspendedUntil ? 'suspended' : 'suspension-lifted', changes.suspensionReason);
   if ('postingRestrictedUntil' in changes) logEvent(user._id, changes.postingRestrictedUntil ? 'posting-restricted' : 'posting-restriction-lifted', changes.postingRestrictionReason);
   await audit(req, 'edit-user', 'user', user._id, { changes: Object.keys(changes) });
@@ -261,6 +275,57 @@ exports.deletePost = async (req, res) => {
   if (post) await audit(req, 'delete-post', 'post', post._id, { reason: 'admin action' });
   flash(req, 'success', 'Post deleted.');
   res.redirect('/admin#posts');
+};
+
+exports.reviewMonetization = async (req, res) => {
+  const community = await Community.findById(req.params.id);
+  if (!community) return res.redirect('/admin#communities');
+
+  const decision = req.body.decision || 'approve';
+  const note = req.body.note?.trim().slice(0, 500) || '';
+
+  if (decision === 'approve') {
+    community.monetizationStatus = 'approved';
+    community.isMonetized = true;
+    community.monetizationApprovedAt = new Date();
+    community.monetizationSettings = {
+      ...(community.monetizationSettings || {}),
+      adsEnabled: req.body.adsEnabled === 'on',
+      adPlacement: req.body.adPlacement || community.monetizationSettings?.adPlacement || 'feed',
+      adFrequency: Number(req.body.adFrequency) || community.monetizationSettings?.adFrequency || 1,
+      revenueSharePercent: Number(req.body.revenueSharePercent) || community.monetizationSettings?.revenueSharePercent || 0,
+      requiresAdminReview: true
+    };
+    community.monetizationHistory = [
+      ...(community.monetizationHistory || []).slice(-9),
+      { status: 'approved', action: 'approved', note: note || 'Community monetization approved by admin.', createdAt: new Date(), actor: req.roleUser._id }
+    ];
+  } else if (decision === 'reject') {
+    community.monetizationStatus = 'rejected';
+    community.isMonetized = false;
+    community.monetizationApplication = {
+      ...(community.monetizationApplication || {}),
+      rejectionReason: note || 'This community did not meet the monetization requirements.'
+    };
+    community.monetizationHistory = [
+      ...(community.monetizationHistory || []).slice(-9),
+      { status: 'rejected', action: 'rejected', note: note || 'Community monetization application rejected.', createdAt: new Date(), actor: req.roleUser._id }
+    ];
+  } else if (decision === 'pause') {
+    community.monetizationStatus = 'paused';
+    community.isMonetized = false;
+    community.monetizationSettings = { ...(community.monetizationSettings || {}), adsEnabled: false };
+    community.monetizationHistory = [
+      ...(community.monetizationHistory || []).slice(-9),
+      { status: 'paused', action: 'paused', note: note || 'Monetization was paused by admin.', createdAt: new Date(), actor: req.roleUser._id }
+    ];
+  }
+
+  community.monetizationUpdatedAt = new Date();
+  await community.save();
+  await audit(req, 'review-community-monetization', 'community', community._id, { decision, note });
+  flash(req, 'success', `Monetization status updated to ${community.monetizationStatus}.`);
+  res.redirect('/admin#communities');
 };
 
 exports.updateCommunity = async (req, res) => {
@@ -313,6 +378,21 @@ exports.updateSiteSettings = async (req, res) => {
   if (Number.isFinite(suspensionDefaultDays) && suspensionDefaultDays >= 1) settings.suspensionDefaultDays = Math.min(3650, Math.round(suspensionDefaultDays));
   const postReviewThreshold = Number(req.body.postReviewThreshold);
   if (Number.isFinite(postReviewThreshold) && postReviewThreshold >= 1) settings.postReviewThreshold = Math.min(50, Math.round(postReviewThreshold));
+  const monetizationMinimumPosts = Number(req.body.monetizationMinimumPosts);
+  if (Number.isFinite(monetizationMinimumPosts) && monetizationMinimumPosts >= 0) settings.monetizationMinimumPosts = Math.min(10000, Math.round(monetizationMinimumPosts));
+  const monetizationMinimumLikes = Number(req.body.monetizationMinimumLikes);
+  if (Number.isFinite(monetizationMinimumLikes) && monetizationMinimumLikes >= 0) settings.monetizationMinimumLikes = Math.min(100000, Math.round(monetizationMinimumLikes));
+  const monetizationMinimumComments = Number(req.body.monetizationMinimumComments);
+  if (Number.isFinite(monetizationMinimumComments) && monetizationMinimumComments >= 0) settings.monetizationMinimumComments = Math.min(100000, Math.round(monetizationMinimumComments));
+  for (const [field, formName] of [['wavesPostReward', 'post'], ['wavesCommentReward', 'comment']]) {
+    const minimum = Number(req.body[`waves${formName[0].toUpperCase()}${formName.slice(1)}RewardMinimum`]);
+    const maximum = Number(req.body[`waves${formName[0].toUpperCase()}${formName.slice(1)}RewardMaximum`]);
+    if (Number.isFinite(minimum) && Number.isFinite(maximum) && minimum >= 0 && maximum >= minimum) {
+      settings[field] = { minimum: Math.min(10000, minimum), maximum: Math.min(10000, maximum) };
+    }
+  }
+  const wavesDailyEarningLimit = Number(req.body.wavesDailyEarningLimit);
+  if (Number.isFinite(wavesDailyEarningLimit) && wavesDailyEarningLimit >= 0) settings.wavesDailyEarningLimit = Math.min(100000, wavesDailyEarningLimit);
   settings.updatedBy = req.roleUser._id;
   await settings.save();
   clearSiteConfigCache();

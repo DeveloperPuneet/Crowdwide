@@ -1,0 +1,41 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="recap-layout">
+  <a class="back-link" href="/dashboard">← Back to your feed</a>
+  <header class="recap-heading">
+    <p class="eyebrow">Crowdwide platform currency</p>
+    <h1>Your Waves wallet</h1>
+    <p>Waves are platform currency. They are separate from real-money advertising revenue.</p>
+  </header>
+  <section class="recap-stats" aria-label="Waves wallet totals">
+    <div class="recap-stat"><span>Available balance</span><strong><%= wallet.balance.toLocaleString() %> Waves</strong></div>
+    <div class="recap-stat"><span>Total earned</span><strong><%= wallet.totalEarned.toLocaleString() %></strong></div>
+    <div class="recap-stat"><span>Total spent</span><strong><%= wallet.totalSpent.toLocaleString() %></strong></div>
+  </section>
+  <section class="recap-panel">
+    <div class="recap-section-heading"><div><p class="eyebrow">Wallet activity</p><h2>Recent transactions</h2></div><span class="recap-muted">Latest 50 entries</span></div>
+    <% if (transactions.length) { %>
+    <div style="overflow-x:auto;">
+      <table class="admin-table">
+        <thead><tr><th>When</th><th>Activity</th><th>Details</th><th>Amount</th><th>Balance</th></tr></thead>
+        <tbody>
+          <% transactions.forEach((entry) => { %>
+          <tr>
+            <td><%= new Date(entry.createdAt).toLocaleString() %></td>
+            <td><%= entry.type.replace(/-/g, ' ') %> · <%= entry.status %></td>
+            <td><%= entry.description || entry.reason || 'Waves transaction' %><% if (entry.relatedUser?.name) { %> · <%= entry.relatedUser.name %><% } %></td>
+            <td><%= entry.amount > 0 ? '+' : '' %><%= Number(entry.amount).toLocaleString() %></td>
+            <td><%= Number(entry.balanceAfter || 0).toLocaleString() %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } else { %>
+    <p class="recap-empty">Your Waves transactions will appear here.</p>
+    <% } %>
+  </section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

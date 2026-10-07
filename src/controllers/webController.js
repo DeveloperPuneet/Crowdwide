@@ -23,6 +23,7 @@ const { getWordLimits } = require('../services/siteConfig');
 const { searchPublishedPosts } = require('../services/postSearch');
 const logger = require('../services/logger');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
+const { rewardWavesForAction } = require('../services/waves');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -413,6 +414,10 @@ exports.createPost = async (req, res) => {
 	const coAuthorList = coAuthorDocs.map((userDoc) => userDoc._id);
 	const isDraft = req.body.saveAsDraft === 'on';
 	const createdPost = await Post.create({ author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+	if (!isDraft && status === 'published') {
+		rewardWavesForAction({ userId: req.session.user.id, action: 'post', referenceType: 'post', referenceId: createdPost._id })
+			.catch((error) => logger.error('Could not award Waves for published post', error));
+	}
 	refreshPersonalization(req.session.user.id); // so the new post shows up, and shapes "for you", on the very next feed load
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
 	if (!isDraft && !media.length) {

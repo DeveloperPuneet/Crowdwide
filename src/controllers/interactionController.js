@@ -21,6 +21,7 @@ const { toggleReaction } = require('../utils/reactions');
 const logger = require('../services/logger');
 const { sendUnreadNotificationSummary } = require('../services/mailer');
 const { notificationPreferenceAllows } = require('../utils/notificationPreferences');
+const { rewardWavesForAction } = require('../services/waves');
 
 const MAX_REPLY_POST_WORDS = 50;
 
@@ -193,6 +194,8 @@ exports.comment = async (req, res) => {
     replyRecipient = parentComment.author;
   }
   const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, ...(gif ? { gif } : {}) });
+  rewardWavesForAction({ userId: req.session.user.id, action: 'comment', referenceType: 'comment', referenceId: comment._id })
+    .catch((error) => logger.error('Could not award Waves for comment', error));
   post.commentsCount += 1;
   await post.save();
   refreshPersonalization(req.session.user.id);
