@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const User = require('../models/User');
 const { getGrowthStats } = require('../services/publicStats');
 const { isStaging } = require('../services/environment');
@@ -24,6 +25,7 @@ const { searchPublishedPosts } = require('../services/postSearch');
 const logger = require('../services/logger');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
+const { getSitewideFeedCampaigns } = require('../services/advertising');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -172,6 +174,20 @@ exports.dashboard = async (req, res) => {
 			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			getWordLimits()
 		]);
+		let sitewideCampaigns = [];
+		try {
+			sitewideCampaigns = await getSitewideFeedCampaigns();
+		} catch (error) {
+			logger.error('Crowdwide-feed advertisements could not be loaded', error);
+		}
+		const sitewideFeedAds = sitewideCampaigns.length
+			? Array.from({ length: Math.min(2, Math.max(1, Math.ceil(feed.posts.length / 5))) }, (_, index) => ({
+				campaign: sitewideCampaigns[index % sitewideCampaigns.length],
+				eventToken: crypto.randomUUID(),
+				contextType: 'sitewide',
+				afterPost: feed.posts.length ? Math.min(feed.posts.length, (index + 1) * 5) : 0
+			}))
+			: [];
 		const joinedCommunityDocIds = joinedCommunityDocs.map((community) => community._id);
 		const availableQuests = joinedCommunityDocIds.length
 			? await Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
@@ -184,6 +200,7 @@ exports.dashboard = async (req, res) => {
 			pagePath: '/dashboard',
 			noIndex: true,
 			feed: { ...feed, activeTab, visiblePosts: feed.posts },
+			sitewideFeedAds,
 			communities,
 			composerCommunities,
 			availableQuests,
@@ -916,7 +933,7 @@ exports.infoPage = async (req, res) => {
 			sections: [
 				['Who may advertise', 'Advertisers must provide accurate business or organization details and a working contact method. Applying does not guarantee approval. Crowdwide may request additional information, reject an application, or suspend an advertiser account when needed to enforce these terms.'],
 				['Prohibited advertisements', 'Campaigns may not promote pornography, sexually explicit or erotic content, adult-only (18+) services, gambling or betting, illegal goods or services, fraud, deceptive claims, or other material that violates Crowdwide’s Terms of Use or Community Guidelines. Advertisers are responsible for having rights to all submitted text, images, logos, and destinations.'],
-				['Review and availability', 'Campaigns are drafts until submitted and funded, then receive moderator review followed by a final administrator decision. A campaign must be approved before it can be activated. Approved, active, funded campaigns may be displayed in participating public communities. Approval is not a promise of placement, reach, or performance. Crowdwide counts at most one impression and one click per authenticated viewer, campaign, and community per UTC day. These internal counts are not a third-party provider’s billable records.'],
+				['Review and availability', 'Campaigns are drafts until submitted and funded, then receive moderator review followed by a final administrator decision. A campaign must be approved before it can be activated. Approved, active, funded campaigns may be displayed in participating public communities. If no community is monetized, an explicitly designated fallback campaign may instead appear in the normal Crowdwide feed; it stops serving as soon as any community is approved for monetization. Approval is not a promise of placement, reach, or performance. Crowdwide counts at most one impression and one click per authenticated viewer, campaign, delivery context, and UTC day. These internal counts are not a third-party provider’s billable records.'],
 				['Waves and campaign budgets', 'Campaign budgets use Waves, Crowdwide’s internal platform currency. Waves are not money, do not represent a claim on revenue, and cannot be redeemed or transferred outside Crowdwide. Submitted campaign budgets are held in escrow. Each accepted, deduplicated impression and click consumes the respective Waves rate shown at campaign creation; unused Waves are returned for rejected, cancelled, or completed campaigns according to the campaign ledger. Rates are locked for each campaign. Waves are separate from any real-money advertising revenue.'],
 				['Limits and integrity', 'Campaigns must follow their configured total and daily budgets. Advertisers must not manipulate engagement, traffic, impressions, clicks, accounts, or campaign measurement, nor ask others to do so. Crowdwide may pause or remove campaigns and hold activity for review if suspicious or policy-violating activity is detected.'],
 				['Changes and launch readiness', 'Crowdwide has not selected or approved an external advertising provider or revenue-sharing arrangement. Community revenue accounting, real-money revenue sharing, and payouts are not available. Provider permissions, partnership requirements, applicable payment and tax obligations, and the approved accounting flow must be verified before those capabilities launch.'],

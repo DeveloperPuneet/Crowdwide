@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const campaignEventSchema = new mongoose.Schema({
   campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', required: true, index: true },
-  community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', required: true, index: true },
+  community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', default: null, index: true },
+  deliveryContext: { type: String, enum: ['community', 'sitewide'], default: 'community', index: true },
   viewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   eventType: { type: String, enum: ['impression', 'click'], required: true },
   eventToken: { type: String, required: true, maxlength: 36 },

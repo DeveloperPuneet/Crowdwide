@@ -116,7 +116,8 @@
 			<a class="button button-dark button-small" href="/explore">Explore communities <span><%- icon('arrow-up-right', { size: 14 }) %></span></a>
 		</section>
 		<% } %>
-		<div id="feed-posts"><% feed.visiblePosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div>
+		<div id="feed-posts"><% feed.visiblePosts.forEach((post, postIndex) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% (locals.sitewideFeedAds || []).filter((ad) => ad.afterPost === postIndex + 1).forEach((ad) => { %><%- include('../partials/community-ad', { ad, csrfToken }) %><% }) %><% }) %>
+		<% if (!feed.visiblePosts.length) { %><% (locals.sitewideFeedAds || []).filter((ad) => ad.afterPost === 0).forEach((ad) => { %><%- include('../partials/community-ad', { ad, csrfToken }) %><% }) %><% } %></div>
 		<% if (feed.visiblePosts.length && feed.hasMore) { %>
 		<div id="feed-sentinel" data-feed-view="<%= feed.activeTab %>" data-page="1"></div>
 		<% } %>
@@ -154,5 +155,30 @@
 		</section>
 	</aside>
 </main>
+<script nonce="<%= locals.cspNonce || '' %>">
+document.addEventListener('DOMContentLoaded', function () {
+  var cards = document.querySelectorAll('[data-community-ad][data-context-type="sitewide"]');
+  if (!('IntersectionObserver' in window)) return;
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      var card = entry.target;
+      fetch('/ads/' + encodeURIComponent(card.dataset.campaignId) + '/impression', {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': card.dataset.csrf },
+        body: JSON.stringify({ deliveryContext: 'sitewide', eventToken: card.dataset.eventToken })
+      }).then(function (response) {
+        if (!response.ok) console.error('Advertisement impression tracking failed:', response.status);
+      }).catch(function (error) {
+        console.error('Advertisement impression tracking failed:', error);
+      });
+    });
+  }, { threshold: 0.5 });
+  cards.forEach(function (card) { observer.observe(card); });
+});
+</script>
 <%- include('../partials/app-footer') %>
 <%- include('../partials/foot') %>

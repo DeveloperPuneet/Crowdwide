@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const campaignAbuseSignalSchema = new mongoose.Schema({
   signalKey: { type: String, required: true, unique: true, maxlength: 300 },
   campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', required: true, index: true },
-  community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', required: true, index: true },
+  community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', default: null, index: true },
   viewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   eventType: { type: String, enum: ['impression', 'click', 'bot-activity'], required: true },
   reason: { type: String, trim: true, maxlength: 200, required: true },

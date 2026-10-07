@@ -16,6 +16,7 @@ const {
   createCampaign,
   getCampaignAnalytics,
   getCommunityCampaigns,
+  getSitewideFeedCampaigns,
   fundCampaign,
   refundCampaignBudget,
   recordCampaignPerformance,
@@ -433,6 +434,32 @@ test('community ad delivery only returns live funded campaigns for eligible publ
   assert.deepEqual(await getCommunityCampaigns(community._id), [campaign]);
 });
 
+test('sitewide fallback campaigns are available only when no community is monetized', async (t) => {
+  let hasMonetizedCommunity = false;
+  t.mock.method(Community, 'exists', async (filter) => {
+    assert.equal(filter.monetizationStatus, 'approved');
+    assert.equal(filter.isMonetized, true);
+    return hasMonetizedCommunity ? { _id: 'monetized-community' } : null;
+  });
+  const campaign = { _id: 'campaign-global', sitewideFallback: true, advertiser: { status: 'approved' } };
+  const query = {
+    sort() { return this; },
+    limit(limit) { assert.equal(limit, 30); return this; },
+    populate(path) { assert.equal(path, 'advertiser'); return this; },
+    lean: async () => [campaign]
+  };
+  const find = t.mock.method(Campaign, 'find', (filter) => {
+    assert.equal(filter.sitewideFallback, true);
+    assert.deepEqual(filter.targetCommunities, { $size: 0 });
+    return query;
+  });
+  assert.deepEqual(await getSitewideFeedCampaigns(), [campaign]);
+
+  hasMonetizedCommunity = true;
+  assert.deepEqual(await getSitewideFeedCampaigns(), []);
+  assert.equal(find.mock.callCount(), 1, 'do not query fallback campaigns once monetization is active');
+});
+
 test('campaign analytics aggregate delivery by community and date', async (t) => {
   const communityRows = [{
     _id: { campaign: 'campaign-1', community: 'community-1' }, impressions: 10, clicks: 2
@@ -488,6 +515,7 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
     recordedEvent = event;
     return { _id: 'event-1' };
   });
+
   t.mock.method(Campaign, 'findOneAndUpdate', async (...args) => {
     updateCalls.push(args);
     return { _id: 'campaign-1' };
@@ -546,6 +574,46 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   assert.equal(abuseSignal.mock.callCount(), 2);
   assert.equal(abuseSignal.mock.calls[1].arguments[1].$setOnInsert.eventType, 'bot-activity');
   assert.match(abuseSignal.mock.calls[1].arguments[1].$setOnInsert.reason, /20 unique events within one minute/);
+});
+
+test('sitewide campaign events are charged and tracked only during the no-monetized-community fallback', async (t) => {
+  const campaign = {
+    _id: 'campaign-global', status: 'active', fundingStatus: 'funded', remainingBudget: 20,
+    impressionCostWaves: 0.5, clickCostWaves: 2, dailyBudget: 10,
+    sitewideFallback: true, targetCommunities: [],
+    destinationUrl: 'https://example.test/store',
+    advertiser: { status: 'approved', website: 'https://example.test' }
+  };
+  t.mock.method(Community, 'exists', async () => null);
+  t.mock.method(Campaign, 'findById', () => ({
+    populate() { return this; },
+    lean: async () => campaign
+  }));
+  let savedEvent;
+  t.mock.method(CampaignEvent, 'create', async (event) => {
+    savedEvent = event;
+    return { _id: 'event-global' };
+  });
+  t.mock.method(CampaignEvent, 'countDocuments', async () => 1);
+  t.mock.method(CampaignAbuseSignal, 'findOneAndUpdate', async () => ({}));
+  const update = t.mock.method(Campaign, 'findOneAndUpdate', async (filter) => {
+    assert.equal(filter.sitewideFallback, true);
+    assert.deepEqual(filter.targetCommunities, { $size: 0 });
+    return { _id: campaign._id };
+  });
+  const result = await recordCampaignEvent({
+    campaignId: campaign._id,
+    deliveryContext: 'sitewide',
+    viewerId: 'viewer-global',
+    eventType: 'click',
+    eventToken: '11111111-2222-4333-8444-555555555555'
+  });
+  assert.equal(savedEvent.community, null);
+  assert.equal(savedEvent.deliveryContext, 'sitewide');
+  assert.match(savedEvent.viewerDayKey, /sitewide:viewer-global:click/);
+  assert.equal(result.destinationUrl, 'https://example.test/store');
+  assert.equal(result.wavesCharged, 2);
+  assert.equal(update.mock.callCount(), 1);
 });
 
 test('admin closes an advertisement abuse signal with a reason and audit record', async (t) => {
@@ -632,6 +700,30 @@ test('member ad reports enter the existing moderation queue with ad and communit
   assert.equal(report.filter.targetType, 'advertisement');
   assert.equal(report.data.reason, 'Inappropriate content');
   assert.match(report.data.contextText, /Example campaign.*design-lab/);
+  assert.equal(req.session.flash.type, 'success');
+});
+
+test('sitewide fallback ad reports enter moderation with Crowdwide-feed context', async (t) => {
+  let report;
+  t.mock.method(Campaign, 'findById', () => ({
+    select() { return this; },
+    lean: async () => ({ _id: 'campaign-global', title: 'Example campaign', targetCommunities: [], sitewideFallback: true })
+  }));
+  t.mock.method(Community, 'exists', async () => null);
+  t.mock.method(Report, 'updateOne', async (filter, update) => {
+    report = { filter, data: update.$setOnInsert };
+  });
+  const req = {
+    params: { id: 'campaign-global' },
+    body: { deliveryContext: 'sitewide', reason: 'Misleading or deceptive' },
+    session: { user: { id: 'viewer-1' } }
+  };
+  const res = { redirect(path) { this.path = path; } };
+  await advertisingController.reportCampaign(req, res);
+
+  assert.equal(res.path, '/dashboard');
+  assert.equal(report.filter.targetType, 'advertisement');
+  assert.match(report.data.contextText, /Example campaign.*Crowdwide feed/);
   assert.equal(req.session.flash.type, 'success');
 });
 

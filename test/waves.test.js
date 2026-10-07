@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const User = require('../src/models/User');
 const SiteSetting = require('../src/models/SiteSetting');
 const WavesLedgerEntry = require('../src/models/WavesLedgerEntry');
+const WavesAbuseSignal = require('../src/models/WavesAbuseSignal');
 const { creditWaves, debitWaves, transferWaves, adjustWaves, rewardWavesForAction, getReciprocalRewardSignals } = require('../src/services/waves');
 
 test('creditWaves updates balance and total earned', async (t) => {
@@ -110,6 +111,34 @@ test('transferWaves enforces configured per-transfer and daily limits', async (t
     amount: 6
   }), /daily transfer limit is 15 Waves/i);
   assert.equal(ledgerCreate.mock.callCount(), 0);
+});
+
+test('rapid repeated Waves transfers create an admin review signal without blocking the transfer', async (t) => {
+  const accounts = {
+    from: { _id: 'from', wavesBalance: 50, wavesTotalEarned: 0, wavesTotalSpent: 0, async save() { return this; } },
+    to: { _id: 'to', wavesBalance: 10, wavesTotalEarned: 0, wavesTotalSpent: 0, async save() { return this; } }
+  };
+  t.mock.method(SiteSetting, 'getSingleton', async () => ({
+    wavesMaxTransferAmount: 100, wavesDailyTransferLimit: 500
+  }));
+  let aggregateCall = 0;
+  t.mock.method(WavesLedgerEntry, 'aggregate', async () => {
+    aggregateCall += 1;
+    return aggregateCall === 1 ? [] : [{ _id: 'to', count: 5, totalWaves: 35 }];
+  });
+  t.mock.method(User, 'findById', async (id) => accounts[String(id)]);
+  t.mock.method(WavesLedgerEntry, 'create', async (entry) => entry);
+  const signalUpdate = t.mock.method(WavesAbuseSignal, 'findOneAndUpdate', async (_query, update) => update);
+
+  const result = await transferWaves({ fromUserId: 'from', toUserId: 'to', amount: 5 });
+
+  assert.equal(result.amount, 5);
+  assert.equal(accounts.from.wavesBalance, 45);
+  assert.equal(accounts.to.wavesBalance, 15);
+  assert.equal(signalUpdate.mock.callCount(), 1);
+  assert.equal(signalUpdate.mock.calls[0].arguments[1].$setOnInsert.sender, 'from');
+  assert.equal(signalUpdate.mock.calls[0].arguments[1].$setOnInsert.recipient, 'to');
+  assert.match(signalUpdate.mock.calls[0].arguments[1].$set.reason, /5 transfers within ten minutes/);
 });
 
 test('a temporary Waves hold prevents earning and spending while preserving admin adjustments', async (t) => {

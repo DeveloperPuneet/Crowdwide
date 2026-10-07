@@ -7,6 +7,7 @@ const Community = require('../models/Community');
 const Report = require('../models/Report');
 const AuditLog = require('../models/AuditLog');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
+const WavesAbuseSignal = require('../models/WavesAbuseSignal');
 const CampaignAbuseSignal = require('../models/CampaignAbuseSignal');
 const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
@@ -119,7 +120,7 @@ async function attachActionContext(actions) {
 }
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason wavesSuspendedUntil wavesSuspensionReason wavesBalance warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts monetizationStatus monetizationApplication monetizationSettings createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
@@ -146,11 +147,12 @@ exports.admin = async (req, res) => {
       { $group: { _id: '$type', entries: { $sum: 1 }, netWaves: { $sum: '$amount' } } }
     ]),
     User.find({ wavesSuspendedUntil: { $gt: new Date() } }).sort({ wavesSuspendedUntil: 1 }).limit(30).select('name email wavesSuspendedUntil wavesSuspensionReason wavesBalance').lean(),
-    CampaignAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('campaign', 'title').populate('community', 'name slug').populate('viewer', 'name email').lean()
+    CampaignAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('campaign', 'title').populate('community', 'name slug').populate('viewer', 'name email').lean(),
+    WavesAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('sender', 'name email').populate('recipient', 'name email').lean()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   await attachActionContext(pendingActions);
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
 exports.reviewAdvertiser = async (req, res) => {
@@ -632,6 +634,32 @@ exports.reviewAdAbuseSignal = async (req, res) => {
     note: reviewNote
   });
   flash(req, 'success', 'Advertisement activity signal reviewed.');
+  return res.redirect('/admin#overview');
+};
+
+exports.reviewWavesAbuseSignal = async (req, res) => {
+  const signal = await WavesAbuseSignal.findOne({ _id: req.params.id, status: 'open' });
+  const reviewNote = String(req.body.reviewNote || '').trim().slice(0, 500);
+  if (!signal) {
+    flash(req, 'error', 'That Waves transfer signal is already reviewed or unavailable.');
+    return res.redirect('/admin#overview');
+  }
+  if (!reviewNote) {
+    flash(req, 'error', 'Add a review note before closing a Waves transfer signal.');
+    return res.redirect('/admin#overview');
+  }
+  signal.status = 'reviewed';
+  signal.reviewedBy = req.roleUser._id;
+  signal.reviewedAt = new Date();
+  signal.reviewNote = reviewNote;
+  await signal.save();
+  await audit(req, 'review-waves-transfer-signal', 'user', signal.sender, {
+    recipient: signal.recipient,
+    transferCount: signal.transferCount,
+    totalWaves: signal.totalWaves,
+    note: reviewNote
+  });
+  flash(req, 'success', 'Waves transfer signal reviewed.');
   return res.redirect('/admin#overview');
 };
 

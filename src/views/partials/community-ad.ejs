@@ -1,15 +1,18 @@
-<article class="discover-panel community-ad-card" data-community-ad data-campaign-id="<%= ad.campaign._id %>" data-community-id="<%= community._id %>" data-event-token="<%= ad.eventToken %>" data-csrf="<%= csrfToken %>">
+<% const adCommunityId = locals.community?._id || ''; const adContext = ad.contextType || (adCommunityId ? 'community' : 'sitewide'); %>
+<article class="discover-panel community-ad-card" data-community-ad data-context-type="<%= adContext %>" data-campaign-id="<%= ad.campaign._id %>" data-community-id="<%= adCommunityId %>" data-event-token="<%= ad.eventToken %>" data-csrf="<%= csrfToken %>">
   <p class="eyebrow">Sponsored</p>
+  <% if (adContext === 'sitewide') { %><p class="community-ad-byline">Crowdwide feed sponsorship</p><% } %>
   <h2><%= ad.campaign.title %></h2>
   <% if (ad.campaign.bannerUrl) { %><img src="<%= ad.campaign.bannerUrl %>" alt="Banner for <%= ad.campaign.title %>" style="display:block;width:100%;max-height:240px;object-fit:cover;border-radius:8px;margin:8px 0;" loading="lazy"><% } %>
   <% if (ad.campaign.description) { %><p><%= ad.campaign.description %></p><% } %>
   <p class="community-ad-byline"><%= ad.campaign.advertiser?.businessName || 'Advertiser' %></p>
-  <% if (ad.campaign.destinationUrl || ad.campaign.advertiser?.website) { %><a class="button button-small button-primary" href="/ads/<%= ad.campaign._id %>/click?community=<%= community._id %>&amp;event=<%= ad.eventToken %>" target="_blank" rel="noopener noreferrer">Learn more</a><% } %>
+  <% if (ad.campaign.destinationUrl || ad.campaign.advertiser?.website) { %><a class="button button-small button-primary" href="/ads/<%= ad.campaign._id %>/click?<%= adContext === 'sitewide' ? 'context=sitewide' : `community=${encodeURIComponent(adCommunityId)}` %>&amp;event=<%= ad.eventToken %>" target="_blank" rel="noopener noreferrer">Learn more</a><% } %>
   <details class="community-ad-report">
     <summary>Report this ad</summary>
     <form method="post" action="/ads/<%= ad.campaign._id %>/report">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="communityId" value="<%= community._id %>">
+      <input type="hidden" name="deliveryContext" value="<%= adContext %>">
+      <% if (adCommunityId) { %><input type="hidden" name="communityId" value="<%= adCommunityId %>"><% } %>
       <label>Reason
         <select name="reason" required>
           <option value="">Choose a reason</option>

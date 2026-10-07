@@ -13,7 +13,8 @@ const {
   submitCampaign,
   updateCampaignStatus,
   recordCampaignEvent,
-  getCampaignAnalytics
+  getCampaignAnalytics,
+  hasMonetizedPublicCommunity
 } = require('../services/advertising');
 
 function flash(req, type, message) {
@@ -27,7 +28,7 @@ async function getOwnedAdvertiser(userId) {
 exports.dashboard = async (req, res) => {
   const advertiser = await Advertiser.findOne({ user: req.session.user.id })
     .populate('moderationHistory.actor', 'name role');
-  const [campaigns, communities, advertiserAppeal, siteSettings] = await Promise.all([
+  const [campaigns, communities, advertiserAppeal, siteSettings, sitewideFallbackAvailable] = await Promise.all([
     advertiser
       ? Campaign.find({ advertiser: advertiser._id })
         .sort({ createdAt: -1 })
@@ -43,7 +44,8 @@ exports.dashboard = async (req, res) => {
     advertiser
       ? Appeal.findOne({ user: req.session.user.id, advertiser: advertiser._id, actionType: 'advertiser', status: 'pending' }).lean()
       : null,
-    SiteSetting.getSingleton()
+    SiteSetting.getSingleton(),
+    hasMonetizedPublicCommunity().then((hasMonetizedCommunity) => !hasMonetizedCommunity)
   ]);
   const campaignAnalytics = await getCampaignAnalytics(campaigns.map((campaign) => campaign._id));
   const totals = campaigns.reduce((summary, campaign) => {
@@ -62,6 +64,7 @@ exports.dashboard = async (req, res) => {
     advertiser,
     campaigns,
     communities,
+    sitewideFallbackAvailable,
     advertisingMinimumCampaignBudget: Number(siteSettings.advertisingMinimumCampaignBudget ?? 25),
     campaignAnalytics,
     totals,
@@ -179,8 +182,9 @@ exports.createCampaign = async (req, res) => {
   const targetCommunities = Array.isArray(req.body.targetCommunities)
     ? req.body.targetCommunities
     : [req.body.targetCommunities].filter(Boolean);
+  const sitewideFallback = req.body.sitewideFallback === 'on';
   try {
-    const [eligibleTargets, settings] = await Promise.all([
+    const [eligibleTargets, settings, hasMonetizedCommunity] = await Promise.all([
       Community.find({
         _id: { $in: targetCommunities },
         monetizationStatus: 'approved',
@@ -188,10 +192,19 @@ exports.createCampaign = async (req, res) => {
         isPrivate: false,
         'monetizationSettings.adsEnabled': true
       }).select('_id').lean(),
-      SiteSetting.getSingleton()
+      SiteSetting.getSingleton(),
+      hasMonetizedPublicCommunity()
     ]);
     if (eligibleTargets.length !== new Set(targetCommunities.map(String)).size) {
       flash(req, 'error', 'Choose only public communities that currently accept approved ads.');
+      return res.redirect('/advertising');
+    }
+    if (sitewideFallback && (hasMonetizedCommunity || targetCommunities.length)) {
+      flash(req, 'error', 'Crowdwide-feed campaigns are available only when no public community is monetized.');
+      return res.redirect('/advertising');
+    }
+    if (!targetCommunities.length && !sitewideFallback) {
+      flash(req, 'error', 'Choose a monetized community or select the Crowdwide-feed fallback.');
       return res.redirect('/advertising');
     }
     const budget = Number(req.body.totalBudget);
@@ -221,6 +234,7 @@ exports.createCampaign = async (req, res) => {
       description: req.body.description,
       destinationUrl: destination.toString(),
       bannerUrl,
+      sitewideFallback,
       totalBudget: budget,
       dailyBudget: req.body.dailyBudget,
       minimumBudget: settings.advertisingMinimumCampaignBudget ?? 25,
@@ -295,6 +309,7 @@ exports.trackCampaignImpression = async (req, res) => {
       communityId: req.body.communityId,
       viewerId: req.session.user.id,
       eventType: 'impression',
+      deliveryContext: req.body.deliveryContext || 'community',
       eventToken: req.body.eventToken
     });
     return res.status(204).end();
@@ -310,6 +325,7 @@ exports.clickCampaign = async (req, res) => {
     const result = await recordCampaignEvent({
       campaignId: req.params.id,
       communityId: req.query.community,
+      deliveryContext: req.query.context || 'community',
       viewerId: req.session.user.id,
       eventType: 'click',
       eventToken: req.query.event
@@ -328,19 +344,30 @@ exports.clickCampaign = async (req, res) => {
 exports.reportCampaign = async (req, res) => {
   const reason = String(req.body.reason || '').trim().slice(0, 500);
   const communityId = String(req.body.communityId || '');
-  const [campaign, community] = await Promise.all([
-    Campaign.findById(req.params.id).select('title targetCommunities').lean(),
-    Community.findById(communityId).select('slug').lean()
-  ]);
-  if (!campaign || !community || !reason
-    || !(campaign.targetCommunities || []).some((id) => String(id) === communityId)) {
+  const deliveryContext = String(req.body.deliveryContext || 'community');
+  const campaign = await Campaign.findById(req.params.id).select('title targetCommunities sitewideFallback').lean();
+  if (deliveryContext === 'sitewide') {
+    if (!campaign || !campaign.sitewideFallback || (campaign.targetCommunities || []).length
+      || await hasMonetizedPublicCommunity() || !reason) {
+      flash(req, 'error', 'That advertisement could not be reported.');
+      return res.redirect('/dashboard');
+    }
+  } else if (deliveryContext !== 'community' || !communityId) {
     flash(req, 'error', 'That advertisement could not be reported.');
-    return res.redirect(community ? `/communities/${community.slug}` : '/explore');
+    return res.redirect('/explore');
+  }
+  const community = deliveryContext === 'community'
+    ? await Community.findById(communityId).select('slug').lean()
+    : null;
+  if (!campaign || !reason || (deliveryContext === 'community'
+    && (!community || !(campaign.targetCommunities || []).some((id) => String(id) === communityId)))) {
+    flash(req, 'error', 'That advertisement could not be reported.');
+    return res.redirect(community ? `/communities/${community.slug}` : '/dashboard');
   }
   try {
     await Report.updateOne(
       { reporter: req.session.user.id, targetType: 'advertisement', target: campaign._id },
-      { $setOnInsert: { reporter: req.session.user.id, targetType: 'advertisement', target: campaign._id, reason, contextText: `Advertisement: ${campaign.title} · Community: ${community.slug}` } },
+      { $setOnInsert: { reporter: req.session.user.id, targetType: 'advertisement', target: campaign._id, reason, contextText: `Advertisement: ${campaign.title} · ${deliveryContext === 'sitewide' ? 'Crowdwide feed' : `Community: ${community.slug}`}` } },
       { upsert: true }
     );
     flash(req, 'success', 'The advertisement was reported to the moderation team.');
@@ -348,5 +375,5 @@ exports.reportCampaign = async (req, res) => {
     logger.error('Advertisement report could not be saved', error);
     flash(req, 'error', 'The report could not be submitted. Please try again.');
   }
-  return res.redirect(`/communities/${community.slug}`);
+  return res.redirect(community ? `/communities/${community.slug}` : '/dashboard');
 };

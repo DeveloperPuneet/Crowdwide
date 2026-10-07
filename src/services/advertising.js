@@ -161,6 +161,7 @@ async function createCampaign({
   targetCommunities = [],
   destinationUrl = '',
   bannerUrl = '',
+  sitewideFallback = false,
   minimumBudget = 25,
   impressionCostWaves = 0.1,
   clickCostWaves = 1,
@@ -223,6 +224,7 @@ async function createCampaign({
     startDate: startDate ? new Date(startDate) : null,
     endDate: endDate ? new Date(endDate) : null,
     targetCommunities: Array.isArray(targetCommunities) ? targetCommunities : [],
+    sitewideFallback: Boolean(sitewideFallback),
     isWavesFunded: Boolean(isWavesFunded),
     notes: String(notes || '').trim().slice(0, 2000),
     status: 'draft',
@@ -570,23 +572,56 @@ async function getCommunityCampaigns(communityId, now = new Date()) {
   return campaigns.filter((campaign) => campaign.advertiser?.status === 'approved');
 }
 
-async function recordCampaignEvent({ campaignId, communityId, viewerId, eventType, eventToken }) {
+async function hasMonetizedPublicCommunity() {
+  return Boolean(await Community.exists({
+    isMonetized: true,
+    monetizationStatus: 'approved'
+  }));
+}
+
+async function getSitewideFeedCampaigns(now = new Date()) {
+  if (await hasMonetizedPublicCommunity()) return [];
+  const campaigns = await Campaign.find({
+    status: 'active',
+    fundingStatus: 'funded',
+    remainingBudget: { $gt: 0 },
+    sitewideFallback: true,
+    targetCommunities: { $size: 0 },
+    $and: [
+      { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
+      { $or: [{ endDate: null }, { endDate: { $gte: now } }] }
+    ]
+  }).sort({ createdAt: 1 }).limit(30)
+    .populate('advertiser', 'businessName website status')
+    .lean();
+  return campaigns.filter((campaign) => campaign.advertiser?.status === 'approved');
+}
+
+async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 'community', viewerId, eventType, eventToken }) {
   if (!['impression', 'click'].includes(eventType)) throw new Error('Invalid advertisement event type.');
+  if (!['community', 'sitewide'].includes(deliveryContext)) throw new Error('Invalid advertisement delivery context.');
+  if (deliveryContext === 'community' && !communityId) throw new Error('Community ID is required.');
+  if (deliveryContext === 'sitewide' && communityId) throw new Error('Sitewide events cannot include a community ID.');
   if (!/^[a-f\d-]{36}$/i.test(String(eventToken || ''))) throw new Error('Invalid advertisement event token.');
   if (!viewerId) throw new Error('Viewer ID is required.');
 
   const [community, campaign] = await Promise.all([
-    Community.findById(communityId).lean(),
+    deliveryContext === 'community' ? Community.findById(communityId).lean() : Promise.resolve(null),
     Campaign.findById(campaignId).populate('advertiser', 'businessName website status').lean()
   ]);
-  if (!community || community.isPrivate || !community.isMonetized || community.monetizationStatus !== 'approved'
-    || !community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none') {
+  if (deliveryContext === 'community'
+    && (!community || community.isPrivate || !community.isMonetized || community.monetizationStatus !== 'approved'
+      || !community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none')) {
     throw unavailableAdvertisement('Advertisements are not enabled for this community.');
+  }
+  if (deliveryContext === 'sitewide'
+    && (await hasMonetizedPublicCommunity() || !campaign?.sitewideFallback || (campaign.targetCommunities || []).length)) {
+    throw unavailableAdvertisement('Crowdwide-feed advertisements are unavailable.');
   }
   const now = new Date();
   if (!campaign || campaign.status !== 'active' || campaign.fundingStatus !== 'funded'
     || Number(campaign.remainingBudget || 0) <= 0
-    || !(campaign.targetCommunities || []).some((id) => String(id) === String(communityId))
+    || (deliveryContext === 'community' && !(campaign.targetCommunities || []).some((id) => String(id) === String(communityId)))
     || campaign.advertiser?.status !== 'approved'
     || (campaign.startDate && campaign.startDate > now)
     || (campaign.endDate && campaign.endDate < now)) {
@@ -608,22 +643,23 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
     const eventDay = now.toISOString().slice(0, 10);
     await CampaignEvent.create({
       campaign: campaign._id,
-      community: community._id,
+      community: community?._id || null,
+      deliveryContext,
       viewer: viewerId,
       eventType,
       eventToken,
-      viewerDayKey: `${campaign._id}:${community._id}:${viewerId}:${eventType}:${eventDay}`
+      viewerDayKey: `${campaign._id}:${community?._id || 'sitewide'}:${viewerId}:${eventType}:${eventDay}`
     });
   } catch (error) {
     if (error?.code === 11000) {
-      const signalKey = `${campaign._id}:${community._id}:${viewerId}:${eventType}`;
+      const signalKey = `${campaign._id}:${deliveryContext}:${community?._id || 'crowdwide'}:${viewerId}:${eventType}`;
       await CampaignAbuseSignal.findOneAndUpdate(
         { signalKey },
         {
           $setOnInsert: {
             signalKey,
             campaign: campaign._id,
-            community: community._id,
+            community: community?._id || null,
             viewer: viewerId,
             eventType,
             reason: 'Repeated ad event rejected by per-viewer daily limit.',
@@ -646,7 +682,7 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
     ? campaign.impressionCostWaves ?? 0.1
     : campaign.clickCostWaves ?? 1);
   if (!Number.isFinite(spend) || spend < 0) {
-    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community._id, eventType, eventToken });
+    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community?._id || null, deliveryContext, eventType, eventToken });
     throw new Error('Campaign advertising prices are invalid.');
   }
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -671,7 +707,9 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
         status: 'active',
         fundingStatus: 'funded',
         remainingBudget: { $gte: spend },
-        targetCommunities: community._id,
+        ...(deliveryContext === 'community'
+          ? { targetCommunities: community._id }
+          : { sitewideFallback: true, targetCommunities: { $size: 0 } }),
         $expr: dailyBudgetAllowsSpend
       },
       [
@@ -697,11 +735,11 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
       { new: true }
     );
   } catch (error) {
-    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community._id, eventType, eventToken });
+    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community?._id || null, deliveryContext, eventType, eventToken });
     throw error;
   }
   if (!updated) {
-    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community._id, eventType, eventToken });
+    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community?._id || null, deliveryContext, eventType, eventToken });
     throw unavailableAdvertisement('This advertisement is no longer available.');
   }
   let botActivitySignal = false;
@@ -718,7 +756,7 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
           $setOnInsert: {
             signalKey: `bot-activity:${viewerId}:${minuteBucket}`,
             campaign: campaign._id,
-            community: community._id,
+            community: community?._id || null,
             viewer: viewerId,
             eventType: 'bot-activity',
             reason: `High-volume ad activity: ${recentEventCount} unique events within one minute. This is a review signal, not proof of automation.`,
@@ -761,7 +799,7 @@ async function getCampaignAnalytics(campaignIds, now = new Date()) {
       { $sort: { '_id.date': 1 } }
     ])
   ]);
-  const communityIds = [...new Set(communityRows.map((row) => String(row._id.community)))];
+  const communityIds = [...new Set(communityRows.map((row) => row._id.community).filter(Boolean).map(String))];
   const communities = communityIds.length
     ? await Community.find({ _id: { $in: communityIds } }).select('name').lean()
     : [];
@@ -775,7 +813,7 @@ async function getCampaignAnalytics(campaignIds, now = new Date()) {
   return {
     byCommunity: communityRows.map((row) => ({
       campaignId: String(row._id.campaign),
-      communityName: communityNames.get(String(row._id.community)) || 'Community',
+      communityName: row._id.community ? communityNames.get(String(row._id.community)) || 'Community' : 'Crowdwide feed',
       ...addCtr(row)
     })),
     daily: dailyRows.map((row) => ({
@@ -840,6 +878,8 @@ module.exports = {
   calculateCtr,
   getCampaignAnalytics,
   getCommunityCampaigns,
+  getSitewideFeedCampaigns,
+  hasMonetizedPublicCommunity,
   createCampaign,
   fundCampaign,
   submitCampaign,

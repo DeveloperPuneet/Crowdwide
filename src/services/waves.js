@@ -1,6 +1,12 @@
 const User = require('../models/User');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
+const WavesAbuseSignal = require('../models/WavesAbuseSignal');
 const SiteSetting = require('../models/SiteSetting');
+const logger = require('./logger');
+
+const TRANSFER_SIGNAL_WINDOW_MS = 10 * 60 * 1000;
+const TRANSFER_SIGNAL_COUNT_THRESHOLD = 5;
+const TRANSFER_RECIPIENT_THRESHOLD = 4;
 
 function normalizeAmount(value, fieldName = 'amount') {
   const amount = Number(value);
@@ -128,6 +134,52 @@ async function transferWaves({ fromUserId, toUserId, amount, description = 'Tran
     actorId,
     relatedUserId: fromUserId
   });
+
+  try {
+    const windowStart = new Date(now.getTime() - TRANSFER_SIGNAL_WINDOW_MS);
+    const recentTransfers = await WavesLedgerEntry.aggregate([
+      {
+        $match: {
+          user: fromUserId,
+          type: 'transfer-out',
+          status: 'posted',
+          createdAt: { $gte: windowStart }
+        }
+      },
+      {
+        $group: {
+          _id: '$relatedUser',
+          count: { $sum: 1 },
+          totalWaves: { $sum: { $abs: '$amount' } }
+        }
+      }
+    ]);
+    const transferCount = recentTransfers.reduce((total, row) => total + Number(row.count || 0), 0);
+    const concentratedRecipient = recentTransfers.find((row) => Number(row.count || 0) >= TRANSFER_RECIPIENT_THRESHOLD);
+    if (transferCount >= TRANSFER_SIGNAL_COUNT_THRESHOLD || concentratedRecipient) {
+      const bucket = Math.floor(now.getTime() / TRANSFER_SIGNAL_WINDOW_MS);
+      const signalKey = `transfer:${fromUserId}:${bucket}`;
+      const reason = concentratedRecipient
+        ? `Repeated transfers to one account: ${concentratedRecipient.count} transfers within ten minutes.`
+        : `${transferCount} outgoing transfers within ten minutes.`;
+      await WavesAbuseSignal.findOneAndUpdate(
+        { signalKey },
+        {
+          $setOnInsert: {
+            signalKey,
+            sender: fromUserId,
+            recipient: concentratedRecipient?._id || null,
+            windowStartedAt: windowStart
+          },
+          $set: { lastSeenAt: now, status: 'open', reviewedAt: null, reviewedBy: null, reviewNote: '', reason },
+          $max: { transferCount, totalWaves: recentTransfers.reduce((total, row) => total + Number(row.totalWaves || 0), 0) }
+        },
+        { upsert: true, new: true }
+      );
+    }
+  } catch (error) {
+    logger.warn('Suspicious Waves transfer activity could not be recorded', { senderId: fromUserId, error });
+  }
 
   return { amount: value, recipient: receiver };
 }

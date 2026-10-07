@@ -141,7 +141,8 @@ test('advertiser dashboard renders application form and campaign metrics', async
       totalBudget: 20, description: 'Campaign description',
       moderationHistory: [{ status: 'approved', reason: 'Approved.', actor: { name: 'Admin B' }, createdAt: new Date() }]
     }],
-    communities: [{ _id: 'community-1', name: 'Public Community' }],
+    communities: [],
+    sitewideFallbackAvailable: true,
     campaignAnalytics: {
       byCommunity: [{ campaignId: 'campaign-1', communityName: 'Public Community', impressions: 40, clicks: 2, ctr: 5 }],
       daily: [{ campaignId: 'campaign-1', date: '2026-10-06', impressions: 10, clicks: 1, ctr: 10 }]
@@ -155,6 +156,7 @@ test('advertiser dashboard renders application form and campaign metrics', async
   assert.match(html, /Advertiser review history/);
   assert.match(html, /Campaign review history/);
   assert.match(html, /Performance by community and date/);
+  assert.match(html, /Show this ad in the normal Crowdwide feed while no public community is monetized/);
   assert.match(html, /communities reached by a recorded impression or click/);
   assert.match(html, /Public Community<\/strong> · 40 impressions · 2 clicks · 5% CTR/);
   assert.match(html, /Daily activity · last 30 days/);
@@ -449,6 +451,16 @@ test('dashboard still renders with the share button and share sheet in the foote
   const html = await render('pages/dashboard.ejs', {
     title: 't', pagePath: '/dashboard', noIndex: true,
     feed: { posts: [post(1)], visiblePosts: [post(1)], hasMore: true, activeTab: 'for-you', note: 'n' },
+    sitewideFeedAds: [{
+      afterPost: 1,
+      contextType: 'sitewide',
+      eventToken: '12345678-1234-4123-8123-123456789abc',
+      campaign: {
+        _id: 'campaign-global', title: 'A normal-feed advertisement', description: 'Campaign text',
+        destinationUrl: 'https://example.test/landing',
+        advertiser: { businessName: 'Example Ltd' }
+      }
+    }],
     communities: [{ _id: 'c1', name: 'Sketch Club', slug: 'sketch-club', avatarImage: '/uploads/sketch.png' }], communityCategories: COMMUNITY_CATEGORIES, composerCommunities: [{ _id: 'c1', name: 'Sketch Club' }],
     availableQuests: [{ _id: 'q1', title: 'Weekly sketch sprint', community: { _id: 'c1', name: 'Sketch Club' } }],
     selectedQuestId: 'q1', selectedCommunityId: 'c1',
@@ -462,6 +474,10 @@ test('dashboard still renders with the share button and share sheet in the foote
   assert.match(html, /Share with your community/);
   assert.doesNotMatch(html, /Account settings →/);
   assert.match(html, /name="quest"/);
+  assert.match(html, /Crowdwide feed sponsorship/);
+  assert.match(html, /data-context-type="sitewide"/);
+  assert.match(html, /click\?context=sitewide&amp;event=/);
+  assert.match(html, /deliveryContext: 'sitewide'/);
   assert.match(html, /Weekly sketch sprint/);
   assert.doesNotMatch(html, /name="quest"[^>]*disabled/);
   assert.match(html, /value="c1" selected/);
@@ -802,6 +818,12 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       lastSeenAt: new Date('2026-04-20T12:00:00Z'),
       reason: 'High-volume ad activity: 20 unique events within one minute.'
     }],
+    suspiciousWavesTransfers: [{
+      _id: 'waves-signal-1', sender: { name: 'Asha', email: 'asha@example.test' },
+      recipient: { name: 'Ravi', email: 'ravi@example.test' }, transferCount: 5,
+      totalWaves: 35, lastSeenAt: new Date('2026-04-20T12:00:00Z'),
+      reason: 'Repeated transfers to one account.'
+    }],
     pendingAppeals: [], moderators: [], auditLogs: [{
       action: 'campaign-rejected', actor: { name: 'Operator', role: 'admin' },
       targetType: 'campaign', target: 'campaign-1', details: { reason: 'Policy violation' },
@@ -829,6 +851,8 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   assert.match(html, /id="admin-panel-maintenance"/);
   assert.match(html, /Possible bot activity/);
   assert.match(html, /20 flagged events\/attempts/);
+  assert.match(html, /Suspicious Waves transfer activity/);
+  assert.match(html, /Repeated transfers to one account/);
   assert.match(html, /Run all cleanup processes/);
   assert.match(html, /name="communityPromotionEnabled"/);
   assert.match(html, /name="communityPromotionWavesCost"[^>]+value="65"/);

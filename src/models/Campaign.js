@@ -25,6 +25,7 @@ const campaignSchema = new mongoose.Schema({
   startDate: Date,
   endDate: Date,
   targetCommunities: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Community' }],
+  sitewideFallback: { type: Boolean, default: false, index: true },
   impressions: { type: Number, default: 0 },
   clicks: { type: Number, default: 0 },
   ctr: { type: Number, default: 0 },

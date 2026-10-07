@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
         credentials: 'same-origin',
         keepalive: true,
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': card.dataset.csrf },
-        body: JSON.stringify({ communityId: card.dataset.communityId, eventToken: card.dataset.eventToken })
+        body: JSON.stringify({ communityId: card.dataset.communityId, deliveryContext: card.dataset.contextType || 'community', eventToken: card.dataset.eventToken })
       }).then(function (response) {
         if (!response.ok) console.error('Advertisement impression tracking failed:', response.status);
       }).catch(function (error) {

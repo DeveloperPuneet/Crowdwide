@@ -89,6 +89,9 @@
         <% }) %>
       </fieldset>
       <% } else { %><p class="full-width">There are currently no public monetized communities accepting advertisements.</p><% } %>
+      <% if (sitewideFallbackAvailable) { %>
+      <label class="checkbox-field full-width"><input type="checkbox" name="sitewideFallback" checked> Show this ad in the normal Crowdwide feed while no public community is monetized</label>
+      <% } %>
       <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save draft</button></div>
     </form>
   </section>
@@ -106,6 +109,7 @@
         <% if (campaign.bannerUrl) { %><img src="<%= campaign.bannerUrl %>" alt="Campaign banner for <%= campaign.title %>" style="display:block;max-width:100%;max-height:180px;object-fit:contain;margin:8px 0;"><% } %>
         <% if (campaign.destinationUrl) { %><p>Destination: <a href="<%= campaign.destinationUrl %>" target="_blank" rel="noopener noreferrer nofollow"><%= campaign.destinationUrl %></a></p><% } %>
         <p>Rate locked for this campaign: <%= Number(campaign.impressionCostWaves ?? 0.1) %> Waves/impression · <%= Number(campaign.clickCostWaves ?? 1) %> Waves/click</p>
+        <% if (campaign.sitewideFallback) { %><p>Placement: normal Crowdwide feed only while no public community is monetized.</p><% } %>
         <% if (campaign.rejectionReason) { %><p>Review reason: <%= campaign.rejectionReason %></p><% } %>
         <% if (campaign.status === 'suspended') { %><p>This campaign was suspended by an administrator. <%= campaign.suspensionReason || '' %></p><% } %>
         <p><%= Number(campaign.impressions || 0).toLocaleString() %> impressions · <%= Number(campaign.clicks || 0).toLocaleString() %> clicks · <%= Number(campaign.ctr || 0) %>% CTR · <%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves spent · <%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining</p>
