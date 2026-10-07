@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const User = require('../src/models/User');
 const SiteSetting = require('../src/models/SiteSetting');
 const WavesLedgerEntry = require('../src/models/WavesLedgerEntry');
-const { creditWaves, transferWaves, rewardWavesForAction } = require('../src/services/waves');
+const { creditWaves, transferWaves, rewardWavesForAction, getReciprocalRewardSignals } = require('../src/services/waves');
 
 test('creditWaves updates balance and total earned', async (t) => {
   const user = {
@@ -196,6 +196,7 @@ test('received engagement rewards reject self-interactions and duplicate claims'
     referenceType: 'post',
     referenceId: 'p-4'
   });
+
   assert.deepEqual(selfReward, { amount: 0, balance: null });
   assert.equal(aggregation.mock.callCount(), 0);
 
@@ -225,4 +226,35 @@ test('received engagement rewards reject self-interactions and duplicate claims'
   });
   assert.deepEqual(duplicate, { amount: 0, balance: null });
   assert.equal(findUser.mock.callCount(), 1);
+});
+
+test('reciprocal Waves reward signals require repeated two-way activity on multiple targets and days', async (t) => {
+  let pipeline;
+  t.mock.method(WavesLedgerEntry, 'aggregate', async (stages) => {
+    pipeline = stages;
+    return [{
+      _id: { accountA: 'user-a', accountB: 'user-b' },
+      totalRewards: 10, rewardsFromA: 5, rewardsFromB: 5,
+      uniqueTargets: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'],
+      activeDays: ['2026-10-01', '2026-10-03'],
+      totalWaves: 16.25
+    }];
+  });
+  t.mock.method(User, 'find', () => ({
+    select() { return this; },
+    lean: async () => [{ _id: 'user-a', name: 'Asha' }, { _id: 'user-b', name: 'Ravi' }]
+  }));
+
+  const signals = await getReciprocalRewardSignals(new Date('2026-10-07T00:00:00Z'));
+
+  assert.deepEqual(signals, [{
+    accountA: { id: 'user-a', name: 'Asha' },
+    accountB: { id: 'user-b', name: 'Ravi' },
+    totalRewards: 10, rewardsFromA: 5, rewardsFromB: 5,
+    activeDays: 2, uniqueTargets: 6, totalWaves: 16.25
+  }]);
+  assert.deepEqual(pipeline[0].$match.description.$in, ['Received like reward', 'Received comment reward']);
+  assert.equal(pipeline[0].$match.createdAt.$gte.toISOString(), '2026-09-07T00:00:00.000Z');
+  assert.equal(pipeline[3].$match.totalRewards.$gte, 8);
+  assert.equal(pipeline[3].$match.rewardsFromA.$gte, 3);
 });

@@ -3,6 +3,8 @@
 ## Completed
 
 - Advertiser and campaign foundation — approved advertiser registration, campaign submission flow, moderation lifecycle, CTR tracking, and budget controls.
+- Waves earning and spending — configurable, ledger-backed platform rewards with daily caps and campaign funding/refunds; advertiser campaign budgets are paid in Waves, separate from any real-money ad revenue.
+- Behavior-based account coordination signals — admins can review reciprocal Waves rewards between pairs of accounts when activity repeats across multiple posts and days; these are unconfirmed signals only, without IP/device fingerprinting or automatic suspensions.
 - Community ad delivery and reporting — approved, active, funded campaigns appear only in public communities with active monetization and ads enabled; admin-configured feed/sidebar placements and frequency are respected. Impression/click events are deduplicated, update CTR totals, and are broken down by community and day in the advertiser dashboard. Members can report an ad directly from its placement into the admin moderation queue.
 - Advertiser campaign dashboard — advertiser applications and verification, draft creation, Waves-funded submission, admin campaign approval/rejection, pause/resume/cancellation controls, and per-campaign/aggregate performance and budget statistics.
 - Staged advertisement campaign moderation — moderators review submitted campaigns first, record a reasoned clear/flag recommendation with an audit log, and admins make the final decision; campaigns cannot be approved without a clear moderator review.
@@ -76,19 +78,11 @@
 ## Making:
 Waves / Platform Currency
 
-Create Waves earning system
-
-Add Waves spending system
-
 Add Waves anti-farming/anti-abuse system
-
-Add multiple-account abuse detection
 
 Add self-interaction/fake-engagement detection
 
 Waves Usage
-
-Allow Waves to be used for advertising
 
 Allow Waves to be used for future premium features
 
@@ -97,8 +91,6 @@ Add Ad-Free feature using Waves if premium is introduced
 Add post promotion/boosting using Waves
 
 Add community promotion using Waves
-
-Keep Waves separate from real-money advertising revenue
 
 Advertisement Statistics
 

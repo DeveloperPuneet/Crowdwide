@@ -20,4 +20,6 @@ const wavesLedgerEntrySchema = new mongoose.Schema({
   rewardKey: { type: String, trim: true, maxlength: 500, unique: true, sparse: true }
 }, { timestamps: true });
 
+wavesLedgerEntrySchema.index({ type: 1, status: 1, createdAt: -1, actor: 1 });
+
 module.exports = mongoose.model('WavesLedgerEntry', wavesLedgerEntrySchema);

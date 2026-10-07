@@ -231,6 +231,67 @@ async function rewardWavesForAction({ userId, actorId = null, action, referenceT
   return { amount, balance: user.wavesBalance };
 }
 
+async function getReciprocalRewardSignals(now = new Date()) {
+  const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const rows = await WavesLedgerEntry.aggregate([
+    { $match: {
+      type: 'earn',
+      status: 'posted',
+      description: { $in: ['Received like reward', 'Received comment reward'] },
+      referenceType: { $in: ['post', 'post-comment'] },
+      actor: { $ne: null },
+      amount: { $gt: 0 },
+      createdAt: { $gte: since },
+      $expr: { $ne: ['$actor', '$user'] }
+    } },
+    { $project: {
+      accountA: { $cond: [{ $lt: ['$actor', '$user'] }, '$actor', '$user'] },
+      accountB: { $cond: [{ $lt: ['$actor', '$user'] }, '$user', '$actor'] },
+      actor: 1,
+      amount: 1,
+      referenceId: 1,
+      day: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'UTC' } }
+    } },
+    { $group: {
+      _id: { accountA: '$accountA', accountB: '$accountB' },
+      totalRewards: { $sum: 1 },
+      rewardsFromA: { $sum: { $cond: [{ $eq: ['$actor', '$accountA'] }, 1, 0] } },
+      rewardsFromB: { $sum: { $cond: [{ $eq: ['$actor', '$accountB'] }, 1, 0] } },
+      uniqueTargets: { $addToSet: '$referenceId' },
+      activeDays: { $addToSet: '$day' },
+      totalWaves: { $sum: '$amount' }
+    } },
+    { $match: {
+      totalRewards: { $gte: 8 },
+      rewardsFromA: { $gte: 3 },
+      rewardsFromB: { $gte: 3 },
+      $expr: {
+        $and: [
+          { $gte: [{ $size: '$uniqueTargets' }, 6] },
+          { $gte: [{ $size: '$activeDays' }, 2] }
+        ]
+      }
+    } },
+    { $sort: { totalRewards: -1 } },
+    { $limit: 50 }
+  ]);
+  if (!rows.length) return [];
+
+  const userIds = [...new Set(rows.flatMap((row) => [String(row._id.accountA), String(row._id.accountB)]))];
+  const users = await User.find({ _id: { $in: userIds } }).select('name').lean();
+  const names = new Map(users.map((user) => [String(user._id), user.name]));
+  return rows.map((row) => ({
+    accountA: { id: String(row._id.accountA), name: names.get(String(row._id.accountA)) || 'Unknown account' },
+    accountB: { id: String(row._id.accountB), name: names.get(String(row._id.accountB)) || 'Unknown account' },
+    totalRewards: Number(row.totalRewards || 0),
+    rewardsFromA: Number(row.rewardsFromA || 0),
+    rewardsFromB: Number(row.rewardsFromB || 0),
+    activeDays: row.activeDays.length,
+    uniqueTargets: row.uniqueTargets.length,
+    totalWaves: Number(row.totalWaves || 0)
+  }));
+}
+
 module.exports = {
   creditWaves,
   debitWaves,
@@ -238,5 +299,6 @@ module.exports = {
   adjustWaves,
   getWalletSummary,
   updateWavesBalance,
-  rewardWavesForAction
+  rewardWavesForAction,
+  getReciprocalRewardSignals
 };

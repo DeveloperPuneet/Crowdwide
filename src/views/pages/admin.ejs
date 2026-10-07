@@ -35,6 +35,21 @@
       <p><%= pendingActions.length %> moderator action<%= pendingActions.length === 1 ? '' : 's' %> waiting for your approval, <%= openReports.length %> open report<%= openReports.length === 1 ? '' : 's' %>, <%= pendingAppeals.length %> pending appeal<%= pendingAppeals.length === 1 ? '' : 's' %>.</p>
       <% if (siteSettings.maintenanceMode) { %><p class="admin-badge status-suspended">Maintenance mode is ON — the site is showing a maintenance message to visitors.</p><% } %>
     </div>
+    <% const rewardSignals = Array.isArray(locals.suspiciousRewardPairs) ? locals.suspiciousRewardPairs : []; %>
+    <section class="settings-block admin-wide">
+      <h2>Possible coordinated Waves rewards</h2>
+      <p>Behavior-only review signals: reciprocal rewarded likes/comments across multiple posts and days. These are leads, not proof of linked accounts; no automatic account action is taken.</p>
+      <% if (!rewardSignals.length) { %><p>No account pairs currently meet the review threshold.</p><% } %>
+      <% rewardSignals.forEach((signal) => { %>
+      <div class="device-row">
+        <div>
+          <strong><%= signal.accountA.name %> · <%= signal.accountB.name %></strong>
+          <span><%= signal.totalRewards %> rewarded engagements across <%= signal.uniqueTargets %> posts on <%= signal.activeDays %> days · <%= signal.totalWaves.toLocaleString() %> Waves</span>
+          <small><%= signal.accountA.name %> → <%= signal.accountB.name %>: <%= signal.rewardsFromA %> · <%= signal.accountB.name %> → <%= signal.accountA.name %>: <%= signal.rewardsFromB %></small>
+        </div>
+      </div>
+      <% }) %>
+    </section>
     <section class="settings-block admin-wide admin-storage-card" aria-labelledby="admin-storage-heading">
       <div class="admin-storage-heading">
         <div><p class="eyebrow">MongoDB clusters</p><h2 id="admin-storage-heading">Database storage</h2></div>

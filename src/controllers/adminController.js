@@ -16,7 +16,7 @@ const { logEvent } = require('../services/accountHistory');
 const { getSiteConfig, clearSiteConfigCache, getPostReviewThreshold } = require('../services/siteConfig');
 const { runMaintenance, TASK_LABELS } = require('../services/maintenance');
 const { getMongoStorage, formatStorage } = require('../services/mongoStorage');
-const { adjustWaves } = require('../services/waves');
+const { adjustWaves, getReciprocalRewardSignals } = require('../services/waves');
 const { reviewAdvertiserAsModerator, reviewCampaignAsModerator, updateAdvertiserStatus, updateCampaignStatus } = require('../services/advertising');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const logger = require('../services/logger');
@@ -117,7 +117,7 @@ async function attachActionContext(actions) {
 }
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts monetizationStatus monetizationApplication monetizationSettings createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
@@ -132,11 +132,12 @@ exports.admin = async (req, res) => {
     Community.find({ monetizationStatus: 'pending' }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationStatus monetizationSettings createdAt').populate('owner', 'name email').lean(),
     Advertiser.find({ status: 'pending', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').populate('moderationHistory.actor', 'name role').lean(),
     Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean(),
-    Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean()
+    Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean(),
+    getReciprocalRewardSignals()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   await attachActionContext(pendingActions);
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
 exports.reviewAdvertiser = async (req, res) => {

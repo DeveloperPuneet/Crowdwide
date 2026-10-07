@@ -681,6 +681,10 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       monetizationApplication: { submittedAt: new Date(), goals: 'Support the community.' },
       monetizationSettings: {}
     }],
+    suspiciousRewardPairs: [{
+      accountA: { id: 'user-a', name: 'Asha' }, accountB: { id: 'user-b', name: 'Ravi' },
+      totalRewards: 10, rewardsFromA: 5, rewardsFromB: 5, uniqueTargets: 6, activeDays: 2, totalWaves: 16.25
+    }],
     pendingAppeals: [], moderators: [], auditLogs: [{
       action: 'campaign-rejected', actor: { name: 'Operator', role: 'admin' },
       targetType: 'campaign', target: 'campaign-1', details: { reason: 'Policy violation' },
@@ -714,6 +718,9 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   assert.match(html, /Enable ads after approval/);
   assert.match(html, /Ads enabled \(uncheck to pause ads\)/);
   assert.match(html, /Frequency \(posts between ads\)/);
+  assert.match(html, /Possible coordinated Waves rewards/);
+  assert.match(html, /Asha · Ravi/);
+  assert.match(html, /not proof of linked accounts/);
   assert.match(html, /advertisement · campaign-1/);
   assert.match(html, /Example campaign/);
   assert.match(html, /Inappropriate content/);
