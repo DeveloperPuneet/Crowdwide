@@ -52,7 +52,7 @@ const campaignSchema = new mongoose.Schema({
   suspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
   cancelledAt: Date,
   moderationHistory: [{
-    status: { type: String, enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'suspended', 'cancelled', 'completed'], required: true },
+    status: { type: String, enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'suspended', 'cancelled', 'completed', 'moderator-cleared', 'moderator-flagged'], required: true },
     reason: { type: String, trim: true, maxlength: 500, default: '' },
     createdAt: { type: Date, default: Date.now },
     actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }

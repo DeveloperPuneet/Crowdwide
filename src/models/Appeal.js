@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const appealSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  actionType: { type: String, enum: ['suspension', 'posting-restriction', 'warning'], required: true },
+  actionType: { type: String, enum: ['suspension', 'posting-restriction', 'warning', 'advertiser'], required: true },
+  advertiser: { type: mongoose.Schema.Types.ObjectId, ref: 'Advertiser' },
   // For a warning appeal, which specific warning subdocument (User.warnings._id)
   // this refers to - lets a moderator remove exactly that one warning on
   // approval without guessing which of possibly several warnings is meant.
@@ -19,5 +20,9 @@ const appealSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 appealSchema.index({ status: 1, createdAt: -1 });
+appealSchema.index(
+  { advertiser: 1, status: 1 },
+  { unique: true, partialFilterExpression: { actionType: 'advertiser', status: 'pending' } }
+);
 
 module.exports = mongoose.model('Appeal', appealSchema);

@@ -3,11 +3,15 @@
 ## Completed
 
 - Advertiser and campaign foundation — approved advertiser registration, campaign submission flow, moderation lifecycle, CTR tracking, and budget controls.
+- Community ad delivery and reporting — approved, active, funded campaigns appear only in public communities with active monetization and ads enabled; admin-configured feed/sidebar placements and frequency are respected. Impression/click events are deduplicated, update CTR totals, and are broken down by community and day in the advertiser dashboard. Members can report an ad directly from its placement into the admin moderation queue.
 - Advertiser campaign dashboard — advertiser applications and verification, draft creation, Waves-funded submission, admin campaign approval/rejection, pause/resume/cancellation controls, and per-campaign/aggregate performance and budget statistics.
 - Staged advertisement campaign moderation — moderators review submitted campaigns first, record a reasoned clear/flag recommendation with an audit log, and admins make the final decision; campaigns cannot be approved without a clear moderator review.
 - Staged advertiser application moderation — moderator screening with a recorded clear/flag reason and audit log, followed by final admin approval/rejection; approval is blocked unless moderators clear the application.
 - Prohibited-ad policy screening — moderator campaign review records specific flags for adult-only/18+, erotic or sexually explicit content, gambling/betting, pornography, and other inappropriate ads; every category must be checked before a campaign can be cleared for admin approval.
 - Admin campaign suspension and removal — admins can suspend active/approved campaigns with a logged reason, reinstate them only to approved (requiring advertiser activation), or remove/cancel and refund unused funded Waves; advertisers cannot reactivate suspended campaigns.
+- Advertiser appeals — rejected or suspended advertisers can submit one pending appeal with the original decision reason; admins can approve and restore or deny it, with appeal status shown to the advertiser and admin audit/history records preserved.
+- Advertisement moderation history — advertiser and campaign decisions, moderator screening, reasons, timestamps, and staff actors are recorded and shown in expandable timelines to advertisers, moderators, and admins.
+- Moderation/admin audit logs — moderation and administrative actions retain actor, timestamp, affected record, and action details; the admin console exposes searchable audit activity with reasons and target identifiers.
 - Advertiser policy and terms — public, linked advertising terms cover advertiser requirements, prohibited content, staged moderation, Waves escrow, anti-manipulation rules, and launch limitations; current terms acceptance is recorded and required before campaign creation or funding, and visible to moderators/admins.
 - Waves-funded campaign budgets — campaigns start as drafts, escrow the configured Waves budget on submission, and record funding/refund entries in the Waves ledger. Cancellation, rejection, and completion refund the remaining budget once.
 - Campaign daily budget enforcement — budget spend is rejected when it would exceed the configured daily cap and the daily counter resets on the next calendar day.
@@ -96,37 +100,7 @@ Add community promotion using Waves
 
 Keep Waves separate from real-money advertising revenue
 
-Advertising System
-
-Create advertiser system
-
-Add advertisement reporting system (add the member-facing report action together with live ad placements so users can report an ad where it appears)
-
-Advertisement Moderation
-
-Add advertiser appeal system
-
-Add advertisement moderation history
-
-Add moderation/admin audit logs
-
 Advertisement Statistics
-
-Track impressions
-
-Track clicks
-
-Track CTR
-
-Track Waves spent
-
-Track remaining campaign budget
-
-Track campaign performance over time
-
-Track performance by community
-
-Track communities reached
 
 Add protection against fake clicks/impressions
 
@@ -157,22 +131,6 @@ Add monetization suspension system
 Allow admin to disable monetization at any time
 
 Add monetization status to community/admin panels
-
-Ads in Communities
-
-Show approved advertisements inside monetized communities
-
-Only show ads in communities with active monetization
-
-Add configurable ad placement
-
-Add configurable ad frequency
-
-Add community-specific advertising settings
-
-Allow admin to temporarily disable ads for a community
-
-Track advertisement performance separately for each community
 
 Community Revenue
 

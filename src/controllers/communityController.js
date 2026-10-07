@@ -10,6 +10,7 @@ const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetwo
 const { getInterestProfile, topInterestTags, refreshPersonalization } = require('../services/feedService');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
+const { getCommunityCampaigns } = require('../services/advertising');
 const logger = require('../services/logger');
 
 async function getMonetizationEligibility(communityId) {
@@ -266,7 +267,21 @@ exports.detail = async (req, res) => {
     ...pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean),
     ...recentPosts.filter((post) => !pinnedById.has(String(post._id)))
   ];
-  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests });
+  const communityAds = await getCommunityCampaigns(community._id);
+  const placement = community.monetizationSettings?.adPlacement || 'feed';
+  const frequency = Math.max(1, Math.min(10, Math.floor(Number(community.monetizationSettings?.adFrequency) || 1)));
+  const feedAds = [];
+  if (['feed', 'all'].includes(placement)) {
+    for (let afterPost = frequency; afterPost <= posts.length && feedAds.length < 3; afterPost += frequency) {
+      const campaign = communityAds[feedAds.length % communityAds.length];
+      if (!campaign) break;
+      feedAds.push({ campaign, eventToken: crypto.randomUUID(), afterPost });
+    }
+  }
+  const sidebarAds = ['sidebar', 'all'].includes(placement) && communityAds.length
+    ? [{ campaign: communityAds[0], eventToken: crypto.randomUUID() }]
+    : [];
+  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests, feedAds, sidebarAds });
 };
 exports.manage = async (req, res) => {
   const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility] = await Promise.all([

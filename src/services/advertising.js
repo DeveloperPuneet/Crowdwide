@@ -2,6 +2,8 @@ const Advertiser = require('../models/Advertiser');
 const Campaign = require('../models/Campaign');
 const User = require('../models/User');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
+const CampaignEvent = require('../models/CampaignEvent');
+const Community = require('../models/Community');
 
 const ADVERTISING_TERMS_VERSION = '2026-10-07';
 const ADVERTISING_POLICY_CATEGORIES = [
@@ -35,6 +37,12 @@ function calculateCtr({ impressions = 0, clicks = 0 }) {
   return Number(((clickCount / impressionCount) * 100).toFixed(4));
 }
 
+function unavailableAdvertisement(message) {
+  const error = new Error(message);
+  error.code = 'ADVERTISEMENT_UNAVAILABLE';
+  return error;
+}
+
 async function registerAdvertiser({ userId, businessName, website = '', notes = '', isVerified = false, acceptedTerms = false }) {
   if (!userId) throw new Error('Advertiser user ID is required.');
 
@@ -56,6 +64,12 @@ async function registerAdvertiser({ userId, businessName, website = '', notes = 
       moderatorReview: { status: 'pending', reason: '', reviewedAt: null, reviewedBy: null },
       reviewedAt: null,
       reviewedBy: null,
+      moderationHistory: [{
+        status: 'pending',
+        reason: 'Advertiser application submitted.',
+        createdAt: new Date(),
+        actor: userId
+      }],
       updatedAt: new Date()
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -82,6 +96,15 @@ async function reviewAdvertiserAsModerator({ advertiserId, decision, reason = ''
     reviewedAt: new Date(),
     reviewedBy: moderatorId
   };
+  advertiser.moderationHistory = [
+    ...(advertiser.moderationHistory || []).slice(-9),
+    {
+      status: decision === 'cleared' ? 'moderator-cleared' : 'moderator-flagged',
+      reason: note || 'No policy concerns identified.',
+      createdAt: new Date(),
+      actor: moderatorId
+    }
+  ];
   await advertiser.save();
   return advertiser;
 }
@@ -299,6 +322,15 @@ async function reviewCampaignAsModerator({ campaignId, decision, reason = '', fl
     reviewedAt: new Date(),
     reviewedBy: moderatorId
   };
+  campaign.moderationHistory = [
+    ...(campaign.moderationHistory || []).slice(-9),
+    {
+      status: decision === 'cleared' ? 'moderator-cleared' : 'moderator-flagged',
+      reason: note || 'No policy concerns identified.',
+      createdAt: new Date(),
+      actor: moderatorId
+    }
+  ];
   await campaign.save();
   return campaign;
 }
@@ -480,6 +512,158 @@ async function recordCampaignPerformance({ campaignId, impressions = 0, clicks =
   return campaign;
 }
 
+async function getCommunityCampaigns(communityId, now = new Date()) {
+  if (!communityId) return [];
+  const community = await Community.findById(communityId).lean();
+  if (!community || community.isPrivate || !community.isMonetized || community.monetizationStatus !== 'approved'
+    || !community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none') {
+    return [];
+  }
+  const campaigns = await Campaign.find({
+    status: 'active',
+    fundingStatus: 'funded',
+    remainingBudget: { $gt: 0 },
+    targetCommunities: communityId,
+    $and: [
+      { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
+      { $or: [{ endDate: null }, { endDate: { $gte: now } }] }
+    ]
+  }).sort({ createdAt: 1 }).limit(30)
+    .populate('advertiser', 'businessName website status')
+    .lean();
+  return campaigns.filter((campaign) => campaign.advertiser?.status === 'approved');
+}
+
+async function recordCampaignEvent({ campaignId, communityId, viewerId, eventType, eventToken }) {
+  if (!['impression', 'click'].includes(eventType)) throw new Error('Invalid advertisement event type.');
+  if (!/^[a-f\d-]{36}$/i.test(String(eventToken || ''))) throw new Error('Invalid advertisement event token.');
+  if (!viewerId) throw new Error('Viewer ID is required.');
+
+  const [community, campaign] = await Promise.all([
+    Community.findById(communityId).lean(),
+    Campaign.findById(campaignId).populate('advertiser', 'businessName website status').lean()
+  ]);
+  if (!community || community.isPrivate || !community.isMonetized || community.monetizationStatus !== 'approved'
+    || !community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none') {
+    throw unavailableAdvertisement('Advertisements are not enabled for this community.');
+  }
+  const now = new Date();
+  if (!campaign || campaign.status !== 'active' || campaign.fundingStatus !== 'funded'
+    || Number(campaign.remainingBudget || 0) <= 0
+    || !(campaign.targetCommunities || []).some((id) => String(id) === String(communityId))
+    || campaign.advertiser?.status !== 'approved'
+    || (campaign.startDate && campaign.startDate > now)
+    || (campaign.endDate && campaign.endDate < now)) {
+    throw unavailableAdvertisement('This advertisement is no longer available.');
+  }
+
+  let destinationUrl = '';
+  if (eventType === 'click') {
+    try {
+      const destination = new URL(campaign.advertiser.website);
+      if (!['http:', 'https:'].includes(destination.protocol)) throw unavailableAdvertisement('Unsupported destination.');
+      destinationUrl = destination.toString();
+    } catch {
+      throw unavailableAdvertisement('This advertiser has no valid destination link.');
+    }
+  }
+
+  try {
+    await CampaignEvent.create({ campaign: campaign._id, community: community._id, viewer: viewerId, eventType, eventToken });
+  } catch (error) {
+    if (error?.code === 11000) return { recorded: false, destinationUrl };
+    throw error;
+  }
+
+  const impressionIncrement = eventType === 'impression' ? 1 : 0;
+  const clickIncrement = eventType === 'click' ? 1 : 0;
+  let updated;
+  try {
+    updated = await Campaign.findOneAndUpdate(
+      {
+        _id: campaign._id,
+        status: 'active',
+        fundingStatus: 'funded',
+        remainingBudget: { $gt: 0 },
+        targetCommunities: community._id
+      },
+      [
+        { $set: {
+          impressions: { $add: [{ $ifNull: ['$impressions', 0] }, impressionIncrement] },
+          clicks: { $add: [{ $ifNull: ['$clicks', 0] }, clickIncrement] }
+        } },
+        { $set: {
+          ctr: {
+            $cond: [
+              { $gt: ['$impressions', 0] },
+              { $round: [{ $multiply: [{ $divide: ['$clicks', '$impressions'] }, 100] }, 4] },
+              0
+            ]
+          }
+        } }
+      ],
+      { new: true }
+    );
+  } catch (error) {
+    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community._id, eventType, eventToken });
+    throw error;
+  }
+  if (!updated) {
+    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community._id, eventType, eventToken });
+    throw unavailableAdvertisement('This advertisement is no longer available.');
+  }
+  return { recorded: true, destinationUrl };
+}
+
+async function getCampaignAnalytics(campaignIds, now = new Date()) {
+  const ids = Array.isArray(campaignIds) ? campaignIds : [];
+  if (!ids.length) return { byCommunity: [], daily: [] };
+
+  const match = { campaign: { $in: ids } };
+  const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const dailyMatch = { ...match, createdAt: { $gte: since, $lte: now } };
+  const impressionCount = { $sum: { $cond: [{ $eq: ['$eventType', 'impression'] }, 1, 0] } };
+  const clickCount = { $sum: { $cond: [{ $eq: ['$eventType', 'click'] }, 1, 0] } };
+  const [communityRows, dailyRows] = await Promise.all([
+    CampaignEvent.aggregate([
+      { $match: match },
+      { $group: { _id: { campaign: '$campaign', community: '$community' }, impressions: impressionCount, clicks: clickCount } }
+    ]),
+    CampaignEvent.aggregate([
+      { $match: dailyMatch },
+      { $group: {
+        _id: { campaign: '$campaign', date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'UTC' } } },
+        impressions: impressionCount,
+        clicks: clickCount
+      } },
+      { $sort: { '_id.date': 1 } }
+    ])
+  ]);
+  const communityIds = [...new Set(communityRows.map((row) => String(row._id.community)))];
+  const communities = communityIds.length
+    ? await Community.find({ _id: { $in: communityIds } }).select('name').lean()
+    : [];
+  const communityNames = new Map(communities.map((community) => [String(community._id), community.name]));
+  const addCtr = (row) => ({
+    impressions: Number(row.impressions || 0),
+    clicks: Number(row.clicks || 0),
+    ctr: calculateCtr(row)
+  });
+
+  return {
+    byCommunity: communityRows.map((row) => ({
+      campaignId: String(row._id.campaign),
+      communityName: communityNames.get(String(row._id.community)) || 'Community',
+      ...addCtr(row)
+    })),
+    daily: dailyRows.map((row) => ({
+      campaignId: String(row._id.campaign),
+      date: row._id.date,
+      ...addCtr(row)
+    }))
+  };
+}
+
 async function spendCampaignBudget({ campaignId, amount }) {
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new Error('Campaign not found.');
@@ -532,11 +716,14 @@ module.exports = {
   ADVERTISING_POLICY_CATEGORIES,
   ADVERTISING_TERMS_VERSION,
   calculateCtr,
+  getCampaignAnalytics,
+  getCommunityCampaigns,
   createCampaign,
   fundCampaign,
   submitCampaign,
   getCampaignSummary,
   recordCampaignPerformance,
+  recordCampaignEvent,
   refundCampaignBudget,
   registerAdvertiser,
   reviewAdvertiserAsModerator,

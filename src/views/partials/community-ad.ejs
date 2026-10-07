@@ -1,0 +1,24 @@
+<article class="discover-panel community-ad-card" data-community-ad data-campaign-id="<%= ad.campaign._id %>" data-community-id="<%= community._id %>" data-event-token="<%= ad.eventToken %>" data-csrf="<%= csrfToken %>">
+  <p class="eyebrow">Sponsored</p>
+  <h2><%= ad.campaign.title %></h2>
+  <% if (ad.campaign.description) { %><p><%= ad.campaign.description %></p><% } %>
+  <p class="community-ad-byline"><%= ad.campaign.advertiser?.businessName || 'Advertiser' %></p>
+  <% if (ad.campaign.advertiser?.website) { %><a class="button button-small button-primary" href="/ads/<%= ad.campaign._id %>/click?community=<%= community._id %>&amp;event=<%= ad.eventToken %>" target="_blank" rel="noopener noreferrer">Visit advertiser</a><% } %>
+  <details class="community-ad-report">
+    <summary>Report this ad</summary>
+    <form method="post" action="/ads/<%= ad.campaign._id %>/report">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="communityId" value="<%= community._id %>">
+      <label>Reason
+        <select name="reason" required>
+          <option value="">Choose a reason</option>
+          <option value="Misleading or deceptive">Misleading or deceptive</option>
+          <option value="Inappropriate content">Inappropriate content</option>
+          <option value="Spam or scam">Spam or scam</option>
+          <option value="Other concern">Other concern</option>
+        </select>
+      </label>
+      <button class="button button-small button-ghost" type="submit">Send report</button>
+    </form>
+  </details>
+</article>

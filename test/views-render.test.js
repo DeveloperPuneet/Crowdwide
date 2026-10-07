@@ -94,21 +94,38 @@ test('community invite and sharing UI are rendered for private community owners'
 test('advertiser dashboard renders application form and campaign metrics', async () => {
   const html = await render('pages/advertising-dashboard.ejs', {
     title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
-    advertiser: { businessName: 'Example Co', status: 'approved', isVerified: true },
+    advertiser: {
+      _id: 'a1', user: 'u1', businessName: 'Example Co', status: 'approved', isVerified: true,
+      moderationHistory: [{ status: 'approved', reason: 'Verified.', actor: { name: 'Admin A' }, createdAt: new Date() }]
+    },
     advertisingTermsVersion: '2026-10-07',
     advertisingTermsAccepted: true,
     campaigns: [{
       _id: 'campaign-1', title: 'Launch', status: 'approved', fundingStatus: 'funded',
       impressions: 100, clicks: 5, ctr: 5, wavesSpent: 2, remainingBudget: 18,
-      totalBudget: 20, description: 'Campaign description'
+      totalBudget: 20, description: 'Campaign description',
+      moderationHistory: [{ status: 'approved', reason: 'Approved.', actor: { name: 'Admin B' }, createdAt: new Date() }]
     }],
     communities: [{ _id: 'community-1', name: 'Public Community' }],
+    campaignAnalytics: {
+      byCommunity: [{ campaignId: 'campaign-1', communityName: 'Public Community', impressions: 40, clicks: 2, ctr: 5 }],
+      daily: [{ campaignId: 'campaign-1', date: '2026-10-06', impressions: 10, clicks: 1, ctr: 10 }]
+    },
     totals: { impressions: 100, clicks: 5, ctr: 5, wavesSpent: 2, remainingBudget: 18 }
   });
   assert.match(html, /Advertising dashboard/);
   assert.match(html, /performance totals/);
   assert.match(html, /5% CTR/);
   assert.match(html, /Your campaigns/);
+  assert.match(html, /Advertiser review history/);
+  assert.match(html, /Campaign review history/);
+  assert.match(html, /Performance by community and date/);
+  assert.match(html, /communities reached by a recorded impression or click/);
+  assert.match(html, /Public Community<\/strong> · 40 impressions · 2 clicks · 5% CTR/);
+  assert.match(html, /Daily activity · last 30 days/);
+  assert.match(html, /2026-10-06<\/strong> · 10 impressions · 1 click · 10% CTR/);
+  assert.match(html, /Admin A/);
+  assert.match(html, /Admin B/);
   assert.match(html, /href="\/advertising\/terms"/);
   assert.match(html, /Fund and submit|Activate/);
 });
@@ -124,6 +141,25 @@ test('advertising application requires acknowledgement of the linked Advertising
   assert.match(html, /href="\/advertising\/terms"/);
 });
 
+test('rejected advertiser sees an appeal form and pending appeals replace it with status', async () => {
+  const baseData = {
+    title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
+    advertiser: { _id: 'a1', businessName: 'Example Co', status: 'rejected', rejectionReason: 'More information needed' },
+    campaigns: [], communities: [], advertisingTermsVersion: '2026-10-07',
+    advertisingTermsAccepted: true,
+    totals: { impressions: 0, clicks: 0, ctr: 0, wavesSpent: 0, remainingBudget: 0 }
+  };
+  const appealForm = await render('pages/advertising-dashboard.ejs', { ...baseData, advertiserAppeal: null });
+  assert.match(appealForm, /action="\/advertising\/appeal"/);
+  assert.match(appealForm, /name="message"/);
+
+  const pending = await render('pages/advertising-dashboard.ejs', {
+    ...baseData, advertiserAppeal: { createdAt: new Date() }
+  });
+  assert.match(pending, /appeal is pending admin review/);
+  assert.doesNotMatch(pending, /action="\/advertising\/appeal"/);
+});
+
 test('moderator console exposes advertiser screening and final admin review context', async () => {
   const html = await render('pages/moderator.ejs', {
     title: 'Moderator console', pagePath: '/moderator', noIndex: true,
@@ -133,7 +169,8 @@ test('moderator console exposes advertiser screening and final admin review cont
     pendingAdvertisers: [{
       _id: 'advertiser-1', businessName: 'Example Co', user: { name: 'Asha' },
       website: 'https://example.test', notes: 'Local maker',
-      termsVersion: '2026-10-07', termsAcceptedAt: new Date()
+      termsVersion: '2026-10-07', termsAcceptedAt: new Date(),
+      moderationHistory: [{ status: 'pending', reason: 'Application submitted.', actor: { name: 'Asha' }, createdAt: new Date() }]
     }],
     myOpenReportRecommendations: new Set()
   });
@@ -147,7 +184,8 @@ test('moderator console exposes advertiser screening and final admin review cont
       pendingCampaigns: [{
         _id: 'campaign-policy', title: 'Campaign', description: 'Campaign text',
         totalBudget: 100, targetCommunities: [],
-        advertiser: { businessName: 'Example Co', user: { name: 'Asha' } }
+        advertiser: { businessName: 'Example Co', user: { name: 'Asha' } },
+        moderationHistory: [{ status: 'submitted', reason: 'Budget funded.', actor: { name: 'Asha' }, createdAt: new Date() }]
       }],
       myOpenReportRecommendations: new Set()
     });
@@ -157,12 +195,15 @@ test('moderator console exposes advertiser screening and final admin review cont
     assert.match(html, /No pornography/);
     assert.match(html, /No other inappropriate products or services/);
     assert.match(html, /name="flaggedCategory"/);
+    assert.match(html, /Budget funded/);
   });
   assert.match(html, /Advertiser applications/);
   assert.match(html, /action="\/moderator\/advertisers\/advertiser-1\/review"/);
   assert.match(html, /Clear for admin/);
   assert.match(html, /Flag for admin/);
   assert.match(html, /Advertising Terms/);
+  assert.match(html, /Advertiser review history/);
+  assert.match(html, /Application submitted/);
 });
 
 test('community invite landing renders a join confirmation page', async () => {
@@ -437,6 +478,48 @@ test('community detail renders a quest board with member actions', async () => {
   assert.doesNotMatch(html, /action="\/communities\/c1\/leave"/, 'the owner must retain community ownership');
 });
 
+test('community advertisement card provides a tracked visit and report action', async () => {
+  const html = await render('partials/community-ad.ejs', {
+    community: { _id: 'community-1' },
+    ad: {
+      eventToken: '12345678-1234-4123-8123-123456789abc',
+      campaign: {
+        _id: 'campaign-1', title: 'A useful product', description: 'Learn more about this service.',
+        advertiser: { businessName: 'Example Ltd', website: 'https://example.test' }
+      }
+    }
+  });
+  assert.match(html, /Sponsored/);
+  assert.match(html, /Visit advertiser/);
+  assert.match(html, /\/ads\/campaign-1\/click\?community=community-1&amp;event=/);
+  assert.match(html, /action="\/ads\/campaign-1\/report"/);
+  assert.match(html, /name="reason"/);
+});
+
+test('community detail places ads after the configured feed interval and in the sidebar', async () => {
+  const html = await render('pages/community-detail.ejs', {
+    title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
+    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', description: 'Share ideas', hashtags: [], membersCount: 1, isPrivate: false, owner: { _id: 'u1', name: 'Puneet' }, members: ['u1'], moderators: [], pinnedPosts: [] },
+    posts: [post(1)], members: [], moderatorIds: [], joined: true, requested: false, isOwner: false, locked: false, quests: [],
+    feedAds: [{
+      afterPost: 1, eventToken: '12345678-1234-4123-8123-123456789abc',
+      campaign: { _id: 'campaign-1', title: 'Design tools', description: 'Try these tools.', advertiser: { businessName: 'Example Ltd', website: 'https://example.test' } }
+    }],
+    sidebarAds: [{
+      eventToken: '12345678-1234-4123-8123-123456789def',
+      campaign: { _id: 'campaign-2', title: 'A second sponsor', advertiser: { businessName: 'Other Ltd' } }
+    }]
+  });
+  assert.match(html, /Sponsored/);
+  assert.match(html, /Design tools/);
+  assert.match(html, /A second sponsor/);
+  assert.match(html, /data-community-ad/);
+  assert.match(html, /data-campaign-id="campaign-1"/);
+  assert.match(html, /\/impression/);
+  assert.match(html, /x-csrf-token/);
+  assert.match(html, /Report this ad/);
+});
+
 test('joined community detail renders a leave action and focused community styling', async () => {
   const guidelines = 'Share your journey\nPost your progress';
   const html = await render('pages/community-detail.ejs', {
@@ -585,9 +668,24 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
     users: [], communities: [{
       _id: 'c1', name: 'Sketch Club', owner: null, membersCount: 12,
       isPrivate: false, requireApproval: false, category: 'technology',
-      description: 'Draw together', guidelines: '', bannedWords: []
-    }], posts: [], openReports: [], pendingActions: [],
-    pendingAppeals: [], moderators: [], auditLogs: [],
+      description: 'Draw together', guidelines: '', bannedWords: [],
+      monetizationStatus: 'approved', isMonetized: true,
+      monetizationSettings: { adsEnabled: true, adPlacement: 'all', adFrequency: 2 }
+    }], posts: [], openReports: [{
+      _id: 'report-ad-1', targetType: 'advertisement', target: 'campaign-1',
+      reason: 'Inappropriate content', contextText: 'Advertisement: Example campaign · Community: design-lab',
+      reporter: { name: 'Asha' }, createdAt: new Date('2026-04-20T14:00:00Z')
+    }], pendingActions: [],
+    pendingMonetization: [{
+      _id: 'pending-community', name: 'Pending Space', owner: { name: 'Asha' }, createdAt: new Date(),
+      monetizationApplication: { submittedAt: new Date(), goals: 'Support the community.' },
+      monetizationSettings: {}
+    }],
+    pendingAppeals: [], moderators: [], auditLogs: [{
+      action: 'campaign-rejected', actor: { name: 'Operator', role: 'admin' },
+      targetType: 'campaign', target: 'campaign-1', details: { reason: 'Policy violation' },
+      createdAt: new Date('2026-04-20T13:00:00Z')
+    }],
     maintenanceRuns: [{
       task: 'chats', status: 'success', scheduled: false, triggeredBy: { name: 'Operator' },
       startedAt: new Date('2026-04-20T12:00:00Z'), results: { directMessages: 2 }
@@ -613,6 +711,16 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   assert.match(html, /512 MB \/ 712 MB/);
   assert.match(html, /200 MB remaining across 2 clusters/);
   assert.match(html, /Combined filesystem figures reported by the configured MongoDB URLs/);
+  assert.match(html, /Enable ads after approval/);
+  assert.match(html, /Ads enabled \(uncheck to pause ads\)/);
+  assert.match(html, /Frequency \(posts between ads\)/);
+  assert.match(html, /advertisement · campaign-1/);
+  assert.match(html, /Example campaign/);
+  assert.match(html, /Inappropriate content/);
+  assert.match(html, /data-filter-audit/);
+  assert.match(html, /campaign-rejected/);
+  assert.match(html, /Affected campaign · campaign-1/);
+  assert.match(html, /Policy violation/);
 });
 
 test('admin panel exposes suspend, reinstate, and remove controls for approved campaigns', async () => {
@@ -620,7 +728,13 @@ test('admin panel exposes suspend, reinstate, and remove controls for approved c
   const html = await render('pages/admin.ejs', {
     title: 'Admin console', pagePath: '/admin', noIndex: true,
     users: [], communities: [], posts: [], openReports: [], pendingActions: [],
-    pendingAppeals: [], moderators: [], auditLogs: [], pendingMonetization: [],
+    pendingAppeals: [{
+      _id: 'advertiser-appeal-1', actionType: 'advertiser',
+      advertiser: { businessName: 'Appealing Co' },
+      user: { name: 'Asha', email: 'asha@example.test' },
+      createdAt: new Date(), reasonSnapshot: 'Verification issue',
+      message: 'Please reconsider my application.'
+    }], moderators: [], auditLogs: [], pendingMonetization: [],
     pendingAdvertisers: [], pendingCampaigns: [],
     managedCampaigns: [
       { _id: 'active-1', title: 'Active campaign', status: 'active', advertiser: { businessName: 'Example Co', user: { email: 'ads@example.test' } }, remainingBudget: 90, wavesSpent: 10, targetCommunities: ['c1'] },
@@ -643,6 +757,9 @@ test('admin panel exposes suspend, reinstate, and remove controls for approved c
   assert.match(html, /name="action" value="reinstate"/);
   assert.match(html, /name="action" value="remove"/);
   assert.match(html, /Review pending/);
+  assert.match(html, /Advertiser appeal · Appealing Co/);
+  assert.match(html, /Approve &amp; restore/);
+  assert.match(html, /Deny appeal/);
 });
 
 test('personal recap renders activity totals and a monthly timeline', async () => {

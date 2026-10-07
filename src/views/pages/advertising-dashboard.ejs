@@ -1,5 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% const campaignAnalytics = locals.campaignAnalytics || { byCommunity: [], daily: [] }; %>
 <main class="explore-page admin-wide">
   <%- include('../partials/flash') %>
   <header class="admin-page-header">
@@ -25,9 +26,25 @@
     <h2><%= advertiser.businessName %></h2>
     <p>Advertiser status: <strong><%= advertiser.status %></strong><% if (advertiser.isVerified) { %> · Verified<% } %></p>
     <% if (advertiser.termsAcceptedAt) { %><p>Advertising Terms accepted: version <%= advertiser.termsVersion %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleDateString() %></p><% } %>
+    <details class="post-owner-tools">
+      <summary>Advertiser review history (<%= (advertiser.moderationHistory || []).length %>)</summary>
+      <% if (!(advertiser.moderationHistory || []).length) { %><p>No review history yet.</p><% } %>
+      <% (advertiser.moderationHistory || []).slice().reverse().forEach((event) => { %>
+      <p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || (String(event.actor) === String(advertiser.user) ? 'You' : 'Staff') %><% if (event.reason) { %><br><%= event.reason %><% } %></p>
+      <% }) %>
+    </details>
     <% if (advertiser.status === 'pending') { %><p>Your advertiser application is awaiting admin review.</p><% } %>
     <% if (advertiser.status === 'rejected') { %><p><%= advertiser.rejectionReason || 'Application not approved.' %></p><% } %>
     <% if (advertiser.status === 'suspended') { %><p>Your advertiser account is suspended. Contact support for assistance.</p><% } %>
+    <% if (locals.advertiserAppeal) { %>
+    <p>Your advertiser appeal is pending admin review. Filed <%= new Date(locals.advertiserAppeal.createdAt).toLocaleDateString() %>.</p>
+    <% } else if (['rejected', 'suspended'].includes(advertiser.status)) { %>
+    <form class="admin-edit-form" method="post" action="/advertising/appeal">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label class="full-width">Appeal this decision<textarea name="message" maxlength="1000" rows="4" required placeholder="Explain why the advertiser decision should be reconsidered."></textarea></label>
+      <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Submit appeal</button></div>
+    </form>
+    <% } %>
   </section>
 
   <% if (!advertisingTermsAccepted) { %>
@@ -77,13 +94,33 @@
   <section class="settings-block admin-wide">
     <h2>Your campaigns</h2>
     <% if (!campaigns.length) { %><p>No campaigns yet.</p><% } %>
-    <% campaigns.forEach((campaign) => { %>
+    <% campaigns.forEach((campaign) => {
+      const communityStats = campaignAnalytics.byCommunity.filter((row) => row.campaignId === String(campaign._id));
+      const dailyStats = campaignAnalytics.daily.filter((row) => row.campaignId === String(campaign._id));
+    %>
     <article class="device-row" style="flex-direction:column;align-items:stretch;">
       <div><strong><%= campaign.title %></strong> · <%= campaign.status %> · Funding: <%= campaign.fundingStatus %>
         <p><%= campaign.description || 'No description provided.' %></p>
         <% if (campaign.rejectionReason) { %><p>Review reason: <%= campaign.rejectionReason %></p><% } %>
         <% if (campaign.status === 'suspended') { %><p>This campaign was suspended by an administrator. <%= campaign.suspensionReason || '' %></p><% } %>
         <p><%= Number(campaign.impressions || 0).toLocaleString() %> impressions · <%= Number(campaign.clicks || 0).toLocaleString() %> clicks · <%= Number(campaign.ctr || 0) %>% CTR · <%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves spent · <%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining</p>
+        <details class="post-owner-tools">
+          <summary>Performance by community and date</summary>
+          <p><strong><%= communityStats.length %></strong> communities reached by a recorded impression or click.</p>
+          <h3>By community</h3>
+          <% if (!communityStats.length) { %><p>No community delivery recorded yet.</p><% } %>
+          <% communityStats.forEach((stat) => { %><p><strong><%= stat.communityName %></strong> · <%= stat.impressions.toLocaleString() %> impression<%= stat.impressions === 1 ? '' : 's' %> · <%= stat.clicks.toLocaleString() %> click<%= stat.clicks === 1 ? '' : 's' %> · <%= stat.ctr %>% CTR</p><% }) %>
+          <h3>Daily activity · last 30 days</h3>
+          <% if (!dailyStats.length) { %><p>No daily activity recorded yet.</p><% } %>
+          <% dailyStats.forEach((stat) => { %><p><strong><%= stat.date %></strong> · <%= stat.impressions.toLocaleString() %> impression<%= stat.impressions === 1 ? '' : 's' %> · <%= stat.clicks.toLocaleString() %> click<%= stat.clicks === 1 ? '' : 's' %> · <%= stat.ctr %>% CTR</p><% }) %>
+        </details>
+        <details class="post-owner-tools">
+          <summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
+          <% if (!(campaign.moderationHistory || []).length) { %><p>No review history yet.</p><% } %>
+          <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %>
+          <p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p>
+          <% }) %>
+        </details>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <% if (campaign.status === 'draft') { %>

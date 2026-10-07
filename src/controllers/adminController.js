@@ -123,16 +123,16 @@ exports.admin = async (req, res) => {
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(80).populate('reporter', 'name email').lean(),
     ModerationAction.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('moderator', 'name moderatorId').lean(),
-    Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
+    Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').populate('advertiser', 'businessName status').lean(),
     User.find({ role: 'moderator' }).select('name email moderatorId isVerified createdAt loginLockedUntil').sort({ createdAt: -1 }).lean(),
     AuditLog.find().sort({ createdAt: -1 }).limit(100).populate('actor', 'name email role moderatorId').lean(),
     MaintenanceRun.find().sort({ createdAt: -1 }).limit(30).populate('triggeredBy', 'name').lean(),
     SiteSetting.getSingleton(),
     getMongoStorage(),
     Community.find({ monetizationStatus: 'pending' }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationStatus monetizationSettings createdAt').populate('owner', 'name email').lean(),
-    Advertiser.find({ status: 'pending', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').lean(),
-    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name email' } }).lean(),
-    Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: { path: 'user', select: 'name email' } }).lean()
+    Advertiser.find({ status: 'pending', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').populate('moderationHistory.actor', 'name role').lean(),
+    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean(),
+    Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   await attachActionContext(pendingActions);
@@ -295,19 +295,41 @@ exports.resolveAppeal = async (req, res) => {
     flash(req, 'error', 'That appeal is no longer pending.');
     return res.redirect(backTo);
   }
+  if (appeal.actionType === 'advertiser' && req.roleUser.role !== 'admin') {
+    flash(req, 'error', 'Advertiser appeals can only be decided by an admin.');
+    return res.redirect('/moderator#appeals');
+  }
   const approve = req.body.decision === 'approve';
+  appeal.reviewNote = req.body.note?.trim().slice(0, 500) || '';
   if (approve) {
-    if (appeal.actionType === 'suspension') await User.findByIdAndUpdate(appeal.user, { suspendedUntil: null, suspensionReason: '' });
+    if (appeal.actionType === 'advertiser') {
+      const advertiser = await Advertiser.findOne({ _id: appeal.advertiser, user: appeal.user });
+      if (!advertiser || !['rejected', 'suspended'].includes(advertiser.status)) {
+        flash(req, 'error', 'The advertiser account is no longer eligible for restoration through this appeal.');
+        return res.redirect(backTo);
+      }
+      advertiser.status = 'approved';
+      advertiser.isVerified = true;
+      advertiser.approvedAt = new Date();
+      advertiser.verifiedAt = advertiser.verifiedAt || new Date();
+      advertiser.rejectionReason = '';
+      advertiser.reviewedBy = req.roleUser._id;
+      advertiser.reviewedAt = new Date();
+      advertiser.moderationHistory = [
+        ...(advertiser.moderationHistory || []).slice(-9),
+        { status: 'approved', reason: appeal.reviewNote || 'Advertiser appeal approved.', createdAt: new Date(), actor: req.roleUser._id }
+      ];
+      await advertiser.save();
+    } else if (appeal.actionType === 'suspension') await User.findByIdAndUpdate(appeal.user, { suspendedUntil: null, suspensionReason: '' });
     else if (appeal.actionType === 'posting-restriction') await User.findByIdAndUpdate(appeal.user, { postingRestrictedUntil: null, postingRestrictionReason: '' });
     else if (appeal.actionType === 'warning') await User.findByIdAndUpdate(appeal.user, { $pull: { warnings: { _id: appeal.warningId } } });
   }
   appeal.status = approve ? 'approved' : 'denied';
   appeal.reviewedBy = req.roleUser._id;
   appeal.reviewedAt = new Date();
-  appeal.reviewNote = req.body.note?.trim().slice(0, 500) || '';
   await appeal.save();
-  logEvent(appeal.user, approve ? 'appeal-approved' : 'appeal-denied', appeal.reviewNote);
-  await audit(req, approve ? 'approve-appeal' : 'deny-appeal', 'user', appeal.user, { actionType: appeal.actionType });
+  if (appeal.actionType !== 'advertiser') logEvent(appeal.user, approve ? 'appeal-approved' : 'appeal-denied', appeal.reviewNote);
+  await audit(req, approve ? 'approve-appeal' : 'deny-appeal', appeal.actionType === 'advertiser' ? 'advertiser' : 'user', appeal.actionType === 'advertiser' ? appeal.advertiser : appeal.user, { actionType: appeal.actionType });
   flash(req, 'success', `Appeal ${approve ? 'approved' : 'denied'}.`);
   res.redirect(backTo);
 };
@@ -417,14 +439,20 @@ exports.reviewMonetization = async (req, res) => {
   const note = req.body.note?.trim().slice(0, 500) || '';
 
   if (decision === 'approve') {
+    const adPlacement = String(req.body.adPlacement || 'feed');
+    const adFrequency = Number(req.body.adFrequency || 1);
+    if (!['feed', 'sidebar', 'all'].includes(adPlacement) || !Number.isInteger(adFrequency) || adFrequency < 1 || adFrequency > 10) {
+      flash(req, 'error', 'Choose a valid ad placement and a frequency between 1 and 10 posts.');
+      return res.redirect('/admin#communities');
+    }
     community.monetizationStatus = 'approved';
     community.isMonetized = true;
     community.monetizationApprovedAt = new Date();
     community.monetizationSettings = {
       ...(community.monetizationSettings || {}),
       adsEnabled: req.body.adsEnabled === 'on',
-      adPlacement: req.body.adPlacement || community.monetizationSettings?.adPlacement || 'feed',
-      adFrequency: Number(req.body.adFrequency) || community.monetizationSettings?.adFrequency || 1,
+      adPlacement,
+      adFrequency,
       revenueSharePercent: Number(req.body.revenueSharePercent) || community.monetizationSettings?.revenueSharePercent || 0,
       requiresAdminReview: true
     };
@@ -477,8 +505,36 @@ exports.updateCommunity = async (req, res) => {
   community.isPrivate = req.body.isPrivate === 'on';
   community.requireApproval = req.body.requireApproval === 'on';
   community.bannedWords = (req.body.bannedWords || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean).slice(0, 100);
+  let advertisingSettingsUpdated = false;
+  if (req.body.updateAdvertisingSettings === 'on') {
+    if (community.monetizationStatus !== 'approved' || !community.isMonetized) {
+      flash(req, 'error', 'Advertising settings are available only for actively monetized communities.');
+      return res.redirect('/admin#communities');
+    }
+    const adPlacement = String(req.body.adPlacement || '');
+    const adFrequency = Number(req.body.adFrequency);
+    if (!['feed', 'sidebar', 'all'].includes(adPlacement) || !Number.isInteger(adFrequency) || adFrequency < 1 || adFrequency > 10) {
+      flash(req, 'error', 'Choose a valid ad placement and a frequency between 1 and 10 posts.');
+      return res.redirect('/admin#communities');
+    }
+    community.monetizationSettings = {
+      ...(community.monetizationSettings || {}),
+      adsEnabled: req.body.adsEnabled === 'on',
+      adPlacement,
+      adFrequency
+    };
+    advertisingSettingsUpdated = true;
+  }
   await community.save();
-  await audit(req, 'edit-community', 'community', community._id, { name: community.name });
+  const auditDetails = { name: community.name, advertisingSettingsUpdated };
+  if (advertisingSettingsUpdated) {
+    auditDetails.advertisingSettings = {
+      adsEnabled: community.monetizationSettings.adsEnabled,
+      adPlacement: community.monetizationSettings.adPlacement,
+      adFrequency: community.monetizationSettings.adFrequency
+    };
+  }
+  await audit(req, 'edit-community', 'community', community._id, auditDetails);
   flash(req, 'success', 'Community updated.');
   res.redirect('/admin#communities');
 };
@@ -664,9 +720,9 @@ exports.moderator = async (req, res) => {
       $expr: { $lt: [{ $size: { $ifNull: ['$moderatorReviews', []] } }, reviewThreshold] },
       ...(reportedOnly ? { moderationStatus: 'reported' } : {})
     }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean(),
-    Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
-    Campaign.find({ status: 'submitted', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).lean(),
-    Advertiser.find({ status: 'pending', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name').lean()
+    Appeal.find({ status: 'pending', actionType: { $ne: 'advertiser' } }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
+    Campaign.find({ status: 'submitted', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).populate('moderationHistory.actor', 'name role').lean(),
+    Advertiser.find({ status: 'pending', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name').populate('moderationHistory.actor', 'name role').lean()
   ]);
   const myOpenReportRecommendations = new Set(actions.filter((a) => a.action === 'resolve-report' && a.status === 'pending').map((a) => String(a.target)));
   res.render('pages/moderator', { title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers });

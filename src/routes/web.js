@@ -29,8 +29,12 @@ router.post('/wallet/transfer', requireAuth, requireVerified, interactionLimiter
 router.get('/advertising', requireAuth, requireVerified, advertisingController.dashboard);
 router.post('/advertising/accept-terms', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.acceptTerms);
 router.post('/advertising/apply', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.apply);
+router.post('/advertising/appeal', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.submitAdvertiserAppeal);
 router.post('/advertising/campaigns', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.createCampaign);
 router.post('/advertising/campaigns/:id/action', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.campaignAction);
+router.post('/ads/:id/impression', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.trackCampaignImpression);
+router.get('/ads/:id/click', requireAuth, requireVerified, interactionLimiter, advertisingController.clickCampaign);
+router.post('/ads/:id/report', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.reportCampaign);
 router.get('/recap', requireAuth, requireVerified, controller.activityRecap);
 router.get('/dashboard/feed/more', requireAuth, requireVerified, controller.moreFeedPosts);
 router.get('/media/signed-upload', requireAuth, requireVerified, controller.signedUpload);

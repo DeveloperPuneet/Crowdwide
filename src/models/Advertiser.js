@@ -27,7 +27,7 @@ const advertiserSchema = new mongoose.Schema({
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   moderationHistory: [{
-    status: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended'], required: true },
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended', 'moderator-cleared', 'moderator-flagged'], required: true },
     reason: { type: String, trim: true, maxlength: 500, default: '' },
     createdAt: { type: Date, default: Date.now },
     actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }

@@ -11,6 +11,9 @@
         <% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener"><%= advertiser.website %></a></p><% } %>
         <% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %>
         <p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p>
+        <details><summary>Advertiser review history (<%= (advertiser.moderationHistory || []).length %>)</summary>
+          <% (advertiser.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
+        </details>
       </div>
       <form method="post" action="/moderator/advertisers/<%= advertiser._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -27,6 +30,9 @@
     <% pendingCampaigns.forEach((campaign) => { %>
     <article class="device-row" style="flex-direction:column;align-items:stretch;">
       <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.name || 'member' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · targets: <%= (campaign.targetCommunities || []).length %> communities</p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p></div>
+      <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
+        <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
+      </details>
       <p>Do not clear campaigns promoting adult-only (18+) services, erotic or sexually explicit content, gambling or betting, pornography, or other inappropriate products or services. This is a policy review, not automated content detection.</p>
       <form method="post" action="/moderator/campaigns/<%= campaign._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">

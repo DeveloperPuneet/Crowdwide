@@ -1,13 +1,17 @@
 const Advertiser = require('../models/Advertiser');
 const Campaign = require('../models/Campaign');
 const Community = require('../models/Community');
+const Report = require('../models/Report');
+const Appeal = require('../models/Appeal');
 const logger = require('../services/logger');
 const {
   createCampaign,
   ADVERTISING_TERMS_VERSION,
   registerAdvertiser,
   submitCampaign,
-  updateCampaignStatus
+  updateCampaignStatus,
+  recordCampaignEvent,
+  getCampaignAnalytics
 } = require('../services/advertising');
 
 function flash(req, type, message) {
@@ -19,17 +23,26 @@ async function getOwnedAdvertiser(userId) {
 }
 
 exports.dashboard = async (req, res) => {
-  const advertiser = await getOwnedAdvertiser(req.session.user.id);
-  const [campaigns, communities] = await Promise.all([
+  const advertiser = await Advertiser.findOne({ user: req.session.user.id })
+    .populate('moderationHistory.actor', 'name role');
+  const [campaigns, communities, advertiserAppeal] = await Promise.all([
     advertiser
-      ? Campaign.find({ advertiser: advertiser._id }).sort({ createdAt: -1 }).limit(100).lean()
+      ? Campaign.find({ advertiser: advertiser._id })
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .populate('moderationHistory.actor', 'name role')
+        .lean()
       : [],
     Community.find({ monetizationStatus: 'approved', isMonetized: true, isPrivate: false, 'monetizationSettings.adsEnabled': true })
       .select('name slug')
       .sort({ name: 1 })
       .limit(300)
-      .lean()
+      .lean(),
+    advertiser
+      ? Appeal.findOne({ user: req.session.user.id, advertiser: advertiser._id, actionType: 'advertiser', status: 'pending' }).lean()
+      : null
   ]);
+  const campaignAnalytics = await getCampaignAnalytics(campaigns.map((campaign) => campaign._id));
   const totals = campaigns.reduce((summary, campaign) => {
     summary.impressions += Number(campaign.impressions || 0);
     summary.clicks += Number(campaign.clicks || 0);
@@ -46,10 +59,46 @@ exports.dashboard = async (req, res) => {
     advertiser,
     campaigns,
     communities,
+    campaignAnalytics,
     totals,
     advertisingTermsVersion: ADVERTISING_TERMS_VERSION,
-    advertisingTermsAccepted: advertiser?.termsVersion === ADVERTISING_TERMS_VERSION && Boolean(advertiser.termsAcceptedAt)
+    advertisingTermsAccepted: advertiser?.termsVersion === ADVERTISING_TERMS_VERSION && Boolean(advertiser.termsAcceptedAt),
+    advertiserAppeal
   });
+};
+
+exports.submitAdvertiserAppeal = async (req, res) => {
+  const message = String(req.body.message || '').trim().slice(0, 1000);
+  if (!message) {
+    flash(req, 'error', 'Explain why you are appealing the advertiser decision.');
+    return res.redirect('/advertising');
+  }
+
+  const advertiser = await getOwnedAdvertiser(req.session.user.id);
+  if (!advertiser || !['rejected', 'suspended'].includes(advertiser.status)) {
+    flash(req, 'error', 'Only rejected or suspended advertiser accounts can be appealed.');
+    return res.redirect('/advertising');
+  }
+  try {
+    const lastModeration = [...(advertiser.moderationHistory || [])].reverse()
+      .find((item) => item.status === advertiser.status);
+    await Appeal.create({
+      user: req.session.user.id,
+      advertiser: advertiser._id,
+      actionType: 'advertiser',
+      reasonSnapshot: advertiser.rejectionReason || lastModeration?.reason || '',
+      message
+    });
+    flash(req, 'success', 'Your advertiser appeal has been submitted for admin review.');
+  } catch (error) {
+    if (error?.code === 11000) {
+      flash(req, 'error', 'You already have a pending advertiser appeal.');
+      return res.redirect('/advertising');
+    }
+    logger.error('Advertiser appeal submission failed', error);
+    flash(req, 'error', 'Your advertiser appeal could not be submitted. Please try again.');
+  }
+  return res.redirect('/advertising');
 };
 
 exports.apply = async (req, res) => {
@@ -204,4 +253,67 @@ exports.campaignAction = async (req, res) => {
     flash(req, 'error', error.message || 'The campaign action could not be completed.');
   }
   return res.redirect('/advertising');
+};
+
+exports.trackCampaignImpression = async (req, res) => {
+  try {
+    await recordCampaignEvent({
+      campaignId: req.params.id,
+      communityId: req.body.communityId,
+      viewerId: req.session.user.id,
+      eventType: 'impression',
+      eventToken: req.body.eventToken
+    });
+    return res.status(204).end();
+  } catch (error) {
+    if (error.code === 'ADVERTISEMENT_UNAVAILABLE') return res.status(404).json({ error: error.message });
+    logger.error('Advertisement impression could not be recorded', { campaignId: req.params.id, error });
+    return res.status(503).json({ error: 'The advertisement impression could not be recorded.' });
+  }
+};
+
+exports.clickCampaign = async (req, res) => {
+  try {
+    const result = await recordCampaignEvent({
+      campaignId: req.params.id,
+      communityId: req.query.community,
+      viewerId: req.session.user.id,
+      eventType: 'click',
+      eventToken: req.query.event
+    });
+    if (!result.destinationUrl) return res.status(404).render('pages/not-found', { title: 'Advertisement unavailable' });
+    return res.redirect(result.destinationUrl);
+  } catch (error) {
+    if (error.code === 'ADVERTISEMENT_UNAVAILABLE') {
+      return res.status(404).render('pages/not-found', { title: 'Advertisement unavailable' });
+    }
+    logger.error('Advertisement click could not be recorded', { campaignId: req.params.id, error });
+    return res.status(503).type('text/plain').send('The advertisement link could not be verified. Please try again later.');
+  }
+};
+
+exports.reportCampaign = async (req, res) => {
+  const reason = String(req.body.reason || '').trim().slice(0, 500);
+  const communityId = String(req.body.communityId || '');
+  const [campaign, community] = await Promise.all([
+    Campaign.findById(req.params.id).select('title targetCommunities').lean(),
+    Community.findById(communityId).select('slug').lean()
+  ]);
+  if (!campaign || !community || !reason
+    || !(campaign.targetCommunities || []).some((id) => String(id) === communityId)) {
+    flash(req, 'error', 'That advertisement could not be reported.');
+    return res.redirect(community ? `/communities/${community.slug}` : '/explore');
+  }
+  try {
+    await Report.updateOne(
+      { reporter: req.session.user.id, targetType: 'advertisement', target: campaign._id },
+      { $setOnInsert: { reporter: req.session.user.id, targetType: 'advertisement', target: campaign._id, reason, contextText: `Advertisement: ${campaign.title} · Community: ${community.slug}` } },
+      { upsert: true }
+    );
+    flash(req, 'success', 'The advertisement was reported to the moderation team.');
+  } catch (error) {
+    logger.error('Advertisement report could not be saved', error);
+    flash(req, 'error', 'The report could not be submitted. Please try again.');
+  }
+  return res.redirect(`/communities/${community.slug}`);
 };

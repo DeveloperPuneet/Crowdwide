@@ -63,7 +63,7 @@
 		<div class="empty-feed"><h2>This community is just beginning.</h2><p>Be the first person to start the conversation.</p></div>
 		<% } %>
 		<% if (!locked) { %>
-		<% posts.forEach((post) => { %>
+		<% posts.forEach((post, postIndex) => { %>
 		<a class="post-open-link" href="/posts/<%= post._id %>" style="display:block;text-decoration:none;">
 		<article class="post-card">
 			<div class="post-meta">
@@ -76,11 +76,17 @@
 			<div class="post-stat-row" aria-hidden="true"><span><%- icon('heart', { size: 14 }) %><%= post.likes?.length || 0 %></span><span><%- icon('message-circle', { size: 14 }) %><%= post.commentsCount || 0 %></span><span><%- icon('send', { size: 14 }) %><%= post.sharesCount || 0 %></span><span><%- icon('eye', { size: 14 }) %><%= post.viewsCount || 0 %></span></div>
 		</article>
 		</a>
+		<% (locals.feedAds || []).filter((ad) => ad.afterPost === postIndex + 1).forEach((ad) => { %>
+		<%- include('../partials/community-ad', { ad, community }) %>
+		<% }) %>
 		<% }) %>
 		<% } %>
 	</section>
 </div>
 <aside class="discover-column">
+	<% (locals.sidebarAds || []).forEach((ad) => { %>
+	<%- include('../partials/community-ad', { ad, community }) %>
+	<% }) %>
 	<% if (community.guidelines) { %>
 	<section class="discover-panel">
 		<div class="panel-heading"><h2>About & guidelines</h2></div>
@@ -99,5 +105,30 @@
 	</section>
 </aside>
 </main>
+<script nonce="<%= locals.cspNonce || '' %>">
+document.addEventListener('DOMContentLoaded', function () {
+  var cards = document.querySelectorAll('[data-community-ad]');
+  if (!('IntersectionObserver' in window)) return;
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      var card = entry.target;
+      fetch('/ads/' + encodeURIComponent(card.dataset.campaignId) + '/impression', {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': card.dataset.csrf },
+        body: JSON.stringify({ communityId: card.dataset.communityId, eventToken: card.dataset.eventToken })
+      }).then(function (response) {
+        if (!response.ok) console.error('Advertisement impression tracking failed:', response.status);
+      }).catch(function (error) {
+        console.error('Advertisement impression tracking failed:', error);
+      });
+    });
+  }, { threshold: 0.5 });
+  cards.forEach(function (card) { observer.observe(card); });
+});
+</script>
 <%- include('../partials/app-footer') %>
 <%- include('../partials/foot') %>

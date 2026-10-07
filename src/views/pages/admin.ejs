@@ -178,7 +178,11 @@
       <h3>Advertiser applications</h3>
       <% pendingAdvertiserList.forEach((advertiser) => { %>
       <div class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'unknown' %> · <%= advertiser.user?.email || '' %></span><p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleString() %><% } %></p><% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener"><%= advertiser.website %></a></p><% } %><% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %><p>Moderator review: <strong><%= advertiser.moderatorReview?.status || 'pending' %></strong> · <%= advertiser.moderatorReview?.reason || '' %></p></div>
+        <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'unknown' %> · <%= advertiser.user?.email || '' %></span><p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleString() %><% } %></p><% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener"><%= advertiser.website %></a></p><% } %><% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %><p>Moderator review: <strong><%= advertiser.moderatorReview?.status || 'pending' %></strong> · <%= advertiser.moderatorReview?.reason || '' %></p>
+          <details><summary>Advertiser review history (<%= (advertiser.moderationHistory || []).length %>)</summary>
+            <% (advertiser.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
+          </details>
+        </div>
         <form method="post" action="/admin/advertisers/<%= advertiser._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="text" name="reason" maxlength="500" placeholder="Reason (required for reject)" style="flex:1;min-width:180px;">
@@ -194,7 +198,11 @@
       <h3>Campaign review queue</h3>
       <% pendingCampaignList.forEach((campaign) => { %>
       <div class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · Targets: <%= (campaign.targetCommunities || []).length %> communities</p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleString() %><% } %></p><p>Moderator review: <strong><%= campaign.moderatorReview?.status || 'pending' %></strong> · <%= campaign.moderatorReview?.reason || '' %><% if (campaign.moderatorReview?.flaggedCategory) { %> · category: <%= campaign.moderatorReview.flaggedCategory %><% } %><% if (campaign.moderatorReview?.policyChecks?.length) { %> · checks confirmed: <%= campaign.moderatorReview.policyChecks.join(', ') %><% } %></p></div>
+        <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · Targets: <%= (campaign.targetCommunities || []).length %> communities</p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleString() %><% } %></p><p>Moderator review: <strong><%= campaign.moderatorReview?.status || 'pending' %></strong> · <%= campaign.moderatorReview?.reason || '' %><% if (campaign.moderatorReview?.flaggedCategory) { %> · category: <%= campaign.moderatorReview.flaggedCategory %><% } %><% if (campaign.moderatorReview?.policyChecks?.length) { %> · checks confirmed: <%= campaign.moderatorReview.policyChecks.join(', ') %><% } %></p>
+          <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
+            <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
+          </details>
+        </div>
         <form method="post" action="/admin/campaigns/<%= campaign._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="text" name="reason" maxlength="500" placeholder="Reason (required for reject)" style="flex:1;min-width:180px;">
@@ -217,6 +225,9 @@
           <p><%= campaign.description || 'No description provided.' %></p>
           <p><%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining · <%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves spent · <%= (campaign.targetCommunities || []).length %> target communities</p>
           <% if (campaign.suspensionReason) { %><p>Suspension reason: <%= campaign.suspensionReason %></p><% } %>
+          <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
+            <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
+          </details>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <% if (campaign.status === 'suspended') { %>
@@ -255,6 +266,9 @@
         <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="number" name="revenueSharePercent" min="0" max="100" value="<%= community.monetizationSettings?.revenueSharePercent || 0 %>" placeholder="Revenue share" style="max-width:120px;">
+          <label class="checkbox-field"><input type="checkbox" name="adsEnabled"> Enable ads after approval</label>
+          <label>Ad placement<select name="adPlacement"><option value="feed">Feed</option><option value="sidebar">Sidebar</option><option value="all">Feed and sidebar</option></select></label>
+          <label>Show after every<input type="number" name="adFrequency" min="1" max="10" step="1" value="1" style="max-width:90px;"> posts</label>
           <input type="text" name="note" placeholder="Decision note (optional)" style="flex:1;min-width:140px;">
           <button class="button button-small button-primary" name="decision" value="approve" type="submit">Approve</button>
           <button class="button button-small button-ghost" name="decision" value="reject" type="submit">Reject</button>
@@ -290,6 +304,19 @@
               <label class="full-width">Banned words (comma separated)<input type="text" name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>"></label>
               <label class="checkbox-field"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private</label>
               <label class="checkbox-field"><input type="checkbox" name="requireApproval" <%= community.requireApproval ? 'checked' : '' %>> Require post approval</label>
+              <% if (community.monetizationStatus === 'approved' && community.isMonetized) { %>
+              <fieldset class="full-width">
+                <legend>Community advertising</legend>
+                <input type="hidden" name="updateAdvertisingSettings" value="on">
+                <label class="checkbox-field"><input type="checkbox" name="adsEnabled" <%= community.monetizationSettings?.adsEnabled ? 'checked' : '' %>> Ads enabled (uncheck to pause ads)</label>
+                <label>Ad placement<select name="adPlacement">
+                  <option value="feed" <%= (community.monetizationSettings?.adPlacement || 'feed') === 'feed' ? 'selected' : '' %>>Feed</option>
+                  <option value="sidebar" <%= community.monetizationSettings?.adPlacement === 'sidebar' ? 'selected' : '' %>>Sidebar</option>
+                  <option value="all" <%= community.monetizationSettings?.adPlacement === 'all' ? 'selected' : '' %>>Feed and sidebar</option>
+                </select></label>
+                <label>Frequency (posts between ads)<input type="number" name="adFrequency" min="1" max="10" step="1" value="<%= community.monetizationSettings?.adFrequency || 1 %>"></label>
+              </fieldset>
+              <% } %>
               <div class="admin-edit-form-actions">
                 <button class="button button-small button-primary" type="submit">Save</button>
               </div>
@@ -334,15 +361,15 @@
     <% pendingAppeals.forEach((appeal) => { %>
     <div class="device-row">
       <div>
-        <strong><%= appeal.actionType %> · <%= appeal.user?.name || 'member' %> (<%= appeal.user?.email || 'unknown' %>)</strong>
+        <strong><%= appeal.actionType === 'advertiser' ? `Advertiser appeal · ${appeal.advertiser?.businessName || 'unknown business'}` : `${appeal.actionType} · ${appeal.user?.name || 'member'} (${appeal.user?.email || 'unknown'})` %></strong>
         <span>Filed <%= new Date(appeal.createdAt).toLocaleString() %><% if (appeal.reasonSnapshot) { %> · original reason: <%= appeal.reasonSnapshot %><% } %></span>
         <p><%= appeal.message %></p>
       </div>
       <form method="post" action="/admin/appeals/<%= appeal._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:var(--tx-mid);border-radius:7px;padding:7px 9px;font-size:11px;">
-        <button name="decision" value="approve" class="button button-small button-primary">Approve &amp; lift</button>
-        <button name="decision" value="deny" class="button button-small button-ghost">Deny</button>
+        <button name="decision" value="approve" class="button button-small button-primary"><%= appeal.actionType === 'advertiser' ? 'Approve & restore' : 'Approve & lift' %></button>
+        <button name="decision" value="deny" class="button button-small button-ghost"><%= appeal.actionType === 'advertiser' ? 'Deny appeal' : 'Deny' %></button>
       </form>
     </div>
     <% }) %>
@@ -450,8 +477,18 @@
 
   <!-- AUDIT LOG -->
   <section class="admin-panel" id="admin-panel-audit" role="tabpanel" aria-labelledby="admin-tab-audit" data-panel="audit">
-    <h2>Recent audit activity</h2>
-    <% auditLogs.forEach((entry) => { %><div class="device-row"><div><strong><%= entry.action %></strong><span><%= entry.actor?.name || 'system' %> · <%= new Date(entry.createdAt).toLocaleString() %></span></div></div><% }) %>
+    <div class="admin-section-head"><div><h2>Recent audit activity</h2><p>Moderation and administrative actions, including their reasons and affected records.</p></div><input class="admin-search" type="search" placeholder="Filter audit activity" aria-label="Filter audit activity" data-filter-audit></div>
+    <% if (!auditLogs.length) { %><p>No audit activity has been recorded yet.</p><% } %>
+    <% auditLogs.forEach((entry) => { const auditText = [entry.action, entry.actor?.name, entry.actor?.email, entry.targetType, entry.target, JSON.stringify(entry.details || {})].filter(Boolean).join(' ').toLowerCase(); %>
+      <div class="device-row" data-audit-row data-audit-text="<%= auditText %>">
+        <div>
+          <strong><%= entry.action %></strong>
+          <span><%= entry.actor?.name || 'system' %><% if (entry.actor?.role) { %> · <%= entry.actor.role %><% } %> · <%= new Date(entry.createdAt).toLocaleString() %></span>
+          <% if (entry.targetType || entry.target) { %><small>Affected <%= entry.targetType || 'record' %><% if (entry.target) { %> · <%= entry.target %><% } %></small><% } %>
+          <% if (entry.details && Object.keys(entry.details).length) { %><pre><%= JSON.stringify(entry.details, null, 2) %></pre><% } %>
+        </div>
+      </div>
+    <% }) %>
   </section>
 </main>
 <script>
@@ -462,6 +499,14 @@ document.addEventListener('input', function (e) {
   var q = input.value.trim().toLowerCase();
   table.querySelectorAll('tbody tr[data-row-text]').forEach(function (row) {
     row.style.display = row.dataset.rowText.indexOf(q) === -1 ? 'none' : '';
+  });
+});
+document.addEventListener('input', function (e) {
+  var input = e.target.closest('[data-filter-audit]');
+  if (!input) return;
+  var q = input.value.trim().toLowerCase();
+  document.querySelectorAll('[data-audit-row]').forEach(function (row) {
+    row.style.display = row.dataset.auditText.indexOf(q) === -1 ? 'none' : '';
   });
 });
 </script>

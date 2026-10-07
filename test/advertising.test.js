@@ -2,15 +2,23 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const Advertiser = require('../src/models/Advertiser');
+const Appeal = require('../src/models/Appeal');
+const AuditLog = require('../src/models/AuditLog');
 const Campaign = require('../src/models/Campaign');
+const CampaignEvent = require('../src/models/CampaignEvent');
+const Community = require('../src/models/Community');
+const Report = require('../src/models/Report');
 const User = require('../src/models/User');
 const WavesLedgerEntry = require('../src/models/WavesLedgerEntry');
 const {
   calculateCtr,
   createCampaign,
+  getCampaignAnalytics,
+  getCommunityCampaigns,
   fundCampaign,
   refundCampaignBudget,
   recordCampaignPerformance,
+  recordCampaignEvent,
   registerAdvertiser,
   reviewAdvertiserAsModerator,
   reviewCampaignAsModerator,
@@ -19,6 +27,122 @@ const {
   updateAdvertiserStatus,
   updateCampaignStatus
 } = require('../src/services/advertising');
+const advertisingController = require('../src/controllers/advertisingController');
+const adminController = require('../src/controllers/adminController');
+
+test('advertiser can appeal a rejected account once and the decision reason is preserved', async (t) => {
+  const advertiser = {
+    _id: 'advertiser-appeal',
+    status: 'rejected',
+    rejectionReason: 'Business details need verification.',
+    moderationHistory: [{ status: 'rejected', reason: 'Business details need verification.' }]
+  };
+  const created = [];
+  t.mock.method(Advertiser, 'findOne', async () => advertiser);
+  t.mock.method(Appeal, 'create', async (data) => {
+    created.push(data);
+    return data;
+  });
+  const req = {
+    session: { user: { id: 'user-appeal' } },
+    body: { message: 'Please reconsider; I provided the requested business details.' }
+  };
+  const res = { redirect(path) { this.path = path; } };
+
+  await advertisingController.submitAdvertiserAppeal(req, res);
+  assert.equal(res.path, '/advertising');
+  assert.equal(created.length, 1);
+  assert.equal(created[0].user, 'user-appeal');
+  assert.equal(created[0].advertiser, 'advertiser-appeal');
+  assert.equal(created[0].actionType, 'advertiser');
+  assert.equal(created[0].reasonSnapshot, 'Business details need verification.');
+  assert.equal(created[0].message, req.body.message);
+  assert.equal(req.session.flash.type, 'success');
+});
+
+test('advertiser appeal form rejects accounts that are neither rejected nor suspended', async (t) => {
+  t.mock.method(Advertiser, 'findOne', async () => ({ _id: 'a1', status: 'approved' }));
+  const req = {
+    session: { user: { id: 'user-appeal' } },
+    body: { message: 'I want to appeal.' }
+  };
+  const res = { redirect(path) { this.path = path; } };
+
+  await advertisingController.submitAdvertiserAppeal(req, res);
+  assert.equal(res.path, '/advertising');
+  assert.equal(req.session.flash.type, 'error');
+});
+
+test('duplicate pending advertiser appeal is reported without creating another record', async (t) => {
+  const advertiser = { _id: 'advertiser-appeal', status: 'suspended', moderationHistory: [] };
+  t.mock.method(Advertiser, 'findOne', async () => advertiser);
+  t.mock.method(Appeal, 'create', async () => {
+    const error = new Error('Duplicate advertiser appeal.');
+    error.code = 11000;
+    throw error;
+  });
+  const req = {
+    session: { user: { id: 'user-appeal' } },
+    body: { message: 'Please review the suspension.' }
+  };
+  const res = { redirect(path) { this.path = path; } };
+
+  await advertisingController.submitAdvertiserAppeal(req, res);
+  assert.equal(res.path, '/advertising');
+  assert.equal(req.session.flash.type, 'error');
+  assert.match(req.session.flash.message, /already have a pending/i);
+});
+
+test('admin approval of advertiser appeal restores the account and records appeal audit history', async (t) => {
+  const appeal = {
+    _id: 'appeal-advertiser-1',
+    user: 'user-appeal',
+    advertiser: 'advertiser-appeal',
+    actionType: 'advertiser',
+    status: 'pending',
+    reasonSnapshot: 'Business verification issue.',
+    message: 'Verification has now been supplied.',
+    async save() {
+      return this;
+    }
+  };
+  const advertiser = {
+    _id: 'advertiser-appeal',
+    user: 'user-appeal',
+    status: 'suspended',
+    isVerified: true,
+    moderationHistory: [{ status: 'suspended', reason: 'Business verification issue.' }],
+    async save() {
+      return this;
+    }
+  };
+  const audits = [];
+  t.mock.method(Appeal, 'findById', async () => appeal);
+  t.mock.method(Advertiser, 'findOne', async () => advertiser);
+  t.mock.method(AuditLog, 'create', async (data) => {
+    audits.push(data);
+    return data;
+  });
+  const req = {
+    params: { id: appeal._id },
+    body: { decision: 'approve', note: 'Documents verified.' },
+    roleUser: { _id: 'admin-1', role: 'admin' },
+    session: { flash: null },
+    ip: '127.0.0.1',
+    get() { return 'test-agent'; }
+  };
+  const res = { redirect(path) { this.path = path; } };
+
+  await adminController.resolveAppeal(req, res);
+  assert.equal(res.path, '/admin#appeals');
+  assert.equal(appeal.status, 'approved');
+  assert.equal(appeal.reviewNote, 'Documents verified.');
+  assert.equal(advertiser.status, 'approved');
+  assert.equal(advertiser.rejectionReason, '');
+  assert.equal(advertiser.moderationHistory.at(-1).reason, 'Documents verified.');
+  assert.equal(audits[0].action, 'approve-appeal');
+  assert.equal(audits[0].targetType, 'advertiser');
+});
 
 test('registerAdvertiser creates an advertiser profile for a user', async (t) => {
   const originalFindOneAndUpdate = Advertiser.findOneAndUpdate;
@@ -261,6 +385,196 @@ test('recordCampaignPerformance calculates CTR and preserves totals', async (t) 
   assert.equal(updated.clicks, 15);
   assert.equal(updated.ctr, 7.5);
   assert.equal(calculateCtr({ impressions: 200, clicks: 15 }), 7.5);
+});
+
+test('community ad delivery only returns live funded campaigns for eligible public communities', async (t) => {
+  const community = {
+    _id: 'community-1', isPrivate: false, isMonetized: true, monetizationStatus: 'approved',
+    monetizationSettings: { adsEnabled: true, adPlacement: 'feed' }
+  };
+  const campaign = { _id: 'campaign-1', advertiser: { status: 'approved' } };
+  const query = {
+    sort() { return this; },
+    limit(limit) { assert.equal(limit, 30); return this; },
+    populate(path, fields) { assert.equal(path, 'advertiser'); assert.match(fields, /website/); return this; },
+    lean: async () => [campaign]
+  };
+  t.mock.method(Community, 'findById', () => ({ lean: async () => community }));
+  t.mock.method(Campaign, 'find', (filter) => {
+    assert.equal(filter.status, 'active');
+    assert.equal(filter.fundingStatus, 'funded');
+    assert.equal(filter.targetCommunities, community._id);
+    return query;
+  });
+
+  assert.deepEqual(await getCommunityCampaigns(community._id), [campaign]);
+});
+
+test('campaign analytics aggregate delivery by community and date', async (t) => {
+  const communityRows = [{
+    _id: { campaign: 'campaign-1', community: 'community-1' }, impressions: 10, clicks: 2
+  }];
+  const dailyRows = [{
+    _id: { campaign: 'campaign-1', date: '2026-10-06' }, impressions: 4, clicks: 1
+  }];
+  let aggregateCall = 0;
+  t.mock.method(CampaignEvent, 'aggregate', async () => aggregateCall++ === 0 ? communityRows : dailyRows);
+  t.mock.method(Community, 'find', () => ({
+    select() { return this; },
+    lean: async () => [{ _id: 'community-1', name: 'Design Lab' }]
+  }));
+
+  const analytics = await getCampaignAnalytics(['campaign-1'], new Date('2026-10-07T00:00:00Z'));
+
+  assert.deepEqual(analytics.byCommunity, [{
+    campaignId: 'campaign-1', communityName: 'Design Lab', impressions: 10, clicks: 2, ctr: 20
+  }]);
+  assert.deepEqual(analytics.daily, [{
+    campaignId: 'campaign-1', date: '2026-10-06', impressions: 4, clicks: 1, ctr: 25
+  }]);
+});
+
+test('campaign impression tracking is idempotent and atomically updates aggregate counters', async (t) => {
+  const community = {
+    _id: 'community-1', isPrivate: false, isMonetized: true, monetizationStatus: 'approved',
+    monetizationSettings: { adsEnabled: true, adPlacement: 'feed' }
+  };
+  const campaign = {
+    _id: 'campaign-1', status: 'active', fundingStatus: 'funded', remainingBudget: 50,
+    targetCommunities: ['community-1'], advertiser: { status: 'approved', website: 'https://example.test' }
+  };
+  const updateCalls = [];
+  let duplicateEvent = false;
+  t.mock.method(Community, 'findById', () => ({ lean: async () => community }));
+  t.mock.method(Campaign, 'findById', () => ({
+    populate() { return this; },
+    lean: async () => campaign
+  }));
+  t.mock.method(CampaignEvent, 'create', async () => {
+    if (duplicateEvent) {
+      const error = new Error('duplicate event');
+      error.code = 11000;
+      throw error;
+    }
+    return { _id: 'event-1' };
+  });
+  t.mock.method(Campaign, 'findOneAndUpdate', async (...args) => {
+    updateCalls.push(args);
+    return { _id: 'campaign-1' };
+  });
+
+  const result = await recordCampaignEvent({
+    campaignId: 'campaign-1',
+    communityId: 'community-1',
+    viewerId: 'viewer-1',
+    eventType: 'impression',
+    eventToken: '12345678-1234-4123-8123-123456789abc'
+  });
+
+  assert.equal(result.recorded, true);
+  assert.equal(updateCalls.length, 1);
+  assert.equal(updateCalls[0][1][0].$set.impressions.$add[1], 1);
+  assert.equal(updateCalls[0][1][0].$set.clicks.$add[1], 0);
+
+  duplicateEvent = true;
+  const duplicate = await recordCampaignEvent({
+    campaignId: 'campaign-1',
+    communityId: 'community-1',
+    viewerId: 'viewer-1',
+    eventType: 'impression',
+    eventToken: '12345678-1234-4123-8123-123456789abc'
+  });
+  assert.equal(duplicate.recorded, false);
+  assert.equal(updateCalls.length, 1);
+});
+
+test('campaign clicks reject non-HTTP destinations instead of redirecting to arbitrary schemes', async (t) => {
+  const community = {
+    _id: 'community-1', isPrivate: false, isMonetized: true, monetizationStatus: 'approved',
+    monetizationSettings: { adsEnabled: true, adPlacement: 'feed' }
+  };
+  const campaign = {
+    _id: 'campaign-1', status: 'active', fundingStatus: 'funded', remainingBudget: 50,
+    targetCommunities: ['community-1'], advertiser: { status: 'approved', website: 'javascript:alert(1)' }
+  };
+  let eventRecorded = false;
+  t.mock.method(Community, 'findById', () => ({ lean: async () => community }));
+  t.mock.method(Campaign, 'findById', () => ({
+    populate() { return this; },
+    lean: async () => campaign
+  }));
+  t.mock.method(CampaignEvent, 'create', async () => { eventRecorded = true; });
+
+  await assert.rejects(recordCampaignEvent({
+    campaignId: 'campaign-1',
+    communityId: 'community-1',
+    viewerId: 'viewer-1',
+    eventType: 'click',
+    eventToken: '12345678-1234-4123-8123-123456789abc'
+  }), /valid destination/);
+  assert.equal(eventRecorded, false);
+});
+
+test('member ad reports enter the existing moderation queue with ad and community context', async (t) => {
+  let report;
+  t.mock.method(Campaign, 'findById', () => ({
+    select() { return this; },
+    lean: async () => ({ _id: 'campaign-1', title: 'Example campaign', targetCommunities: ['community-1'] })
+  }));
+  t.mock.method(Community, 'findById', () => ({
+    select() { return this; },
+    lean: async () => ({ slug: 'design-lab' })
+  }));
+  t.mock.method(Report, 'updateOne', async (filter, update) => {
+    report = { filter, data: update.$setOnInsert };
+  });
+
+  const req = {
+    params: { id: 'campaign-1' },
+    body: { communityId: 'community-1', reason: 'Inappropriate content' },
+    session: { user: { id: 'viewer-1' } }
+  };
+  const res = { redirect(path) { this.path = path; } };
+  await advertisingController.reportCampaign(req, res);
+
+  assert.equal(res.path, '/communities/design-lab');
+  assert.equal(report.filter.targetType, 'advertisement');
+  assert.equal(report.data.reason, 'Inappropriate content');
+  assert.match(report.data.contextText, /Example campaign.*design-lab/);
+  assert.equal(req.session.flash.type, 'success');
+});
+
+test('admin can configure or temporarily disable ads on an approved community', async (t) => {
+  const community = {
+    _id: 'community-1',
+    monetizationStatus: 'approved',
+    isMonetized: true,
+    monetizationSettings: { adsEnabled: true, adPlacement: 'feed', adFrequency: 1 },
+    async save() { this.saved = true; }
+  };
+  let auditEntry;
+  t.mock.method(Community, 'findById', async () => community);
+  t.mock.method(AuditLog, 'create', async (entry) => { auditEntry = entry; });
+  const req = {
+    params: { id: 'community-1' },
+    body: { updateAdvertisingSettings: 'on', adPlacement: 'sidebar', adFrequency: '3' },
+    roleUser: { _id: 'admin-1' },
+    ip: '127.0.0.1',
+    get: () => 'test-agent',
+    session: {}
+  };
+  const res = { redirect(path) { this.path = path; } };
+
+  await adminController.updateCommunity(req, res);
+
+  assert.equal(community.monetizationSettings.adsEnabled, false);
+  assert.equal(community.monetizationSettings.adPlacement, 'sidebar');
+  assert.equal(community.monetizationSettings.adFrequency, 3);
+  assert.equal(community.saved, true);
+  assert.equal(auditEntry.action, 'edit-community');
+  assert.deepEqual(auditEntry.details.advertisingSettings, {
+    adsEnabled: false, adPlacement: 'sidebar', adFrequency: 3
+  });
 });
 
 test('updateCampaignStatus writes moderation changes and rejection reason', async (t) => {
