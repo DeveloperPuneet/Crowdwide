@@ -12,6 +12,7 @@ const {
   refundCampaignBudget,
   recordCampaignPerformance,
   registerAdvertiser,
+  reviewCampaignAsModerator,
   submitCampaign,
   spendCampaignBudget,
   updateAdvertiserStatus,
@@ -260,6 +261,7 @@ test('updateCampaignStatus writes moderation changes and rejection reason', asyn
   const campaign = {
     _id: 'campaign-2',
     status: 'submitted',
+    moderatorReview: { status: 'flagged', reason: 'Policy concern' },
     moderationHistory: [],
     rejectionReason: '',
     async save() {
@@ -280,6 +282,34 @@ test('updateCampaignStatus writes moderation changes and rejection reason', asyn
   assert.equal(updated.rejectionReason, 'Not compliant');
   assert.equal(updated.moderationHistory.length, 1);
   assert.equal(updated.moderationHistory[0].actor, 'admin-9');
+});
+
+test('moderator campaign review records a clearance or flag before final admin action', async (t) => {
+  const campaign = {
+    _id: 'campaign-moderator-review',
+    status: 'submitted',
+    moderatorReview: { status: 'pending' },
+    async save() {
+      return this;
+    }
+  };
+  t.mock.method(Campaign, 'findById', async () => campaign);
+
+  const reviewed = await reviewCampaignAsModerator({
+    campaignId: campaign._id,
+    decision: 'cleared',
+    reason: 'Campaign copy and targeting reviewed.',
+    moderatorId: 'moderator-1'
+  });
+  assert.equal(reviewed.moderatorReview.status, 'cleared');
+  assert.equal(reviewed.moderatorReview.reviewedBy, 'moderator-1');
+  assert.ok(reviewed.moderatorReview.reviewedAt instanceof Date);
+  await assert.rejects(() => reviewCampaignAsModerator({
+    campaignId: campaign._id,
+    decision: 'flagged',
+    reason: 'Second review attempt.',
+    moderatorId: 'moderator-2'
+  }), /already received a moderator review/i);
 });
 
 test('updateAdvertiserStatus records admin approval and verification history', async (t) => {
@@ -312,6 +342,7 @@ test('submitted campaign cannot be rejected without a reason or activated before
     status: 'submitted',
     isWavesFunded: true,
     fundingStatus: 'funded',
+    moderatorReview: { status: 'pending' },
     moderationHistory: [],
     async save() {
       return this;
@@ -327,4 +358,26 @@ test('submitted campaign cannot be rejected without a reason or activated before
     campaignId: campaign._id,
     status: 'active'
   }), /only be approved or rejected/i);
+  await assert.rejects(() => updateCampaignStatus({
+    campaignId: campaign._id,
+    status: 'approved'
+  }), /rejection reason is required|moderation must be completed/i);
+});
+
+test('admin cannot approve a flagged campaign after moderator review', async (t) => {
+  const campaign = {
+    _id: 'campaign-flagged',
+    status: 'submitted',
+    moderatorReview: { status: 'flagged', reason: 'Prohibited content concern.' },
+    async save() {
+      return this;
+    }
+  };
+  t.mock.method(Campaign, 'findById', async () => campaign);
+
+  await assert.rejects(() => updateCampaignStatus({
+    campaignId: campaign._id,
+    status: 'approved',
+    actorId: 'admin-1'
+  }), /approval requires a moderator review that clears/i);
 });

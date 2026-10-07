@@ -193,11 +193,11 @@
       <h3>Campaign review queue</h3>
       <% pendingCampaignList.forEach((campaign) => { %>
       <div class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · Targets: <%= (campaign.targetCommunities || []).length %> communities</p></div>
+        <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · Targets: <%= (campaign.targetCommunities || []).length %> communities</p><p>Moderator review: <strong><%= campaign.moderatorReview?.status || 'pending' %></strong> · <%= campaign.moderatorReview?.reason || '' %></p></div>
         <form method="post" action="/admin/campaigns/<%= campaign._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="text" name="reason" maxlength="500" placeholder="Reason (required for reject)" style="flex:1;min-width:180px;">
-          <button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve campaign</button>
+          <% if (campaign.moderatorReview?.status === 'cleared') { %><button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve campaign</button><% } %>
           <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject and refund</button>
         </form>
       </div>

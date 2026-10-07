@@ -30,6 +30,12 @@ const campaignSchema = new mongoose.Schema({
   notes: { type: String, trim: true, maxlength: 2000, default: '' },
   reviewedAt: Date,
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  moderatorReview: {
+    status: { type: String, enum: ['pending', 'cleared', 'flagged'], default: 'pending' },
+    reason: { type: String, trim: true, maxlength: 500, default: '' },
+    reviewedAt: Date,
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  },
   approvedAt: Date,
   pausedAt: Date,
   cancelledAt: Date,

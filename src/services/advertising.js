@@ -183,6 +183,7 @@ async function fundCampaign({ campaignId, actorId = null }) {
         campaign.fundingStatus = 'funded';
         campaign.remainingBudget = amount;
         campaign.status = 'submitted';
+        campaign.moderatorReview = { status: 'pending', reason: '', reviewedAt: null, reviewedBy: null };
         await campaign.save();
         return campaign;
       }
@@ -212,10 +213,33 @@ async function fundCampaign({ campaignId, actorId = null }) {
   campaign.fundingStatus = 'funded';
   campaign.remainingBudget = amount;
   campaign.status = campaign.status === 'draft' ? 'submitted' : campaign.status;
+  campaign.moderatorReview = { status: 'pending', reason: '', reviewedAt: null, reviewedBy: null };
   campaign.moderationHistory = [
     ...(campaign.moderationHistory || []).slice(-9),
     { status: campaign.status, reason: 'Campaign budget funded with Waves.', createdAt: new Date(), actor: actorId || advertiser.user }
   ];
+  await campaign.save();
+  return campaign;
+}
+
+async function reviewCampaignAsModerator({ campaignId, decision, reason = '', moderatorId }) {
+  if (!campaignId) throw new Error('Campaign ID is required.');
+  if (!moderatorId) throw new Error('Moderator ID is required.');
+
+  const campaign = await Campaign.findById(campaignId);
+  if (!campaign) throw new Error('Campaign not found.');
+  if (campaign.status !== 'submitted') throw new Error('Only submitted campaigns can be reviewed.');
+  if (campaign.moderatorReview?.status !== 'pending') throw new Error('This campaign has already received a moderator review.');
+  if (!['cleared', 'flagged'].includes(decision)) throw new Error('Choose clear or flag for campaign review.');
+
+  const note = String(reason || '').trim().slice(0, 500);
+  if (decision === 'flagged' && !note) throw new Error('A reason is required to flag a campaign.');
+  campaign.moderatorReview = {
+    status: decision,
+    reason: note || 'No policy concerns identified.',
+    reviewedAt: new Date(),
+    reviewedBy: moderatorId
+  };
   await campaign.save();
   return campaign;
 }
@@ -304,6 +328,13 @@ async function updateCampaignStatus({ campaignId, status, rejectionReason = '', 
   }
   if (nextStatus === 'approved' && campaign.status !== 'submitted' && campaign.status !== 'paused') {
     throw new Error('Only submitted campaigns can be approved.');
+  }
+  if (campaign.status === 'submitted' && ['approved', 'rejected'].includes(nextStatus)
+    && !['cleared', 'flagged'].includes(campaign.moderatorReview?.status)) {
+    throw new Error('Campaign moderation must be completed before final admin review.');
+  }
+  if (nextStatus === 'approved' && campaign.moderatorReview?.status !== 'cleared') {
+    throw new Error('Campaign approval requires a moderator review that clears the campaign.');
   }
   if (nextStatus === 'active' && campaign.isWavesFunded && campaign.fundingStatus !== 'funded') {
     throw new Error('Only funded campaigns can be activated.');
@@ -426,6 +457,7 @@ module.exports = {
   recordCampaignPerformance,
   refundCampaignBudget,
   registerAdvertiser,
+  reviewCampaignAsModerator,
   spendCampaignBudget,
   updateAdvertiserStatus,
   updateCampaignStatus

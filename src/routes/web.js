@@ -162,6 +162,7 @@ router.post('/admin/settings', requireAuth, requireVerified, requireAdmin, requi
 router.post('/admin/maintenance/run', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.runMaintenance);
 router.get('/moderator', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.moderator);
 router.post('/moderator/actions', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.submitAction);
+router.post('/moderator/campaigns/:id/review', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewCampaignAsModerator);
 router.post('/moderator/appeals/:id', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.resolveAppeal);
 router.get('/settings/:section?', requireAuth, requireVerified, settingsController.page);
 router.post('/settings/profile', requireAuth, requireVerified, profileUpload, csrfSynchronisedProtection, handleUploadError, validateProfileUpload, scanUploadsForViruses, settingsController.updateProfile);

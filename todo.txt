@@ -4,6 +4,7 @@
 
 - Advertiser and campaign foundation — approved advertiser registration, campaign submission flow, moderation lifecycle, CTR tracking, and budget controls.
 - Advertiser campaign dashboard — advertiser applications and verification, draft creation, Waves-funded submission, admin campaign approval/rejection, pause/resume/cancellation controls, and per-campaign/aggregate performance and budget statistics.
+- Staged advertisement campaign moderation — moderators review submitted campaigns first, record a reasoned clear/flag recommendation with an audit log, and admins make the final decision; campaigns cannot be approved without a clear moderator review.
 - Waves-funded campaign budgets — campaigns start as drafts, escrow the configured Waves budget on submission, and record funding/refund entries in the Waves ledger. Cancellation, rejection, and completion refund the remaining budget once.
 - Campaign daily budget enforcement — budget spend is rejected when it would exceed the configured daily cap and the daily counter resets on the next calendar day.
 - Waves currency foundation — user balances, ledger entries, credit/debit/transfer services, admin adjustments with reasons, visible signed-in balance, and wallet transaction history.
@@ -95,8 +96,6 @@ Advertising System
 
 Create advertiser system
 
-Add advertisement review system
-
 Add advertisement reporting system
 
 Add advertiser policy/terms
@@ -107,12 +106,6 @@ Moderator reviews advertisers
 
 Admin reviews advertisers
 
-Moderator reviews advertisements
-
-Admin gives final approval/rejection
-
-Do not allow advertisements to go live before approval
-
 Reject 18+ advertisements
 
 Reject erotic/sexually explicit advertisements
@@ -122,8 +115,6 @@ Reject gambling/betting advertisements
 Reject pornography
 
 Reject other inappropriate advertisements
-
-Add rejection reason
 
 Allow admin to suspend/remove an already-approved advertisement
 
