@@ -1,9 +1,10 @@
 <article class="discover-panel community-ad-card" data-community-ad data-campaign-id="<%= ad.campaign._id %>" data-community-id="<%= community._id %>" data-event-token="<%= ad.eventToken %>" data-csrf="<%= csrfToken %>">
   <p class="eyebrow">Sponsored</p>
   <h2><%= ad.campaign.title %></h2>
+  <% if (ad.campaign.bannerUrl) { %><img src="<%= ad.campaign.bannerUrl %>" alt="Banner for <%= ad.campaign.title %>" style="display:block;width:100%;max-height:240px;object-fit:cover;border-radius:8px;margin:8px 0;" loading="lazy"><% } %>
   <% if (ad.campaign.description) { %><p><%= ad.campaign.description %></p><% } %>
   <p class="community-ad-byline"><%= ad.campaign.advertiser?.businessName || 'Advertiser' %></p>
-  <% if (ad.campaign.advertiser?.website) { %><a class="button button-small button-primary" href="/ads/<%= ad.campaign._id %>/click?community=<%= community._id %>&amp;event=<%= ad.eventToken %>" target="_blank" rel="noopener noreferrer">Visit advertiser</a><% } %>
+  <% if (ad.campaign.destinationUrl || ad.campaign.advertiser?.website) { %><a class="button button-small button-primary" href="/ads/<%= ad.campaign._id %>/click?community=<%= community._id %>&amp;event=<%= ad.eventToken %>" target="_blank" rel="noopener noreferrer">Learn more</a><% } %>
   <details class="community-ad-report">
     <summary>Report this ad</summary>
     <form method="post" action="/ads/<%= ad.campaign._id %>/report">

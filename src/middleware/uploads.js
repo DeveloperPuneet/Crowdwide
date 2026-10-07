@@ -14,6 +14,7 @@ const COMMUNITY_AVATAR_LIMIT = 1.5 * 1024 * 1024;
 const COMMUNITY_BANNER_LIMIT = 2 * 1024 * 1024;
 const REPORT_EVIDENCE_LIMIT = 2 * 1024 * 1024;
 const GROUP_AVATAR_LIMIT = 1.5 * 1024 * 1024;
+const AD_BANNER_LIMIT = 2 * 1024 * 1024;
 const CHAT_ATTACHMENT_LIMIT = 3 * 1024 * 1024;
 
 function classify(file) {
@@ -56,6 +57,12 @@ const groupUpload = multer({
   limits: { fileSize: GROUP_AVATAR_LIMIT + 1, files: 1 },
   fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
 }).single('avatar');
+
+const advertisementBannerUpload = multer({
+  storage,
+  limits: { fileSize: AD_BANNER_LIMIT + 1, files: 1 },
+  fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
+}).single('banner');
 
 const chatAttachmentUpload = multer({
   storage,
@@ -139,6 +146,28 @@ function validateCommunityUpload(req, res, next) {
   next();
 }
 
+async function validateAdvertisementBanner(req, res, next) {
+  if (!req.file) return next();
+  if (req.file.size >= AD_BANNER_LIMIT) {
+    req.session.flash = { type: 'error', message: 'Advertisement banners must be smaller than 2MB.' };
+    return res.redirect('/advertising');
+  }
+  try {
+    const { getImageSize } = require('../services/storage');
+    const size = await getImageSize(req.file.buffer);
+    if (!size) {
+      req.session.flash = { type: 'error', message: 'Choose a valid image file for the advertisement banner.' };
+      return res.redirect('/advertising');
+    }
+    req.file.mediaKind = 'image';
+    next();
+  } catch (error) {
+    logger.error('Advertisement banner validation failed', error);
+    req.session.flash = { type: 'error', message: 'The advertisement banner could not be validated.' };
+    res.redirect('/advertising');
+  }
+}
+
 function validateReportUpload(req, res, next) {
   if (req.file && req.file.size >= REPORT_EVIDENCE_LIMIT) {
     req.session.flash = { type: 'error', message: 'Evidence screenshots must be smaller than 2MB.' };
@@ -173,4 +202,4 @@ function handleUploadError(error, req, res, next) {
   res.redirect('/dashboard');
 }
 
-module.exports = { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, chatAttachmentUpload, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };
+module.exports = { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, chatAttachmentUpload, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateAdvertisementBanner, validateReportUpload, scanUploadsForViruses, handleUploadError };

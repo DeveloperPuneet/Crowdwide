@@ -4,6 +4,8 @@ const campaignSchema = new mongoose.Schema({
   advertiser: { type: mongoose.Schema.Types.ObjectId, ref: 'Advertiser', required: true, index: true },
   title: { type: String, required: true, trim: true, maxlength: 120 },
   description: { type: String, trim: true, maxlength: 2000, default: '' },
+  destinationUrl: { type: String, trim: true, maxlength: 1000, default: '' },
+  bannerUrl: { type: String, trim: true, maxlength: 500, default: '' },
   status: {
     type: String,
     enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'suspended', 'cancelled', 'completed'],
@@ -14,6 +16,8 @@ const campaignSchema = new mongoose.Schema({
   fundingStatus: { type: String, enum: ['unfunded', 'funded', 'partially-refunded', 'refunded'], default: 'unfunded', index: true },
   fundingUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   totalBudget: { type: Number, default: 0, min: 0 },
+  impressionCostWaves: { type: Number, default: 0.1, min: 0 },
+  clickCostWaves: { type: Number, default: 1, min: 0 },
   dailyBudget: { type: Number, default: 0, min: 0 },
   dailyBudgetSpent: { type: Number, default: 0, min: 0 },
   dailyBudgetDate: Date,

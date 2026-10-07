@@ -3,6 +3,8 @@ const Campaign = require('../models/Campaign');
 const Community = require('../models/Community');
 const Report = require('../models/Report');
 const Appeal = require('../models/Appeal');
+const SiteSetting = require('../models/SiteSetting');
+const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const logger = require('../services/logger');
 const {
   createCampaign,
@@ -25,7 +27,7 @@ async function getOwnedAdvertiser(userId) {
 exports.dashboard = async (req, res) => {
   const advertiser = await Advertiser.findOne({ user: req.session.user.id })
     .populate('moderationHistory.actor', 'name role');
-  const [campaigns, communities, advertiserAppeal] = await Promise.all([
+  const [campaigns, communities, advertiserAppeal, siteSettings] = await Promise.all([
     advertiser
       ? Campaign.find({ advertiser: advertiser._id })
         .sort({ createdAt: -1 })
@@ -40,7 +42,8 @@ exports.dashboard = async (req, res) => {
       .lean(),
     advertiser
       ? Appeal.findOne({ user: req.session.user.id, advertiser: advertiser._id, actionType: 'advertiser', status: 'pending' }).lean()
-      : null
+      : null,
+    SiteSetting.getSingleton()
   ]);
   const campaignAnalytics = await getCampaignAnalytics(campaigns.map((campaign) => campaign._id));
   const totals = campaigns.reduce((summary, campaign) => {
@@ -59,6 +62,7 @@ exports.dashboard = async (req, res) => {
     advertiser,
     campaigns,
     communities,
+    advertisingMinimumCampaignBudget: Number(siteSettings.advertisingMinimumCampaignBudget ?? 25),
     campaignAnalytics,
     totals,
     advertisingTermsVersion: ADVERTISING_TERMS_VERSION,
@@ -176,23 +180,52 @@ exports.createCampaign = async (req, res) => {
     ? req.body.targetCommunities
     : [req.body.targetCommunities].filter(Boolean);
   try {
-    const eligibleTargets = await Community.find({
-      _id: { $in: targetCommunities },
-      monetizationStatus: 'approved',
-      isMonetized: true,
-      isPrivate: false,
-      'monetizationSettings.adsEnabled': true
-    }).select('_id').lean();
+    const [eligibleTargets, settings] = await Promise.all([
+      Community.find({
+        _id: { $in: targetCommunities },
+        monetizationStatus: 'approved',
+        isMonetized: true,
+        isPrivate: false,
+        'monetizationSettings.adsEnabled': true
+      }).select('_id').lean(),
+      SiteSetting.getSingleton()
+    ]);
     if (eligibleTargets.length !== new Set(targetCommunities.map(String)).size) {
       flash(req, 'error', 'Choose only public communities that currently accept approved ads.');
       return res.redirect('/advertising');
+    }
+    const budget = Number(req.body.totalBudget);
+    if (!Number.isFinite(budget) || budget < Number(settings.advertisingMinimumCampaignBudget ?? 25)) {
+      flash(req, 'error', `Campaign budget must be at least ${Number(settings.advertisingMinimumCampaignBudget ?? 25)} Waves.`);
+      return res.redirect('/advertising');
+    }
+    let destination;
+    try {
+      destination = new URL(String(req.body.destinationUrl || '').trim());
+      if (!['http:', 'https:'].includes(destination.protocol) || !destination.hostname) throw new Error('invalid');
+    } catch {
+      flash(req, 'error', 'Add a valid http or https destination link for your advertisement.');
+      return res.redirect('/advertising');
+    }
+    let bannerUrl = '';
+    if (req.file) {
+      const uploaded = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, {
+        kind: 'advertisement-banner',
+        owner: req.session.user.id
+      });
+      bannerUrl = mediaUrl(uploaded);
     }
     await createCampaign({
       advertiserId: advertiser._id,
       title: req.body.title,
       description: req.body.description,
-      totalBudget: req.body.totalBudget,
+      destinationUrl: destination.toString(),
+      bannerUrl,
+      totalBudget: budget,
       dailyBudget: req.body.dailyBudget,
+      minimumBudget: settings.advertisingMinimumCampaignBudget ?? 25,
+      impressionCostWaves: settings.advertisingCostPerImpression ?? 0.1,
+      clickCostWaves: settings.advertisingCostPerClick ?? 1,
       startDate: req.body.startDate || undefined,
       endDate: req.body.endDate || undefined,
       targetCommunities,

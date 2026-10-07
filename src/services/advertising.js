@@ -5,8 +5,12 @@ const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const CampaignEvent = require('../models/CampaignEvent');
 const CampaignAbuseSignal = require('../models/CampaignAbuseSignal');
 const Community = require('../models/Community');
+const SiteSetting = require('../models/SiteSetting');
+const logger = require('./logger');
 
 const ADVERTISING_TERMS_VERSION = '2026-10-07';
+const BOT_ACTIVITY_EVENT_THRESHOLD = 20;
+const BOT_ACTIVITY_WINDOW_MS = 60 * 1000;
 const ADVERTISING_POLICY_CATEGORIES = [
   'adult-18-plus',
   'sexual-content',
@@ -155,6 +159,11 @@ async function createCampaign({
   startDate,
   endDate,
   targetCommunities = [],
+  destinationUrl = '',
+  bannerUrl = '',
+  minimumBudget = 25,
+  impressionCostWaves = 0.1,
+  clickCostWaves = 1,
   isWavesFunded = true,
   status = 'draft',
   notes = '',
@@ -177,6 +186,20 @@ async function createCampaign({
   if (!cleanedTitle) throw new Error('Campaign title is required.');
 
   const budget = normalizePositiveNumber(totalBudget, 'totalBudget');
+  const minimum = normalizePositiveNumber(minimumBudget, 'minimumBudget');
+  if (budget < minimum) throw new Error(`Campaign budget must be at least ${minimum} Waves.`);
+  let cleanedDestinationUrl = '';
+  if (destinationUrl) {
+    try {
+      const parsedUrl = new URL(String(destinationUrl).trim());
+      if (!['http:', 'https:'].includes(parsedUrl.protocol) || !parsedUrl.hostname) throw new Error();
+      cleanedDestinationUrl = parsedUrl.toString().slice(0, 1000);
+    } catch {
+      throw new Error('Add a valid http or https destination link for your advertisement.');
+    }
+  }
+  const impressionRate = normalizeNonNegativeNumber(impressionCostWaves, 'impressionCostWaves');
+  const clickRate = normalizeNonNegativeNumber(clickCostWaves, 'clickCostWaves');
   const daily = normalizeNonNegativeNumber(dailyBudget, 'dailyBudget');
   if (daily > budget) {
     throw new Error('Daily budget cannot exceed total budget.');
@@ -190,7 +213,11 @@ async function createCampaign({
     advertiser: advertiserId,
     title: cleanedTitle,
     description: String(description || '').trim().slice(0, 2000),
+    destinationUrl: cleanedDestinationUrl,
+    bannerUrl: String(bannerUrl || '').trim().slice(0, 500),
     totalBudget: budget,
+    impressionCostWaves: impressionRate,
+    clickCostWaves: clickRate,
     dailyBudget: daily,
     remainingBudget: 0,
     startDate: startDate ? new Date(startDate) : null,
@@ -569,7 +596,7 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
   let destinationUrl = '';
   if (eventType === 'click') {
     try {
-      const destination = new URL(campaign.advertiser.website);
+      const destination = new URL(campaign.destinationUrl || campaign.advertiser.website);
       if (!['http:', 'https:'].includes(destination.protocol)) throw unavailableAdvertisement('Unsupported destination.');
       destinationUrl = destination.toString();
     } catch {
@@ -615,6 +642,27 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
 
   const impressionIncrement = eventType === 'impression' ? 1 : 0;
   const clickIncrement = eventType === 'click' ? 1 : 0;
+  const spend = Number(eventType === 'impression'
+    ? campaign.impressionCostWaves ?? 0.1
+    : campaign.clickCostWaves ?? 1);
+  if (!Number.isFinite(spend) || spend < 0) {
+    await CampaignEvent.deleteOne({ campaign: campaign._id, community: community._id, eventType, eventToken });
+    throw new Error('Campaign advertising prices are invalid.');
+  }
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const currentDailySpend = {
+    $cond: [
+      { $gte: [{ $ifNull: ['$dailyBudgetDate', new Date(0)] }, today] },
+      { $ifNull: ['$dailyBudgetSpent', 0] },
+      0
+    ]
+  };
+  const dailyBudgetAllowsSpend = {
+    $or: [
+      { $lte: [{ $ifNull: ['$dailyBudget', 0] }, 0] },
+      { $lte: [{ $add: [currentDailySpend, spend] }, '$dailyBudget'] }
+    ]
+  };
   let updated;
   try {
     updated = await Campaign.findOneAndUpdate(
@@ -622,13 +670,18 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
         _id: campaign._id,
         status: 'active',
         fundingStatus: 'funded',
-        remainingBudget: { $gt: 0 },
-        targetCommunities: community._id
+        remainingBudget: { $gte: spend },
+        targetCommunities: community._id,
+        $expr: dailyBudgetAllowsSpend
       },
       [
         { $set: {
           impressions: { $add: [{ $ifNull: ['$impressions', 0] }, impressionIncrement] },
-          clicks: { $add: [{ $ifNull: ['$clicks', 0] }, clickIncrement] }
+          clicks: { $add: [{ $ifNull: ['$clicks', 0] }, clickIncrement] },
+          remainingBudget: { $round: [{ $subtract: ['$remainingBudget', spend] }, 6] },
+          wavesSpent: { $round: [{ $add: [{ $ifNull: ['$wavesSpent', 0] }, spend] }, 6] },
+          dailyBudgetSpent: { $round: [{ $add: [currentDailySpend, spend] }, 6] },
+          dailyBudgetDate: today
         } },
         { $set: {
           ctr: {
@@ -637,7 +690,8 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
               { $round: [{ $multiply: [{ $divide: ['$clicks', '$impressions'] }, 100] }, 4] },
               0
             ]
-          }
+          },
+          status: { $cond: [{ $lte: ['$remainingBudget', 0] }, 'completed', '$status'] }
         } }
       ],
       { new: true }
@@ -650,7 +704,37 @@ async function recordCampaignEvent({ campaignId, communityId, viewerId, eventTyp
     await CampaignEvent.deleteOne({ campaign: campaign._id, community: community._id, eventType, eventToken });
     throw unavailableAdvertisement('This advertisement is no longer available.');
   }
-  return { recorded: true, destinationUrl };
+  let botActivitySignal = false;
+  try {
+    const recentEventCount = await CampaignEvent.countDocuments({
+      viewer: viewerId,
+      createdAt: { $gte: new Date(now.getTime() - BOT_ACTIVITY_WINDOW_MS) }
+    });
+    if (recentEventCount >= BOT_ACTIVITY_EVENT_THRESHOLD) {
+      const minuteBucket = Math.floor(now.getTime() / BOT_ACTIVITY_WINDOW_MS);
+      await CampaignAbuseSignal.findOneAndUpdate(
+        { signalKey: `bot-activity:${viewerId}:${minuteBucket}` },
+        {
+          $setOnInsert: {
+            signalKey: `bot-activity:${viewerId}:${minuteBucket}`,
+            campaign: campaign._id,
+            community: community._id,
+            viewer: viewerId,
+            eventType: 'bot-activity',
+            reason: `High-volume ad activity: ${recentEventCount} unique events within one minute. This is a review signal, not proof of automation.`,
+            firstSeenAt: now
+          },
+          $set: { lastSeenAt: now, status: 'open', reviewedAt: null, reviewedBy: null, reviewNote: '' },
+          $max: { attempts: recentEventCount }
+        },
+        { upsert: true, new: true }
+      );
+      botActivitySignal = true;
+    }
+  } catch (error) {
+    logger.warn('High-volume ad activity could not be checked', { campaignId: campaign._id, viewerId, error });
+  }
+  return { recorded: true, destinationUrl, wavesCharged: spend, botActivitySignal };
 }
 
 async function getCampaignAnalytics(campaignIds, now = new Date()) {

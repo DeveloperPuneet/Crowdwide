@@ -515,7 +515,7 @@ exports.createCommunity = async (req, res) => {
 };
 
 exports.profile = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links profilePicture bannerImage privacy createdAt isVerified following profileViews').lean();
+	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links profilePicture bannerImage privacy createdAt isVerified following profileViews wavesBalance').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
 	const viewerId = req.session.user.id;
 	const isSelf = String(profileUser._id) === String(viewerId);
@@ -625,6 +625,7 @@ exports.profile = async (req, res) => {
 		followersCount,
 		followingCount: (profileUser.following || []).length,
 		profileStats,
+		wavesBalance: Number(profileUser.wavesBalance || 0),
 		memberCommunities: memberCommunities.map((community) => ({ ...community, isOwner: String(community.owner) === String(profileUser._id) })),
 		questAchievements,
 		isSelf,
@@ -916,7 +917,7 @@ exports.infoPage = async (req, res) => {
 				['Who may advertise', 'Advertisers must provide accurate business or organization details and a working contact method. Applying does not guarantee approval. Crowdwide may request additional information, reject an application, or suspend an advertiser account when needed to enforce these terms.'],
 				['Prohibited advertisements', 'Campaigns may not promote pornography, sexually explicit or erotic content, adult-only (18+) services, gambling or betting, illegal goods or services, fraud, deceptive claims, or other material that violates Crowdwide’s Terms of Use or Community Guidelines. Advertisers are responsible for having rights to all submitted text, images, logos, and destinations.'],
 				['Review and availability', 'Campaigns are drafts until submitted and funded, then receive moderator review followed by a final administrator decision. A campaign must be approved before it can be activated. Approved, active, funded campaigns may be displayed in participating public communities. Approval is not a promise of placement, reach, or performance. Crowdwide counts at most one impression and one click per authenticated viewer, campaign, and community per UTC day. These internal counts are not a third-party provider’s billable records.'],
-				['Waves and campaign budgets', 'Campaign budgets use Waves, Crowdwide’s internal platform currency. Waves are not money, do not represent a claim on revenue, and cannot be redeemed or transferred outside Crowdwide. Submitted campaign budgets are held in escrow; unused Waves are returned for rejected, cancelled, or completed campaigns according to the campaign ledger. Waves are separate from any real-money advertising revenue.'],
+				['Waves and campaign budgets', 'Campaign budgets use Waves, Crowdwide’s internal platform currency. Waves are not money, do not represent a claim on revenue, and cannot be redeemed or transferred outside Crowdwide. Submitted campaign budgets are held in escrow. Each accepted, deduplicated impression and click consumes the respective Waves rate shown at campaign creation; unused Waves are returned for rejected, cancelled, or completed campaigns according to the campaign ledger. Rates are locked for each campaign. Waves are separate from any real-money advertising revenue.'],
 				['Limits and integrity', 'Campaigns must follow their configured total and daily budgets. Advertisers must not manipulate engagement, traffic, impressions, clicks, accounts, or campaign measurement, nor ask others to do so. Crowdwide may pause or remove campaigns and hold activity for review if suspicious or policy-violating activity is detected.'],
 				['Changes and launch readiness', 'Crowdwide has not selected or approved an external advertising provider or revenue-sharing arrangement. Community revenue accounting, real-money revenue sharing, and payouts are not available. Provider permissions, partnership requirements, applicable payment and tax obligations, and the approved accounting flow must be verified before those capabilities launch.'],
 				['Contact', 'Questions about an advertiser application or these terms can be sent to <a href="/contact">Crowdwide support</a>.']

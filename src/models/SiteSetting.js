@@ -49,6 +49,9 @@ const siteSettingSchema = new mongoose.Schema({
   communityPromotionEnabled: { type: Boolean, default: true },
   communityPromotionWavesCost: { type: Number, default: 50, min: 1, max: 10000 },
   communityPromotionDurationHours: { type: Number, default: 48, min: 1, max: 168 },
+  advertisingMinimumCampaignBudget: { type: Number, default: 25, min: 1, max: 1000000 },
+  advertisingCostPerImpression: { type: Number, default: 0.1, min: 0, max: 10000 },
+  advertisingCostPerClick: { type: Number, default: 1, min: 0, max: 10000 },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

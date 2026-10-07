@@ -3,7 +3,7 @@ const controller = require('../controllers/webController');
 const { requireAuth, requireVerified } = require('../middleware/auth');
 const settingsController = require('../controllers/settingsController');
 const communityController = require('../controllers/communityController');
-const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
+const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateAdvertisementBanner, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
 const { interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter, csrfSynchronisedProtection } = require('../middleware/security');
@@ -30,7 +30,7 @@ router.get('/advertising', requireAuth, requireVerified, advertisingController.d
 router.post('/advertising/accept-terms', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.acceptTerms);
 router.post('/advertising/apply', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.apply);
 router.post('/advertising/appeal', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.submitAdvertiserAppeal);
-router.post('/advertising/campaigns', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.createCampaign);
+router.post('/advertising/campaigns', requireAuth, requireVerified, interactionLimiter, advertisementBannerUpload, csrfSynchronisedProtection, handleUploadError, validateAdvertisementBanner, scanUploadsForViruses, advertisingController.createCampaign);
 router.post('/advertising/campaigns/:id/action', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.campaignAction);
 router.post('/ads/:id/impression', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.trackCampaignImpression);
 router.get('/ads/:id/click', requireAuth, requireVerified, interactionLimiter, advertisingController.clickCampaign);

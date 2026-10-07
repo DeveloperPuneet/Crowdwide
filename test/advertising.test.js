@@ -199,6 +199,10 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
     title: 'Launch campaign',
     totalBudget: 100,
     dailyBudget: 40,
+    destinationUrl: 'https://example.test/product',
+    bannerUrl: '/media/banner-1',
+    impressionCostWaves: 0.25,
+    clickCostWaves: 1.5,
     startDate: '2026-01-01',
     endDate: '2026-01-05',
     status: 'draft'
@@ -206,7 +210,25 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
 
   assert.equal(campaign.status, 'draft');
   assert.equal(campaign.remainingBudget, 0);
+  assert.equal(campaign.destinationUrl, 'https://example.test/product');
+  assert.equal(campaign.bannerUrl, '/media/banner-1');
+  assert.equal(campaign.impressionCostWaves, 0.25);
+  assert.equal(campaign.clickCostWaves, 1.5);
   assert.equal(createCampaignEntry.mock.callCount(), 1);
+});
+
+test('campaign creation rejects budgets below the configured minimum and unsafe destination schemes', async (t) => {
+  t.mock.method(Advertiser, 'findById', async () => ({
+    _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07', termsAcceptedAt: new Date()
+  }));
+  await assert.rejects(() => createCampaign({
+    advertiserId: 'advertiser-2', title: 'Too small', totalBudget: 10,
+    minimumBudget: 25
+  }), /at least 25 Waves/);
+  await assert.rejects(() => createCampaign({
+    advertiserId: 'advertiser-2', title: 'Unsafe link', totalBudget: 50,
+    destinationUrl: 'javascript:alert(1)'
+  }), /valid http or https destination link/);
 });
 
 test('submitting a campaign escrows its budget and records a deduplicated Waves ledger entry', async (t) => {
@@ -442,12 +464,16 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   };
   const campaign = {
     _id: 'campaign-1', status: 'active', fundingStatus: 'funded', remainingBudget: 50,
+    impressionCostWaves: 0.25, clickCostWaves: 1.5, dailyBudget: 10,
+    destinationUrl: 'https://campaign.example.test/landing',
     targetCommunities: ['community-1'], advertiser: { status: 'approved', website: 'https://example.test' }
   };
   const updateCalls = [];
   let duplicateEvent = false;
+  let rapidEventCount = 0;
   let recordedEvent;
   const abuseSignal = t.mock.method(CampaignAbuseSignal, 'findOneAndUpdate', async () => ({}));
+  t.mock.method(CampaignEvent, 'countDocuments', async () => rapidEventCount);
   t.mock.method(Community, 'findById', () => ({ lean: async () => community }));
   t.mock.method(Campaign, 'findById', () => ({
     populate() { return this; },
@@ -476,9 +502,15 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   });
 
   assert.equal(result.recorded, true);
+  assert.equal(result.wavesCharged, 0.25);
+  assert.equal(result.botActivitySignal, false);
+  assert.equal(abuseSignal.mock.callCount(), 0);
   assert.equal(updateCalls.length, 1);
   assert.equal(updateCalls[0][1][0].$set.impressions.$add[1], 1);
   assert.equal(updateCalls[0][1][0].$set.clicks.$add[1], 0);
+  assert.equal(updateCalls[0][0].remainingBudget.$gte, 0.25);
+  assert.equal(updateCalls[0][1][0].$set.wavesSpent.$round[0].$add[1], 0.25);
+  assert.ok(updateCalls[0][0].$expr, 'daily budget must be enforced atomically with event spend');
   assert.match(recordedEvent.viewerDayKey, /^campaign-1:community-1:viewer-1:impression:\d{4}-\d{2}-\d{2}$/);
 
   // A newly-rendered token must not let the same viewer inflate the same
@@ -496,6 +528,24 @@ test('campaign impression tracking is idempotent and atomically updates aggregat
   assert.equal(abuseSignal.mock.callCount(), 1);
   assert.equal(abuseSignal.mock.calls[0].arguments[1].$setOnInsert.attempts, 0);
   assert.equal(abuseSignal.mock.calls[0].arguments[1].$inc.attempts, 1);
+
+  duplicateEvent = false;
+  rapidEventCount = 20;
+  const click = await recordCampaignEvent({
+    campaignId: 'campaign-1',
+    communityId: 'community-1',
+    viewerId: 'viewer-2',
+    eventType: 'click',
+    eventToken: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff'
+  });
+  assert.equal(click.destinationUrl, 'https://campaign.example.test/landing');
+  assert.equal(click.wavesCharged, 1.5);
+  assert.equal(click.botActivitySignal, true);
+  assert.equal(updateCalls.length, 2);
+  assert.equal(updateCalls[1][1][0].$set.clicks.$add[1], 1);
+  assert.equal(abuseSignal.mock.callCount(), 2);
+  assert.equal(abuseSignal.mock.calls[1].arguments[1].$setOnInsert.eventType, 'bot-activity');
+  assert.match(abuseSignal.mock.calls[1].arguments[1].$setOnInsert.reason, /20 unique events within one minute/);
 });
 
 test('admin closes an advertisement abuse signal with a reason and audit record', async (t) => {

@@ -754,6 +754,12 @@ exports.updateSiteSettings = async (req, res) => {
   if (Number.isFinite(communityPromotionWavesCost) && communityPromotionWavesCost >= 1) settings.communityPromotionWavesCost = Math.min(10000, Math.round(communityPromotionWavesCost));
   const communityPromotionDurationHours = Number(req.body.communityPromotionDurationHours);
   if (Number.isFinite(communityPromotionDurationHours) && communityPromotionDurationHours >= 1) settings.communityPromotionDurationHours = Math.min(168, Math.round(communityPromotionDurationHours));
+  const advertisingMinimumCampaignBudget = Number(req.body.advertisingMinimumCampaignBudget);
+  if (Number.isFinite(advertisingMinimumCampaignBudget) && advertisingMinimumCampaignBudget >= 1) settings.advertisingMinimumCampaignBudget = Math.min(1000000, advertisingMinimumCampaignBudget);
+  for (const field of ['advertisingCostPerImpression', 'advertisingCostPerClick']) {
+    const value = Number(req.body[field]);
+    if (Number.isFinite(value) && value >= 0) settings[field] = Math.min(10000, value);
+  }
   settings.updatedBy = req.roleUser._id;
   await settings.save();
   clearSiteConfigCache();

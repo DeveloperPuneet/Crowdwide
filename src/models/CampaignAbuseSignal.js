@@ -5,7 +5,7 @@ const campaignAbuseSignalSchema = new mongoose.Schema({
   campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', required: true, index: true },
   community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', required: true, index: true },
   viewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  eventType: { type: String, enum: ['impression', 'click'], required: true },
+  eventType: { type: String, enum: ['impression', 'click', 'bot-activity'], required: true },
   reason: { type: String, trim: true, maxlength: 200, required: true },
   attempts: { type: Number, default: 1, min: 1 },
   firstSeenAt: { type: Date, default: Date.now },

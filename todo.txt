@@ -6,6 +6,7 @@
 - Waves earning and spending — configurable, ledger-backed platform rewards with daily caps and campaign funding/refunds; advertiser campaign budgets are paid in Waves, separate from any real-money ad revenue.
 - Behavior-based account coordination signals — admins can review reciprocal Waves rewards between pairs of accounts when activity repeats across multiple posts and days; these are unconfirmed signals only, without IP/device fingerprinting or automatic suspensions.
 - Community ad delivery and reporting — approved, active, funded campaigns appear only in public communities with active monetization and ads enabled; admin-configured feed/sidebar placements and frequency are respected. Impression/click events are deduplicated, update CTR totals, and are broken down by community and day in the advertiser dashboard. Members can report an ad directly from its placement into the admin moderation queue.
+- Invalid/fraudulent campaign activity handling — invalid and duplicate delivery events are rejected or excluded from billing and statistics; admins can review abuse signals, suspend or remove campaigns, and return unused escrowed Waves.
 - Advertiser campaign dashboard — advertiser applications and verification, draft creation, Waves-funded submission, admin campaign approval/rejection, pause/resume/cancellation controls, and per-campaign/aggregate performance and budget statistics.
 - Staged advertisement campaign moderation — moderators review submitted campaigns first, record a reasoned clear/flag recommendation with an audit log, and admins make the final decision; campaigns cannot be approved without a clear moderator review.
 - Staged advertiser application moderation — moderator screening with a recorded clear/flag reason and audit log, followed by final admin approval/rejection; approval is blocked unless moderators clear the application.
@@ -82,6 +83,9 @@
 - Published Waves Terms and Community Monetization Terms define the closed-loop Waves rules, transfer/abuse controls, community eligibility/review, advertiser integrity, and the pre-launch provider/legal/payout gates. Advertising Terms and the privacy notice now accurately disclose current ad delivery and first-party event measurement.
 - Post promotion with Waves: owners can promote eligible published posts for an admin-configured price and duration; promotion spending is recorded in the Waves ledger, active placements are labeled in eligible feeds, and owners see promotion status and expiry.
 - Community promotion with Waves: verified owners can buy a time-limited, labeled public-community placement in Explore and Communities; the owner dashboard shows its status and expiry, and admins configure availability, price, and duration.
+- Public profile Waves balance — profile pages display the user's current Waves balance.
+- Standalone advertiser creatives — advertisers can create separate campaigns with ad details, an HTTP(S) destination link, and an optional virus-scanned banner; admins configure the minimum campaign budget and per-impression/click Waves rates, which are locked on each campaign.
+- Advertisement bot-activity review signals — 20 or more unique ad events from one viewer within a minute create an admin review signal; events remain subject to existing deduplication and budget limits, and the signal causes no automatic penalty.
 
 ## Making:
 Waves Usage
@@ -120,8 +124,6 @@ Add revenue audit logs
 
 Advertiser Refunds / Campaign Handling
 
-Handle invalid/fraudulent activity
-
 Admin Panel
 
 Add community revenue overview
@@ -137,8 +139,6 @@ Add configurable advertising limits
 Add admin override controls
 
 Security / Anti-Abuse
-
-Detect bot activity
 
 Detect multiple-account abuse
 

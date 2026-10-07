@@ -576,7 +576,7 @@ test('community advertisement card provides a tracked visit and report action', 
     }
   });
   assert.match(html, /Sponsored/);
-  assert.match(html, /Visit advertiser/);
+  assert.match(html, /Learn more/);
   assert.match(html, /\/ads\/campaign-1\/click\?community=community-1&amp;event=/);
   assert.match(html, /action="\/ads\/campaign-1\/report"/);
   assert.match(html, /name="reason"/);
@@ -664,7 +664,7 @@ test('profiles show community roles and quest-winner achievements', async () => 
   const joinedAt = new Date('2021-04-15T18:30:00.000Z');
   const html = await render('pages/profile.ejs', {
     title: 'Asha on Crowdwide', pagePath: '/u/u2', noIndex: false,
-    profileUser: { _id: 'u2', id: 'u2', name: 'Asha', email: 'asha@example.test', isVerified: false, bio: 'A full profile biography with more than twelve words should remain visible in its entirety.', hashtags: [], links: [], profilePicture: '', bannerImage: '', profileViews: 0, createdAt: joinedAt },
+    profileUser: { _id: 'u2', id: 'u2', name: 'Asha', email: 'asha@example.test', isVerified: false, bio: 'A full profile biography with more than twelve words should remain visible in its entirety.', hashtags: [], links: [], profilePicture: '', bannerImage: '', profileViews: 0, wavesBalance: 123.5, createdAt: joinedAt },
     isSelf: true, profileTab: 'posts', posts: [], profileLikes: [], savedPosts: [],
     profileComments: [], activity: [], suggestions: [], followersCount: 0, followingCount: 0,
     postCount: 0, profileStats: { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 },
@@ -676,6 +676,7 @@ test('profiles show community roles and quest-winner achievements', async () => 
   assert.match(html, /Community Artist/);
   assert.match(html, /Quest winner/);
   assert.match(html, /Joined <time data-profile-joined-date datetime="2021-04-15T18:30:00\.000Z">[^<]+<\/time>/);
+  assert.match(html, /123\.5<\/strong> Waves/);
   assert.match(html, /data-profile-anniversary data-joined-at="2021-04-15T18:30:00\.000Z"/);
   assert.match(html, /Happy Crowdwide anniversary!/);
   assert.match(html, /src="\/js\/profile-anniversary\.js"/);
@@ -795,6 +796,12 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       accountA: { id: 'user-a', name: 'Asha' }, accountB: { id: 'user-b', name: 'Ravi' },
       totalRewards: 10, rewardsFromA: 5, rewardsFromB: 5, uniqueTargets: 6, activeDays: 2, totalWaves: 16.25
     }],
+    suspiciousAdEvents: [{
+      _id: 'bot-signal-1', eventType: 'bot-activity', campaign: { title: 'Launch campaign' },
+      community: { name: 'Design Lab' }, viewer: { name: 'Asha' }, attempts: 20,
+      lastSeenAt: new Date('2026-04-20T12:00:00Z'),
+      reason: 'High-volume ad activity: 20 unique events within one minute.'
+    }],
     pendingAppeals: [], moderators: [], auditLogs: [{
       action: 'campaign-rejected', actor: { name: 'Operator', role: 'admin' },
       targetType: 'campaign', target: 'campaign-1', details: { reason: 'Policy violation' },
@@ -812,17 +819,23 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       postReviewThreshold: 2, postPromotionEnabled: true,
       postPromotionWavesCost: 40, postPromotionDurationHours: 36,
       communityPromotionEnabled: true, communityPromotionWavesCost: 65,
-      communityPromotionDurationHours: 72
+      communityPromotionDurationHours: 72, advertisingMinimumCampaignBudget: 35,
+      advertisingCostPerImpression: 0.25, advertisingCostPerClick: 2
     },
     mongoStorage: { available: true, percentUsed: 72, percentRemaining: 28, barPercent: 72, usedBytes: 512 * 1024 ** 2, capacityBytes: 712 * 1024 ** 2, remainingBytes: 200 * 1024 ** 2, clusters: 2 },
     formatStorage,
     stats: { users: 0, communities: 0, posts: 0, reports: 0 }
   });
   assert.match(html, /id="admin-panel-maintenance"/);
+  assert.match(html, /Possible bot activity/);
+  assert.match(html, /20 flagged events\/attempts/);
   assert.match(html, /Run all cleanup processes/);
   assert.match(html, /name="communityPromotionEnabled"/);
   assert.match(html, /name="communityPromotionWavesCost"[^>]+value="65"/);
   assert.match(html, /name="communityPromotionDurationHours"[^>]+value="72"/);
+  assert.match(html, /name="advertisingMinimumCampaignBudget"[^>]+value="35"/);
+  assert.match(html, /name="advertisingCostPerImpression"[^>]+value="0\.25"/);
+  assert.match(html, /name="advertisingCostPerClick"[^>]+value="2"/);
   assert.match(html, /name="postPromotionEnabled"/);
   assert.match(html, /name="postPromotionWavesCost"[^>]+value="40"/);
   assert.match(html, /name="postPromotionDurationHours"[^>]+value="36"/);

@@ -71,6 +71,7 @@
 			<a href="/u/<%= profileUser._id %>/followers" style="color:inherit;text-decoration:none;"><strong class="follower-count" data-user="<%= profileUser._id %>"><%= followersCount %></strong> followers</a>
 			<a href="/u/<%= profileUser._id %>/following" style="color:inherit;text-decoration:none;"><strong><%= followingCount %></strong> following</a>
 			<span><strong><%= (profileUser.profileViews || 0).toLocaleString() %></strong> profile views</span>
+			<span><strong><%= Number(profileUser.wavesBalance || 0).toLocaleString() %></strong> Waves</span>
 		</div>
 		<p class="profile-joined">Joined <time data-profile-joined-date datetime="<%= new Date(profileUser.createdAt).toISOString() %>"><%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) %></time></p>
 		<section class="profile-community-highlights" aria-label="Community roles and achievements">
