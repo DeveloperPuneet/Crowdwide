@@ -1,12 +1,12 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="owner-layout">
+<main class="owner-layout community-owner-layout">
 	<% const promotionOffer = locals.communityPromotionOffer || null; %>
 	<% if (community.coverImage) { %><div class="profile-banner" style="margin-bottom:26px;"><img src="<%= community.coverImage %>" alt=""></div><% } %>
 	<section class="owner-hero">
 		<p class="eyebrow">Community owner dashboard</p>
-		<div style="display:flex;align-items:center;gap:14px;">
+		<div class="community-owner-identity">
 			<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:56px;height:56px;border-radius:14px;object-fit:cover;"><% } %>
 			<h1 style="margin:0;"><%= community.name %></h1>
 		</div>
@@ -37,7 +37,7 @@
 		<p><a href="/waves/terms">Waves Terms</a></p>
 	</section>
 	<section class="owner-grid">
-		<form class="settings-block" method="post" action="/communities/<%= community._id %>/manage" enctype="multipart/form-data">
+		<form class="settings-block community-owner-details" method="post" action="/communities/<%= community._id %>/manage" enctype="multipart/form-data">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<h2>Community details</h2>
 			<label>Community picture (pfp)<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover;margin-bottom:6px;"><% } %><input type="file" name="avatarImage" accept="image/*"><small>Up to 1.5MB.</small></label>
@@ -60,7 +60,7 @@
 				<div class="community-location-actions"><button type="button" class="button button-small button-ghost" data-use-current-location><%- icon('map-pin', { size: 14 }) %> Use current location</button><button type="button" class="button button-small button-ghost" data-clear-community-location>Clear location</button></div>
 				<p class="community-location-status" data-location-status role="status" aria-live="polite"></p>
 			</fieldset>
-			<label>Community guidelines<textarea name="guidelines" maxlength="4000" placeholder="What's expected from members here?"><%= community.guidelines || '' %></textarea></label>
+			<label class="community-guidelines-field">Community guidelines<textarea name="guidelines" maxlength="4000" placeholder="What's expected from members here?"><%= community.guidelines || '' %></textarea></label>
 			<label class="privacy-check"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private community <small>(new members must be approved to join)</small></label>
 			<label class="privacy-check"><input type="checkbox" name="requireApproval" <%= community.requireApproval ? 'checked' : '' %>> Review posts before they appear <small>(moderation queue below)</small></label>
 			<label>Banned words<input name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>" placeholder="word, phrase"></label>
