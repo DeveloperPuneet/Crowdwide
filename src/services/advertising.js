@@ -659,31 +659,54 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
     throw unavailableAdvertisement('Crowdwide-feed advertisements are unavailable.');
   }
   const now = new Date();
+  const spend = Number(eventType === 'impression'
+    ? campaign?.impressionCostWaves ?? 0.1
+    : campaign?.clickCostWaves ?? 1);
+  if (!Number.isFinite(spend) || spend < 0) {
+    throw new Error('Campaign advertising prices are invalid.');
+  }
+  const isEligibleRenderedClick = (candidate) => eventType === 'click'
+    && candidate
+    && candidate.fundingStatus === 'funded'
+    && (candidate.status === 'active'
+      || (candidate.status === 'completed' && Number(candidate.remainingBudget || 0) <= 0))
+    && candidate.advertiser?.status === 'approved'
+    && (!candidate.startDate || candidate.startDate <= now)
+    && (!candidate.endDate || candidate.endDate >= now)
+    && (deliveryContext === 'sitewide'
+      ? candidate.sitewideFallback && !(candidate.targetCommunities || []).length
+      : (candidate.targetCommunities || []).some((id) => String(id) === String(communityId)));
+  const canCompleteRenderedClick = (candidate) => isEligibleRenderedClick(candidate)
+    && (candidate.status === 'completed' || Number(candidate.remainingBudget || 0) < spend);
+  const resolveDestinationUrl = (candidate) => {
+    try {
+      const destination = new URL(candidate.destinationUrl || candidate.advertiser.website);
+      if (!['http:', 'https:'].includes(destination.protocol)) throw unavailableAdvertisement('Unsupported destination.');
+      return destination.toString();
+    } catch {
+      throw unavailableAdvertisement('This advertiser has no valid destination link.');
+    }
+  };
+  const completeRenderedClickWithoutCharge = canCompleteRenderedClick(campaign);
   if (!campaign || campaign.status !== 'active' || campaign.fundingStatus !== 'funded'
-    || Number(campaign.remainingBudget || 0) <= 0
+    || (Number(campaign.remainingBudget || 0) <= 0 && !completeRenderedClickWithoutCharge)
     || (deliveryContext === 'community' && !(campaign.targetCommunities || []).some((id) => String(id) === String(communityId)))
     || campaign.advertiser?.status !== 'approved'
     || (campaign.startDate && campaign.startDate > now)
     || (campaign.endDate && campaign.endDate < now)) {
-    throw unavailableAdvertisement('This advertisement is no longer available.');
+    if (!completeRenderedClickWithoutCharge) {
+      throw unavailableAdvertisement('This advertisement is no longer available.');
+    }
   }
 
   let destinationUrl = '';
   if (eventType === 'click') {
-    try {
-      const destination = new URL(campaign.destinationUrl || campaign.advertiser.website);
-      if (!['http:', 'https:'].includes(destination.protocol)) throw unavailableAdvertisement('Unsupported destination.');
-      destinationUrl = destination.toString();
-    } catch {
-      throw unavailableAdvertisement('This advertiser has no valid destination link.');
-    }
+    destinationUrl = resolveDestinationUrl(campaign);
   }
 
-  const spend = Number(eventType === 'impression'
-    ? campaign.impressionCostWaves ?? 0.1
-    : campaign.clickCostWaves ?? 1);
-  if (!Number.isFinite(spend) || spend < 0) {
-    throw new Error('Campaign advertising prices are invalid.');
+  // A rendered ad stays navigable if its impression or another event used the remaining budget.
+  if (completeRenderedClickWithoutCharge) {
+    return { recorded: false, destinationUrl, wavesCharged: 0 };
   }
   const ownerId = community?.owner;
   const viewerIsOwner = ownerId && String(ownerId) === String(viewerId);
@@ -818,6 +841,14 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
   }
   if (!updated) {
     await CampaignEvent.deleteOne({ campaign: campaign._id, community: community?._id || null, deliveryContext, eventType, eventToken });
+    if (eventType === 'click') {
+      const latestCampaign = await Campaign.findById(campaign._id)
+        .populate('advertiser', 'businessName website status user')
+        .lean();
+      if (isEligibleRenderedClick(latestCampaign)) {
+        return { recorded: false, destinationUrl: resolveDestinationUrl(latestCampaign), wavesCharged: 0 };
+      }
+    }
     throw unavailableAdvertisement('This advertisement is no longer available.');
   }
   await settleCommunityShare(createdEvent);

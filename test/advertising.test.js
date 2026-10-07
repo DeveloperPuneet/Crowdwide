@@ -750,6 +750,65 @@ test('clicks on already-rendered sitewide ads still reach their destination afte
   }), /Crowdwide-feed advertisements are unavailable/i);
 });
 
+test('already-rendered ads still open when remaining Waves cannot cover the click', async (t) => {
+  const campaign = {
+    _id: 'campaign-global', status: 'completed', fundingStatus: 'funded', remainingBudget: 0,
+    impressionCostWaves: 0.5, clickCostWaves: 2, dailyBudget: 10,
+    sitewideFallback: true, targetCommunities: [],
+    destinationUrl: 'https://example.test/store',
+    advertiser: { status: 'approved', website: 'https://example.test' }
+  };
+  t.mock.method(Campaign, 'findById', () => ({
+    populate() { return this; },
+    lean: async () => campaign
+  }));
+  const createEvent = t.mock.method(CampaignEvent, 'create', async () => ({ _id: 'unexpected-event' }));
+  const spendCampaign = t.mock.method(Campaign, 'findOneAndUpdate', async () => ({ _id: campaign._id }));
+
+  const result = await recordCampaignEvent({
+    campaignId: campaign._id,
+    deliveryContext: 'sitewide',
+    viewerId: 'viewer-global',
+    eventType: 'click',
+    eventToken: '11111111-2222-4333-8444-555555555555'
+  });
+
+  assert.equal(result.destinationUrl, 'https://example.test/store');
+  assert.equal(result.recorded, false);
+  assert.equal(result.wavesCharged, 0);
+  assert.equal(createEvent.mock.callCount(), 0);
+  assert.equal(spendCampaign.mock.callCount(), 0);
+});
+
+test('already-rendered ads still open when a concurrent event exhausts the daily budget', async (t) => {
+  const campaign = {
+    _id: 'campaign-global', status: 'active', fundingStatus: 'funded', remainingBudget: 20,
+    impressionCostWaves: 0.5, clickCostWaves: 2, dailyBudget: 2, dailyBudgetSpent: 2,
+    sitewideFallback: true, targetCommunities: [],
+    destinationUrl: 'https://example.test/store',
+    advertiser: { status: 'approved', website: 'https://example.test' }
+  };
+  t.mock.method(Campaign, 'findById', () => ({
+    populate() { return this; },
+    lean: async () => campaign
+  }));
+  t.mock.method(CampaignEvent, 'create', async () => ({ _id: 'event-global-click' }));
+  t.mock.method(CampaignEvent, 'deleteOne', async () => ({ deletedCount: 1 }));
+  t.mock.method(Campaign, 'findOneAndUpdate', async () => null);
+
+  const result = await recordCampaignEvent({
+    campaignId: campaign._id,
+    deliveryContext: 'sitewide',
+    viewerId: 'viewer-global',
+    eventType: 'click',
+    eventToken: '11111111-2222-4333-8444-555555555555'
+  });
+
+  assert.equal(result.destinationUrl, 'https://example.test/store');
+  assert.equal(result.recorded, false);
+  assert.equal(result.wavesCharged, 0);
+});
+
 test('admin closes an advertisement abuse signal with a reason and audit record', async (t) => {
   const signal = {
     _id: 'signal-1',

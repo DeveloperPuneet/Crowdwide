@@ -154,4 +154,25 @@ test('eligible community campaign spend credits its owner once and appears in ow
   assert.equal(walletPage.status, 200);
   assert.match(walletPage.text, /Community ad share/);
   assert.match(walletPage.text, new RegExp(community.name));
+
+  const lowBudgetCampaign = await Campaign.create({
+    advertiser: advertiser._id,
+    title: 'Low budget service campaign',
+    campaignType: 'service',
+    status: 'active',
+    fundingStatus: 'funded',
+    totalBudget: 0.5,
+    remainingBudget: 0.5,
+    impressionCostWaves: 0.25,
+    clickCostWaves: 1,
+    targetCommunities: [community._id],
+    destinationUrl: 'https://example.test/service'
+  });
+  const campaignClick = await viewerAgent.get(
+    `/ads/${lowBudgetCampaign._id}/click?community=${community._id}&event=12345678-1234-4123-8123-123456789abd`
+  );
+  assert.equal(campaignClick.status, 302);
+  assert.equal(campaignClick.headers.location, 'https://example.test/service');
+  assert.equal(await CampaignEvent.countDocuments({ campaign: lowBudgetCampaign._id }), 0);
+  assert.equal((await Campaign.findById(lowBudgetCampaign._id)).remainingBudget, 0.5);
 });
