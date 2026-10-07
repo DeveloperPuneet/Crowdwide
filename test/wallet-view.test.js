@@ -28,5 +28,5 @@ test('wallet view shows current Waves balance and transaction ledger', async () 
   assert.match(html, /125 Waves/);
   assert.match(html, /Post reward/);
   assert.match(html, /\+10/);
-  assert.match(html, /separate from real-money advertising revenue/);
+  assert.match(html, /does not process real-money payments or payouts/);
 });

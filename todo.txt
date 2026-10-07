@@ -3,7 +3,7 @@
 ## Completed
 
 - Advertiser and campaign foundation — approved advertiser registration, campaign submission flow, moderation lifecycle, CTR tracking, and budget controls.
-- Waves earning and spending — configurable, ledger-backed platform rewards with daily caps and campaign funding/refunds; advertiser campaign budgets are paid in Waves, separate from any real-money ad revenue.
+- Waves earning and spending — configurable, ledger-backed platform rewards with daily caps and campaign funding/refunds; all Crowdwide campaign budgets, charges, transfers, and supported purchases use Waves, and no real-money payments are processed.
 - Behavior-based account coordination signals — admins can review reciprocal Waves rewards between pairs of accounts when activity repeats across multiple posts and days; these are unconfirmed signals only, without IP/device fingerprinting or automatic suspensions.
 - Community ad delivery and reporting — approved, active, funded campaigns appear only in public communities with active monetization and ads enabled; admin-configured feed/sidebar placements and frequency are respected. Impression/click events are deduplicated, update CTR totals, and are broken down by community and day in the advertiser dashboard. Members can report an ad directly from its placement into the admin moderation queue.
 - Normal-feed ad fallback — advertisers can explicitly submit fallback campaigns when no community is monetized; approved active campaigns display as sponsored cards in users' regular feed, stop displaying as soon as community monetization exists, and retain click/impression tracking, daily deduplication, reporting, and Waves budget controls.
@@ -32,12 +32,12 @@
 - Community and quest Waves rewards — configurable rewards for joining/creating communities and completing quests, once per user/action target and subject to the daily cap.
 - Community monetization application foundation — owner eligibility checklist and application, configurable post/like/comment thresholds with server-side enforcement, and admin review/approval workflow.
 - Community monetization status and ad-configuration scaffolding.
-- [x] Community ad-spend Waves shares — validated campaign events split eligible Waves spend using a 50% default owner share (admin-configurable per community); accepted shares are credited to the owner's Waves ledger and the remainder stays with Crowdwide. This is closed-loop Waves, not external ad revenue or cash.
+- [x] Community ad-spend Waves shares — validated campaign events split eligible Waves spend using a 50% default owner share (admin-configurable per community); accepted shares are credited to the owner's Waves ledger and the remainder stays with Crowdwide. All platform campaign budgets and charges use Waves; no real-money payments or payouts are processed.
 - [x] Community owner Waves earnings/history — owners see ad stats, share rate, lifetime credited Waves, and recent earnings history in community management; community ad-share credits also appear in wallet history.
 - [x] Admin community Waves-share controls — admins can configure each community's share rate, review lifetime credited totals, and retry pending credits with audited actions.
 - [x] Community ad-share anti-abuse — only unique, server-validated, billed events can earn shares; owner/advertiser self-events are excluded, owner eligibility is checked, and idempotent pending credits can be retried without charging the campaign again.
-- [x] Community revenue status visibility — community owners see advertising impressions, clicks, Waves spend, and credited Waves earnings; external advertising revenue and cash payouts remain unavailable until an approved provider and payment arrangement exist.
-- [x] Revenue-sharing calculation integration — the validated minor-unit calculator now calculates community ad shares at micro-Wave precision and feeds the idempotent Waves ledger credit flow; external ad revenue and payouts remain separate.
+- [x] Community revenue status visibility — community owners see advertising impressions, clicks, Waves spend, and credited Waves earnings; Crowdwide does not process real-money ad payments, transfers, or payouts.
+- [x] Revenue-sharing calculation integration — the validated minor-unit calculator now calculates community ad shares at micro-Wave precision and feeds the idempotent Waves ledger credit flow.
 - Community Galaxy — Interactive Community Discovery Map 🌐
 - Rising Communities Radar — Discover Growing Communities 📡
 - Posts, articles, polls, drafts, scheduled publishing, media uploads, alt text, hashtags, mentions, quote posts, and linked post replies.
@@ -85,15 +85,15 @@
 - About-page community charts now use real data: average views per post for new vs. established communities and average weekly posts per community by size tier, computed from published posts in public communities and cached for ten minutes. Unit-tested.
 - Async route errors are forwarded to the error handler (Express 4 previously left the request hanging on a rejected promise).
 - Settings and profile layouts keep a fixed navigation column and stable width when switching sections.
-- Community monetization application, owner status, and admin review surfaces are available; real-money revenue sharing and payouts remain disabled pending provider and legal approval.
+- Community monetization application, owner status, and admin review surfaces are available; campaign spend and owner shares use Waves only.
 - Translation (posts/comments) tries LibreTranslate first and uses Google Translate only as an explicitly configured paid fallback. Libre failures now fall back correctly, and 401/403 logs explain that `LIBRETRANSLATE_URL` must point to the LibreTranslate service (not the Crowdwide website) and that an API key may be required. Render setup docs use separate services rather than Docker commands in the app build. Unit-tested; live provider access still requires valid deployment configuration.
 - Moderators (not just admins) can now resolve appeals, from a new "Pending appeals" section on `/moderator`. Same approve/lift-or-deny logic as the admin console, same audit log and account-history entry. Unit-tested.
 - Advertisement event integrity: impression and click counts are limited to one per authenticated viewer, campaign, community, event type, and UTC day using a durable unique key, so page refreshes with a new event token cannot inflate campaign reporting. Repeated blocked attempts are grouped into an admin review queue and retained with campaign/community/viewer context and reviewer notes.
 - Community monetization eligibility now checks configurable community age and recent published activity, engagement thresholds, public visibility, verified owner standing, current suspensions/restrictions, recent owner warnings, and resolved reports on community posts.
 - Community monetization now uses moderator screening before admin approval/rejection, requires decision reasons where appropriate, records review history, supports owner appeals, and lets admins immediately pause monetization with an audit reason.
-- Community owners can see monetization status, review history, and measured ad impressions/clicks. Earnings and payouts are explicitly shown as unavailable because no external provider or approved revenue-sharing/payment arrangement is configured.
+- Community owners can see monetization status, review history, measured ad impressions/clicks, and Waves earnings history; the platform does not process real-money earnings or payouts.
 - Waves abuse controls: administrators can place reasoned temporary Waves holds; held accounts cannot earn, transfer, spend, or fund campaigns, while administrative ledger corrections remain possible. The admin overview exposes recent Waves ledger activity, current holds, and reciprocal reward signals as review leads rather than automatic abuse findings.
-- Published Waves Terms and Community Monetization Terms define the closed-loop Waves rules, transfer/abuse controls, community eligibility/review, advertiser integrity, and the pre-launch provider/legal/payout gates. Advertising Terms and the privacy notice now accurately disclose current ad delivery and first-party event measurement.
+- Published Waves, Community Monetization, and Advertising Terms define the Waves-only platform transaction model, transfer/abuse controls, community eligibility/review, and advertiser integrity. Advertising Terms clarify that purchases linked from ads are not processed by Crowdwide.
 - Post promotion with Waves: owners can promote eligible published posts for an admin-configured price and duration; promotion spending is recorded in the Waves ledger, up to two active posts appear as Sponsored placements between organic feed posts (including for their owner), and owners see promotion status and expiry.
 - Community promotion with Waves: verified owners can buy a time-limited, labeled public-community placement in Explore and Communities; the owner dashboard shows its status and expiry, and admins configure availability, price, and duration.
 - Public profile Waves balance — profile pages display the user's current Waves balance.
@@ -106,40 +106,6 @@ Waves Usage
 
 Add Ad-Free feature using Waves if premium is introduced
 
-External Community Revenue
-
-Track gross external advertising revenue
-
-Track applicable external-revenue deductions/adjustments
-
-Calculate Crowdwide share of external advertising revenue
-
-Calculate community-owners share of external advertising revenue
-
-Track pending external-revenue earnings
-
-Track finalized external-revenue earnings
-
-
-Advertiser Refunds / Campaign Handling
-
-Admin Panel
-
-Add external community advertising revenue overview
-
-Add external community advertising revenue breakdown
-
-Add payout management
-
-Add configurable external revenue-sharing percentage
-
-Add configurable advertising limits
-
-Add admin override controls
-
-Security / Anti-Abuse
-
-Detect multiple-account abuse
 
 ## Planned
 

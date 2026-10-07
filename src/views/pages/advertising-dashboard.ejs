@@ -1,10 +1,10 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'advertising', currentUser }) %>
 <% const campaignAnalytics = locals.campaignAnalytics || { byCommunity: [], daily: [] }; %>
-<main class="explore-page admin-wide">
+<main class="explore-page admin-wide advertising-page">
   <%- include('../partials/flash') %>
   <header class="admin-page-header">
-    <div><p class="eyebrow">Advertiser tools</p><h1>Advertising dashboard</h1><p>Manage campaigns funded with Waves and review their delivery statistics.</p></div>
+    <div><p class="eyebrow">Advertiser tools</p><h1>Advertising dashboard</h1><p>Manage campaigns funded with Waves and review their delivery statistics.</p><p class="advertising-payment-note">Campaign budgets and all Crowdwide platform charges use Waves. Crowdwide does not process real-money payments or payouts.</p></div>
     <a class="button button-small button-ghost" href="/wallet">◈ <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
   </header>
 
@@ -90,9 +90,9 @@
         </select>
       </label>
       <label>Product name<input name="productName" maxlength="120" placeholder="Required for product ads"></label>
-      <label>Displayed price (optional)<input name="productPrice" maxlength="60" placeholder="For example, $19.99 or From £25"></label>
+      <label>Advertiser-listed price (optional)<input name="productPrice" maxlength="60" placeholder="Display only; not paid on Crowdwide"></label>
       <label>Destination link<input type="url" name="destinationUrl" maxlength="1000" placeholder="https://example.com" required></label>
-      <p class="full-width">For product ads, add the product name and optionally a displayed price. The price is advertiser-provided information; checkout and payment happen on your destination site.</p>
+      <p class="full-width">For product ads, add the product name and optionally an advertiser-provided displayed price. Campaign budgets and charges on Crowdwide are in Waves. Any purchase linked from an ad happens outside Crowdwide; this platform does not process that payment.</p>
       <label>Banner image<input type="file" name="banner" accept="image/*"><small>Optional. Image only, under 2 MB. Scanned before upload.</small></label>
       <label>Total budget (Waves)<input type="number" name="totalBudget" min="<%= Number(locals.advertisingMinimumCampaignBudget || 25) %>" step="0.01" required><small>Minimum <%= Number(locals.advertisingMinimumCampaignBudget || 25).toLocaleString() %> Waves.</small></label>
       <label>Daily budget (Waves)<input type="number" name="dailyBudget" min="0" step="0.01" value="0"></label>

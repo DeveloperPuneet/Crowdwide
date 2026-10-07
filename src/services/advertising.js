@@ -10,7 +10,7 @@ const { calculateCommunityAdShare } = require('./communityRevenue');
 const wavesService = require('./waves');
 const logger = require('./logger');
 
-const ADVERTISING_TERMS_VERSION = '2026-10-07-v2';
+const ADVERTISING_TERMS_VERSION = '2026-10-07-v3';
 const BOT_ACTIVITY_EVENT_THRESHOLD = 20;
 const BOT_ACTIVITY_WINDOW_MS = 60 * 1000;
 const ADVERTISING_POLICY_CATEGORIES = [

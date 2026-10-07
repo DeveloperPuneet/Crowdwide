@@ -181,7 +181,7 @@ test('registerAdvertiser creates an advertiser profile for a user', async (t) =>
   assert.equal(advertiser.logoUrl, 'https://cdn.example.test/logo.png');
   assert.equal(advertiser.bannerUrl, 'https://cdn.example.test/banner.png');
   assert.equal(advertiser.status, 'pending');
-  assert.equal(advertiser.termsVersion, '2026-10-07-v2');
+  assert.equal(advertiser.termsVersion, '2026-10-07-v3');
   assert.ok(advertiser.termsAcceptedAt instanceof Date);
   assert.equal(stub.mock.callCount(), 1);
 
@@ -193,7 +193,7 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
     if (String(id) === 'advertiser-1') {
       return { _id: 'advertiser-1', status: 'pending' };
     }
-    return { _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date() };
+    return { _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07-v3', termsAcceptedAt: new Date() };
   });
 
   await assert.rejects(() => createCampaign({
@@ -238,7 +238,7 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
 
 test('campaign creation rejects budgets below the configured minimum and unsafe destination schemes', async (t) => {
   t.mock.method(Advertiser, 'findById', async () => ({
-    _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date()
+    _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07-v3', termsAcceptedAt: new Date()
   }));
   await assert.rejects(() => createCampaign({
     advertiserId: 'advertiser-2', title: 'Too small', totalBudget: 10,
@@ -285,7 +285,7 @@ test('submitting a campaign escrows its budget and records a deduplicated Waves 
     }
   };
   t.mock.method(Campaign, 'findById', async () => campaign);
-  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-1', status: 'approved', termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date() }));
+  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-1', status: 'approved', termsVersion: '2026-10-07-v3', termsAcceptedAt: new Date() }));
   t.mock.method(WavesLedgerEntry, 'create', async (entry) => Object.assign(ledgerEntry, entry));
   t.mock.method(User, 'updateOne', async () => ({ modifiedCount: 1 }));
   t.mock.method(User, 'findById', () => ({
@@ -326,7 +326,7 @@ test('campaign budget submission fails cleanly when wallet balance is insufficie
     }
   };
   t.mock.method(Campaign, 'findById', async () => campaign);
-  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-poor', status: 'approved', termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date() }));
+  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-poor', status: 'approved', termsVersion: '2026-10-07-v3', termsAcceptedAt: new Date() }));
   t.mock.method(WavesLedgerEntry, 'create', async (entry) => Object.assign(ledgerEntry, entry));
   t.mock.method(User, 'updateOne', async () => ({ modifiedCount: 0 }));
 

@@ -158,7 +158,7 @@ test('advertiser dashboard renders application form and campaign metrics', async
       bannerUrl: '/uploads/business-banner.png',
       moderationHistory: [{ status: 'approved', reason: 'Verified.', actor: { name: 'Admin A' }, createdAt: new Date() }]
     },
-    advertisingTermsVersion: '2026-10-07-v2',
+    advertisingTermsVersion: '2026-10-07-v3',
     advertisingTermsAccepted: true,
     campaigns: [{
       _id: 'campaign-1', title: 'Launch', status: 'approved', fundingStatus: 'funded',
@@ -175,6 +175,7 @@ test('advertiser dashboard renders application form and campaign metrics', async
     totals: { impressions: 100, clicks: 5, ctr: 5, wavesSpent: 2, remainingBudget: 18 }
   });
   assert.match(html, /Advertising dashboard/);
+  assert.match(html, /<main class="explore-page admin-wide advertising-page">/);
   assert.match(html, /A company description/);
   assert.match(html, /business-logo\.png/);
   assert.match(html, /business-banner\.png/);
@@ -182,7 +183,7 @@ test('advertiser dashboard renders application form and campaign metrics', async
   assert.match(html, /5% CTR/);
   assert.match(html, /Your campaigns/);
   assert.match(html, /Product name/);
-  assert.match(html, /Displayed price \(optional\)/);
+  assert.match(html, /Advertiser-listed price \(optional\)/);
   assert.match(html, /Advertiser review history/);
   assert.match(html, /campaign-dashboard-card/);
   assert.match(html, /campaign-status-approved/);
@@ -190,6 +191,8 @@ test('advertiser dashboard renders application form and campaign metrics', async
   assert.match(html, /Performance by community and date/);
   assert.match(html, /Show this ad in the normal Crowdwide feed while no public community is monetized/);
   assert.match(html, /What are you advertising/);
+  assert.match(html, /Campaign budgets and all Crowdwide platform charges use Waves/);
+  assert.match(html, /this platform does not process that payment/);
   assert.match(html, /value="product">My product/);
   assert.match(html, /I own or am authorized to advertise this product/);
   assert.match(html, /name="confirmAdvertisingRights" required/);
@@ -207,7 +210,7 @@ test('advertiser campaign card explains pending review and approved activation s
   const base = {
     title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
     advertiser: { _id: 'a1', businessName: 'Example Co', status: 'approved' },
-    advertisingTermsVersion: '2026-10-07-v2', advertisingTermsAccepted: true,
+    advertisingTermsVersion: '2026-10-07-v3', advertisingTermsAccepted: true,
     campaigns: [], communities: [], campaignAnalytics: { byCommunity: [], daily: [] },
     sitewideFallbackAvailable: true,
     totals: { impressions: 0, clicks: 0, ctr: 0, wavesSpent: 0, remainingBudget: 0 }
@@ -245,7 +248,7 @@ test('product advertisements render product details, price, image, and a tracked
   });
   assert.match(html, /<h2>Crowdwide Mug<\/h2>/);
   assert.match(html, /<strong>\$19\.99<\/strong>/);
-  assert.match(html, /Price provided by the advertiser/);
+  assert.match(html, /Advertiser-listed price · purchases are not processed on Crowdwide/);
   assert.match(html, /alt="Image of Crowdwide Mug" class="community-ad-image"/);
   assert.match(html, /crowdwide-shop\.png" alt="" class="community-ad-logo"/);
   assert.match(html, /Explore product/);
@@ -270,7 +273,7 @@ test('advertising application requires acknowledgement of the linked Advertising
   const html = await render('pages/advertising-dashboard.ejs', {
     title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
     advertiser: null, campaigns: [], communities: [],
-    advertisingTermsVersion: '2026-10-07-v2', advertisingTermsAccepted: false,
+    advertisingTermsVersion: '2026-10-07-v3', advertisingTermsAccepted: false,
     totals: { impressions: 0, clicks: 0, ctr: 0, wavesSpent: 0, remainingBudget: 0 }
   });
   assert.match(html, /enctype="multipart\/form-data"/);
@@ -285,7 +288,7 @@ test('rejected advertiser sees an appeal form and pending appeals replace it wit
   const baseData = {
     title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
     advertiser: { _id: 'a1', businessName: 'Example Co', status: 'rejected', rejectionReason: 'More information needed' },
-    campaigns: [], communities: [], advertisingTermsVersion: '2026-10-07-v2',
+    campaigns: [], communities: [], advertisingTermsVersion: '2026-10-07-v3',
     advertisingTermsAccepted: true,
     totals: { impressions: 0, clicks: 0, ctr: 0, wavesSpent: 0, remainingBudget: 0 }
   };
@@ -312,7 +315,7 @@ test('moderator console exposes advertiser screening and final admin review cont
       logoUrl: 'https://cdn.example.test/moderator-logo.png',
       bannerUrl: 'https://cdn.example.test/moderator-banner.png',
       website: 'https://example.test', notes: 'Local maker',
-      termsVersion: '2026-10-07-v2', termsAcceptedAt: new Date(),
+      termsVersion: '2026-10-07-v3', termsAcceptedAt: new Date(),
       moderationHistory: [{ status: 'pending', reason: 'Application submitted.', actor: { name: 'Asha' }, createdAt: new Date() }]
     }],
     myOpenReportRecommendations: new Set()
@@ -630,7 +633,8 @@ test('docs page renders the API endpoints, and info pages cover help', async () 
 test('Waves and community monetization terms disclose platform-currency and payout limits', async () => {
   for (const [pagePath, expected] of [
     ['/waves/terms', /not money, cryptocurrency, stored value/],
-    ['/community-monetization/terms', /internal Waves share only/]
+    ['/community-monetization/terms', /internal Waves ledger credits/],
+    ['/advertising/terms', /All platform advertising budgets and charges use Waves/]
   ]) {
     let page;
     await webController.infoPage({ path: pagePath }, {
@@ -646,6 +650,8 @@ test('Waves and community monetization terms disclose platform-currency and payo
       assert.match(html, /Community promotions/);
       assert.match(html, /Promoted · paid with Waves/);
       assert.doesNotMatch(html, /No unlaunched premium, ad-free, post-promotion/);
+    } else {
+      assert.match(html, /does not process real-money/);
     }
   }
 });
@@ -1065,7 +1071,7 @@ test('admin panel exposes suspend, reinstate, and remove controls for approved c
       user: { name: 'Asha', email: 'asha@example.test' },
       moderatorReview: { status: 'pending' },
       moderationHistory: [],
-      termsVersion: '2026-10-07-v2'
+      termsVersion: '2026-10-07-v3'
     };
     const html = await render('pages/admin.ejs', {
       title: 'Admin console', pagePath: '/admin', noIndex: true,

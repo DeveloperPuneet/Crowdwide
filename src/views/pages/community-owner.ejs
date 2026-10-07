@@ -102,7 +102,7 @@
 				<article class="admin-stat"><span>Campaign spend</span><strong><%= Number(adStats.campaignSpendWaves || 0).toLocaleString() %></strong><small>Waves charged to campaigns</small></article>
 				<article class="admin-stat"><span>Owner share</span><strong><%= Number(adStats.ownerShareWaves || 0).toLocaleString() %></strong><small><%= Number(community.monetizationSettings?.revenueSharePercent || 0) %>% · credited Waves</small></article>
 			</div>
-			<p>Your share is <%= Number(community.monetizationSettings?.revenueSharePercent || 0) %>% of eligible, deduplicated campaign spend in this public community, credited directly to your Waves wallet. Waves are platform currency, not external advertising revenue; they have no cash value and cannot be withdrawn.</p>
+			<p>Your share is <%= Number(community.monetizationSettings?.revenueSharePercent || 0) %>% of eligible, deduplicated campaign spend in this public community, credited directly to your Waves wallet. This is an internal Waves ledger credit only; Crowdwide does not process real-money ad payments or payouts, and Waves cannot be withdrawn.</p>
 			<section class="community-ad-earnings-history" aria-labelledby="community-ad-earnings-heading">
 				<h3 id="community-ad-earnings-heading">Recent Waves earnings</h3>
 				<% const earningsHistory = Array.isArray(locals.ownerEarningsHistory) ? locals.ownerEarningsHistory : []; %>

@@ -29,7 +29,7 @@
   <div class="community-ad-copy">
     <h2><%= ad.campaign.campaignType === 'product' ? (ad.campaign.productName || ad.campaign.title) : ad.campaign.title %></h2>
     <% if (ad.campaign.description) { %><p><%= ad.campaign.description %></p><% } %>
-    <% if (ad.campaign.campaignType === 'product' && ad.campaign.productPrice) { %><p class="community-ad-price"><strong><%= ad.campaign.productPrice %></strong><small>Price provided by the advertiser.</small></p><% } %>
+    <% if (ad.campaign.campaignType === 'product' && ad.campaign.productPrice) { %><p class="community-ad-price"><strong><%= ad.campaign.productPrice %></strong><small>Advertiser-listed price · purchases are not processed on Crowdwide.</small></p><% } %>
   </div>
   <div class="community-ad-footer">
     <% if (ad.campaign.destinationUrl || ad.campaign.advertiser?.website) { %><a class="community-ad-cta" href="/ads/<%= ad.campaign._id %>/click?<%= adContext === 'sitewide' ? 'context=sitewide' : `community=${encodeURIComponent(adCommunityId)}` %>&amp;event=<%= ad.eventToken %>" target="_blank" rel="noopener noreferrer"><span><%= ad.campaign.campaignType === 'product' ? 'Explore product' : ad.campaign.campaignType === 'service' ? 'Explore service' : 'Learn more' %></span><span aria-hidden="true">↗</span></a><% } %>

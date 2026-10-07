@@ -641,6 +641,17 @@ html { scrollbar-gutter: stable; }
   .community-ad-footer { padding-right: 14px; padding-left: 14px; }
 }
 .advertiser-application-card { gap: 10px; }
+.advertising-page { width: min(1120px, 100%); min-width: 0; }
+.advertising-page > * { min-width: 0; }
+.advertising-page > .settings-block { width: 100%; }
+.advertising-page .advertising-payment-note { margin: 9px 0 0; color: var(--tx-lo); font-size: 12px; line-height: 1.5; }
+.advertising-page .admin-edit-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+.advertising-page .admin-edit-form label { width: 100%; min-width: 0; margin: 0; }
+.advertising-page .admin-edit-form .full-width { grid-column: 1 / -1; }
+.advertising-page .admin-edit-form :is(input, select, textarea) { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; }
+.advertising-page .admin-edit-form .admin-edit-form-actions { grid-column: 1 / -1; margin-left: 0; }
+.advertising-page .campaign-dashboard-card { width: 100%; }
+.advertising-page .campaign-dashboard-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .advertiser-application-banner { display: block; width: 100%; max-height: 190px; object-fit: cover; border-radius: 9px; }
 .advertiser-brand-banner { display: block; width: 100%; max-height: 180px; object-fit: cover; border-radius: 9px; margin: 10px 0; }
 .advertiser-application-identity { display: flex; align-items: center; gap: 12px; }
@@ -668,6 +679,10 @@ html { scrollbar-gutter: stable; }
 .campaign-dashboard-actions { display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
 .campaign-dashboard-actions form { margin: 0; }
 @media (max-width: 600px) {
+  .advertising-page .admin-edit-form,
+  .advertising-page .campaign-dashboard-details { grid-template-columns: minmax(0, 1fr); }
+  .advertising-page .admin-edit-form .full-width,
+  .advertising-page .admin-edit-form .admin-edit-form-actions { grid-column: auto; }
   .campaign-dashboard-card { padding: 14px; }
   .campaign-dashboard-details { grid-template-columns: minmax(0, 1fr); }
 }
