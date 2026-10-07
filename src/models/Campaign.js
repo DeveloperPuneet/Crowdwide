@@ -6,7 +6,7 @@ const campaignSchema = new mongoose.Schema({
   description: { type: String, trim: true, maxlength: 2000, default: '' },
   status: {
     type: String,
-    enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'cancelled', 'completed'],
+    enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'suspended', 'cancelled', 'completed'],
     default: 'draft',
     index: true
   },
@@ -33,14 +33,26 @@ const campaignSchema = new mongoose.Schema({
   moderatorReview: {
     status: { type: String, enum: ['pending', 'cleared', 'flagged'], default: 'pending' },
     reason: { type: String, trim: true, maxlength: 500, default: '' },
+    flaggedCategory: {
+      type: String,
+      enum: ['', 'adult-18-plus', 'sexual-content', 'gambling-betting', 'pornography', 'other-inappropriate'],
+      default: ''
+    },
+    policyChecks: [{
+      type: String,
+      enum: ['adult-18-plus', 'sexual-content', 'gambling-betting', 'pornography', 'other-inappropriate']
+    }],
     reviewedAt: Date,
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   approvedAt: Date,
   pausedAt: Date,
+  suspendedAt: Date,
+  suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  suspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
   cancelledAt: Date,
   moderationHistory: [{
-    status: { type: String, enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'cancelled', 'completed'], required: true },
+    status: { type: String, enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'suspended', 'cancelled', 'completed'], required: true },
     reason: { type: String, trim: true, maxlength: 500, default: '' },
     createdAt: { type: Date, default: Date.now },
     actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }

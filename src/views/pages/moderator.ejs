@@ -3,14 +3,43 @@
 <main class="explore-page admin-console"><%- include('../partials/flash') %>
   <p class="eyebrow">Restricted operations</p><h1>Moderator console</h1><p class="form-note">Identifier: <strong><%= moderator.moderatorId %></strong>. Personal emails, sessions, and account security data are hidden here. Every action you submit here is queued for an admin's approval before it takes effect.</p>
 
+  <section class="settings-block admin-wide" id="advertisers"><h2>Advertiser applications</h2><p>Screen advertiser details and policy fit. An admin makes the final approval or rejection decision.</p>
+    <% if (!pendingAdvertisers.length) { %><p>No advertiser applications are waiting for moderator review.</p><% } %>
+    <% pendingAdvertisers.forEach((advertiser) => { %>
+    <article class="device-row" style="flex-direction:column;align-items:stretch;">
+      <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'member' %></span>
+        <% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener"><%= advertiser.website %></a></p><% } %>
+        <% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %>
+        <p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p>
+      </div>
+      <form method="post" action="/moderator/advertisers/<%= advertiser._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="text" name="reason" maxlength="500" placeholder="Review notes (required)" required style="flex:1;min-width:180px;">
+        <button class="button button-small button-primary" name="decision" value="cleared" type="submit">Clear for admin</button>
+        <button class="button button-small button-danger" name="decision" value="flagged" type="submit">Flag for admin</button>
+      </form>
+    </article>
+    <% }) %>
+  </section>
+
   <section class="settings-block admin-wide" id="campaigns"><h2>Advertisement campaign review</h2><p>Review submitted campaigns for policy concerns. An admin makes the final approval or rejection decision.</p>
     <% if (!pendingCampaigns.length) { %><p>No submitted campaigns are waiting for moderator review.</p><% } %>
     <% pendingCampaigns.forEach((campaign) => { %>
     <article class="device-row" style="flex-direction:column;align-items:stretch;">
-      <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.name || 'member' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · targets: <%= (campaign.targetCommunities || []).length %> communities</p></div>
+      <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.name || 'member' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · targets: <%= (campaign.targetCommunities || []).length %> communities</p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p></div>
+      <p>Do not clear campaigns promoting adult-only (18+) services, erotic or sexually explicit content, gambling or betting, pornography, or other inappropriate products or services. This is a policy review, not automated content detection.</p>
       <form method="post" action="/moderator/campaigns/<%= campaign._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="text" name="reason" maxlength="500" placeholder="Review notes (required)" required style="flex:1;min-width:180px;">
+        <fieldset style="flex-basis:100%;">
+          <legend>For a clear decision, confirm every policy check</legend>
+          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="adult-18-plus"> Not for adult-only (18+) products or services</label>
+          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="sexual-content"> No erotic or sexually explicit content</label>
+          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="gambling-betting"> No gambling or betting</label>
+          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="pornography"> No pornography</label>
+          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="other-inappropriate"> No other inappropriate products or services</label>
+        </fieldset>
+        <label>Flag category<select name="flaggedCategory"><option value="">Choose a category if flagging</option><option value="adult-18-plus">Adult-only (18+)</option><option value="sexual-content">Erotic or sexually explicit</option><option value="gambling-betting">Gambling or betting</option><option value="pornography">Pornography</option><option value="other-inappropriate">Other inappropriate content</option></select></label>
         <button class="button button-small button-primary" name="decision" value="cleared" type="submit">Clear for admin</button>
         <button class="button button-small button-danger" name="decision" value="flagged" type="submit">Flag for admin</button>
       </form>

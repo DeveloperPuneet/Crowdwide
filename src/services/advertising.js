@@ -3,6 +3,15 @@ const Campaign = require('../models/Campaign');
 const User = require('../models/User');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 
+const ADVERTISING_TERMS_VERSION = '2026-10-07';
+const ADVERTISING_POLICY_CATEGORIES = [
+  'adult-18-plus',
+  'sexual-content',
+  'gambling-betting',
+  'pornography',
+  'other-inappropriate'
+];
+
 function normalizeNonNegativeNumber(value, fieldName) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) {
@@ -26,11 +35,12 @@ function calculateCtr({ impressions = 0, clicks = 0 }) {
   return Number(((clickCount / impressionCount) * 100).toFixed(4));
 }
 
-async function registerAdvertiser({ userId, businessName, website = '', notes = '', isVerified = false }) {
+async function registerAdvertiser({ userId, businessName, website = '', notes = '', isVerified = false, acceptedTerms = false }) {
   if (!userId) throw new Error('Advertiser user ID is required.');
 
   const name = String(businessName || '').trim();
   if (!name) throw new Error('Business name is required.');
+  if (!acceptedTerms) throw new Error('You must accept the Advertising Terms to apply.');
 
   const advertiser = await Advertiser.findOneAndUpdate(
     { user: userId },
@@ -41,6 +51,9 @@ async function registerAdvertiser({ userId, businessName, website = '', notes = 
       notes: String(notes || '').trim().slice(0, 2000),
       isVerified: Boolean(isVerified),
       status: 'pending',
+      termsAcceptedAt: new Date(),
+      termsVersion: ADVERTISING_TERMS_VERSION,
+      moderatorReview: { status: 'pending', reason: '', reviewedAt: null, reviewedBy: null },
       reviewedAt: null,
       reviewedBy: null,
       updatedAt: new Date()
@@ -48,6 +61,28 @@ async function registerAdvertiser({ userId, businessName, website = '', notes = 
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
+  return advertiser;
+}
+
+async function reviewAdvertiserAsModerator({ advertiserId, decision, reason = '', moderatorId }) {
+  if (!advertiserId) throw new Error('Advertiser ID is required.');
+  if (!moderatorId) throw new Error('Moderator ID is required.');
+
+  const advertiser = await Advertiser.findById(advertiserId);
+  if (!advertiser) throw new Error('Advertiser not found.');
+  if (advertiser.status !== 'pending') throw new Error('Only pending advertiser applications can be reviewed.');
+  if (advertiser.moderatorReview?.status !== 'pending') throw new Error('This advertiser has already received a moderator review.');
+  if (!['cleared', 'flagged'].includes(decision)) throw new Error('Choose clear or flag for advertiser review.');
+
+  const note = String(reason || '').trim().slice(0, 500);
+  if (decision === 'flagged' && !note) throw new Error('A reason is required to flag an advertiser.');
+  advertiser.moderatorReview = {
+    status: decision,
+    reason: note || 'No policy concerns identified.',
+    reviewedAt: new Date(),
+    reviewedBy: moderatorId
+  };
+  await advertiser.save();
   return advertiser;
 }
 
@@ -61,6 +96,13 @@ async function updateAdvertiserStatus({ advertiserId, status, reason = '', actor
   const note = String(reason || '').trim().slice(0, 500);
   if (['rejected', 'suspended'].includes(nextStatus) && !note) {
     throw new Error('A reason is required to reject or suspend an advertiser.');
+  }
+  if (advertiser.status === 'pending' && ['approved', 'rejected'].includes(nextStatus)
+    && !['cleared', 'flagged'].includes(advertiser.moderatorReview?.status)) {
+    throw new Error('Moderator screening must be completed before final advertiser review.');
+  }
+  if (nextStatus === 'approved' && advertiser.moderatorReview?.status !== 'cleared') {
+    throw new Error('Advertiser approval requires a moderator review that clears the application.');
   }
   advertiser.status = nextStatus;
   advertiser.reviewedAt = new Date();
@@ -100,6 +142,9 @@ async function createCampaign({
   if (!advertiser) throw new Error('Advertiser not found.');
   if (advertiser.status !== 'approved') {
     throw new Error('Only approved advertisers can create campaigns.');
+  }
+  if (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt) {
+    throw new Error('Accept the current Advertising Terms before creating campaigns.');
   }
   if (status !== 'draft') throw new Error('New campaigns must start as drafts and be submitted for review separately.');
   if (!isWavesFunded) throw new Error('Campaign funding is currently supported only with Waves.');
@@ -158,6 +203,9 @@ async function fundCampaign({ campaignId, actorId = null }) {
   const advertiser = await Advertiser.findById(campaign.advertiser);
   if (!advertiser || advertiser.status !== 'approved') {
     throw new Error('An approved advertiser is required to fund a campaign.');
+  }
+  if (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt) {
+    throw new Error('Accept the current Advertising Terms before funding a campaign.');
   }
   const amount = normalizePositiveNumber(campaign.totalBudget, 'campaign budget');
   const rewardKey = `campaign-fund:${campaign._id}`;
@@ -222,7 +270,7 @@ async function fundCampaign({ campaignId, actorId = null }) {
   return campaign;
 }
 
-async function reviewCampaignAsModerator({ campaignId, decision, reason = '', moderatorId }) {
+async function reviewCampaignAsModerator({ campaignId, decision, reason = '', flaggedCategory = '', policyChecks = [], moderatorId }) {
   if (!campaignId) throw new Error('Campaign ID is required.');
   if (!moderatorId) throw new Error('Moderator ID is required.');
 
@@ -233,10 +281,21 @@ async function reviewCampaignAsModerator({ campaignId, decision, reason = '', mo
   if (!['cleared', 'flagged'].includes(decision)) throw new Error('Choose clear or flag for campaign review.');
 
   const note = String(reason || '').trim().slice(0, 500);
-  if (decision === 'flagged' && !note) throw new Error('A reason is required to flag a campaign.');
+  const category = String(flaggedCategory || '').trim();
+  const checks = [...new Set((Array.isArray(policyChecks) ? policyChecks : [policyChecks])
+    .map((value) => String(value || '').trim())
+    .filter((value) => ADVERTISING_POLICY_CATEGORIES.includes(value)))];
+  if (decision === 'flagged' && (!note || !ADVERTISING_POLICY_CATEGORIES.includes(category))) {
+    throw new Error('Choose a prohibited-ad category and provide a reason to flag a campaign.');
+  }
+  if (decision === 'cleared' && ADVERTISING_POLICY_CATEGORIES.some((value) => !checks.includes(value))) {
+    throw new Error('Confirm every prohibited-ad policy check before clearing this campaign.');
+  }
   campaign.moderatorReview = {
     status: decision,
     reason: note || 'No policy concerns identified.',
+    flaggedCategory: decision === 'flagged' ? category : '',
+    policyChecks: decision === 'cleared' ? ADVERTISING_POLICY_CATEGORIES : checks,
     reviewedAt: new Date(),
     reviewedBy: moderatorId
   };
@@ -309,14 +368,14 @@ async function refundCampaignBudget({ campaignId, reason = 'Unused campaign budg
   return campaign;
 }
 
-async function updateCampaignStatus({ campaignId, status, rejectionReason = '', actorId = null }) {
+async function updateCampaignStatus({ campaignId, status, rejectionReason = '', reason = '', actorId = null }) {
   if (!campaignId) throw new Error('Campaign ID is required.');
 
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new Error('Campaign not found.');
 
   const nextStatus = String(status || '').trim();
-  const validStatuses = ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'cancelled', 'completed'];
+  const validStatuses = ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'suspended', 'cancelled', 'completed'];
   if (!validStatuses.includes(nextStatus)) {
     throw new Error(`Invalid campaign status: ${nextStatus}`);
   }
@@ -326,14 +385,14 @@ async function updateCampaignStatus({ campaignId, status, rejectionReason = '', 
   if (nextStatus === 'rejected' && !String(rejectionReason || '').trim()) {
     throw new Error('A rejection reason is required.');
   }
-  if (nextStatus === 'approved' && campaign.status !== 'submitted' && campaign.status !== 'paused') {
-    throw new Error('Only submitted campaigns can be approved.');
+  if (nextStatus === 'approved' && !['submitted', 'paused', 'suspended'].includes(campaign.status)) {
+    throw new Error('Only submitted or suspended campaigns can be approved or reinstated.');
   }
   if (campaign.status === 'submitted' && ['approved', 'rejected'].includes(nextStatus)
     && !['cleared', 'flagged'].includes(campaign.moderatorReview?.status)) {
     throw new Error('Campaign moderation must be completed before final admin review.');
   }
-  if (nextStatus === 'approved' && campaign.moderatorReview?.status !== 'cleared') {
+  if (nextStatus === 'approved' && campaign.status === 'submitted' && campaign.moderatorReview?.status !== 'cleared') {
     throw new Error('Campaign approval requires a moderator review that clears the campaign.');
   }
   if (nextStatus === 'active' && campaign.isWavesFunded && campaign.fundingStatus !== 'funded') {
@@ -351,7 +410,14 @@ async function updateCampaignStatus({ campaignId, status, rejectionReason = '', 
   if (nextStatus === 'paused' && !['active', 'approved'].includes(campaign.status)) {
     throw new Error('Only approved or active campaigns can be paused.');
   }
-  if (nextStatus === 'cancelled' && !['draft', 'submitted', 'approved', 'active', 'paused'].includes(campaign.status)) {
+  if (nextStatus === 'suspended' && !['approved', 'active', 'paused'].includes(campaign.status)) {
+    throw new Error('Only approved, active, or paused campaigns can be suspended.');
+  }
+  const moderationReason = String(reason || '').trim().slice(0, 500);
+  if (nextStatus === 'suspended' && !moderationReason) {
+    throw new Error('A reason is required to suspend a campaign.');
+  }
+  if (nextStatus === 'cancelled' && !['draft', 'submitted', 'approved', 'active', 'paused', 'suspended'].includes(campaign.status)) {
     throw new Error('This campaign cannot be cancelled in its current state.');
   }
 
@@ -362,13 +428,27 @@ async function updateCampaignStatus({ campaignId, status, rejectionReason = '', 
 
   if (nextStatus === 'approved') campaign.approvedAt = new Date();
   if (nextStatus === 'paused') campaign.pausedAt = new Date();
+  if (nextStatus === 'suspended') {
+    campaign.suspendedAt = new Date();
+    campaign.suspendedBy = actorId || null;
+    campaign.suspensionReason = moderationReason;
+  }
+  if (nextStatus === 'approved' && campaign.suspendedAt) {
+    campaign.suspendedAt = null;
+    campaign.suspendedBy = null;
+    campaign.suspensionReason = '';
+  }
   if (nextStatus === 'cancelled') campaign.cancelledAt = new Date();
 
   campaign.moderationHistory = [
     ...(campaign.moderationHistory || []).slice(-9),
     {
       status: nextStatus,
-      reason: nextStatus === 'rejected' ? campaign.rejectionReason : '',
+      reason: nextStatus === 'rejected'
+        ? campaign.rejectionReason
+        : nextStatus === 'suspended' || (nextStatus === 'approved' && moderationReason)
+          ? moderationReason
+          : '',
       createdAt: new Date(),
       actor: actorId || null
     }
@@ -449,6 +529,8 @@ async function getCampaignSummary(campaignId) {
 }
 
 module.exports = {
+  ADVERTISING_POLICY_CATEGORIES,
+  ADVERTISING_TERMS_VERSION,
   calculateCtr,
   createCampaign,
   fundCampaign,
@@ -457,6 +539,7 @@ module.exports = {
   recordCampaignPerformance,
   refundCampaignBudget,
   registerAdvertiser,
+  reviewAdvertiserAsModerator,
   reviewCampaignAsModerator,
   spendCampaignBudget,
   updateAdvertiserStatus,

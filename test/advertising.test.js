@@ -12,6 +12,7 @@ const {
   refundCampaignBudget,
   recordCampaignPerformance,
   registerAdvertiser,
+  reviewAdvertiserAsModerator,
   reviewCampaignAsModerator,
   submitCampaign,
   spendCampaignBudget,
@@ -28,7 +29,9 @@ test('registerAdvertiser creates an advertiser profile for a user', async (t) =>
     website: update.website,
     notes: update.notes,
     isVerified: update.isVerified,
-    status: update.status
+    status: update.status,
+    termsAcceptedAt: update.termsAcceptedAt,
+    termsVersion: update.termsVersion
   }));
 
   const advertiser = await registerAdvertiser({
@@ -36,11 +39,14 @@ test('registerAdvertiser creates an advertiser profile for a user', async (t) =>
     businessName: 'Crowdwide Ads',
     website: 'https://example.com',
     notes: 'Launch campaign soon',
-    isVerified: true
+    isVerified: true,
+    acceptedTerms: true
   });
 
   assert.equal(advertiser.businessName, 'Crowdwide Ads');
   assert.equal(advertiser.status, 'pending');
+  assert.equal(advertiser.termsVersion, '2026-10-07');
+  assert.ok(advertiser.termsAcceptedAt instanceof Date);
   assert.equal(stub.mock.callCount(), 1);
 
   Advertiser.findOneAndUpdate = originalFindOneAndUpdate;
@@ -51,7 +57,7 @@ test('createCampaign rejects unapproved advertisers and enforces daily budget li
     if (String(id) === 'advertiser-1') {
       return { _id: 'advertiser-1', status: 'pending' };
     }
-    return { _id: 'advertiser-2', status: 'approved' };
+    return { _id: 'advertiser-2', status: 'approved', termsVersion: '2026-10-07', termsAcceptedAt: new Date() };
   });
 
   await assert.rejects(() => createCampaign({
@@ -102,7 +108,7 @@ test('submitting a campaign escrows its budget and records a deduplicated Waves 
     }
   };
   t.mock.method(Campaign, 'findById', async () => campaign);
-  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-1', status: 'approved' }));
+  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-1', status: 'approved', termsVersion: '2026-10-07', termsAcceptedAt: new Date() }));
   t.mock.method(WavesLedgerEntry, 'create', async (entry) => Object.assign(ledgerEntry, entry));
   t.mock.method(User, 'updateOne', async () => ({ modifiedCount: 1 }));
   t.mock.method(User, 'findById', () => ({
@@ -143,7 +149,7 @@ test('campaign budget submission fails cleanly when wallet balance is insufficie
     }
   };
   t.mock.method(Campaign, 'findById', async () => campaign);
-  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-poor', status: 'approved' }));
+  t.mock.method(Advertiser, 'findById', async () => ({ user: 'owner-poor', status: 'approved', termsVersion: '2026-10-07', termsAcceptedAt: new Date() }));
   t.mock.method(WavesLedgerEntry, 'create', async (entry) => Object.assign(ledgerEntry, entry));
   t.mock.method(User, 'updateOne', async () => ({ modifiedCount: 0 }));
 
@@ -299,10 +305,12 @@ test('moderator campaign review records a clearance or flag before final admin a
     campaignId: campaign._id,
     decision: 'cleared',
     reason: 'Campaign copy and targeting reviewed.',
+    policyChecks: ['adult-18-plus', 'sexual-content', 'gambling-betting', 'pornography', 'other-inappropriate'],
     moderatorId: 'moderator-1'
   });
   assert.equal(reviewed.moderatorReview.status, 'cleared');
   assert.equal(reviewed.moderatorReview.reviewedBy, 'moderator-1');
+  assert.equal(reviewed.moderatorReview.policyChecks.length, 5);
   assert.ok(reviewed.moderatorReview.reviewedAt instanceof Date);
   await assert.rejects(() => reviewCampaignAsModerator({
     campaignId: campaign._id,
@@ -317,6 +325,7 @@ test('updateAdvertiserStatus records admin approval and verification history', a
     _id: 'advertiser-review',
     status: 'pending',
     isVerified: false,
+    moderatorReview: { status: 'cleared', reason: 'Business details reviewed.' },
     moderationHistory: [],
     async save() {
       return this;
@@ -334,6 +343,60 @@ test('updateAdvertiserStatus records admin approval and verification history', a
   assert.equal(updated.isVerified, true);
   assert.equal(updated.reviewedBy, 'admin-1');
   assert.equal(updated.moderationHistory[0].actor, 'admin-1');
+});
+
+test('moderator screens advertiser applications and final approval requires clearance', async (t) => {
+  const advertiser = {
+    _id: 'advertiser-moderator-review',
+    status: 'pending',
+    moderatorReview: { status: 'pending' },
+    async save() {
+      return this;
+    }
+  };
+  t.mock.method(Advertiser, 'findById', async () => advertiser);
+
+  const reviewed = await reviewAdvertiserAsModerator({
+    advertiserId: advertiser._id,
+    decision: 'cleared',
+    reason: 'Business and destination appear suitable.',
+    moderatorId: 'moderator-1'
+  });
+  assert.equal(reviewed.moderatorReview.status, 'cleared');
+  assert.equal(reviewed.moderatorReview.reviewedBy, 'moderator-1');
+  assert.ok(reviewed.moderatorReview.reviewedAt instanceof Date);
+
+  const updated = await updateAdvertiserStatus({
+    advertiserId: advertiser._id,
+    status: 'approved',
+    actorId: 'admin-1'
+  });
+  assert.equal(updated.status, 'approved');
+});
+
+test('admin cannot approve an advertiser before moderator screening or when flagged', async (t) => {
+  const advertiser = {
+    _id: 'advertiser-flagged',
+    status: 'pending',
+    moderatorReview: { status: 'pending' },
+    async save() {
+      return this;
+    }
+  };
+  t.mock.method(Advertiser, 'findById', async () => advertiser);
+
+  await assert.rejects(() => updateAdvertiserStatus({
+    advertiserId: advertiser._id,
+    status: 'approved',
+    actorId: 'admin-1'
+  }), /moderator screening must be completed/i);
+
+  advertiser.moderatorReview = { status: 'flagged', reason: 'Needs further checks.' };
+  await assert.rejects(() => updateAdvertiserStatus({
+    advertiserId: advertiser._id,
+    status: 'approved',
+    actorId: 'admin-1'
+  }), /approval requires a moderator review that clears/i);
 });
 
 test('submitted campaign cannot be rejected without a reason or activated before approval', async (t) => {
@@ -380,4 +443,72 @@ test('admin cannot approve a flagged campaign after moderator review', async (t)
     status: 'approved',
     actorId: 'admin-1'
   }), /approval requires a moderator review that clears/i);
+});
+
+test('admin can suspend and reinstate an approved campaign with auditable reasons', async (t) => {
+  const campaign = {
+    _id: 'campaign-admin-suspension',
+    status: 'active',
+    isWavesFunded: true,
+    fundingStatus: 'funded',
+    remainingBudget: 25,
+    moderationHistory: [],
+    async save() {
+      return this;
+    }
+  };
+  t.mock.method(Campaign, 'findById', async () => campaign);
+
+  const suspended = await updateCampaignStatus({
+    campaignId: campaign._id,
+    status: 'suspended',
+    reason: 'Policy investigation in progress.',
+    actorId: 'admin-1'
+  });
+  assert.equal(suspended.status, 'suspended');
+  assert.equal(suspended.suspensionReason, 'Policy investigation in progress.');
+  assert.equal(suspended.suspendedBy, 'admin-1');
+  assert.equal(suspended.remainingBudget, 25);
+  assert.equal(suspended.moderationHistory.at(-1).reason, 'Policy investigation in progress.');
+  await assert.rejects(() => updateCampaignStatus({
+    campaignId: campaign._id,
+    status: 'active',
+    actorId: 'advertiser-1'
+  }), /only approved campaigns can be activated/i);
+
+  const reinstated = await updateCampaignStatus({
+    campaignId: campaign._id,
+    status: 'approved',
+    reason: 'Review found no remaining concern.',
+    actorId: 'admin-1'
+  });
+  assert.equal(reinstated.status, 'approved');
+  assert.equal(reinstated.suspensionReason, '');
+  assert.equal(reinstated.moderationHistory.at(-1).reason, 'Review found no remaining concern.');
+});
+
+test('moderator cannot clear without every prohibited-ad policy check or flag without a category', async (t) => {
+  const campaign = {
+    _id: 'campaign-policy-checks',
+    status: 'submitted',
+    moderatorReview: { status: 'pending' },
+    async save() {
+      return this;
+    }
+  };
+  t.mock.method(Campaign, 'findById', async () => campaign);
+
+  await assert.rejects(() => reviewCampaignAsModerator({
+    campaignId: campaign._id,
+    decision: 'cleared',
+    reason: 'Quick review.',
+    policyChecks: ['adult-18-plus'],
+    moderatorId: 'moderator-1'
+  }), /confirm every prohibited-ad policy check/i);
+  await assert.rejects(() => reviewCampaignAsModerator({
+    campaignId: campaign._id,
+    decision: 'flagged',
+    reason: 'Appears to promote betting.',
+    moderatorId: 'moderator-1'
+  }), /choose a prohibited-ad category/i);
 });

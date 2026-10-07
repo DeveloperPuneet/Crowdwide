@@ -17,7 +17,7 @@ const { getSiteConfig, clearSiteConfigCache, getPostReviewThreshold } = require(
 const { runMaintenance, TASK_LABELS } = require('../services/maintenance');
 const { getMongoStorage, formatStorage } = require('../services/mongoStorage');
 const { adjustWaves } = require('../services/waves');
-const { reviewCampaignAsModerator, updateAdvertiserStatus, updateCampaignStatus } = require('../services/advertising');
+const { reviewAdvertiserAsModerator, reviewCampaignAsModerator, updateAdvertiserStatus, updateCampaignStatus } = require('../services/advertising');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const logger = require('../services/logger');
 
@@ -117,7 +117,7 @@ async function attachActionContext(actions) {
 }
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts monetizationStatus monetizationApplication monetizationSettings createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
@@ -130,12 +130,13 @@ exports.admin = async (req, res) => {
     SiteSetting.getSingleton(),
     getMongoStorage(),
     Community.find({ monetizationStatus: 'pending' }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationStatus monetizationSettings createdAt').populate('owner', 'name email').lean(),
-    Advertiser.find({ status: 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').lean(),
-    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name email' } }).lean()
+    Advertiser.find({ status: 'pending', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').lean(),
+    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name email' } }).lean(),
+    Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: { path: 'user', select: 'name email' } }).lean()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   await attachActionContext(pendingActions);
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
 exports.reviewAdvertiser = async (req, res) => {
@@ -155,6 +156,25 @@ exports.reviewAdvertiser = async (req, res) => {
     flash(req, 'error', error.message || 'Advertiser review could not be completed.');
   }
   res.redirect('/admin#communities');
+};
+
+exports.reviewAdvertiserAsModerator = async (req, res) => {
+  const decision = String(req.body.decision || '');
+  const reason = String(req.body.reason || '').trim().slice(0, 500);
+  try {
+    const advertiser = await reviewAdvertiserAsModerator({
+      advertiserId: req.params.id,
+      decision,
+      reason,
+      moderatorId: req.roleUser._id
+    });
+    await audit(req, `advertiser-moderator-${decision}`, 'advertiser', advertiser._id, { reason });
+    flash(req, 'success', decision === 'cleared' ? 'Advertiser application cleared for final admin review.' : 'Advertiser application flagged for final admin review.');
+  } catch (error) {
+    logger.warn('Moderator advertiser review failed', { advertiserId: req.params.id, moderatorId: req.roleUser._id, error });
+    flash(req, 'error', error.message || 'Advertiser review could not be completed.');
+  }
+  res.redirect('/moderator#advertisers');
 };
 
 exports.reviewCampaign = async (req, res) => {
@@ -180,17 +200,63 @@ exports.reviewCampaign = async (req, res) => {
   res.redirect('/admin#communities');
 };
 
+exports.manageCampaign = async (req, res) => {
+  const action = String(req.body.action || '');
+  const reason = String(req.body.reason || '').trim().slice(0, 500);
+  const statusByAction = { suspend: 'suspended', reinstate: 'approved', remove: 'cancelled' };
+  const status = statusByAction[action];
+  if (!status) {
+    flash(req, 'error', 'Choose suspend, reinstate, or remove for this campaign.');
+    return res.redirect('/admin#communities');
+  }
+  if (!reason) {
+    flash(req, 'error', 'Provide a reason for this campaign action.');
+    return res.redirect('/admin#communities');
+  }
+  try {
+    const campaign = await updateCampaignStatus({
+      campaignId: req.params.id,
+      status,
+      reason,
+      actorId: req.roleUser._id
+    });
+    await audit(req, `campaign-${action}`, 'campaign', campaign._id, {
+      reason,
+      refundedBudget: action === 'remove' ? campaign.refundedBudget : 0
+    });
+    flash(req, 'success', action === 'suspend'
+      ? 'Campaign suspended; delivery is disabled and its remaining budget remains held.'
+      : action === 'reinstate'
+        ? 'Campaign reinstated as approved; the advertiser must activate it.'
+        : 'Campaign removed; any unused funded Waves were refunded.');
+  } catch (error) {
+    logger.warn('Admin campaign management failed', { campaignId: req.params.id, action, error });
+    flash(req, 'error', error.message || 'Campaign action could not be completed.');
+  }
+  res.redirect('/admin#communities');
+};
+
 exports.reviewCampaignAsModerator = async (req, res) => {
   const decision = String(req.body.decision || '');
   const reason = String(req.body.reason || '').trim().slice(0, 500);
+  const policyChecks = Array.isArray(req.body.policyChecks)
+    ? req.body.policyChecks
+    : [req.body.policyChecks].filter(Boolean);
+  const flaggedCategory = String(req.body.flaggedCategory || '');
   try {
     const campaign = await reviewCampaignAsModerator({
       campaignId: req.params.id,
       decision,
       reason,
+      flaggedCategory,
+      policyChecks,
       moderatorId: req.roleUser._id
     });
-    await audit(req, `campaign-moderator-${decision}`, 'campaign', campaign._id, { reason });
+    await audit(req, `campaign-moderator-${decision}`, 'campaign', campaign._id, {
+      reason,
+      flaggedCategory: campaign.moderatorReview.flaggedCategory,
+      policyChecks: campaign.moderatorReview.policyChecks
+    });
     flash(req, 'success', decision === 'cleared' ? 'Campaign cleared for final admin review.' : 'Campaign flagged for final admin review.');
   } catch (error) {
     logger.warn('Moderator campaign review failed', { campaignId: req.params.id, moderatorId: req.roleUser._id, error });
@@ -582,7 +648,7 @@ exports.reviewAction = async (req, res) => {
 exports.moderator = async (req, res) => {
   const reviewThreshold = await getPostReviewThreshold();
   const reportedOnly = req.query.filter === 'reported';
-  const [reports, actions, communities, moderationFeed, pendingAppeals, pendingCampaigns] = await Promise.all([
+  const [reports, actions, communities, moderationFeed, pendingAppeals, pendingCampaigns, pendingAdvertisers] = await Promise.all([
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ status: 1, createdAt: -1 }).limit(60).select('targetType target reason evidenceUrl status createdAt').populate('reporter', 'name').lean(),
     ModerationAction.find({ moderator: req.roleUser._id }).sort({ createdAt: -1 }).limit(60).select('action targetType target reason status createdAt reviewNote').lean(),
     Community.find().sort({ membersCount: -1 }).limit(60).select('name slug description guidelines category membersCount requireApproval bannedWords createdAt').lean(),
@@ -599,10 +665,11 @@ exports.moderator = async (req, res) => {
       ...(reportedOnly ? { moderationStatus: 'reported' } : {})
     }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean(),
     Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
-    Campaign.find({ status: 'submitted', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).lean()
+    Campaign.find({ status: 'submitted', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).lean(),
+    Advertiser.find({ status: 'pending', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name').lean()
   ]);
   const myOpenReportRecommendations = new Set(actions.filter((a) => a.action === 'resolve-report' && a.status === 'pending').map((a) => String(a.target)));
-  res.render('pages/moderator', { title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns });
+  res.render('pages/moderator', { title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers });
 };
 
 exports.submitAction = async (req, res) => {

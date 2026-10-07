@@ -907,6 +907,21 @@ exports.infoPage = async (req, res) => {
 				['Contact', 'Questions about these terms can be sent to <a href="mailto:developerpuneet2010@gmail.com">developerpuneet2010@gmail.com</a>.']
 			]
 		},
+		'/advertising/terms': {
+			title: 'Advertising Terms',
+			heading: 'Advertising on Crowdwide.',
+			updated: 'Version 2026-10-07 · operational policy; legal review required before advertising or payouts launch',
+			intro: 'These terms describe the current requirements for advertiser accounts and campaign submissions on Crowdwide. They are a product policy and do not replace legal review for any jurisdiction or future advertising-provider arrangement.',
+			sections: [
+				['Who may advertise', 'Advertisers must provide accurate business or organization details and a working contact method. Applying does not guarantee approval. Crowdwide may request additional information, reject an application, or suspend an advertiser account when needed to enforce these terms.'],
+				['Prohibited advertisements', 'Campaigns may not promote pornography, sexually explicit or erotic content, adult-only (18+) services, gambling or betting, illegal goods or services, fraud, deceptive claims, or other material that violates Crowdwide’s Terms of Use or Community Guidelines. Advertisers are responsible for having rights to all submitted text, images, logos, and destinations.'],
+				['Review and availability', 'Campaigns are drafts until submitted and funded, then receive moderator review followed by a final administrator decision. A campaign must be approved before it can be activated. Approval is not a promise of placement, reach, or performance. Ad delivery, impression/click reporting, and member-facing ad placements are not yet available; an approved campaign is not currently being served to members.'],
+				['Waves and campaign budgets', 'Campaign budgets use Waves, Crowdwide’s internal platform currency. Waves are not money, do not represent a claim on revenue, and cannot be redeemed or transferred outside Crowdwide. Submitted campaign budgets are held in escrow; unused Waves are returned for rejected, cancelled, or completed campaigns according to the campaign ledger. Waves are separate from any real-money advertising revenue.'],
+				['Limits and integrity', 'Campaigns must follow their configured total and daily budgets. Advertisers must not manipulate engagement, traffic, impressions, clicks, accounts, or campaign measurement, nor ask others to do so. Crowdwide may pause or remove campaigns and hold activity for review if suspicious or policy-violating activity is detected.'],
+				['Changes and launch readiness', 'The advertising product is still under development. External advertising-provider arrangements, live delivery, campaign reporting, refunds for every exceptional case, revenue sharing, and payouts require further product and legal review before launch. These terms will be updated before those capabilities become available.'],
+				['Contact', 'Questions about an advertiser application or these terms can be sent to <a href="/contact">Crowdwide support</a>.']
+			]
+		},
 		'/community-guidelines': {
 			title: 'Community guidelines',
 			heading: 'Make room for people.',
@@ -984,7 +999,7 @@ exports.sitemap = async (req, res) => {
 			moderationStatus: { $ne: 'reported' },
 			community: { $nin: restrictedCommunityIds }
 		}).sort({ updatedAt: -1 }).limit(1000).select('_id updatedAt').lean();
-		const pages = ['/', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
+		const pages = ['/', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
 		const urls = [
 			...pages.map((page) => `<url><loc>${escapeXml(`${baseUrl}${page}`)}</loc></url>`),
 			...posts.map((post) => `<url><loc>${escapeXml(`${baseUrl}/posts/${post._id}`)}</loc><lastmod>${new Date(post.updatedAt).toISOString()}</lastmod></url>`)

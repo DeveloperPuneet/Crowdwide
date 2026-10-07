@@ -27,6 +27,7 @@ router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
 router.get('/wallet', requireAuth, requireVerified, wavesController.wallet);
 router.post('/wallet/transfer', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.transfer);
 router.get('/advertising', requireAuth, requireVerified, advertisingController.dashboard);
+router.post('/advertising/accept-terms', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.acceptTerms);
 router.post('/advertising/apply', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.apply);
 router.post('/advertising/campaigns', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.createCampaign);
 router.post('/advertising/campaigns/:id/action', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.campaignAction);
@@ -156,7 +157,9 @@ router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin,
 router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateCommunity);
 router.post('/admin/communities/:id/monetization', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.reviewMonetization);
 router.post('/admin/advertisers/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdvertiser);
+router.post('/moderator/advertisers/:id/review', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewAdvertiserAsModerator);
 router.post('/admin/campaigns/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewCampaign);
+router.post('/admin/campaigns/:id/manage', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.manageCampaign);
 router.post('/admin/communities/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteCommunity);
 router.post('/admin/settings', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateSiteSettings);
 router.post('/admin/maintenance/run', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.runMaintenance);
@@ -185,7 +188,7 @@ router.get('/settings/account/download', requireAuth, requireVerified, settingsC
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
 router.get('/docs', controller.docs);
-['/about', '/about/developer', '/privacy', '/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
+['/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);
 router.get('/sitemap.xml', controller.sitemap);
 

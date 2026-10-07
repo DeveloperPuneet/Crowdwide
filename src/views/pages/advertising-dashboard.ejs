@@ -16,6 +16,7 @@
       <label>Business or organization name<input name="businessName" maxlength="120" required></label>
       <label>Website<input type="url" name="website" maxlength="300" placeholder="https://example.com"></label>
       <label class="full-width">Additional information<textarea name="notes" maxlength="2000" rows="3"></textarea></label>
+      <label class="consent-check full-width"><input type="checkbox" name="acceptAdvertisingTerms" required><span>I agree to the <a href="/advertising/terms" target="_blank" rel="noopener">Advertising Terms</a>.</span></label>
       <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Submit application</button></div>
     </form>
   </section>
@@ -23,12 +24,25 @@
   <section class="settings-block admin-wide">
     <h2><%= advertiser.businessName %></h2>
     <p>Advertiser status: <strong><%= advertiser.status %></strong><% if (advertiser.isVerified) { %> · Verified<% } %></p>
+    <% if (advertiser.termsAcceptedAt) { %><p>Advertising Terms accepted: version <%= advertiser.termsVersion %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleDateString() %></p><% } %>
     <% if (advertiser.status === 'pending') { %><p>Your advertiser application is awaiting admin review.</p><% } %>
     <% if (advertiser.status === 'rejected') { %><p><%= advertiser.rejectionReason || 'Application not approved.' %></p><% } %>
     <% if (advertiser.status === 'suspended') { %><p>Your advertiser account is suspended. Contact support for assistance.</p><% } %>
   </section>
 
-  <% if (advertiser.status === 'approved') { %>
+  <% if (!advertisingTermsAccepted) { %>
+  <section class="settings-block admin-wide">
+    <h2>Review updated Advertising Terms</h2>
+    <p>Your advertiser profile has not accepted the current terms (version <%= advertisingTermsVersion %>). Accept them before creating or submitting campaigns.</p>
+    <form method="post" action="/advertising/accept-terms">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label class="consent-check"><input type="checkbox" name="acceptAdvertisingTerms" required><span>I agree to the <a href="/advertising/terms" target="_blank" rel="noopener">Advertising Terms</a>.</span></label>
+      <button class="button button-primary button-small" type="submit">Accept terms</button>
+    </form>
+  </section>
+  <% } %>
+
+  <% if (advertiser.status === 'approved' && advertisingTermsAccepted) { %>
   <div class="admin-stats" aria-label="Campaign performance totals">
     <article class="admin-stat"><span>Delivery</span><strong><%= totals.impressions.toLocaleString() %></strong><small>impressions</small></article>
     <article class="admin-stat"><span>Engagement</span><strong><%= totals.clicks.toLocaleString() %></strong><small>clicks</small></article>
@@ -68,6 +82,7 @@
       <div><strong><%= campaign.title %></strong> · <%= campaign.status %> · Funding: <%= campaign.fundingStatus %>
         <p><%= campaign.description || 'No description provided.' %></p>
         <% if (campaign.rejectionReason) { %><p>Review reason: <%= campaign.rejectionReason %></p><% } %>
+        <% if (campaign.status === 'suspended') { %><p>This campaign was suspended by an administrator. <%= campaign.suspensionReason || '' %></p><% } %>
         <p><%= Number(campaign.impressions || 0).toLocaleString() %> impressions · <%= Number(campaign.clicks || 0).toLocaleString() %> clicks · <%= Number(campaign.ctr || 0) %>% CTR · <%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves spent · <%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">

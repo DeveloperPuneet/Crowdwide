@@ -95,6 +95,8 @@ test('advertiser dashboard renders application form and campaign metrics', async
   const html = await render('pages/advertising-dashboard.ejs', {
     title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
     advertiser: { businessName: 'Example Co', status: 'approved', isVerified: true },
+    advertisingTermsVersion: '2026-10-07',
+    advertisingTermsAccepted: true,
     campaigns: [{
       _id: 'campaign-1', title: 'Launch', status: 'approved', fundingStatus: 'funded',
       impressions: 100, clicks: 5, ctr: 5, wavesSpent: 2, remainingBudget: 18,
@@ -107,7 +109,60 @@ test('advertiser dashboard renders application form and campaign metrics', async
   assert.match(html, /performance totals/);
   assert.match(html, /5% CTR/);
   assert.match(html, /Your campaigns/);
+  assert.match(html, /href="\/advertising\/terms"/);
   assert.match(html, /Fund and submit|Activate/);
+});
+
+test('advertising application requires acknowledgement of the linked Advertising Terms', async () => {
+  const html = await render('pages/advertising-dashboard.ejs', {
+    title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
+    advertiser: null, campaigns: [], communities: [],
+    advertisingTermsVersion: '2026-10-07', advertisingTermsAccepted: false,
+    totals: { impressions: 0, clicks: 0, ctr: 0, wavesSpent: 0, remainingBudget: 0 }
+  });
+  assert.match(html, /name="acceptAdvertisingTerms" required/);
+  assert.match(html, /href="\/advertising\/terms"/);
+});
+
+test('moderator console exposes advertiser screening and final admin review context', async () => {
+  const html = await render('pages/moderator.ejs', {
+    title: 'Moderator console', pagePath: '/moderator', noIndex: true,
+    moderator: { moderatorId: 'MOD-1' }, reviewThreshold: 2, reportedOnly: false,
+    reports: [], actions: [], communities: [], moderationFeed: [], pendingAppeals: [],
+    pendingCampaigns: [],
+    pendingAdvertisers: [{
+      _id: 'advertiser-1', businessName: 'Example Co', user: { name: 'Asha' },
+      website: 'https://example.test', notes: 'Local maker',
+      termsVersion: '2026-10-07', termsAcceptedAt: new Date()
+    }],
+    myOpenReportRecommendations: new Set()
+  });
+
+  test('moderator campaign review exposes prohibited-ad policy checks and flag categories', async () => {
+    const html = await render('pages/moderator.ejs', {
+      title: 'Moderator console', pagePath: '/moderator', noIndex: true,
+      moderator: { moderatorId: 'MOD-1' }, reviewThreshold: 2, reportedOnly: false,
+      reports: [], actions: [], communities: [], moderationFeed: [], pendingAppeals: [],
+      pendingAdvertisers: [],
+      pendingCampaigns: [{
+        _id: 'campaign-policy', title: 'Campaign', description: 'Campaign text',
+        totalBudget: 100, targetCommunities: [],
+        advertiser: { businessName: 'Example Co', user: { name: 'Asha' } }
+      }],
+      myOpenReportRecommendations: new Set()
+    });
+    assert.match(html, /Not for adult-only \(18\+\) products or services/);
+    assert.match(html, /No erotic or sexually explicit content/);
+    assert.match(html, /No gambling or betting/);
+    assert.match(html, /No pornography/);
+    assert.match(html, /No other inappropriate products or services/);
+    assert.match(html, /name="flaggedCategory"/);
+  });
+  assert.match(html, /Advertiser applications/);
+  assert.match(html, /action="\/moderator\/advertisers\/advertiser-1\/review"/);
+  assert.match(html, /Clear for admin/);
+  assert.match(html, /Flag for admin/);
+  assert.match(html, /Advertising Terms/);
 });
 
 test('community invite landing renders a join confirmation page', async () => {
@@ -558,6 +613,36 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   assert.match(html, /512 MB \/ 712 MB/);
   assert.match(html, /200 MB remaining across 2 clusters/);
   assert.match(html, /Combined filesystem figures reported by the configured MongoDB URLs/);
+});
+
+test('admin panel exposes suspend, reinstate, and remove controls for approved campaigns', async () => {
+  const { formatStorage } = require('../src/services/mongoStorage');
+  const html = await render('pages/admin.ejs', {
+    title: 'Admin console', pagePath: '/admin', noIndex: true,
+    users: [], communities: [], posts: [], openReports: [], pendingActions: [],
+    pendingAppeals: [], moderators: [], auditLogs: [], pendingMonetization: [],
+    pendingAdvertisers: [], pendingCampaigns: [],
+    managedCampaigns: [
+      { _id: 'active-1', title: 'Active campaign', status: 'active', advertiser: { businessName: 'Example Co', user: { email: 'ads@example.test' } }, remainingBudget: 90, wavesSpent: 10, targetCommunities: ['c1'] },
+      { _id: 'suspended-1', title: 'Suspended campaign', status: 'suspended', suspensionReason: 'Review pending', advertiser: { businessName: 'Example Co' }, remainingBudget: 50, wavesSpent: 50, targetCommunities: [] }
+    ],
+    maintenanceRuns: [], maintenanceTaskLabels: TASK_LABELS, pinnedPostIds: new Set(),
+    siteSettings: {
+      siteName: '', tagline: '', registrationOpen: true, postApprovalDefault: false,
+      maintenanceMode: false, maintenanceMessage: '', announcement: '',
+      postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
+      postReviewThreshold: 2
+    },
+    mongoStorage: { available: false }, formatStorage,
+    stats: { users: 0, communities: 0, posts: 0, reports: 0 }
+  });
+  assert.match(html, /Approved campaign management/);
+  assert.match(html, /action="\/admin\/campaigns\/active-1\/manage"/);
+  assert.match(html, /name="action" value="suspend"/);
+  assert.match(html, /action="\/admin\/campaigns\/suspended-1\/manage"/);
+  assert.match(html, /name="action" value="reinstate"/);
+  assert.match(html, /name="action" value="remove"/);
+  assert.match(html, /Review pending/);
 });
 
 test('personal recap renders activity totals and a monthly timeline', async () => {

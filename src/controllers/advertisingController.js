@@ -4,6 +4,7 @@ const Community = require('../models/Community');
 const logger = require('../services/logger');
 const {
   createCampaign,
+  ADVERTISING_TERMS_VERSION,
   registerAdvertiser,
   submitCampaign,
   updateCampaignStatus
@@ -45,7 +46,9 @@ exports.dashboard = async (req, res) => {
     advertiser,
     campaigns,
     communities,
-    totals
+    totals,
+    advertisingTermsVersion: ADVERTISING_TERMS_VERSION,
+    advertisingTermsAccepted: advertiser?.termsVersion === ADVERTISING_TERMS_VERSION && Boolean(advertiser.termsAcceptedAt)
   });
 };
 
@@ -54,6 +57,10 @@ exports.apply = async (req, res) => {
   const website = String(req.body.website || '').trim();
   if (!name) {
     flash(req, 'error', 'Enter your business or organization name.');
+    return res.redirect('/advertising');
+  }
+  if (req.body.acceptAdvertisingTerms !== 'on') {
+    flash(req, 'error', 'Accept the Advertising Terms before applying.');
     return res.redirect('/advertising');
   }
   if (website && (!/^https?:\/\//i.test(website) || website.length > 300)) {
@@ -71,7 +78,8 @@ exports.apply = async (req, res) => {
       userId: req.session.user.id,
       businessName: name,
       website,
-      notes: String(req.body.notes || '').trim().slice(0, 2000)
+      notes: String(req.body.notes || '').trim().slice(0, 2000),
+      acceptedTerms: true
     });
     flash(req, 'success', 'Advertiser application submitted for admin review.');
   } catch (error) {
@@ -81,10 +89,37 @@ exports.apply = async (req, res) => {
   return res.redirect('/advertising');
 };
 
+exports.acceptTerms = async (req, res) => {
+  if (req.body.acceptAdvertisingTerms !== 'on') {
+    flash(req, 'error', 'Confirm that you accept the Advertising Terms.');
+    return res.redirect('/advertising');
+  }
+  const advertiser = await getOwnedAdvertiser(req.session.user.id);
+  if (!advertiser) {
+    flash(req, 'error', 'Apply as an advertiser before accepting advertiser terms.');
+    return res.redirect('/advertising');
+  }
+  try {
+    advertiser.termsAcceptedAt = new Date();
+    advertiser.termsVersion = ADVERTISING_TERMS_VERSION;
+    await advertiser.save();
+  } catch (error) {
+    logger.error('Advertising Terms acceptance could not be saved', error);
+    flash(req, 'error', 'Your acceptance could not be saved. Please try again.');
+    return res.redirect('/advertising');
+  }
+  flash(req, 'success', 'Advertising Terms accepted.');
+  return res.redirect('/advertising');
+};
+
 exports.createCampaign = async (req, res) => {
   const advertiser = await getOwnedAdvertiser(req.session.user.id);
   if (!advertiser || advertiser.status !== 'approved') {
     flash(req, 'error', 'An approved advertiser profile is required to create a campaign.');
+    return res.redirect('/advertising');
+  }
+  if (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt) {
+    flash(req, 'error', 'Accept the current Advertising Terms before creating or submitting campaigns.');
     return res.redirect('/advertising');
   }
 
@@ -129,6 +164,11 @@ exports.campaignAction = async (req, res) => {
     : null;
   if (!campaign) {
     flash(req, 'error', 'Campaign not found.');
+    return res.redirect('/advertising');
+  }
+  if (req.body.action === 'submit'
+    && (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt)) {
+    flash(req, 'error', 'Accept the current Advertising Terms before submitting campaigns.');
     return res.redirect('/advertising');
   }
 

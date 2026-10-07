@@ -13,11 +13,19 @@ const advertiserSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   rejectionReason: { type: String, trim: true, maxlength: 500, default: '' },
   notes: { type: String, trim: true, maxlength: 2000, default: '' },
+  termsAcceptedAt: Date,
+  termsVersion: { type: String, trim: true, maxlength: 40, default: '' },
   verifiedAt: Date,
   approvedAt: Date,
   suspendedAt: Date,
   reviewedAt: Date,
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  moderatorReview: {
+    status: { type: String, enum: ['pending', 'cleared', 'flagged'], default: 'pending' },
+    reason: { type: String, trim: true, maxlength: 500, default: '' },
+    reviewedAt: Date,
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  },
   moderationHistory: [{
     status: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended'], required: true },
     reason: { type: String, trim: true, maxlength: 500, default: '' },

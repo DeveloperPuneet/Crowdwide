@@ -3,6 +3,7 @@
 <% const pendingMonetizationList = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
 <% const pendingAdvertiserList = Array.isArray(locals.pendingAdvertisers) ? locals.pendingAdvertisers : []; %>
 <% const pendingCampaignList = Array.isArray(locals.pendingCampaigns) ? locals.pendingCampaigns : []; %>
+<% const managedCampaignList = Array.isArray(locals.managedCampaigns) ? locals.managedCampaigns : []; %>
 <main class="explore-page admin-console admin-wide"><%- include('../partials/flash') %>
   <header class="admin-page-header"><div><p class="eyebrow">Restricted operations</p><h1>Admin console</h1><p>Monitor the community, resolve reports, and manage platform settings.</p></div><span class="admin-access-badge"><%- icon('shield', { size: 15 }) %> Admin access</span></header>
   <div class="admin-stats" aria-label="Platform overview">
@@ -177,11 +178,11 @@
       <h3>Advertiser applications</h3>
       <% pendingAdvertiserList.forEach((advertiser) => { %>
       <div class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'unknown' %> · <%= advertiser.user?.email || '' %></span><% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener"><%= advertiser.website %></a></p><% } %><% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %></div>
+        <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'unknown' %> · <%= advertiser.user?.email || '' %></span><p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleString() %><% } %></p><% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener"><%= advertiser.website %></a></p><% } %><% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %><p>Moderator review: <strong><%= advertiser.moderatorReview?.status || 'pending' %></strong> · <%= advertiser.moderatorReview?.reason || '' %></p></div>
         <form method="post" action="/admin/advertisers/<%= advertiser._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="text" name="reason" maxlength="500" placeholder="Reason (required for reject)" style="flex:1;min-width:180px;">
-          <button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve and verify</button>
+          <% if (advertiser.moderatorReview?.status === 'cleared') { %><button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve and verify</button><% } %>
           <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject</button>
         </form>
       </div>
@@ -193,7 +194,7 @@
       <h3>Campaign review queue</h3>
       <% pendingCampaignList.forEach((campaign) => { %>
       <div class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · Targets: <%= (campaign.targetCommunities || []).length %> communities</p><p>Moderator review: <strong><%= campaign.moderatorReview?.status || 'pending' %></strong> · <%= campaign.moderatorReview?.reason || '' %></p></div>
+        <div><strong><%= campaign.title %></strong><span><%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span><p><%= campaign.description || 'No description provided.' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · Targets: <%= (campaign.targetCommunities || []).length %> communities</p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleString() %><% } %></p><p>Moderator review: <strong><%= campaign.moderatorReview?.status || 'pending' %></strong> · <%= campaign.moderatorReview?.reason || '' %><% if (campaign.moderatorReview?.flaggedCategory) { %> · category: <%= campaign.moderatorReview.flaggedCategory %><% } %><% if (campaign.moderatorReview?.policyChecks?.length) { %> · checks confirmed: <%= campaign.moderatorReview.policyChecks.join(', ') %><% } %></p></div>
         <form method="post" action="/admin/campaigns/<%= campaign._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="text" name="reason" maxlength="500" placeholder="Reason (required for reject)" style="flex:1;min-width:180px;">
@@ -201,6 +202,43 @@
           <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject and refund</button>
         </form>
       </div>
+      <% }) %>
+    </section>
+    <% } %>
+    <% if (managedCampaignList.length) { %>
+    <section class="settings-block">
+      <h3>Approved campaign management</h3>
+      <p>Suspend a campaign to immediately stop delivery while keeping its remaining Waves held. Removal cancels it and refunds any unused funded balance. Reinstated campaigns return as approved and require advertiser activation.</p>
+      <% managedCampaignList.forEach((campaign) => { %>
+      <article class="device-row" style="flex-direction:column;align-items:stretch;">
+        <div>
+          <strong><%= campaign.title %></strong>
+          <span><%= campaign.status %> · <%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span>
+          <p><%= campaign.description || 'No description provided.' %></p>
+          <p><%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining · <%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves spent · <%= (campaign.targetCommunities || []).length %> target communities</p>
+          <% if (campaign.suspensionReason) { %><p>Suspension reason: <%= campaign.suspensionReason %></p><% } %>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <% if (campaign.status === 'suspended') { %>
+          <form method="post" action="/admin/campaigns/<%= campaign._id %>/manage" style="display:flex;gap:6px;flex:1 1 280px;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="text" name="reason" maxlength="500" placeholder="Reinstatement reason" required style="flex:1;min-width:160px;">
+            <button class="button button-small button-primary" name="action" value="reinstate" type="submit">Reinstate</button>
+          </form>
+          <% } else { %>
+          <form method="post" action="/admin/campaigns/<%= campaign._id %>/manage" style="display:flex;gap:6px;flex:1 1 280px;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="text" name="reason" maxlength="500" placeholder="Suspension reason" required style="flex:1;min-width:160px;">
+            <button class="button button-small button-danger" name="action" value="suspend" type="submit">Suspend</button>
+          </form>
+          <% } %>
+          <form method="post" action="/admin/campaigns/<%= campaign._id %>/manage" data-confirm="Remove this campaign and refund its unused funded Waves?">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="text" name="reason" maxlength="500" placeholder="Removal reason" required>
+            <button class="button button-small button-danger" name="action" value="remove" type="submit">Remove campaign</button>
+          </form>
+        </div>
+      </article>
       <% }) %>
     </section>
     <% } %>
