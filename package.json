@@ -10,6 +10,7 @@
     "test:e2e": "node --test --test-concurrency=1 test/e2e/*.test.js",
     "backup": "node scripts/backup.js",
     "backup:verify": "node scripts/restore-check.js",
+    "reset:waves": "node scripts/reset-waves.js",
     "mail:test": "node scripts/test-mail.js"
   },
   "dependencies": {

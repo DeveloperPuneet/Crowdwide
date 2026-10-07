@@ -98,6 +98,22 @@ into a weekly scheduled job too, and alert if it ever exits non-zero -
 mongodump succeeding is not the same guarantee as the archive actually
 being restorable.
 
+## Resetting Waves balances
+
+To reset every user's Waves balance, earned total and spent total, and clear
+the Waves transaction ledger, first back up the database and stop the app so
+transactions cannot be added during the reset. Then, with `MONGODB_URI`
+pointing to the intended database, run:
+
+```
+npm run reset:waves -- --confirm-reset-waves
+```
+
+The confirmation flag is required. The reset runs in a MongoDB transaction;
+the database must support transactions (for example, a replica set). If the
+transaction fails, no partial reset is committed. This does not change
+campaign/community records, reward settings, or account restrictions.
+
 ## Upload virus scanning
 
 Uploads (post media, profile pictures, community banners, report
