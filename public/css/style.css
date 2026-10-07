@@ -1106,6 +1106,29 @@ html { scrollbar-gutter: stable; }
 .settings-block-heading { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; }
 .settings-theme-form { margin-top: 18px; }
 .settings-theme-form label { margin-top: 0; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-form input,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-form textarea,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-form select,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block input,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block textarea,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block select {
+  background: var(--theme-surface);
+  border-color: var(--theme-border);
+  color: var(--theme-fg);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-form label,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block label,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-form small,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block p,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block .device-row span,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block .device-row strong {
+  color: var(--theme-fg);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-form small,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block p,
+:is(body[data-theme="light"], body[data-theme="pink"]) .settings-block .device-row span {
+  color: var(--theme-muted);
+}
 .settings-content > form[action="/auth/logout"] { margin-top: 24px; }
 .settings-block.danger-zone form[action="/settings/account/delete"] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; margin-top: 18px; }
 .settings-block.danger-zone form[action="/settings/account/delete"] input { min-width: 0; }
