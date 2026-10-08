@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
-<main class="conversations-page">
+<main class="conversations-page messages-modern groups-modern">
 	<a class="back-link" href="/dashboard">← Back to feed</a>
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
 	<header class="conversations-hero">

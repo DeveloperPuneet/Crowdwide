@@ -1,20 +1,20 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/notifications', noIndex: true }) %>
 <%- include('../partials/app-nav', { active: 'notifications', currentUser }) %>
-<main class="notifications-page">
+<main class="notifications-page notifications-modern">
 	<div class="notifications-heading">
 		<div><p class="eyebrow">Stay in the loop</p><h1>Notifications <em><%= unread ? unread : '' %></em></h1></div>
 		<form method="post" action="/notifications/read"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit">Mark all read</button></form>
 	</div>
 	<section class="notification-list">
 		<% if (!notifications.length) { %>
-		<div class="empty-feed"><h2>All quiet for now.</h2><p>Your interactions and community updates will appear here.</p></div>
+		<div class="empty-feed"><div class="notifications-empty-icon" aria-hidden="true"><%- icon('bell', { size: 26 }) %></div><h2>All quiet for now.</h2><p>Your interactions and community updates will appear here.</p></div>
 		<% } %>
 		<% notifications.forEach((notification) => {
 			const target = notification.url || (notification.post ? `/posts/${notification.post}` : notification.actor ? `/u/${notification.actor._id}` : null);
 		%>
 		<a class="notification-item <%= notification.readAt ? '' : 'notification-unread' %>" href="<%= target || '#' %>" style="<%= target ? '' : 'pointer-events:none;' %>text-decoration:none;color:inherit;">
 			<%- include('../partials/avatar', { person: notification.actor || {}, size: 'tiny', link: false }) %>
-			<div><strong><%= notification.actor?.name || 'Crowdwide' %><% if (notification.count > 1) { %> + <%= notification.count - 1 %> more<% } %></strong><span><%= notification.message %></span><small><%= new Date(notification.createdAt).toLocaleString() %></small></div>
+			<span class="notification-dot" aria-hidden="true"></span><div><strong><%= notification.actor?.name || 'Crowdwide' %><% if (notification.count > 1) { %> + <%= notification.count - 1 %> more<% } %></strong><span><%= notification.message %></span><small><%= new Date(notification.createdAt).toLocaleString() %></small></div>
 		</a>
 		<% }) %>
 	</section>

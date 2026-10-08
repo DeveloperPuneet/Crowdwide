@@ -1,7 +1,7 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
 <% const monetizationApplications = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
-<main class="explore-page admin-console"><%- include('../partials/flash') %>
+<main class="explore-page admin-console moderator-modern"><%- include('../partials/flash') %>
   <p class="eyebrow">Restricted operations</p><h1>Moderator console</h1><p class="form-note">Identifier: <strong><%= moderator.moderatorId %></strong>. Personal emails, sessions, and account security data are hidden here. Every action you submit here is queued for an admin's approval before it takes effect.</p>
 
   <section class="settings-block admin-wide" id="monetization"><h2>Community monetization screening</h2><p>Check eligibility and policy history. This review is a recommendation; an admin makes the final decision.</p>

@@ -1,7 +1,7 @@
 <% const initialWordCount = editorMode === 'edit' && post.body ? post.body.trim().split(/\s+/).filter(Boolean).length : 0; %>
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex: true }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
-<main class="post-compose-page">
+<main class="post-compose-page compose-modern">
   <header class="post-compose-heading">
     <a class="back-link" href="/posts/<%= sourcePost._id %>"><%- icon('arrow-left', { size: 15 }) %> Back to post</a>
     <p class="eyebrow"><%= editorMode === 'edit' ? 'Your post' : 'Continue the conversation' %></p>

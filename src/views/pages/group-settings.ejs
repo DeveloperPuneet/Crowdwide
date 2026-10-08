@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
-<main class="group-info-page">
+<main class="group-info-page group-modern">
 	<a class="back-link" href="/groups/<%= group._id %>"><%- icon('arrow-left', { size: 15 }) %> Back to chat</a>
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
 
@@ -15,7 +15,7 @@
 
 	<% if (isAdmin) { %>
 	<section class="group-panel">
-		<h2>Name, picture &amp; description</h2>
+		<h2><span class="panel-icon"><%- icon('settings', { size: 16 }) %></span> Name, picture &amp; description</h2>
 		<form class="group-form" method="post" action="/groups/<%= group._id %>/rename">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<label>Group name<input name="name" maxlength="80" value="<%= group.name %>" required></label>
@@ -34,7 +34,7 @@
 	</section>
 
 	<section class="group-panel" id="invite">
-		<h2>Invite link</h2>
+		<h2><span class="panel-icon"><%- icon('link', { size: 16 }) %></span> Invite link</h2>
 		<% if (inviteUrl) { %>
 		<p class="upload-help">Anyone signed in to Crowdwide who opens this link can join the group. Turn it off if it gets shared somewhere you don't want.</p>
 		<%- include('../partials/invite-share', { inviteUrl, shareId: `group-${group._id}`, shareText: `Join ${group.name} on Crowdwide` }) %>
@@ -49,7 +49,7 @@
 	</section>
 
 	<section class="group-panel">
-		<h2>Add members</h2>
+		<h2><span class="panel-icon"><%- icon('user-plus', { size: 16 }) %></span> Add members</h2>
 		<form class="group-form" method="post" action="/groups/<%= group._id %>/members">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<label>By email or exact display name<input name="members" placeholder="asha@example.com, Ravi Kumar"></label>
@@ -67,7 +67,7 @@
 	<% } %>
 
 	<section class="group-panel">
-		<h2>Members <span class="upload-help">(<%= group.members.length %>)</span></h2>
+		<h2><span class="panel-icon"><%- icon('users', { size: 16 }) %></span> Members <span class="count-chip"><%= group.members.length %></span><span class="upload-help" hidden>(<%= group.members.length %>)</span></h2>
 		<ul class="member-list">
 			<% group.members.forEach((member) => { const memberAdmin = adminIds.has(String(member._id)); const memberOwner = String(member._id) === String(group.creator); %>
 			<li class="member-row">
