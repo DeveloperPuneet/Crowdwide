@@ -1,22 +1,22 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="recap-layout">
+<main class="recap-layout wallet-page">
   <a class="back-link" href="/dashboard">← Back to your feed</a>
-  <header class="recap-heading">
+  <header class="recap-heading wallet-heading">
     <p class="eyebrow">Crowdwide platform currency</p>
     <h1>Your Waves wallet</h1>
     <p>Waves are the platform currency for rewards, transfers, campaign budgets, and platform purchases. Crowdwide does not process real-money payments or payouts.</p>
     <p><a href="/waves/terms">Read the Waves Terms</a>.</p>
   </header>
-  <section class="recap-stats" aria-label="Waves wallet totals">
-    <div class="recap-stat"><span>Available balance</span><strong><%= wallet.balance.toLocaleString() %> Waves</strong></div>
-    <div class="recap-stat"><span>Total earned</span><strong><%= wallet.totalEarned.toLocaleString() %></strong></div>
-    <div class="recap-stat"><span>Total spent</span><strong><%= wallet.totalSpent.toLocaleString() %></strong></div>
+  <section class="recap-stats wallet-stats" aria-label="Waves wallet totals">
+    <div class="recap-stat wallet-balance"><span>Available balance</span><strong><%= wallet.balance.toLocaleString() %> Waves</strong></div>
+    <div class="recap-stat wallet-earned"><span>Total earned</span><strong><%= wallet.totalEarned.toLocaleString() %></strong></div>
+    <div class="recap-stat wallet-spent"><span>Total spent</span><strong><%= wallet.totalSpent.toLocaleString() %></strong></div>
   </section>
-  <section class="recap-panel">
+  <section class="recap-panel wallet-send">
     <div class="recap-section-heading"><div><p class="eyebrow">Send Waves</p><h2>Transfer to another user</h2></div></div>
-    <form method="post" action="/wallet/transfer" class="admin-edit-form">
+    <form method="post" action="/wallet/transfer" class="admin-edit-form wallet-form">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label>Recipient email<input type="email" name="recipientEmail" maxlength="254" required autocomplete="email"></label>
       <label>Amount in Waves<input type="number" name="amount" min="0.01" step="0.01" max="<%= wallet.balance %>" required></label>
@@ -27,17 +27,17 @@
   <section class="recap-panel">
     <div class="recap-section-heading"><div><p class="eyebrow">Wallet activity</p><h2>Recent transactions</h2></div><span class="recap-muted">Latest 50 entries</span></div>
     <% if (transactions.length) { %>
-    <div style="overflow-x:auto;">
-      <table class="admin-table">
+    <div class="wallet-table-wrap">
+      <table class="admin-table wallet-table">
         <thead><tr><th>When</th><th>Activity</th><th>Details</th><th>Amount</th><th>Balance</th></tr></thead>
         <tbody>
           <% transactions.forEach((entry) => { %>
           <tr>
-            <td><%= new Date(entry.createdAt).toLocaleString() %></td>
-            <td><%= entry.type.replace(/-/g, ' ') %> · <%= entry.status %></td>
-            <td><%= entry.description || entry.reason || 'Waves transaction' %><% if (entry.community?.name) { %> · <a href="/communities/<%= entry.community.slug %>"><%= entry.community.name %></a><% } %><% if (entry.relatedUser?.name) { %> · <%= entry.relatedUser.name %><% } %></td>
-            <td><%= entry.amount > 0 ? '+' : '' %><%= Number(entry.amount).toLocaleString() %></td>
-            <td><%= Number(entry.balanceAfter || 0).toLocaleString() %></td>
+            <td data-label="When"><%= new Date(entry.createdAt).toLocaleString() %></td>
+            <td data-label="Activity"><span class="wallet-type"><%= entry.type.replace(/-/g, ' ') %></span> · <span class="wallet-status"><%= entry.status %></span></td>
+            <td data-label="Details"><%= entry.description || entry.reason || 'Waves transaction' %><% if (entry.community?.name) { %> · <a href="/communities/<%= entry.community.slug %>"><%= entry.community.name %></a><% } %><% if (entry.relatedUser?.name) { %> · <%= entry.relatedUser.name %><% } %></td>
+            <td data-label="Amount" class="wallet-amount <%= entry.amount > 0 ? 'is-in' : 'is-out' %>"><%= entry.amount > 0 ? '+' : '' %><%= Number(entry.amount).toLocaleString() %></td>
+            <td data-label="Balance"><%= Number(entry.balanceAfter || 0).toLocaleString() %></td>
           </tr>
           <% }) %>
         </tbody>

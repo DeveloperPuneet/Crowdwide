@@ -102,10 +102,11 @@
 - Suspicious Waves transfer review signals — repeated outgoing transfers and recipient concentration create an auditable admin review item, without automatic account restrictions.
 
 ## Making:
-Waves Usage
-
 Add Ad-Free feature using Waves if premium is introduced
-
+Tranfer Waves by username
+make all textarea grow as you write
+Polishing UI for all pages
+Polishing UI of all partials
 
 ## Planned
 

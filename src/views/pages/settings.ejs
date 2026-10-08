@@ -1,17 +1,17 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/settings/' + section, noIndex: true }) %>
 <%- include('../partials/app-nav', { active: 'settings', currentUser }) %>
-<main class="settings-layout">
+<main class="settings-layout settings-modern">
   <aside class="settings-nav">
     <p class="eyebrow">Account center</p><h1>Settings</h1>
     <a href="/u/<%= user._id %>" class="settings-link">View your public profile →</a>
     <nav class="settings-tabs">
-      <a class="<%= section === 'profile' ? 'settings-active' : '' %>" href="/settings/profile">Profile</a>
-      <a class="<%= section === 'security' ? 'settings-active' : '' %>" href="/settings/security">Security & devices</a>
-      <a class="<%= section === 'privacy' ? 'settings-active' : '' %>" href="/settings/privacy">Privacy</a>
-      <a class="<%= section === 'notifications' ? 'settings-active' : '' %>" href="/settings/notifications">Notifications</a>
-      <a class="<%= section === 'history' ? 'settings-active' : '' %>" href="/settings/history">History</a>
-      <% if (user.suspendedUntil || user.postingRestrictedUntil || user.warnings?.length || appeals.length) { %><a class="<%= section === 'moderation' ? 'settings-active' : '' %>" href="/settings/moderation">Moderation</a><% } %>
-      <a class="<%= section === 'account' ? 'settings-active' : '' %>" href="/settings/account">Account</a>
+      <a class="<%= section === 'profile' ? 'settings-active' : '' %>" href="/settings/profile"><%- icon('user', { size: 16 }) %><span>Profile</span></a>
+      <a class="<%= section === 'security' ? 'settings-active' : '' %>" href="/settings/security"><%- icon('shield', { size: 16 }) %><span>Security & devices</span></a>
+      <a class="<%= section === 'privacy' ? 'settings-active' : '' %>" href="/settings/privacy"><%- icon('lock', { size: 16 }) %><span>Privacy</span></a>
+      <a class="<%= section === 'notifications' ? 'settings-active' : '' %>" href="/settings/notifications"><%- icon('bell', { size: 16 }) %><span>Notifications</span></a>
+      <a class="<%= section === 'history' ? 'settings-active' : '' %>" href="/settings/history"><%- icon('clock', { size: 16 }) %><span>History</span></a>
+      <% if (user.suspendedUntil || user.postingRestrictedUntil || user.warnings?.length || appeals.length) { %><a class="<%= section === 'moderation' ? 'settings-active' : '' %>" href="/settings/moderation"><%- icon('flag', { size: 16 }) %><span>Moderation</span></a><% } %>
+      <a class="<%= section === 'account' ? 'settings-active' : '' %>" href="/settings/account"><%- icon('settings', { size: 16 }) %><span>Account</span></a>
     </nav>
   </aside>
   <section class="settings-content"><%- include('../partials/flash') %>

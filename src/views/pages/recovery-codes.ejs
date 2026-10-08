@@ -1,7 +1,8 @@
 <%- include('../partials/head', { title, bodyClass: 'auth-page', pagePath, noIndex: true }) %>
 <div class="auth-shell auth-shell-wide">
 	<a class="brand auth-brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
-	<div class="auth-card">
+	<div class="auth-card recovery-card">
+		<div class="auth-badge" aria-hidden="true"><%- icon('lock', { size: 26 }) %></div>
 		<p class="eyebrow">Save these now</p>
 		<h1 style="font-size:30px;">Your recovery codes.</h1>
 		<p class="form-note">Each code works once and lets you sign in if you lose access to your authenticator app. Save them somewhere safe - they will not be shown again.</p>
