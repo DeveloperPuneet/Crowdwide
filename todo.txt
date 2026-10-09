@@ -103,7 +103,3 @@
 
 ## Making:
 Polishing UI of all partials
-
-## Planned
-
-1. Build advertiser campaign management and statistics screens on top of the funded campaign lifecycle.
