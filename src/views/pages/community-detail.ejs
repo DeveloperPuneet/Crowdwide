@@ -1,7 +1,7 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex, communityPage: true }) %>
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="profile-layout community-detail-layout">
+<main class="profile-layout community-detail-layout community-detail-modern">
 <div>
 	<a class="back-link" href="/explore">← All communities</a>
 	<% if (community.coverImage) { %><div class="profile-banner community-cover"><img src="<%= community.coverImage %>" alt=""></div><% } %>

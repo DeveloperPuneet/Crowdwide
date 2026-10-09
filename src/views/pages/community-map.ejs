@@ -1,7 +1,7 @@
 <%- include('../partials/head', { title, description, bodyClass: 'dashboard-page', pagePath, noIndex, includeLeaflet }) %>
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="community-map-page">
+<main class="community-map-page community-map-modern">
 	<header class="community-map-heading">
 		<a class="back-link" href="/explore">← Explore</a>
 		<p class="eyebrow">Find your people, somewhere new</p>

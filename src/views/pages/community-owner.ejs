@@ -1,7 +1,7 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="owner-layout community-owner-layout">
+<main class="owner-layout community-owner-layout community-owner-modern">
 	<% const promotionOffer = locals.communityPromotionOffer || null; %>
 	<% if (community.coverImage) { %><div class="profile-banner" style="margin-bottom:26px;"><img src="<%= community.coverImage %>" alt=""></div><% } %>
 	<section class="owner-hero">

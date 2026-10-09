@@ -105,7 +105,6 @@
 Add Ad-Free feature using Waves if premium is introduced
 Tranfer Waves by username
 make all textarea grow as you write
-Polishing UI for all pages
 Polishing UI of all partials
 bottom menu for smaller devices 
 

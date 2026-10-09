@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex, communityPage: true }) %>
 <%- include('../partials/app-nav', { active: 'explore', currentUser }) %>
-<main class="community-invite-page community-waiting-page">
+<main class="community-invite-page community-waiting-page community-invite-modern">
 	<% if (locals.flash) { %><div class="flash flash-<%= flash.type %>"><%= flash.message %></div><% } %>
 	<section class="community-invite-card">
 		<p class="eyebrow"><%= requested ? 'Request submitted' : 'Private community' %></p>
