@@ -14,14 +14,37 @@
     <div class="recap-stat wallet-earned"><span>Total earned</span><strong><%= wallet.totalEarned.toLocaleString() %></strong></div>
     <div class="recap-stat wallet-spent"><span>Total spent</span><strong><%= wallet.totalSpent.toLocaleString() %></strong></div>
   </section>
+  <% const adFreeInfo = locals.adFree || { enabled: false, plans: [] }; %>
+  <% if (adFreeInfo.enabled || adFreeInfo.active) { %>
+  <section class="recap-panel wallet-adfree" id="ad-free">
+    <div class="recap-section-heading"><div><p class="eyebrow">Waves premium</p><h2>Go Ad-Free</h2></div>
+      <% if (adFreeInfo.active) { %><span class="wallet-adfree-status is-active"><%- icon('check', { size: 13 }) %> Active until <%= new Date(adFreeInfo.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span><% } %></div>
+    <p class="recap-muted">Hide advertiser campaigns and sponsored posts in your feeds and communities. Buying again while active adds time to your plan.</p>
+    <% if (adFreeInfo.enabled) { %>
+    <div class="wallet-plan-grid">
+      <% adFreeInfo.plans.forEach((plan) => { %>
+      <form class="wallet-plan<%= plan.id === '4m' ? ' is-popular' : '' %>" method="post" action="/wallet/ad-free">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="plan" value="<%= plan.id %>">
+        <% if (plan.savingsPercent > 0) { %><b class="wallet-plan-badge">Save <%= plan.savingsPercent %>%</b><% } %>
+        <h3><%= plan.label %></h3>
+        <p class="wallet-plan-price"><strong><%= plan.price.toLocaleString() %></strong> Waves</p>
+        <button class="button <%= plan.id === '4m' ? 'button-primary' : 'button-ghost' %> button-small" type="submit" <%= wallet.balance < plan.price ? 'disabled' : '' %>><%= wallet.balance < plan.price ? 'Not enough Waves' : (adFreeInfo.active ? 'Extend' : 'Get Ad-Free') %></button>
+      </form>
+      <% }) %>
+    </div>
+    <% } %>
+  </section>
+  <% } %>
   <section class="recap-panel wallet-send">
     <div class="recap-section-heading"><div><p class="eyebrow">Send Waves</p><h2>Transfer to another user</h2></div></div>
     <form method="post" action="/wallet/transfer" class="admin-edit-form wallet-form">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <label>Recipient email<input type="email" name="recipientEmail" maxlength="254" required autocomplete="email"></label>
+      <label>Recipient username<input type="text" name="recipientUsername" minlength="3" maxlength="25" pattern="@?[A-Za-z0-9_]{3,24}" placeholder="@username" required autocomplete="off" autocapitalize="none" spellcheck="false"></label>
       <label>Amount in Waves<input type="number" name="amount" min="0.01" step="0.01" max="<%= wallet.balance %>" required></label>
       <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Send Waves</button></div>
     </form>
+    <% if (locals.username) { %><p class="recap-muted">Your username is <strong>@<%= username %></strong> — share it so others can send you Waves. <a href="/settings/profile">Change it</a>.</p><% } %>
     <p class="recap-muted">Transfers are subject to per-transfer and daily limits set by the platform.</p>
   </section>
   <section class="recap-panel">

@@ -39,7 +39,7 @@
 				<div class="profile-avatar-slot<%= profileUser.bannerImage ? ' has-banner' : '' %>"><%- include('../partials/avatar', { person: profileUser, size: 'large', link: false }) %></div>
 				<div>
 					<h1><%= profileUser.name %><% if (profileUser.isVerified) { %><span class="verified-tick" title="Verified" aria-label="Verified"><%- icon('check', { size: 11 }) %></span><% } %></h1>
-					<p class="profile-handle">@<%= profileUser.email.split('@')[0] %></p>
+					<p class="profile-handle">@<%= profileUser.username || profileUser.email.split('@')[0] %></p>
 				</div>
 			</div>
 			<div class="profile-actions">

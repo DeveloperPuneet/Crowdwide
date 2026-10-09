@@ -25,6 +25,7 @@ router.get('/u/:id/rss.xml', controller.profileRss);
 router.get('/api/v1/posts', apiLimiter, controller.apiPosts);
 router.get('/dashboard', requireAuth, requireVerified, controller.dashboard);
 router.get('/wallet', requireAuth, requireVerified, wavesController.wallet);
+router.post('/wallet/ad-free', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.buyAdFree);
 router.post('/wallet/transfer', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.transfer);
 router.get('/advertising', requireAuth, requireVerified, advertisingController.dashboard);
 router.post('/advertising/accept-terms', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.acceptTerms);

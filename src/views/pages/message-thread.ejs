@@ -1,5 +1,5 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page chat-page', pagePath, noIndex }) %>
-<%- include('../partials/app-nav', { active: 'messages', currentUser }) %>
+<%- include('../partials/app-nav', { active: 'messages', currentUser, hideBottomNav: true }) %>
 <main class="chat-main">
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
 	<section class="chat-shell" data-chat data-kind="dm" data-poll-url="/messages/<%= person._id %>/poll" data-history-url="/messages/<%= person._id %>/history" data-delete-url="/messages/<%= person._id %>/delete" data-last-id="<%= lastId || '' %>" data-viewer-id="<%= currentUser.id %>" data-focus-id="<%= locals.focusId || '' %>">

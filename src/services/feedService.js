@@ -122,7 +122,7 @@ function fetchMostEngaged(match, limit) {
 }
 
 async function loadUser(userId) {
-  return User.findById(userId).select('following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt recentViews').lean();
+  return User.findById(userId).select('following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt recentViews adFreeUntil').lean();
 }
 
 // What this person is interested in, learned from what they actually do:
@@ -362,6 +362,7 @@ function interleaveEntriesWithAds(entries, ads) {
 }
 
 async function addActiveSponsoredPosts(entries, user, view, now) {
+  if (user?.adFreeUntil && new Date(user.adFreeUntil) > new Date(now)) return entries;
   try {
     const restricted = await getRestrictedCommunityIds(user._id);
     const types = ranker.TAB_CONFIG[view].types;

@@ -866,6 +866,11 @@ exports.updateSiteSettings = async (req, res) => {
   if (Number.isFinite(wavesMaxTransferAmount) && wavesMaxTransferAmount >= 0) settings.wavesMaxTransferAmount = Math.min(1000000, wavesMaxTransferAmount);
   const wavesDailyTransferLimit = Number(req.body.wavesDailyTransferLimit);
   if (Number.isFinite(wavesDailyTransferLimit) && wavesDailyTransferLimit >= 0) settings.wavesDailyTransferLimit = Math.min(10000000, wavesDailyTransferLimit);
+  settings.adFreeEnabled = req.body.adFreeEnabled === 'on';
+  for (const field of ['adFreePrice1Month', 'adFreePrice4Months', 'adFreePrice12Months']) {
+    const value = Number(req.body[field]);
+    if (Number.isFinite(value) && value >= 1) settings[field] = Math.min(1000000, Math.round(value));
+  }
   settings.postPromotionEnabled = req.body.postPromotionEnabled === 'on';
   const postPromotionWavesCost = Number(req.body.postPromotionWavesCost);
   if (Number.isFinite(postPromotionWavesCost) && postPromotionWavesCost >= 1) settings.postPromotionWavesCost = Math.min(10000, postPromotionWavesCost);

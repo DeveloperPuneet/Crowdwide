@@ -11,7 +11,7 @@
 		<div id="dashboard-sidebar">
 		<div class="sidebar-profile">
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser }) %>
-			<div><strong><%= currentUser.name %></strong><span>@<%= currentUser.email.split('@')[0] %></span></div>
+			<div><strong><%= currentUser.name %></strong><span>@<%= currentUser.username || currentUser.email.split('@')[0] %></span></div>
 		</div>
 		<nav class="side-links">
 			<a class="side-active" href="/dashboard"><%- icon('home') %> <span>Home feed</span></a>

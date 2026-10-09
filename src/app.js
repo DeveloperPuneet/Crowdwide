@@ -99,8 +99,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
       const sessionUser = req.session.user || null;
       let currentUser = sessionUser;
       if (sessionUser?.id) {
-        const wallet = await User.findById(sessionUser.id).select('wavesBalance').lean();
-        currentUser = { ...sessionUser, wavesBalance: Number(wallet?.wavesBalance || 0) };
+        const wallet = await User.findById(sessionUser.id).select('wavesBalance username adFreeUntil').lean();
+        currentUser = { ...sessionUser, wavesBalance: Number(wallet?.wavesBalance || 0), username: wallet?.username || '', adFreeUntil: wallet?.adFreeUntil || null };
       }
       res.locals.currentUser = currentUser;
       res.locals.flash = req.session.flash || null;

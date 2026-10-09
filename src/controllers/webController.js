@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const User = require('../models/User');
+const { isAdFree } = require('../services/adFree');
 const { getGrowthStats } = require('../services/publicStats');
 const { isStaging } = require('../services/environment');
 const { mediaDetailsFor } = require('../utils/mediaDetails');
@@ -187,7 +188,7 @@ exports.dashboard = async (req, res) => {
 		]);
 		let sitewideCampaigns = [];
 		try {
-			sitewideCampaigns = await getSitewideFeedCampaigns();
+			if (!isAdFree(user)) sitewideCampaigns = await getSitewideFeedCampaigns();
 		} catch (error) {
 			logger.error('Crowdwide-feed advertisements could not be loaded', error);
 		}
@@ -536,7 +537,7 @@ exports.createCommunity = async (req, res) => {
 };
 
 exports.profile = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links profilePicture bannerImage privacy createdAt isVerified following profileViews wavesBalance').lean();
+	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links username profilePicture bannerImage privacy createdAt isVerified following profileViews wavesBalance').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
 	const viewerId = req.session.user.id;
 	const isSelf = String(profileUser._id) === String(viewerId);
@@ -759,8 +760,8 @@ exports.userSuggestions = async (req, res) => {
 	const safe = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(`^${safe}`, 'i');
 	const viewer = await User.findById(req.session.user.id).select('blockedUsers').lean();
-	const users = await User.find({ isVerified: true, _id: { $ne: req.session.user.id, $nin: viewer?.blockedUsers || [] }, $or: [{ name: regex }, { email: regex }] }).limit(8).select('name email profilePicture').lean();
-	res.json(users.map((user) => ({ id: user._id, name: user.name, handle: user.email.split('@')[0], profilePicture: user.profilePicture })));
+	const users = await User.find({ isVerified: true, _id: { $ne: req.session.user.id, $nin: viewer?.blockedUsers || [] }, $or: [{ name: regex }, { username: regex }, { email: regex }] }).limit(8).select('name email username profilePicture').lean();
+	res.json(users.map((user) => ({ id: user._id, name: user.name, handle: user.username || user.email.split('@')[0], profilePicture: user.profilePicture })));
 };
 
 exports.followersPage = async (req, res) => {

@@ -755,3 +755,48 @@ document.addEventListener('click', (event) => {
   field.scrollIntoView({ behavior: 'smooth', block: 'center' });
   field.focus({ preventScroll: true });
 });
+
+// Textareas grow with their content (up to a comfortable cap) instead of scrolling inside a tiny box.
+(() => {
+  const MAX_HEIGHT = Math.round(window.innerHeight * 0.7);
+  const fit = (textarea) => {
+    if (!textarea.isConnected || textarea.offsetParent === null) return;
+    textarea.style.height = 'auto';
+    const next = Math.min(textarea.scrollHeight + (textarea.offsetHeight - textarea.clientHeight), MAX_HEIGHT);
+    textarea.style.height = `${next}px`;
+    textarea.style.overflowY = textarea.scrollHeight > MAX_HEIGHT ? 'auto' : 'hidden';
+  };
+  const setup = (textarea) => {
+    if (textarea.dataset.autosize === 'on' || textarea.hasAttribute('data-no-autosize')) return;
+    textarea.dataset.autosize = 'on';
+    textarea.style.resize = 'none';
+    textarea.addEventListener('input', () => fit(textarea));
+    textarea.addEventListener('focus', () => fit(textarea));
+    textarea.form?.addEventListener('reset', () => window.setTimeout(() => fit(textarea), 0));
+    fit(textarea);
+  };
+  const scan = (root = document) => root.querySelectorAll?.('textarea').forEach(setup);
+  scan();
+  window.addEventListener('resize', () => document.querySelectorAll('textarea[data-autosize="on"]').forEach(fit));
+  window.addEventListener('load', () => document.querySelectorAll('textarea[data-autosize="on"]').forEach(fit));
+  // Re-fit hidden textareas when their container is revealed (composer, reply boxes, <details>).
+  new MutationObserver((records) => {
+    records.forEach((record) => {
+      if (record.type === 'childList') record.addedNodes.forEach((node) => { if (node.nodeType === 1) { if (node.matches('textarea')) setup(node); scan(node); } });
+      else if (record.target.querySelectorAll) record.target.querySelectorAll('textarea[data-autosize="on"]').forEach(fit);
+    });
+  }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open'] });
+  document.addEventListener('toggle', (event) => event.target.querySelectorAll?.('textarea[data-autosize="on"]').forEach(fit), true);
+  window.autosizeTextareas = () => document.querySelectorAll('textarea[data-autosize="on"]').forEach(fit);
+})();
+
+// Mobile bottom menu: "Post" opens the composer on the feed, or jumps to it from anywhere else.
+(() => {
+  const compose = document.querySelector('[data-bottom-compose]');
+  const openFeedComposer = () => document.querySelector('[data-composer-open]');
+  compose?.addEventListener('click', (event) => {
+    const opener = openFeedComposer();
+    if (opener && document.querySelector('#composer')) { event.preventDefault(); opener.click(); }
+  });
+  if (window.location.hash === '#composer') openFeedComposer()?.click();
+})();

@@ -2,10 +2,15 @@ const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const User = require('../models/User');
 const logger = require('../services/logger');
 const { getWalletSummary, transferWaves } = require('../services/waves');
+const { getAdFreePlans, purchaseAdFree, isAdFree } = require('../services/adFree');
+const { ensureUsername, normalizeUsername, USERNAME_PATTERN } = require('../services/username');
 
 exports.wallet = async (req, res) => {
-  const [wallet, transactions] = await Promise.all([
+  const [wallet, adFreeOffer, username, userDoc, transactions] = await Promise.all([
     getWalletSummary(req.session.user.id),
+    getAdFreePlans(),
+    ensureUsername(req.session.user.id).catch(() => ''),
+    User.findById(req.session.user.id).select('adFreeUntil').lean(),
     WavesLedgerEntry.find({ user: req.session.user.id })
       .sort({ createdAt: -1, _id: -1 })
       .limit(50)
@@ -22,23 +27,25 @@ exports.wallet = async (req, res) => {
     pagePath: '/wallet',
     noIndex: true,
     wallet,
+    username: username || '',
+    adFree: { ...adFreeOffer, active: isAdFree(userDoc), until: userDoc?.adFreeUntil || null },
     transactions
   });
 };
 
 exports.transfer = async (req, res) => {
   const backToWallet = () => res.redirect('/wallet');
-  const recipientEmail = String(req.body.recipientEmail || '').trim().toLowerCase();
+  const recipientUsername = normalizeUsername(req.body.recipientUsername);
   const amount = Number(req.body.amount);
-  if (!recipientEmail || !Number.isFinite(amount) || amount <= 0) {
-    req.session.flash = { type: 'error', message: 'Enter a recipient email and a positive Waves amount.' };
+  if (!USERNAME_PATTERN.test(recipientUsername) || !Number.isFinite(amount) || amount <= 0) {
+    req.session.flash = { type: 'error', message: 'Enter a recipient username and a positive Waves amount.' };
     return backToWallet();
   }
 
   try {
-    const recipient = await User.findOne({ email: recipientEmail }).select('_id');
+    const recipient = await User.findOne({ username: recipientUsername }).select('_id');
     if (!recipient) {
-      req.session.flash = { type: 'error', message: 'No account was found for that email address.' };
+      req.session.flash = { type: 'error', message: 'No account was found with that username.' };
       return backToWallet();
     }
     await transferWaves({
@@ -57,4 +64,16 @@ exports.transfer = async (req, res) => {
     };
   }
   return backToWallet();
+};
+
+exports.buyAdFree = async (req, res) => {
+  try {
+    const result = await purchaseAdFree({ userId: req.session.user.id, planId: String(req.body.plan || '') });
+    req.session.flash = { type: 'success', message: `Ad-Free is active until ${new Date(result.adFreeUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.` };
+  } catch (error) {
+    logger.warn('Ad-Free purchase could not be completed', { userId: req.session.user.id, error });
+    const expected = /not available|insufficient|not found|temporarily/i.test(error.message);
+    req.session.flash = { type: 'error', message: expected ? error.message : 'The purchase could not be completed. Please try again later.' };
+  }
+  return res.redirect('/wallet');
 };

@@ -1,3 +1,4 @@
+const { generateUniqueUsername } = require('../services/username');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
@@ -77,7 +78,8 @@ exports.register = async (req, res) => {
       return res.redirect('/auth/login');
     }
     const verificationCode = code();
-    if (!user) user = new User({ name, email: normalizedEmail, password: await hashPassword(password) });
+    if (!user) user = new User({ name, email: normalizedEmail, password: await hashPassword(password), username: await generateUniqueUsername(normalizedEmail.split('@')[0] || name) });
+    else if (!user.username) user.username = await generateUniqueUsername(normalizedEmail.split('@')[0] || name);
     user.verificationCode = verificationCode;
     user.verificationExpires = Date.now() + 15 * 60 * 1000;
     await user.save();

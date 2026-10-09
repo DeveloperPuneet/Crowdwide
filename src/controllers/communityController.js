@@ -13,6 +13,7 @@ const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetwo
 const { getInterestProfile, topInterestTags, refreshPersonalization } = require('../services/feedService');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
+const { isAdFree } = require('../services/adFree');
 const { getCommunityCampaigns } = require('../services/advertising');
 const { getCommunityPromotionOffer, getActiveCommunityPromotions, promoteCommunity } = require('../services/communityPromotion');
 const logger = require('../services/logger');
@@ -316,7 +317,8 @@ exports.detail = async (req, res) => {
     ...pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean),
     ...recentPosts.filter((post) => !pinnedById.has(String(post._id)))
   ];
-  const communityAds = await getCommunityCampaigns(community._id);
+  const viewerAdFree = isAdFree(await User.findById(req.session.user.id).select('adFreeUntil').lean());
+  const communityAds = viewerAdFree ? [] : await getCommunityCampaigns(community._id);
   const placement = community.monetizationSettings?.adPlacement || 'feed';
   const frequency = Math.max(1, Math.min(10, Math.floor(Number(community.monetizationSettings?.adFrequency) || 1)));
   const feedAds = [];

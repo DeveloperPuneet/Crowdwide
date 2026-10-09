@@ -13,6 +13,7 @@ const recoveryCodeSchema = new mongoose.Schema({
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  username: { type: String, lowercase: true, trim: true, minlength: 3, maxlength: 24, match: /^[a-z0-9_]+$/, unique: true, sparse: true },
   password: { type: String, required: true },
   bio: {
     type: String,
@@ -108,6 +109,7 @@ const userSchema = new mongoose.Schema({
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   joinedCommunities: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Community' }],
   wavesBalance: { type: Number, default: 0, min: 0 },
+  adFreeUntil: { type: Date, default: null },
   wavesTotalEarned: { type: Number, default: 0, min: 0 },
   wavesTotalSpent: { type: Number, default: 0, min: 0 },
   wavesSuspendedUntil: Date,

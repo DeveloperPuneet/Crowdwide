@@ -1,3 +1,4 @@
+const { normalizeUsername, validateUsername, ensureUsername } = require('../services/username');
 const bcrypt = require('bcryptjs');
 const { hashPassword } = require('../utils/passwords');
 const User = require('../models/User');
@@ -30,6 +31,7 @@ async function settingsData(req) {
 }
 
 exports.page = async (req, res) => {
+  await ensureUsername(req.session.user.id).catch(() => null);
   const data = await settingsData(req);
   res.render('pages/settings', { title: 'Settings', pagePath: '/settings', noIndex: true, section: req.params.section || 'profile', sessionID: req.sessionID, pushConfigured: isPushConfigured(), pushPublicKey: getPublicKey(), ...data });
 };
@@ -42,6 +44,18 @@ exports.updateProfile = async (req, res) => {
   }
   const user = await User.findById(req.session.user.id);
   user.name = req.body.name?.trim() || user.name;
+  if (req.body.username !== undefined && normalizeUsername(req.body.username) !== (user.username || '')) {
+    const check = validateUsername(req.body.username);
+    if (!check.ok) {
+      flash(req, 'error', check.error);
+      return res.redirect('/settings/profile');
+    }
+    if (await User.exists({ username: check.username, _id: { $ne: user._id } })) {
+      flash(req, 'error', 'That username is already taken.');
+      return res.redirect('/settings/profile');
+    }
+    user.username = check.username;
+  }
   user.bio = bio;
   user.hashtags = parseHashtagList(req.body.hashtags || '');
   user.privacy = ['public', 'followers'].includes(req.body.privacy) ? req.body.privacy : user.privacy;

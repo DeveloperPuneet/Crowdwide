@@ -74,3 +74,12 @@
     <% } %>
   </nav>
 </div>
+<% if (locals.currentUser && !locals.hideBottomNav) { %>
+<nav class="bottom-nav" aria-label="Quick navigation">
+  <a class="<%= active === 'home' ? 'is-active' : '' %>" href="/dashboard"<%- active === 'home' ? ' aria-current="page"' : '' %>><%- icon('home', { size: 21 }) %><span>Home</span></a>
+  <a class="<%= active === 'explore' ? 'is-active' : '' %>" href="/explore"<%- active === 'explore' ? ' aria-current="page"' : '' %>><%- icon('compass', { size: 21 }) %><span>Explore</span></a>
+  <a class="bottom-nav-post" href="/dashboard#composer" data-bottom-compose aria-label="Create a post"><%- icon('plus', { size: 22 }) %></a>
+  <a class="<%= active === 'communities' ? 'is-active' : '' %>" href="/communities"<%- active === 'communities' ? ' aria-current="page"' : '' %>><%- icon('users', { size: 21 }) %><span>Communities</span></a>
+  <a class="<%= active === 'messages' ? 'is-active' : '' %>" href="/messages"<%- active === 'messages' ? ' aria-current="page"' : '' %>><%- icon('mail', { size: 21 }) %><span>Messages</span></a>
+</nav>
+<% } %>
