@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'groups', currentUser }) %>
-<main class="group-info-page group-join-page">
+<main class="group-info-page group-join-page group-join-modern">
 	<% if (locals.flash) { %><%- include('../partials/flash') %><% } %>
 	<section class="group-panel group-join-card">
 		<%- include('../partials/group-avatar', { group, size: 'group-info-avatar' }) %>
