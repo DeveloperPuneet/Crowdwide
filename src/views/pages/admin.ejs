@@ -4,7 +4,7 @@
 <% const pendingAdvertiserList = Array.isArray(locals.pendingAdvertisers) ? locals.pendingAdvertisers : []; %>
 <% const pendingCampaignList = Array.isArray(locals.pendingCampaigns) ? locals.pendingCampaigns : []; %>
 <% const managedCampaignList = Array.isArray(locals.managedCampaigns) ? locals.managedCampaigns : []; %>
-<main class="explore-page admin-console admin-wide"><%- include('../partials/flash') %>
+<main class="explore-page admin-console admin-wide admin-modern"><%- include('../partials/flash') %>
   <header class="admin-page-header"><div><p class="eyebrow">Restricted operations</p><h1>Admin console</h1><p>Monitor the community, resolve reports, and manage platform settings.</p></div><span class="admin-access-badge"><%- icon('shield', { size: 15 }) %> Admin access</span></header>
   <div class="admin-stats" aria-label="Platform overview">
     <article class="admin-stat"><span>Community</span><strong><%= stats.users.toLocaleString() %></strong><small>users</small></article>
