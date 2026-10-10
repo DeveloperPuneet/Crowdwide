@@ -56,6 +56,10 @@
 @media (max-width: 1024px) {
   .app-nav,
   .site-nav {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding-inline: var(--responsive-gutter);
     min-height: 64px;
     height: auto;
     padding-block: 10px;

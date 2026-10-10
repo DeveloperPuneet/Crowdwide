@@ -1731,7 +1731,7 @@ textarea[data-autosize="on"] { resize: none; transition: height .12s ease; }
    ========================================================================== */
 
 /* ---- Marketing nav: align with page content instead of sitting on the screen edge ---- */
-.site-nav { width: min(1180px, calc(100% - 48px)); margin-inline: auto; height: 80px; gap: 16px; }
+.site-nav { width: 100vw; margin-inline: auto; height: 80px; gap: 16px; }
 .site-nav .brand { font-weight: 700; letter-spacing: -.01em; }
 .site-nav .nav-links { gap: 6px; }
 .site-nav .nav-links a { padding: 9px 14px; border-radius: 999px; font-weight: 500; color: var(--tx-mid); transition: background .15s, color .15s; }
