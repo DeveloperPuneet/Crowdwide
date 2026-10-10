@@ -531,7 +531,7 @@ test('post moderation controls render visibly for staff outside the collapsed mo
   assert.ok(moderationAt > moreOptionsEnd, 'moderation controls must not be inside collapsed More options');
   assert.match(html, /Moderation options/);
   assert.match(html, /action="\/posts\/p1\/moderate"/);
-  assert.match(html, /Send for approval/);
+  assert.match(html, />Submit</);
   const adminHtml = await render('pages/post-detail.ejs', {
     title: 'p', pagePath: '/posts/p1', comments: [],
     post: { ...post(1), liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null },

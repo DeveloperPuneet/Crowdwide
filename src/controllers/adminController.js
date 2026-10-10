@@ -9,6 +9,7 @@ const AuditLog = require('../models/AuditLog');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const WavesAbuseSignal = require('../models/WavesAbuseSignal');
 const CampaignAbuseSignal = require('../models/CampaignAbuseSignal');
+const { clearAllFeedCaches } = require('../services/feedService');
 const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
 const MaintenanceRun = require('../models/MaintenanceRun');
@@ -28,7 +29,11 @@ const logger = require('../services/logger');
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const audit = (req, action, targetType, target, details = {}) => AuditLog.create({ actor: req.roleUser._id, action, targetType, target, details, ipAddress: req.ip, userAgent: req.get('user-agent') });
 const panelRoles = { admin: ['admin'], moderator: ['admin', 'moderator'] };
-const postModerationActions = ['delete-post', 'suspend-user', 'rate-good-post', 'rate-bad-post', 'report-post'];
+const postModerationActions = ['delete-post', 'suspend-user', 'rate-good-post', 'rate-bad-post', 'report-post', 'flag-spam'];
+// Moderator risk tiers. Low-risk actions take effect immediately (an admin can still
+// revert them, or give spam flags a final look). Everything else waits for admin approval.
+const LOW_RISK_ACTIONS = new Set(['rate-good-post', 'rate-bad-post', 'edit-post', 'flag-spam', 'report-post']);
+const REVERTIBLE_ACTIONS = new Set(['rate-good-post', 'rate-bad-post', 'edit-post']);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SUSPENSION_MS = 365 * DAY_MS; // fallback used only where a site-config lookup isn't already in hand
 const validRevenueSharePercent = (value) => {
@@ -38,6 +43,51 @@ const validRevenueSharePercent = (value) => {
     && percent >= 0
     && percent <= 100
     && Math.abs(percent * 100 - Math.round(percent * 100)) <= 1e-8;
+};
+
+
+// Applies a moderator's low-risk action right away and records it for admin oversight.
+async function applyLowRiskAction(req, { action, post, reason, payload = {} }) {
+  const record = { moderator: req.roleUser._id, action, targetType: 'post', target: post._id, reason, autoApplied: true };
+  if (action === 'rate-good-post') {
+    await Post.findByIdAndUpdate(post._id, { $inc: { moderationScore: 1 }, $set: { moderationStatus: 'good' } });
+    record.status = 'approved';
+  } else if (action === 'rate-bad-post') {
+    await Post.findByIdAndUpdate(post._id, { $inc: { moderationScore: -1 }, $set: { moderationStatus: 'needs-review' } });
+    record.status = 'approved';
+  } else if (action === 'report-post') {
+    await Report.updateOne({ reporter: req.roleUser._id, targetType: 'post', target: post._id }, { $setOnInsert: { reporter: req.roleUser._id, targetType: 'post', target: post._id, reason } }, { upsert: true });
+    await Post.findByIdAndUpdate(post._id, { $set: { moderationStatus: 'reported' } });
+    record.status = 'approved';
+  } else if (action === 'edit-post') {
+    const body = String(payload.body || '').trim().slice(0, 4000);
+    if (!body) return null;
+    const current = await Post.findById(post._id).select('body').lean();
+    if (!current) return null;
+    await Post.findByIdAndUpdate(post._id, { body });
+    record.status = 'approved';
+    record.payload = { body, previousBody: current.body };
+  } else if (action === 'flag-spam') {
+    const current = await Post.findById(post._id).select('status').lean();
+    if (!current) return null;
+    // Hidden from everyone but the author immediately; the admin makes the final call.
+    await Post.findByIdAndUpdate(post._id, { $set: { status: 'rejected', moderationStatus: 'reported' } });
+    clearAllFeedCaches();
+    record.status = 'pending';
+    record.payload = { previousStatus: current.status };
+  } else return null;
+  if (record.status === 'approved') { record.reviewedAt = new Date(); record.reviewNote = 'Auto-approved (low risk).'; }
+  const created = await ModerationAction.create(record);
+  await audit(req, `auto-${action}`, 'post', post._id, { action, moderationActionId: created._id });
+  return created;
+}
+
+const LOW_RISK_MESSAGES = {
+  'rate-good-post': 'Marked as a good post.',
+  'rate-bad-post': 'Marked for review.',
+  'report-post': 'Post reported. It now shows in the reports queue.',
+  'edit-post': 'Your edit was applied. An admin can review or revert it.',
+  'flag-spam': 'The post was hidden from public view and sent to the administrator for a final look.'
 };
 
 async function applyPostModerationAction(req, action, post, reason) {
@@ -50,6 +100,7 @@ async function applyPostModerationAction(req, action, post, reason) {
     const scoreChange = action === 'rate-good-post' ? 1 : -1;
     await Post.findByIdAndUpdate(post._id, { $inc: { moderationScore: scoreChange }, $set: { moderationStatus: scoreChange > 0 ? 'good' : 'needs-review' } });
   }
+  if (action === 'flag-spam') await Post.findByIdAndUpdate(post._id, { $set: { status: 'rejected', moderationStatus: 'reported' } });
   if (action === 'report-post') {
     await Report.updateOne({ reporter: req.roleUser._id, targetType: 'post', target: post._id }, { $setOnInsert: { reporter: req.roleUser._id, targetType: 'post', target: post._id, reason } }, { upsert: true });
     await Post.findByIdAndUpdate(post._id, { $set: { moderationStatus: 'reported' } });
@@ -96,6 +147,13 @@ exports.moderatePost = async (req, res) => {
     await audit(req, action, action === 'suspend-user' ? 'user' : 'post', action === 'suspend-user' ? post.author : post._id, { reason, direct: true });
     flash(req, 'success', 'Moderation action completed.');
     return res.redirect(action === 'delete-post' ? '/dashboard' : `/posts/${req.params.id}`);
+  }
+  if (LOW_RISK_ACTIONS.has(action)) {
+    const done = await applyLowRiskAction(req, { action, post: { _id: post._id }, reason });
+    if (done) {
+      flash(req, 'success', LOW_RISK_MESSAGES[action]);
+      return res.redirect(`/posts/${req.params.id}`);
+    }
   }
   await ModerationAction.create({ moderator: req.roleUser._id, action, targetType: action === 'suspend-user' ? 'user' : 'post', target: action === 'suspend-user' ? post.author : post._id, reason });
   await audit(req, 'submit-moderation-action', action === 'suspend-user' ? 'user' : 'post', action === 'suspend-user' ? post.author : post._id, { action, post: post._id });
@@ -178,14 +236,15 @@ exports.admin = async (req, res) => {
       .lean()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
-  await attachActionContext(pendingActions);
+  const autoApplied = await ModerationAction.find({ autoApplied: true, status: 'approved', revertedAt: null, action: { $in: [...REVERTIBLE_ACTIONS] } }).sort({ createdAt: -1 }).limit(30).populate('moderator', 'name moderatorId').lean();
+  await attachActionContext([...pendingActions, ...autoApplied]);
   const communityAdShareIds = communityAdShares.map((row) => row._id);
   const communityAdShareCommunities = communityAdShareIds.length
     ? await Community.find({ _id: { $in: communityAdShareIds } }).select('name slug owner').populate('owner', 'name email').lean()
     : [];
   const communityAdShareById = new Map(communityAdShareCommunities.map((community) => [String(community._id), community]));
   communityAdShares.forEach((row) => { row.community = communityAdShareById.get(String(row._id)) || null; });
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
 exports.retryCommunityAdShare = async (req, res) => {
@@ -985,6 +1044,11 @@ exports.reviewAction = async (req, res) => {
   // A rejected report recommendation shouldn't leave the report stuck in
   // "reviewing" forever with no way for anyone to act on it again.
   else if (action.action === 'resolve-report') await Report.updateOne({ _id: action.target, status: 'reviewing' }, { status: 'open' });
+  else if (action.action === 'flag-spam') {
+    // Not spam after all: put the post back exactly as it was.
+    await Post.findByIdAndUpdate(action.target, { $set: { status: action.payload?.previousStatus || 'published', moderationStatus: 'unreviewed' } });
+    clearAllFeedCaches();
+  }
   action.status = approved ? 'approved' : 'rejected';
   action.reviewedBy = req.roleUser._id;
   action.reviewedAt = new Date();
@@ -995,12 +1059,27 @@ exports.reviewAction = async (req, res) => {
   res.redirect('/admin#queue');
 };
 
+exports.revertAutoAction = async (req, res) => {
+  const action = await ModerationAction.findOne({ _id: req.params.id, autoApplied: true, status: 'approved', revertedAt: null, action: { $in: [...REVERTIBLE_ACTIONS] } });
+  if (!action) return res.redirect('/admin#queue');
+  if (action.action === 'edit-post' && action.payload?.previousBody !== undefined) await Post.findByIdAndUpdate(action.target, { body: action.payload.previousBody });
+  if (action.action === 'rate-good-post') await Post.findByIdAndUpdate(action.target, { $inc: { moderationScore: -1 }, $set: { moderationStatus: 'unreviewed' } });
+  if (action.action === 'rate-bad-post') await Post.findByIdAndUpdate(action.target, { $inc: { moderationScore: 1 }, $set: { moderationStatus: 'unreviewed' } });
+  action.revertedAt = new Date();
+  action.revertedBy = req.roleUser._id;
+  await action.save();
+  await audit(req, 'revert-moderation-action', action.targetType, action.target, { action: action.action, moderator: action.moderator });
+  flash(req, 'success', 'The moderator action was reverted.');
+  res.redirect('/admin#queue');
+};
+
 exports.moderator = async (req, res) => {
   const reviewThreshold = await getPostReviewThreshold();
   const reportedOnly = req.query.filter === 'reported';
+  const contentType = ['post', 'article', 'poll'].includes(req.query.type) ? req.query.type : '';
   const [reports, actions, communities, moderationFeed, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization] = await Promise.all([
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ status: 1, createdAt: -1 }).limit(60).select('targetType target reason evidenceUrl status createdAt').populate('reporter', 'name').lean(),
-    ModerationAction.find({ moderator: req.roleUser._id }).sort({ createdAt: -1 }).limit(60).select('action targetType target reason status createdAt reviewNote').lean(),
+    ModerationAction.find({ moderator: req.roleUser._id }).sort({ createdAt: -1 }).limit(60).select('action targetType target reason status createdAt reviewNote autoApplied revertedAt').lean(),
     Community.find().sort({ membersCount: -1 }).limit(60).select('name slug description guidelines category membersCount requireApproval bannedWords createdAt').lean(),
     // Excludes posts this moderator has already looked at, and posts enough
     // other moderators have already cleared - see moderatorReviews on Post
@@ -1012,8 +1091,9 @@ exports.moderator = async (req, res) => {
       author: { $ne: req.roleUser._id },
       moderatorReviews: { $ne: req.roleUser._id },
       $expr: { $lt: [{ $size: { $ifNull: ['$moderatorReviews', []] } }, reviewThreshold] },
-      ...(reportedOnly ? { moderationStatus: 'reported' } : {})
-    }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean(),
+      ...(reportedOnly ? { moderationStatus: 'reported' } : {}),
+      ...(contentType ? { type: contentType } : {})
+    }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type poll.question poll.options.label author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean(),
     Appeal.find({ status: 'pending', actionType: { $ne: 'advertiser' } }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
     Campaign.find({
       status: 'submitted',
@@ -1029,8 +1109,12 @@ exports.moderator = async (req, res) => {
       ]
     }).sort({ createdAt: 1 }).limit(50).populate('owner', 'name').lean()
   ]);
+  const queueBase = { status: 'published', author: { $ne: req.roleUser._id }, moderatorReviews: { $ne: req.roleUser._id }, $expr: { $lt: [{ $size: { $ifNull: ['$moderatorReviews', []] } }, reviewThreshold] } };
+  const typeCountRows = await Post.aggregate([{ $match: { ...queueBase, moderationStatus: 'unreviewed' } }, { $group: { _id: '$type', n: { $sum: 1 } } }]);
+  const contentCounts = { post: 0, article: 0, poll: 0 };
+  typeCountRows.forEach((row) => { if (row._id in contentCounts) contentCounts[row._id] = row.n; });
   const myOpenReportRecommendations = new Set(actions.filter((a) => a.action === 'resolve-report' && a.status === 'pending').map((a) => String(a.target)));
-  res.render('pages/moderator', { title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization });
+  res.render('pages/moderator', { contentType, contentCounts, recentAuto: actions.filter((a) => a.autoApplied).slice(0, 8), title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization });
 };
 
 exports.submitAction = async (req, res) => {
@@ -1046,9 +1130,9 @@ exports.submitAction = async (req, res) => {
     return res.redirect('/moderator');
   }
 
-  const allowed = ['delete-post', 'edit-post', 'suspend-user', 'unsuspend-user', 'warn-user', 'edit-community', 'resolve-report', 'rate-good-post', 'rate-bad-post', 'report-post'];
+  const allowed = ['delete-post', 'edit-post', 'suspend-user', 'unsuspend-user', 'warn-user', 'edit-community', 'resolve-report', 'rate-good-post', 'rate-bad-post', 'report-post', 'flag-spam'];
   if (!allowed.includes(req.body.action) || !req.body.target || !req.body.reason?.trim()) return res.redirect('/moderator');
-  const postActions = ['delete-post', 'edit-post', 'rate-good-post', 'rate-bad-post', 'report-post'];
+  const postActions = ['delete-post', 'edit-post', 'rate-good-post', 'rate-bad-post', 'report-post', 'flag-spam'];
   const userActions = ['suspend-user', 'unsuspend-user', 'warn-user'];
   const targetType = postActions.includes(req.body.action) ? 'post' : userActions.includes(req.body.action) ? 'user' : req.body.action === 'edit-community' ? 'community' : 'report';
   if (postActions.includes(req.body.action)) {
@@ -1057,6 +1141,11 @@ exports.submitAction = async (req, res) => {
       flash(req, 'error', 'Moderators cannot review or influence their own posts.');
       return res.redirect('/moderator');
     }
+  }
+  if (LOW_RISK_ACTIONS.has(req.body.action)) {
+    const done = await applyLowRiskAction(req, { action: req.body.action, post: { _id: req.body.target }, reason: req.body.reason.trim(), payload: req.body.payload || {} });
+    flash(req, done ? 'success' : 'error', done ? LOW_RISK_MESSAGES[req.body.action] : 'That action could not be applied.');
+    return res.redirect('/moderator');
   }
   let payload;
   if (req.body.action === 'edit-post' && req.body.payload?.body?.trim()) payload = { body: req.body.payload.body.trim().slice(0, 4000) };

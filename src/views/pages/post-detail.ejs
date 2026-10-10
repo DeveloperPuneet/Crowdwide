@@ -100,9 +100,9 @@
 			<div class="post-moderation-heading"><%- icon('shield', { size: 16 }) %><strong id="post-moderation-heading">Moderation options</strong></div>
 			<form class="post-moderation-form" method="post" action="/posts/<%= post._id %>/moderate">
 				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-				<label>Action<select name="action"><option value="rate-good-post">Mark as good</option><option value="rate-bad-post">Mark for review</option><option value="report-post">Report post</option><option value="suspend-user">Suspend author</option><option value="delete-post">Delete post</option></select></label>
+				<label>Action<select name="action"><option value="rate-good-post">Mark as good</option><option value="rate-bad-post">Mark for review</option><option value="report-post">Report post</option><option value="flag-spam">Flag as spam (hides it now)</option><option value="suspend-user">Suspend author</option><option value="delete-post">Delete post</option></select></label>
 				<label>Reason <span class="form-optional">(optional for ratings)</span><input name="reason" maxlength="1000" placeholder="Add context for this action"></label>
-				<button class="button button-small <%= locals.postModerationRole === 'admin' ? 'button-danger' : 'button-ghost' %>" type="submit"><%= locals.postModerationRole === 'admin' ? 'Apply action' : 'Send for approval' %></button>
+				<button class="button button-small <%= locals.postModerationRole === 'admin' ? 'button-danger' : 'button-ghost' %>" type="submit"><%= locals.postModerationRole === 'admin' ? 'Apply action' : 'Submit' %></button>
 			</form>
 		</section>
 		<% } %>

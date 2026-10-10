@@ -157,6 +157,7 @@ router.post('/admin/moderators', requireAuth, requireVerified, requireAdmin, req
 router.post('/admin/moderators/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteModerator);
 router.post('/admin/reports/:id', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.resolveReport);
 router.post('/admin/appeals/:id', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.resolveAppeal);
+router.post('/admin/moderation/:id/revert', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.revertAutoAction);
 router.post('/admin/moderation/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.reviewAction);
 router.post('/admin/posts/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deletePost);
 router.post('/admin/posts/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updatePost);

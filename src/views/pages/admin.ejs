@@ -530,7 +530,7 @@
     <% if (!pendingActions.length) { %><p>No actions waiting for approval.</p><% } %>
     <% pendingActions.forEach((item) => { %>
     <div class="device-row" style="flex-direction:column;align-items:stretch;">
-      <div><strong><%= item.action %></strong><span> requested by <%= item.moderator?.name || 'Moderator' %> (<%= item.moderator?.moderatorId %>) · target <%= item.targetType %> <%= item.target %></span></div>
+      <div><strong><%= item.action === 'flag-spam' ? 'flag-spam · hidden, awaiting your final look' : item.action %></strong><span> requested by <%= item.moderator?.name || 'Moderator' %> (<%= item.moderator?.moderatorId %>) · target <%= item.targetType %> <%= item.target %></span></div>
       <% if (item.targetType === 'report' && item.reportContext) { %><div class="admin-diff"><strong>Reported <%= item.reportContext.targetType %></strong> — <%= item.reportContext.reason %></div><% } %>
       <% if (item.targetType === 'post' && item.postContext) { %><div class="admin-diff"><strong>Post by <%= item.postContext.author?.name || 'Member' %></strong><%= (item.postContext.body || '').slice(0, 180) %></div><% } %>
       <% if (item.targetType === 'user' && item.userContext) { %><div class="admin-diff"><strong>Account</strong> <%= item.userContext.name %> (<%= item.userContext.email %>)</div><% } %>
@@ -539,11 +539,23 @@
       <form method="post" action="/admin/moderation/<%= item._id %>/review" style="display:flex;gap:8px;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:var(--tx-mid);border-radius:7px;padding:7px 9px;font-size:11px;">
-        <button class="button button-small button-primary" name="decision" value="approve">Approve &amp; apply</button>
-        <button class="button button-small button-danger" name="decision" value="reject">Reject</button>
+        <button class="button button-small button-primary" name="decision" value="approve"><%= item.action === 'flag-spam' ? 'Confirm spam' : 'Approve & apply' %></button>
+        <button class="button button-small button-danger" name="decision" value="reject"><%= item.action === 'flag-spam' ? 'Not spam · restore' : 'Reject' %></button>
       </form>
     </div>
     <% }) %>
+    <% if (locals.autoApplied && autoApplied.length) { %>
+    <h2 style="margin-top:32px;">Applied automatically (low risk)</h2>
+    <p class="form-note">Good/bad-post ratings and post edits by moderators take effect immediately. You can revert any of them.</p>
+    <% autoApplied.forEach((item) => { %>
+    <div class="device-row" style="flex-direction:column;align-items:stretch;">
+      <div><strong><%= item.action %></strong><span> by <%= item.moderator?.name || 'Moderator' %> (<%= item.moderator?.moderatorId %>)</span></div>
+      <% if (item.postContext) { %><div class="admin-diff"><strong>Post by <%= item.postContext.author?.name || 'Member' %></strong><%= (item.postContext.body || '').slice(0, 180) %></div><% } %>
+      <div class="admin-diff"><strong>Reason</strong><%= item.reason %><% if (item.payload?.previousBody !== undefined) { %><strong style="margin-top:8px;">Before</strong><%= item.payload.previousBody.slice(0, 300) %><% } %></div>
+      <form method="post" action="/admin/moderation/<%= item._id %>/revert"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit">Revert</button></form>
+    </div>
+    <% }) %>
+    <% } %>
   </section>
 
   <!-- MODERATORS -->

@@ -1,9 +1,145 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% const contentCounts = locals.contentCounts || { post: 0, article: 0, poll: 0 }; const contentType = locals.contentType || ''; const recentAuto = locals.recentAuto || []; const reportedOnly = locals.reportedOnly || false; %>
 <% const monetizationApplications = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
 <main class="explore-page admin-console moderator-modern"><%- include('../partials/flash') %>
-  <p class="eyebrow">Restricted operations</p><h1>Moderator console</h1><p class="form-note">Identifier: <strong><%= moderator.moderatorId %></strong>. Personal emails, sessions, and account security data are hidden here. Every action you submit here is queued for an admin's approval before it takes effect.</p>
+  <p class="eyebrow">Restricted operations</p><h1>Moderator console</h1><p class="form-note">Identifier: <strong><%= moderator.moderatorId %></strong>. Personal emails, sessions, and account security data are hidden here. Low-risk actions apply instantly; high-risk actions are queued for an admin's approval.</p>
+  <nav class="admin-tabs" role="tablist" aria-label="Moderator sections">
+    <button type="button" class="admin-tab" id="admin-tab-overview" role="tab" aria-controls="admin-panel-overview" data-tab="overview">Overview</button>
+    <button type="button" class="admin-tab" id="admin-tab-content" role="tab" aria-controls="admin-panel-content" data-tab="content">Content review<% if (contentCounts.post + contentCounts.article + contentCounts.poll) { %> (<%= contentCounts.post + contentCounts.article + contentCounts.poll %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (reports.length) { %> (<%= reports.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-communities" role="tab" aria-controls="admin-panel-communities" data-tab="communities">Community changes</button>
+    <button type="button" class="admin-tab" id="admin-tab-monetization" role="tab" aria-controls="admin-panel-monetization" data-tab="monetization">Monetization<% if (monetizationApplications.length) { %> (<%= monetizationApplications.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-advertisers" role="tab" aria-controls="admin-panel-advertisers" data-tab="advertisers">Advertisers<% if (pendingAdvertisers.length) { %> (<%= pendingAdvertisers.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-campaigns" role="tab" aria-controls="admin-panel-campaigns" data-tab="campaigns">Campaigns<% if (pendingCampaigns.length) { %> (<%= pendingCampaigns.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-history" role="tab" aria-controls="admin-panel-history" data-tab="history">My activity</button>
+  </nav>
 
+  <section class="admin-panel" id="admin-panel-overview" role="tabpanel" aria-labelledby="admin-tab-overview" data-panel="overview">
+    <div class="admin-stats" aria-label="Your queue">
+      <article class="admin-stat admin-stat-attention"><span>Content</span><strong><%= (contentCounts.post + contentCounts.article + contentCounts.poll).toLocaleString() %></strong><small>unreviewed items</small></article>
+      <article class="admin-stat"><span>Reports</span><strong><%= reports.length.toLocaleString() %></strong><small>open</small></article>
+      <article class="admin-stat"><span>Appeals</span><strong><%= pendingAppeals.length.toLocaleString() %></strong><small>pending</small></article>
+      <article class="admin-stat"><span>Ad reviews</span><strong><%= (monetizationApplications.length + pendingAdvertisers.length + pendingCampaigns.length).toLocaleString() %></strong><small>to screen</small></article>
+    </div>
+    <section class="settings-block admin-wide"><h2>How your actions work</h2>
+      <div class="mod-risk-grid">
+        <div class="mod-risk mod-risk-low"><h3>Instant · low risk</h3><p>Takes effect immediately. An admin can still review or revert.</p>
+          <ul><li>Mark as good post</li><li>Mark for review</li><li>Edit a post</li><li>Report a post</li><li>Flag obvious spam <em>(hidden now, admin gives a final look)</em></li></ul></div>
+        <div class="mod-risk mod-risk-high"><h3>Needs admin approval · high risk</h3><p>Sent to the admin queue. Nothing changes until an admin approves it.</p>
+          <ul><li>Warn or suspend a user</li><li>Delete a post</li><li>Change community settings</li><li>Recommend a report outcome</li></ul></div>
+      </div>
+    </section>
+    <section class="settings-block admin-wide"><h2>Your recent instant actions</h2>
+      <% if (!recentAuto.length) { %><p>Nothing yet. Actions you take from Content review show up here.</p><% } %>
+      <% recentAuto.forEach((item) => { %><div class="device-row"><div><strong><%= item.action %></strong><span><%= item.status %><%= item.revertedAt ? ' · reverted by admin' : '' %> · <%= item.reason %></span></div></div><% }) %>
+    </section>
+  </section>
+
+  <section class="admin-panel" id="admin-panel-content" role="tabpanel" aria-labelledby="admin-tab-content" data-panel="content">
+    <section class="settings-block admin-wide"><h2>Unreviewed posts, articles &amp; polls</h2>
+      <p>Review content for usefulness, originality, civility, relevance and clear evidence. Your own posts are excluded. Once <%= reviewThreshold %> moderators have reviewed an item it drops out of everyone's queue.</p>
+      <div class="mod-filters" role="group" aria-label="Filter content">
+        <% const q = (t, rep) => '/moderator?' + [t ? 'type=' + t : '', rep ? 'filter=reported' : ''].filter(Boolean).join('&') + '#content'; %>
+        <a class="mod-chip<%= !contentType ? ' is-active' : '' %>" href="<%= q('', reportedOnly) %>">All <b><%= contentCounts.post + contentCounts.article + contentCounts.poll %></b></a>
+        <a class="mod-chip<%= contentType === 'post' ? ' is-active' : '' %>" href="<%= q('post', reportedOnly) %>">Posts <b><%= contentCounts.post %></b></a>
+        <a class="mod-chip<%= contentType === 'article' ? ' is-active' : '' %>" href="<%= q('article', reportedOnly) %>">Articles <b><%= contentCounts.article %></b></a>
+        <a class="mod-chip<%= contentType === 'poll' ? ' is-active' : '' %>" href="<%= q('poll', reportedOnly) %>">Polls <b><%= contentCounts.poll %></b></a>
+        <span class="mod-filter-sep"></span>
+        <a class="mod-chip<%= reportedOnly ? ' is-active' : '' %>" href="<%= q(contentType, !reportedOnly) %>">Reported only</a>
+      </div>
+      <% if (!moderationFeed.length) { %><p class="recap-empty">Nothing to review here right now. 🎉</p><% } %>
+      <% const csrf = csrfToken; moderationFeed.forEach((post) => { const typeLabel = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post'; %>
+      <article class="moderation-post mod-card">
+        <header class="mod-card-head">
+          <div><strong><%= post.author?.name || 'Member' %></strong><span><%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %></span></div>
+          <div class="mod-badges"><b class="mod-badge mod-badge-<%= post.type %>"><%= typeLabel %></b><% if (post.moderationStatus === 'reported') { %><b class="mod-badge mod-badge-reported">Reported</b><% } %><b class="mod-badge">Score <%= post.moderationScore || 0 %></b><b class="mod-badge">Reviewed <%= (post.moderatorReviews || []).length %>/<%= reviewThreshold %></b></div>
+        </header>
+        <div class="mod-card-body">
+          <% if (post.type === 'poll' && post.poll?.question) { %><p><strong><%= post.poll.question %></strong></p><ul class="mod-poll"><% (post.poll.options || []).forEach((o) => { %><li><%= o.label %></li><% }) %></ul><% } %>
+          <p><%= post.body %></p>
+          <a class="mod-open" href="/posts/<%= post._id %>" target="_blank" rel="noopener">Open full <%= typeLabel.toLowerCase() %> <%- icon('arrow-up-right', { size: 13 }) %></a>
+        </div>
+        <div class="mod-card-actions">
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="mark-reviewed"><input type="hidden" name="target" value="<%= post._id %>"><button class="button button-small button-ghost" title="No issue - just remove it from my queue">Looks fine</button></form>
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="rate-good-post"><input type="hidden" name="target" value="<%= post._id %>"><input type="hidden" name="reason" value="Meets quality criteria: useful, relevant, original, civil, and well-presented."><button class="button button-small button-primary">Good post</button></form>
+          <span class="mod-tier mod-tier-low">Instant</span>
+        </div>
+        <details class="post-owner-tools mod-tool"><summary><span>Mark for review</span><em class="mod-tier mod-tier-low">Instant</em></summary>
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="rate-bad-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Why does it need review?" required><button class="button button-small button-ghost" type="submit">Mark for review</button></form></details>
+        <details class="post-owner-tools mod-tool"><summary><span>Edit <%= typeLabel.toLowerCase() %> text</span><em class="mod-tier mod-tier-low">Instant · revertible</em></summary>
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="edit-post"><input type="hidden" name="target" value="<%= post._id %>"><textarea name="payload[body]" maxlength="4000" placeholder="Corrected body"><%= post.body %></textarea><input name="reason" placeholder="Why does this need editing?" required><button class="button button-small button-primary" type="submit">Apply edit</button></form></details>
+        <details class="post-owner-tools mod-tool"><summary><span>Flag as spam</span><em class="mod-tier mod-tier-low">Hides now · admin final look</em></summary>
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="flag-spam"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Why is this spam?" required><button class="button button-small button-danger" type="submit">Hide as spam</button></form></details>
+        <details class="post-owner-tools mod-tool"><summary><span>Report</span><em class="mod-tier mod-tier-low">Instant</em></summary>
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="report-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Report reason" required><button class="button button-small button-ghost" type="submit">Report post</button></form></details>
+        <details class="post-owner-tools mod-tool"><summary><span>Warn or suspend author</span><em class="mod-tier mod-tier-high">Needs admin approval</em></summary>
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="warn-user"><input type="hidden" name="target" value="<%= post.author?._id %>"><input name="reason" placeholder="Reason for warning" required><button class="button button-small button-ghost" type="submit">Request warning</button></form>
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="suspend-user"><input type="hidden" name="target" value="<%= post.author?._id %>"><input name="reason" placeholder="Reason for suspension" required><button class="button button-small button-danger" type="submit">Request suspension</button></form></details>
+        <details class="post-owner-tools mod-tool"><summary><span>Delete permanently</span><em class="mod-tier mod-tier-high">Needs admin approval</em></summary>
+          <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="delete-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Why should this be deleted?" required><button class="button button-small button-danger" type="submit">Request deletion</button></form></details>
+      </article>
+      <% }) %>
+    </section>
+  </section>
+
+  <section class="admin-panel" id="admin-panel-reports" role="tabpanel" aria-labelledby="admin-tab-reports" data-panel="reports">
+  <section class="settings-block"><h2>Open reports</h2><p>New reports go here first. Recommend an outcome and an admin makes the final call before it's applied.</p><% if (!reports.length) { %><p>No open reports.</p><% } %><% reports.forEach((report) => { %><div class="device-row" style="flex-direction:column;align-items:stretch;"><div><strong><%= report.targetType %></strong><span> · reported by <%= report.reporter?.name || 'a member' %> · <%= report.reason %><% if (report.status === 'reviewing') { %> · <strong style="color:var(--ac-blue);">under review</strong><% } %></span><% if (report.evidenceUrl) { %><a href="<%= report.evidenceUrl %>" target="_blank" rel="noopener noreferrer"><img src="<%= report.evidenceUrl %>" alt="Reported evidence screenshot" style="max-width:140px;border-radius:6px;margin-top:6px;display:block;"></a><% } %></div>
+  <% if (myOpenReportRecommendations.has(String(report._id))) { %>
+  <p class="form-note">Your recommendation is waiting for admin approval.</p>
+  <% } else if (report.status === 'reviewing') { %>
+  <p class="form-note">Another moderator's recommendation is already waiting for admin approval.</p>
+  <% } else { %>
+  <form method="post" action="/moderator/actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="action" value="resolve-report">
+    <input type="hidden" name="target" value="<%= report._id %>">
+    <input name="reason" placeholder="Your notes for the admin" required style="flex:1;min-width:160px;">
+    <button class="button button-small button-primary" name="payload[decision]" value="resolved">Recommend resolve</button>
+    <button class="button button-small button-ghost" name="payload[decision]" value="dismissed">Recommend dismiss</button>
+  </form>
+  <% } %>
+  </div><% }) %></section>
+  </section>
+
+  <section class="admin-panel" id="admin-panel-appeals" role="tabpanel" aria-labelledby="admin-tab-appeals" data-panel="appeals">
+  <section class="settings-block" id="appeals"><h2>Pending appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></h2><p>Appeals of a suspension, posting restriction or warning. Approving lifts the action immediately.</p><% if (!pendingAppeals.length) { %><p>No pending appeals.</p><% } %><% pendingAppeals.forEach((appeal) => { %>
+  <div class="device-row">
+    <div>
+      <strong><%= appeal.actionType %> · <%= appeal.user?.name || 'member' %> (<%= appeal.user?.email || 'unknown' %>)</strong>
+      <span>Filed <%= new Date(appeal.createdAt).toLocaleString() %><% if (appeal.reasonSnapshot) { %> · original reason: <%= appeal.reasonSnapshot %><% } %></span>
+      <p><%= appeal.message %></p>
+    </div>
+    <form method="post" action="/moderator/appeals/<%= appeal._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:var(--tx-mid);border-radius:7px;padding:7px 9px;font-size:11px;">
+      <button name="decision" value="approve" class="button button-small button-primary">Approve &amp; lift</button>
+      <button name="decision" value="deny" class="button button-small button-ghost">Deny</button>
+    </form>
+  </div>
+  <% }) %></section>
+  </section>
+
+  <section class="admin-panel" id="admin-panel-communities" role="tabpanel" aria-labelledby="admin-tab-communities" data-panel="communities">
+  <section class="settings-block admin-wide"><h2>Community changes</h2><p>Propose edits to a community's description, guidelines, or banned-word list. An admin must approve before they apply.</p>
+  <% communities.forEach((community) => { %>
+  <details class="post-owner-tools"><summary><%= community.name %> · <%= community.membersCount %> members</summary>
+    <form method="post" action="/moderator/actions">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="action" value="edit-community">
+      <input type="hidden" name="target" value="<%= community._id %>">
+      <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--tx-lo);">Description<textarea name="payload[description]"><%= community.description %></textarea></label>
+      <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--tx-lo);">Guidelines<textarea name="payload[guidelines]"><%= community.guidelines || '' %></textarea></label>
+      <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--tx-lo);">Banned words (comma separated)<input name="payload[bannedWords]" value="<%= (community.bannedWords || []).join(', ') %>" style="width:100%;"></label>
+      <input name="reason" placeholder="Why does this need changing?" required style="width:100%;margin-bottom:8px;">
+      <button class="button button-small button-primary" type="submit">Send for approval</button>
+    </form>
+  </details>
+  <% }) %></section>
+  </section>
+
+  <section class="admin-panel" id="admin-panel-monetization" role="tabpanel" aria-labelledby="admin-tab-monetization" data-panel="monetization">
   <section class="settings-block admin-wide" id="monetization"><h2>Community monetization screening</h2><p>Check eligibility and policy history. This review is a recommendation; an admin makes the final decision.</p>
     <% if (!monetizationApplications.length) { %><p>No community monetization applications are waiting for review.</p><% } %>
     <% monetizationApplications.forEach((community) => { %>
@@ -18,7 +154,9 @@
     </article>
     <% }) %>
   </section>
+  </section>
 
+  <section class="admin-panel" id="admin-panel-advertisers" role="tabpanel" aria-labelledby="admin-tab-advertisers" data-panel="advertisers">
   <section class="settings-block admin-wide" id="advertisers"><h2>Advertiser applications</h2><p>Screen advertiser details and policy fit. An admin makes the final approval or rejection decision.</p>
     <% if (!pendingAdvertisers.length) { %><p>No advertiser applications are waiting for moderator review.</p><% } %>
     <% pendingAdvertisers.forEach((advertiser) => { %>
@@ -41,7 +179,9 @@
     </article>
     <% }) %>
   </section>
+  </section>
 
+  <section class="admin-panel" id="admin-panel-campaigns" role="tabpanel" aria-labelledby="admin-tab-campaigns" data-panel="campaigns">
   <section class="settings-block admin-wide" id="campaigns"><h2>Advertisement campaign review</h2><p>Review submitted campaigns for policy concerns. Once you clear or flag a campaign, it leaves this queue for the final admin decision. After admin approval, the advertiser must activate it before it can serve.</p>
     <% if (!pendingCampaigns.length) { %><p>No campaigns are waiting for moderator screening. Cleared or flagged campaigns are no longer shown in this queue.</p><% } %>
     <% pendingCampaigns.forEach((campaign) => { %>
@@ -69,84 +209,9 @@
     </article>
     <% }) %>
   </section>
+  </section>
 
-  <section class="settings-block admin-wide"><h2>Moderation feed</h2><p>Review posts for usefulness, originality, civility, relevance, and clear evidence. Good-post ratings improve a post's review priority only after admin approval. Your own posts are excluded. Once <%= reviewThreshold %> moderators have reviewed a post, it drops out of everyone's queue.</p>
-  <div style="display:flex;gap:8px;margin-bottom:14px;"><a href="/moderator" class="button button-small <%= locals.reportedOnly ? 'button-ghost' : 'button-primary' %>">All posts</a><a href="/moderator?filter=reported" class="button button-small <%= locals.reportedOnly ? 'button-primary' : 'button-ghost' %>">Reported only</a></div>
-  <% if (!moderationFeed.length) { %><p><%= locals.reportedOnly ? 'No reported posts waiting on you right now.' : 'No posts are ready for review.' %></p><% } %><% moderationFeed.forEach((post) => { %><article class="moderation-post"><div><strong><%= post.author?.name || 'Member' %></strong><span><%= post.type === 'article' ? 'Article' : 'Post' %> · <%= post.community?.name || 'Open Crowdwide' %> · score <%= post.moderationScore || 0 %> · reviewed by <%= (post.moderatorReviews || []).length %>/<%= reviewThreshold %> moderators<% if (post.moderationStatus === 'reported') { %> · <strong style="color:var(--ac-red);">reported</strong><% } %></span></div><p><%= post.body %></p><div class="moderation-actions"><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="mark-reviewed"><input type="hidden" name="target" value="<%= post._id %>"><button class="button button-small button-ghost" title="No issue - just remove it from my queue">Looks fine</button></form><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="rate-good-post"><input type="hidden" name="target" value="<%= post._id %>"><input type="hidden" name="reason" value="Meets quality criteria: useful, relevant, original, civil, and well-presented."><button class="button button-small button-primary">Good post</button></form><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="rate-bad-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Why does it need review?" required><button class="button button-small button-ghost">Bad post</button></form><form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="action" value="report-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Report reason" required><button class="button button-small button-danger">Report</button></form></div>
-  <details class="post-owner-tools"><summary>Propose edit (needs admin approval)</summary>
-    <form method="post" action="/moderator/actions">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="action" value="edit-post">
-      <input type="hidden" name="target" value="<%= post._id %>">
-      <textarea name="payload[body]" maxlength="4000" placeholder="Corrected post body"><%= post.body %></textarea>
-      <input name="reason" placeholder="Why does this need editing?" required style="margin-top:8px;width:100%;">
-      <button class="button button-small button-primary" style="margin-top:8px;" type="submit">Send edit for approval</button>
-    </form>
-  </details>
-  <details class="post-owner-tools"><summary>Warn or suspend author (needs admin approval)</summary>
-    <form method="post" action="/moderator/actions" style="margin-bottom:8px;">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="action" value="warn-user">
-      <input type="hidden" name="target" value="<%= post.author?._id %>">
-      <input name="reason" placeholder="Reason for warning" required>
-      <button class="button button-small button-ghost" type="submit">Send warning for approval</button>
-    </form>
-    <form method="post" action="/moderator/actions">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="action" value="suspend-user">
-      <input type="hidden" name="target" value="<%= post.author?._id %>">
-      <input name="reason" placeholder="Reason for suspension" required>
-      <button class="button button-small button-danger" type="submit">Send suspension for approval</button>
-    </form>
-  </details>
-  </article><% }) %></section>
-
-  <section class="settings-block admin-wide"><h2>Community changes</h2><p>Propose edits to a community's description, guidelines, or banned-word list. An admin must approve before they apply.</p>
-  <% communities.forEach((community) => { %>
-  <details class="post-owner-tools"><summary><%= community.name %> · <%= community.membersCount %> members</summary>
-    <form method="post" action="/moderator/actions">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="action" value="edit-community">
-      <input type="hidden" name="target" value="<%= community._id %>">
-      <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--tx-lo);">Description<textarea name="payload[description]"><%= community.description %></textarea></label>
-      <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--tx-lo);">Guidelines<textarea name="payload[guidelines]"><%= community.guidelines || '' %></textarea></label>
-      <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--tx-lo);">Banned words (comma separated)<input name="payload[bannedWords]" value="<%= (community.bannedWords || []).join(', ') %>" style="width:100%;"></label>
-      <input name="reason" placeholder="Why does this need changing?" required style="width:100%;margin-bottom:8px;">
-      <button class="button button-small button-primary" type="submit">Send for approval</button>
-    </form>
-  </details>
-  <% }) %></section>
-
-  <section class="settings-block"><h2>Open reports</h2><p>New reports go here first. Recommend an outcome and an admin makes the final call before it's applied.</p><% if (!reports.length) { %><p>No open reports.</p><% } %><% reports.forEach((report) => { %><div class="device-row" style="flex-direction:column;align-items:stretch;"><div><strong><%= report.targetType %></strong><span> · reported by <%= report.reporter?.name || 'a member' %> · <%= report.reason %><% if (report.status === 'reviewing') { %> · <strong style="color:var(--ac-blue);">under review</strong><% } %></span><% if (report.evidenceUrl) { %><a href="<%= report.evidenceUrl %>" target="_blank" rel="noopener noreferrer"><img src="<%= report.evidenceUrl %>" alt="Reported evidence screenshot" style="max-width:140px;border-radius:6px;margin-top:6px;display:block;"></a><% } %></div>
-  <% if (myOpenReportRecommendations.has(String(report._id))) { %>
-  <p class="form-note">Your recommendation is waiting for admin approval.</p>
-  <% } else if (report.status === 'reviewing') { %>
-  <p class="form-note">Another moderator's recommendation is already waiting for admin approval.</p>
-  <% } else { %>
-  <form method="post" action="/moderator/actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <input type="hidden" name="action" value="resolve-report">
-    <input type="hidden" name="target" value="<%= report._id %>">
-    <input name="reason" placeholder="Your notes for the admin" required style="flex:1;min-width:160px;">
-    <button class="button button-small button-primary" name="payload[decision]" value="resolved">Recommend resolve</button>
-    <button class="button button-small button-ghost" name="payload[decision]" value="dismissed">Recommend dismiss</button>
-  </form>
-  <% } %>
-  </div><% }) %></section>
-  <section class="settings-block" id="appeals"><h2>Pending appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></h2><p>Appeals of a suspension, posting restriction or warning. Approving lifts the action immediately.</p><% if (!pendingAppeals.length) { %><p>No pending appeals.</p><% } %><% pendingAppeals.forEach((appeal) => { %>
-  <div class="device-row">
-    <div>
-      <strong><%= appeal.actionType %> · <%= appeal.user?.name || 'member' %> (<%= appeal.user?.email || 'unknown' %>)</strong>
-      <span>Filed <%= new Date(appeal.createdAt).toLocaleString() %><% if (appeal.reasonSnapshot) { %> · original reason: <%= appeal.reasonSnapshot %><% } %></span>
-      <p><%= appeal.message %></p>
-    </div>
-    <form method="post" action="/moderator/appeals/<%= appeal._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:var(--tx-mid);border-radius:7px;padding:7px 9px;font-size:11px;">
-      <button name="decision" value="approve" class="button button-small button-primary">Approve &amp; lift</button>
-      <button name="decision" value="deny" class="button button-small button-ghost">Deny</button>
-    </form>
-  </div>
-  <% }) %></section>
+  <section class="admin-panel" id="admin-panel-history" role="tabpanel" aria-labelledby="admin-tab-history" data-panel="history">
   <section class="settings-block"><h2>Your action history</h2><% actions.forEach((item) => { %><div class="device-row"><div><strong><%= item.action %></strong><span><%= item.targetType %> <%= item.target %> · <%= item.status %> · <%= item.reason %><% if (item.reviewNote) { %> · admin note: <%= item.reviewNote %><% } %></span></div></div><% }) %><% if (!actions.length) { %><p>No actions submitted yet.</p><% } %></section>
+  </section>
 </main><%- include('../partials/app-footer') %><%- include('../partials/foot') %>
