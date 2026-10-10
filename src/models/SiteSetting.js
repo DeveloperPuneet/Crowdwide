@@ -33,6 +33,7 @@ const siteSettingSchema = new mongoose.Schema({
   monetizationMinimumComments: { type: Number, default: 10, min: 0, max: 100000 },
   monetizationMinimumCommunityAgeDays: { type: Number, default: 30, min: 0, max: 3650 },
   monetizationRecentActivityDays: { type: Number, default: 30, min: 1, max: 365 },
+  wavesWelcomeBonus: { type: Number, default: 25, min: 0, max: 10000 },
   wavesPostReward: { type: wavesRewardRangeSchema, default: () => ({}) },
   wavesCommentReward: { type: wavesRewardRangeSchema, default: () => ({}) },
   wavesLikeReward: { type: wavesRewardRangeSchema, default: () => ({ minimum: 0.1, maximum: 1 }) },

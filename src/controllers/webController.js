@@ -201,6 +201,7 @@ exports.dashboard = async (req, res) => {
 		const selectedQuest = availableQuests.find((quest) => String(quest._id) === String(req.query.quest || ''));
 		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
 		res.render('pages/dashboard', {
+			showEarnTip: Boolean(user.createdAt) && Date.now() - new Date(user.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
 			title: 'Your Crowdwide',
 			pagePath: '/dashboard',
 			noIndex: true,

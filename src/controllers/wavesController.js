@@ -1,11 +1,12 @@
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const User = require('../models/User');
 const logger = require('../services/logger');
-const { getWalletSummary, transferWaves } = require('../services/waves');
+const { getWalletSummary, transferWaves, getEarnGuide } = require('../services/waves');
 const { getAdFreePlans, purchaseAdFree, isAdFree } = require('../services/adFree');
 const { ensureUsername, normalizeUsername, USERNAME_PATTERN } = require('../services/username');
 
 exports.wallet = async (req, res) => {
+  const earnGuide = await getEarnGuide();
   const [wallet, adFreeOffer, username, userDoc, transactions] = await Promise.all([
     getWalletSummary(req.session.user.id),
     getAdFreePlans(),
@@ -27,6 +28,8 @@ exports.wallet = async (req, res) => {
     pagePath: '/wallet',
     noIndex: true,
     wallet,
+    earnGuide,
+    isWelcome: req.query.welcome === '1',
     username: username || '',
     adFree: { ...adFreeOffer, active: isAdFree(userDoc), until: userDoc?.adFreeUntil || null },
     transactions

@@ -930,6 +930,8 @@ exports.updateSiteSettings = async (req, res) => {
     const value = Number(req.body[field]);
     if (Number.isFinite(value) && value >= 1) settings[field] = Math.min(1000000, Math.round(value));
   }
+  const wavesWelcomeBonus = Number(req.body.wavesWelcomeBonus);
+  if (Number.isFinite(wavesWelcomeBonus) && wavesWelcomeBonus >= 0) settings.wavesWelcomeBonus = Math.min(10000, Math.round(wavesWelcomeBonus * 100) / 100);
   settings.postPromotionEnabled = req.body.postPromotionEnabled === 'on';
   const postPromotionWavesCost = Number(req.body.postPromotionWavesCost);
   if (Number.isFinite(postPromotionWavesCost) && postPromotionWavesCost >= 1) settings.postPromotionWavesCost = Math.min(10000, postPromotionWavesCost);

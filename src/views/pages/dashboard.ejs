@@ -44,6 +44,14 @@
 		<nav class="feed-tabs" aria-label="Feed views">
 			<% feedTabs.forEach(([id, href, label, glyph]) => { %><a class="<%= feed.activeTab === id ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- feed.activeTab === id ? 'aria-current="page"' : '' %>><%- icon(glyph, { size: 15 }) %><span><%= label %></span></a><% }) %>
 		</nav>
+		<% if (locals.showEarnTip) { %>
+		<aside class="earn-tip" data-earn-tip hidden>
+			<span class="earn-tip-icon"><%- icon('award', { size: 20 }) %></span>
+			<div><strong>Earn Waves as you take part</strong><p>Post, comment, join communities and complete quests to earn Waves. Spend them on Ad-Free, boosts, or send them to friends.</p></div>
+			<a class="button button-small button-primary" href="/wallet#earn">See how</a>
+			<button class="earn-tip-close" type="button" data-earn-tip-close aria-label="Dismiss"><%- icon('x', { size: 15 }) %></button>
+		</aside>
+		<% } %>
 		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":<%= wordLimits.post %>,"article":<%= wordLimits.article %>,"poll":<%= wordLimits.poll %>}'>
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, size: 'small', link: false }) %>

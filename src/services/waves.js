@@ -264,6 +264,56 @@ async function adjustWaves({ userId, delta, reason, actorId, referenceType = 'ad
   });
 }
 
+// One-time welcome bonus for new members, granted when their email is verified.
+// Recorded as an adjustment so it does not use up the daily earning limit.
+async function grantWelcomeBonus(userId) {
+  const settings = await SiteSetting.getSingleton();
+  const amount = Number(settings.wavesWelcomeBonus ?? 25);
+  if (!Number.isFinite(amount) || amount <= 0) return { amount: 0, granted: false };
+  let claim;
+  try {
+    claim = await WavesLedgerEntry.create({
+      user: userId, amount, balanceAfter: 0, type: 'adjustment', status: 'pending',
+      description: 'Welcome bonus', reason: 'Thanks for joining Crowdwide. Earn more by posting, commenting and joining communities.',
+      referenceType: 'welcome-bonus', rewardKey: `welcome:${userId}`
+    });
+  } catch (error) {
+    if (error?.code === 11000) return { amount: 0, granted: false };
+    throw error;
+  }
+  const user = await User.findByIdAndUpdate(userId, { $inc: { wavesBalance: amount, wavesTotalEarned: amount } }, { new: true }).select('wavesBalance');
+  if (!user) {
+    claim.status = 'reversed';
+    await claim.save();
+    return { amount: 0, granted: false };
+  }
+  claim.status = 'posted';
+  claim.balanceAfter = user.wavesBalance;
+  await claim.save();
+  return { amount, granted: true, balance: user.wavesBalance };
+}
+
+// Plain-language list of the ways to earn Waves, using the live admin-configured ranges.
+async function getEarnGuide() {
+  const settings = await SiteSetting.getSingleton();
+  const fmt = (range, fallback) => {
+    const min = Number(range?.minimum ?? fallback[0]);
+    const max = Number(range?.maximum ?? fallback[1]);
+    if (!(max > 0)) return null;
+    return min === max ? `${min}` : `${min}–${max}`;
+  };
+  const items = [
+    { icon: 'file-text', title: 'Publish a post', detail: 'Share something useful or interesting.', range: fmt(settings.wavesPostReward, [1, 3]) },
+    { icon: 'message-circle', title: 'Comment on posts', detail: 'Join conversations with thoughtful replies.', range: fmt(settings.wavesCommentReward, [1, 3]) },
+    { icon: 'heart', title: 'Get likes on your posts', detail: 'Good content earns appreciation from others.', range: fmt(settings.wavesLikeReward, [0.1, 1]) },
+    { icon: 'message-square', title: 'Get comments on your posts', detail: 'Start discussions people want to join.', range: fmt(settings.wavesReceivedCommentReward, [0.1, 1]) },
+    { icon: 'users', title: 'Join a community', detail: 'Find spaces that match your interests.', range: fmt(settings.wavesCommunityJoinReward, [1, 2]) },
+    { icon: 'plus', title: 'Create a community', detail: 'Build a space of your own.', range: fmt(settings.wavesCommunityCreateReward, [2, 5]) },
+    { icon: 'award', title: 'Complete community quests', detail: 'Finish quests set by community owners.', range: fmt(settings.wavesQuestCompletionReward, [1, 5]) }
+  ].filter((item) => item.range);
+  return { items, dailyLimit: Number(settings.wavesDailyEarningLimit ?? 20), welcomeBonus: Number(settings.wavesWelcomeBonus ?? 25) };
+}
+
 async function getWalletSummary(userId) {
   const user = await User.findById(userId).select('wavesBalance wavesTotalEarned wavesTotalSpent').lean();
   if (!user) return null;
@@ -416,6 +466,8 @@ async function getReciprocalRewardSignals(now = new Date()) {
 }
 
 module.exports = {
+  grantWelcomeBonus,
+  getEarnGuide,
   creditWaves,
   creditCommunityAdShare,
   debitWaves,

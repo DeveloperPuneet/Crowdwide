@@ -1,3 +1,4 @@
+const { grantWelcomeBonus } = require('../services/waves');
 const { generateUniqueUsername } = require('../services/username');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -154,8 +155,11 @@ exports.verify = async (req, res) => {
     user.verificationCode = undefined;
     user.verificationExpires = undefined;
     await user.save();
+    let welcome = { granted: false, amount: 0 };
+    try { welcome = await grantWelcomeBonus(user._id); } catch (bonusError) { logger.warn('Welcome bonus could not be granted', bonusError); }
     await establishSession(req, user);
-    res.redirect(landingPath(req));
+    if (welcome.granted) setFlash(req, 'success', `Welcome to Crowdwide! ${welcome.amount.toLocaleString()} Waves were added to your wallet. Earn more by posting, commenting and joining communities - see how in your wallet.`);
+    res.redirect(welcome.granted ? '/wallet?welcome=1' : landingPath(req));
   } catch (error) {
     logger.error('Email verification failed', error);
     setFlash(req, 'error', 'We could not verify that code right now.');

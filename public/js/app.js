@@ -800,3 +800,16 @@ document.addEventListener('click', (event) => {
   });
   if (window.location.hash === '#composer') openFeedComposer()?.click();
 })();
+
+// Dismissible "earn Waves" tip for new members.
+(() => {
+  const tip = document.querySelector('[data-earn-tip]');
+  if (!tip) return;
+  let dismissed = false;
+  try { dismissed = window.localStorage.getItem('cw-earn-tip') === '1'; } catch (error) { /* storage unavailable */ }
+  tip.hidden = dismissed;
+  tip.querySelector('[data-earn-tip-close]')?.addEventListener('click', () => {
+    tip.hidden = true;
+    try { window.localStorage.setItem('cw-earn-tip', '1'); } catch (error) { /* ignore */ }
+  });
+})();

@@ -14,6 +14,18 @@
     <div class="recap-stat wallet-earned"><span>Total earned</span><strong><%= wallet.totalEarned.toLocaleString() %></strong></div>
     <div class="recap-stat wallet-spent"><span>Total spent</span><strong><%= wallet.totalSpent.toLocaleString() %></strong></div>
   </section>
+  <% if (locals.earnGuide && earnGuide.items.length) { %>
+  <section class="recap-panel wallet-earn" id="earn">
+    <div class="recap-section-heading"><div><p class="eyebrow"><%= locals.isWelcome ? 'Welcome to Crowdwide' : 'Earn Waves' %></p><h2><%= locals.isWelcome ? 'Your first Waves are here' : 'How to earn Waves' %></h2></div></div>
+    <% if (locals.isWelcome && earnGuide.welcomeBonus > 0) { %><p class="wallet-welcome">🎉 We added <strong><%= earnGuide.welcomeBonus.toLocaleString() %> Waves</strong> to your wallet. Here is how to earn more:</p><% } else { %><p class="recap-muted">Waves are rewarded for taking part. Typical rewards per action:</p><% } %>
+    <div class="wallet-earn-grid">
+      <% earnGuide.items.forEach((item) => { %>
+      <div class="wallet-earn-item"><span class="wallet-earn-icon"><%- icon(item.icon, { size: 18 }) %></span><div><strong><%= item.title %></strong><small><%= item.detail %></small></div><b>+<%= item.range %></b></div>
+      <% }) %>
+    </div>
+    <p class="recap-muted">You can earn up to about <%= earnGuide.dailyLimit.toLocaleString() %> Waves a day from activity. Spend Waves on Ad-Free plans, boosting posts and promoting communities, or send them to friends.</p>
+  </section>
+  <% } %>
   <% const adFreeInfo = locals.adFree || { enabled: false, plans: [] }; %>
   <% if (adFreeInfo.enabled || adFreeInfo.active) { %>
   <section class="recap-panel wallet-adfree" id="ad-free">

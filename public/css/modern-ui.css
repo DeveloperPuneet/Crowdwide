@@ -1600,3 +1600,24 @@ textarea[data-autosize="on"] { resize: none; transition: height .12s ease; }
   .moderator-modern .mod-tool > summary { flex-wrap: wrap; }
 }
 @media (min-width: 761px) { .moderator-modern .admin-tabs { flex-wrap: wrap; overflow: visible; } }
+
+/* ==========================================================================
+   BATCH 11 — Welcome bonus + "how to earn Waves"
+   ========================================================================== */
+.wallet-page .wallet-welcome { margin: 0 0 14px; padding: 12px 16px; border-radius: 14px; background: color-mix(in srgb, var(--ac-green, #35c98a) 13%, transparent); border: 1px solid color-mix(in srgb, var(--ac-green, #35c98a) 35%, transparent); }
+.wallet-page .wallet-earn-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.wallet-page .wallet-earn-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--sf-1); border: 1px solid var(--bd-1); min-width: 0; }
+.wallet-page .wallet-earn-item > div { flex: 1; min-width: 0; }
+.wallet-page .wallet-earn-item strong, .wallet-page .wallet-earn-item small { display: block; }
+.wallet-page .wallet-earn-item small { color: var(--tx-faint); font-size: 12px; margin-top: 2px; }
+.wallet-page .wallet-earn-item b { color: var(--ac-green, #35c98a); font-size: 14px; white-space: nowrap; }
+.wallet-page .wallet-earn-icon { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex: none; color: var(--blue, #586aff); background: color-mix(in srgb, var(--blue, #586aff) 14%, transparent); }
+@media (max-width: 640px) { .wallet-page .wallet-earn-grid { grid-template-columns: 1fr; } }
+.earn-tip { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 16px; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--blue, #586aff) 40%, var(--bd-1)); background: linear-gradient(135deg, color-mix(in srgb, var(--blue, #586aff) 14%, var(--sf-1)), var(--sf-1)); position: relative; }
+.earn-tip[hidden] { display: none; }
+.earn-tip-icon { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; color: #fff; background: linear-gradient(135deg, var(--blue, #586aff), #b06cff); }
+.earn-tip > div { flex: 1; min-width: 0; }
+.earn-tip p { margin: 2px 0 0; font-size: 13px; color: var(--tx-mid); }
+.earn-tip-close { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: var(--tx-faint); cursor: pointer; display: grid; place-items: center; }
+.earn-tip-close:hover { background: var(--ov-1); color: var(--tx-hi); }
+@media (max-width: 640px) { .earn-tip { flex-wrap: wrap; padding-right: 34px; } .earn-tip .button { flex: 1 1 100%; justify-content: center; } }
