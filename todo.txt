@@ -100,6 +100,3 @@
 - Standalone advertiser creatives — advertisers can create separate product, service, article/content, event, or other campaigns with an HTTP(S) destination link and optional virus-scanned banner; product ads include a product name and optional advertiser-listed price, product-specific feed presentation and tracked CTA. Creators attest they own or have permission to advertise the offering and creative; reviewers see the type, details, and price. Admins configure minimum budget and per-impression/click Waves rates, locked on each campaign.
 - Advertisement bot-activity review signals — 20 or more unique ad events from one viewer within a minute create an admin review signal; events remain subject to existing deduplication and budget limits, and the signal causes no automatic penalty.
 - Suspicious Waves transfer review signals — repeated outgoing transfers and recipient concentration create an auditable admin review item, without automatic account restrictions.
-
-## Making:
-Polishing UI of all partials
