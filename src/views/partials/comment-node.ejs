@@ -15,7 +15,7 @@
 		<time datetime="<%= new Date(node.createdAt).toISOString() %>"><%= new Date(node.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time>
 		<% if (node.heartedByAuthor) { %><span class="author-heart-badge" title="Hearted by the post author"><%- icon('heart', { size: 12 }) %></span><% } %>
 	</div>
-	<% if (node.body) { %><p class="thread-comment-text" data-translatable data-original="<%= node.body %>"><%- renderMentions(node.body) %></p><% } %>
+	<% if (node.body) { %><p class="thread-comment-text" data-translatable data-original="<%= node.body %>"><%- renderInlineText(node.body) %></p><% } %>
 	<% if (node.gif?.url) { %><img class="comment-gif" src="<%= node.gif.url %>" alt="<%= node.gif.title || 'GIF' %>" loading="lazy"<% if (node.gif.width && node.gif.height) { %> width="<%= node.gif.width %>" height="<%= node.gif.height %>"<% } %>><% } %>
 	<div class="thread-comment-actions">
 		<% if (currentUser) { %>

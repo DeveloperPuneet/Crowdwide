@@ -6,7 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ejs = require('ejs');
 const { icon } = require('../src/utils/icons');
-const { renderMentions, renderRichBody } = require('../src/services/mentions');
+const { renderMentions, renderRichBody, renderInlineText } = require('../src/services/mentions');
+const { plainText, preview } = require('../src/utils/textPreview');
 const { sendMessageAttachment } = require('../src/controllers/chatController');
 const webController = require('../src/controllers/webController');
 const Post = require('../src/models/Post');
@@ -15,7 +16,7 @@ const { TASK_LABELS } = require('../src/services/maintenance');
 
 const views = path.join(__dirname, '..', 'src', 'views');
 const currentUser = { id: 'u1', name: 'Puneet K', email: 'p@x.com', role: 'user', profilePicture: '' };
-const base = { icon, renderMentions, renderRichBody, csrfToken: 'tok', flash: null, currentUser, appUrl: 'http://x', gifsEnabled: true, communityCategories: COMMUNITY_CATEGORIES, promotionOffer: null };
+const base = { icon, renderMentions, renderRichBody, renderInlineText, plainText, preview, csrfToken: 'tok', flash: null, currentUser, appUrl: 'http://x', gifsEnabled: true, communityCategories: COMMUNITY_CATEGORIES, promotionOffer: null };
 const render = (file, data = {}) => ejs.renderFile(path.join(views, file), { ...base, ...data });
 const post = (i, extra = {}) => ({ _id: `p${i}`, author: { _id: `a${i}`, name: `Author ${i}` }, body: `Hello #tag ${i}`, type: 'post', likes: [1, 2], commentsCount: 3, sharesCount: 4, viewsCount: 9, hashtags: ['tag'], community: null, createdAt: new Date(), status: 'published', reactions: {}, media: [], ...extra });
 

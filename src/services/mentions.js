@@ -20,13 +20,61 @@ function renderMentions(text = '') {
   return escaped.replace(/(^|\s)(@[a-z0-9][a-z0-9._-]{1,39})/gi, (match, prefix, mention) => `${prefix}<a class="mention-link" href="/search?q=%40${mention.slice(1).toLowerCase()}">${mention}</a>`);
 }
 
+// Makes plain http(s) links and #hashtags clickable. Works on text that has
+// ALREADY been HTML-escaped, and never touches text that is inside an existing
+// anchor (mentions, earlier links), so it cannot double-link or inject markup.
+const URL_PATTERN = /\bhttps?:\/\/[^\s<>*]+/gi;
+const HASHTAG_PATTERN = /(^|[\s(])#([a-z0-9_]{2,30})(?![a-z0-9_])/gi;
+const TRAILING_URL_JUNK = /(?:&quot;|&#39;|&gt;|&lt;|[.,;:!?'"\]])+$/;
+
+function trimUrl(url) {
+  let clean = url.replace(TRAILING_URL_JUNK, '');
+  // a closing ")" belongs to the link only when it has a matching "("
+  while (clean.endsWith(')') && (clean.match(/\)/g) || []).length > (clean.match(/\(/g) || []).length) {
+    clean = clean.slice(0, -1).replace(TRAILING_URL_JUNK, '');
+  }
+  return clean;
+}
+
+function linkUrls(segment) {
+  return segment.replace(URL_PATTERN, (raw) => {
+    const url = trimUrl(raw);
+    if (url.length < 11) return raw;
+    const rest = raw.slice(url.length);
+    let shown = url;
+    if (Array.from(url).length > 60) shown = `${url.slice(0, 48).replace(/&[a-z0-9#]*$/i, '')}…`;
+    return `<a class="auto-link" href="${url}" target="_blank" rel="noopener noreferrer nofollow ugc">${shown}</a>${rest}`;
+  });
+}
+
+function linkHashtags(segment) {
+  return segment.replace(HASHTAG_PATTERN, (match, prefix, tag) => (/^\d+$/.test(tag) ? match : `${prefix}<a class="hashtag-link" href="/search?q=%23${tag.toLowerCase()}">#${tag}</a>`));
+}
+
+function linkify(html = '') {
+  let insideAnchor = false;
+  return String(html).split(/(<[^>]+>)/).map((part) => {
+    if (part.startsWith('<')) {
+      if (/^<a[\s>]/i.test(part)) insideAnchor = true;
+      else if (/^<\/a>/i.test(part)) insideAnchor = false;
+      return part;
+    }
+    return insideAnchor ? part : linkHashtags(linkUrls(part));
+  }).join('');
+}
+
+// Comments and chat: mentions + links + hashtags, no block formatting.
+function renderInlineText(text = '') {
+  return linkify(renderMentions(text));
+}
+
 // Turns escaped, mention-linked plain text into structural HTML: blank-line-
 // separated paragraphs, "# heading" lines, "- item" lists, and **bold**/
 // *italic* inline emphasis. HTML entities are escaped BEFORE any of this
 // markup is applied, so nothing the author typed can inject real tags -
 // every tag in the output is one this function inserted itself.
 function applyInlineFormatting(line) {
-  return line
+  return linkify(line)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
 }
@@ -118,4 +166,4 @@ async function notifyMentionedUsers(text, actorId, postId, communityId, message 
   }).catch((error) => logger.error('Push notification failed', error))));
 }
 
-module.exports = { extractMentionHandles, notifyMentionedUsers, renderMentions, renderRichBody };
+module.exports = { extractMentionHandles, notifyMentionedUsers, renderMentions, renderRichBody, renderInlineText, linkify };

@@ -46,17 +46,17 @@
 	<% if (recap.topPost) { %>
 	<section class="recap-panel recap-highlight">
 		<div><p class="eyebrow">A conversation starter</p><h2>Your most-engaged post</h2></div>
-		<blockquote><%= recap.topPost.body %></blockquote>
+		<blockquote><%= preview(recap.topPost.body, 400) %></blockquote>
 		<div class="recap-highlight-meta"><span><%= recap.topPost.type === 'article' ? 'Article' : recap.topPost.type === 'poll' ? 'Poll' : 'Post' %></span><span><%= new Date(recap.topPost.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %></span><span><%= recap.topPost.engagement.toLocaleString() %> reactions, comments, and shares</span></div>
 	</section>
 	<% } %>
 	<% if (recap.topComment) { %>
 	<section class="recap-panel recap-highlight recap-comment-highlight">
 		<div><p class="eyebrow">A conversation you moved</p><h2>Your most-interacted comment</h2></div>
-		<blockquote><%= recap.topComment.body || 'Media comment' %></blockquote>
+		<blockquote><%= preview(recap.topComment.body, 400) || 'Media comment' %></blockquote>
 		<div class="recap-highlight-meta"><span><%= recap.topComment.interactions.toLocaleString() %> interactions</span><span><%= new Date(recap.topComment.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %></span>
 		<% if (recap.topComment.post?._id) { %><a href="/posts/<%= recap.topComment.post._id %>#replies">View conversation</a><% } %></div>
-		<% if (recap.topComment.post?.body) { %><p class="recap-comment-context">On: <%= recap.topComment.post.body.slice(0, 160) %><%= recap.topComment.post.body.length > 160 ? '…' : '' %></p><% } %>
+		<% if (recap.topComment.post?.body) { %><p class="recap-comment-context">On: <%= preview(recap.topComment.post.body, 160) %></p><% } %>
 	</section>
 	<% } %>
 </main>

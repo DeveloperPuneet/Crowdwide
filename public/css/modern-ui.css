@@ -1903,3 +1903,34 @@ a.avatar-link:focus-visible { outline: 2px solid var(--blue, #586aff); outline-o
 .comment-form.is-compact .comment-form-row .comment-field > textarea[name="body"] { min-height: 42px; }
 .thread-comment-actions .thread-reply { margin-top: 0; }
 .thread-comment-actions .thread-reply > summary { display: inline-flex; align-items: center; min-height: 28px; padding: 0 2px; line-height: 1; }
+
+/* ===== Batch 15: text formatting - links, hashtags, wrapping ===== */
+.auto-link, .hashtag-link { color: var(--ac-blue); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; overflow-wrap: anywhere; word-break: break-word; }
+.auto-link:hover, .hashtag-link:hover { text-decoration-color: currentColor; }
+.hashtag-link { font-weight: 600; text-decoration: none; }
+.hashtag-link:hover { text-decoration: underline; }
+.auto-link:focus-visible, .hashtag-link:focus-visible { outline: 2px solid var(--ac-blue); outline-offset: 2px; border-radius: 3px; }
+body[data-theme="light"] :is(.auto-link, .hashtag-link), body[data-theme="pink"] :is(.auto-link, .hashtag-link) { color: var(--theme-accent); }
+
+/* Long unbroken strings (URLs, pasted tokens, emoji walls) must wrap inside every text container, never widen the page. */
+.post-body, .post-view-body, .post-body :is(p, li, h3, h4), .post-view-body :is(p, li, h3, h4),
+.quoted-post, .quoted-post p, .quoted-post strong, .chat-text, .chat-reply-quote span, .chat-post-text,
+.thread-comment-text, .link-preview-body, .link-preview-body :is(strong, p, span),
+.community-post-link p, .viral-card p, .search-result-description, .recap-highlight blockquote,
+.notification-item span, .profile .activity-row p { overflow-wrap: anywhere; min-width: 0; }
+.post-body :is(p, ul, ol, h3, h4), .post-view-body :is(p, ul, ol, h3, h4) { max-width: 100%; }
+.post-body ul, .post-view-body ul { padding-left: 22px; margin: 8px 0; }
+.post-body p, .post-view-body p { margin: 0 0 10px; }
+.post-body p:last-child, .post-view-body p:last-child { margin-bottom: 0; }
+.quoted-post { min-width: 0; max-width: 100%; }
+.quoted-post p { margin: 4px 0 0; }
+
+/* Code blocks are dark cards by design. The light and pink themes force their own text and code colours on every span, button and code element, which made the header unreadable and put a pale highlight behind each line. */
+:is(body[data-theme="light"], body[data-theme="pink"]) .code-block { background: #101321; border-color: #2b3044; color: #e6e8f2; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .code-block .code-block-header { color: #aeb6cb; border-color: #2b3044; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .code-block .code-block-header span { color: #aeb6cb; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .code-block .code-block-header .code-copy-status { color: #79ddb4; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .code-block .code-copy-button { background: #1c2132; color: #e6e8f2; border-color: #3c435b; box-shadow: none; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .code-block .code-copy-button:hover { background: #262c42; border-color: #8294ff; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .code-block pre code { background: transparent; color: #e6e8f2; padding: 0; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .code-block pre code span { background: transparent; }

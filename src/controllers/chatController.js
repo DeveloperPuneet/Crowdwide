@@ -21,7 +21,7 @@ const logger = require('../services/logger');
 const { gifFromBody } = require('../services/gif');
 const { PAGE_SIZE, isObjectId, escapeRegex, excerpt, previewText, attachPostPreviews, isPendingRequest, tooManyNewDmRequests } = require('../services/chat');
 const { parseRange } = require('../services/storageCluster');
-const { renderMentions, notifyMentionedUsers } = require('../services/mentions');
+const { renderInlineText, notifyMentionedUsers } = require('../services/mentions');
 const { notify } = require('./interactionController');
 const { toggleReaction } = require('../utils/reactions');
 
@@ -36,7 +36,7 @@ async function renderMessages(res, messages, { group, viewerId, groupId, reportB
   return Promise.all(messages.map(async (message) => ({
     id: String(message._id),
     createdAt: message.createdAt,
-    html: (await renderPartial(res, 'partials/chat-message', { message, group, viewerId, groupId, reportBaseUrl, renderedBody: renderMentions(message.body || ''), csrfToken: res.locals.csrfToken })).trim()
+    html: (await renderPartial(res, 'partials/chat-message', { message, group, viewerId, groupId, reportBaseUrl, renderedBody: renderInlineText(message.body || ''), csrfToken: res.locals.csrfToken })).trim()
   })));
 }
 

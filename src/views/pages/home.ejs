@@ -31,7 +31,7 @@
       <% viralPosts.forEach((post) => { %>
       <div class="viral-card" style="cursor:default;">
         <div class="post-meta"><%- include('../partials/avatar', { person: post.author, size: 'tiny', link: false }) %><div><strong><%= post.author?.name || 'Member' %></strong></div></div>
-        <p><%= (post.body || '').slice(0, 140) %><%= (post.body || '').length > 140 ? '…' : '' %></p>
+        <p><%= preview(post.body, 140) %></p>
         <span class="viral-likes"><%- icon('heart', { size: 13 }) %> <%= post.likesTotal %> likes</span>
       </div>
       <% }) %>

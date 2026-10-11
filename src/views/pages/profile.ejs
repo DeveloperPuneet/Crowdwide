@@ -116,9 +116,9 @@
 		<div class="activity-row">
 			<span class="activity-icon"><%- icon(item.kind === 'like' ? 'heart' : 'message-circle', { size: 15 }) %></span>
 			<% if (item.kind === 'like') { %>
-			<p>You liked <a href="/posts/<%= item.post._id %>"><%= item.post.author?.name || 'a post' %>'s post</a><br><small><%= (item.post.body || '').slice(0, 90) %><%= (item.post.body || '').length > 90 ? '…' : '' %></small></p>
+			<p>You liked <a href="/posts/<%= item.post._id %>"><%= item.post.author?.name || 'a post' %>'s post</a><br><small><%= preview(item.post.body, 90) %></small></p>
 			<% } else { %>
-			<p>You commented on <a href="/posts/<%= item.comment.post._id %>">a post</a><br><small>"<%= (item.comment.body || '').slice(0, 90) %><%= (item.comment.body || '').length > 90 ? '…' : '' %>"</small></p>
+			<p>You commented on <a href="/posts/<%= item.comment.post._id %>">a post</a><br><small>"<%= preview(item.comment.body, 90) %>"</small></p>
 			<% } %>
 		</div>
 		<% }) %>
@@ -129,7 +129,7 @@
 		<div class="panel-heading"><h2><%= isSelf ? 'Your comments' : `${profileUser.name}'s comments` %></h2><span><%= profileComments.length %></span></div>
 		<% if (!profileComments.length) { %><div class="empty-feed"><h2>No comments yet.</h2><p>This profile has not joined a conversation yet.</p></div><% } %>
 		<% profileComments.forEach((comment) => { %>
-		<div class="activity-row"><span class="activity-icon"><%- icon('message-circle', { size: 15 }) %></span><p><%= isSelf ? 'You' : profileUser.name %> commented on <a href="/posts/<%= comment.post?._id %>">a post</a><br><small>"<%= comment.body %>"</small></p></div>
+		<div class="activity-row"><span class="activity-icon"><%- icon('message-circle', { size: 15 }) %></span><p><%= isSelf ? 'You' : profileUser.name %> commented on <a href="/posts/<%= comment.post?._id %>">a post</a><br><small>"<%= preview(comment.body, 200) %>"</small></p></div>
 		<% }) %>
 	</section>
 	<% } %>
@@ -163,7 +163,7 @@
 		<a class="activity-row top-post-row" href="/posts/<%= post._id %>">
 			<span class="rank-badge">#<%= index + 1 %></span>
 			<div>
-				<p><%= (post.body || '').slice(0, 110) %><%= (post.body || '').length > 110 ? '…' : '' %></p>
+				<p><%= preview(post.body, 110) %></p>
 				<small><span><%- icon('heart', { size: 12 }) %> <%= post.likeCount %></span><span><%- icon('message-circle', { size: 12 }) %> <%= post.commentsCount || 0 %></span><span><%- icon('eye', { size: 12 }) %> <%= post.viewsCount || 0 %></span></small>
 			</div>
 		</a>

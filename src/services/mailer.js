@@ -2,6 +2,7 @@ const nodemailer = require('nodemailer');
 const { mailAllowed } = require('./environment');
 const MailComposer = require('nodemailer/lib/mail-composer');
 const logger = require('./logger');
+const { preview } = require('../utils/textPreview');
 
 // ---------------------------------------------------------------------------
 // How mail leaves Crowdwide
@@ -407,12 +408,12 @@ async function sendPasswordResetLink(user, resetUrl) {
 function postEmailCard(post, appUrl, index) {
   const url = safeEmailUrl(`${appUrl}/posts/${post._id}`);
   if (!url) return '';
-  const body = String(post.body || '').slice(0, 260);
+  const body = preview(post.body, 260);
   const author = post.author?.name || 'Crowdwide member';
   const type = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post';
   const community = post.community?.name ? `<span class="em-muted" style="color:#737b91;"> · ${escapeHtml(post.community.name)}</span>` : '';
   const pollQuestion = post.type === 'poll' && post.poll?.question ? `<p class="em-h" style="margin:0 0 8px;color:#252b45;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;line-height:1.5;">${escapeHtml(post.poll.question)}</p>` : '';
-  return `<tr><td style="padding:0 0 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="em-card" style="width:100%;border:1px solid #e2e5f0;border-radius:13px;background-color:#ffffff;"><tr><td style="padding:16px 18px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="em-muted" style="color:#626a88;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;"><strong class="em-strong" style="color:#414966;">${escapeHtml(author)}</strong>${community}</td><td align="right" style="color:#5962d7;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:.6px;">${escapeHtml(type.toUpperCase())} · ${index}</td></tr></table>${pollQuestion}<p class="em-p" style="margin:9px 0 13px;color:#30364b;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;">${escapeHtml(body)}${String(post.body || '').length > 260 ? '…' : ''}</p><a class="em-pill" href="${escapeHtml(url)}" style="display:inline-block;padding:9px 13px;border-radius:8px;background-color:#f0f1ff;color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read conversation &nbsp;&rarr;</a></td></tr></table></td></tr>`;
+  return `<tr><td style="padding:0 0 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="em-card" style="width:100%;border:1px solid #e2e5f0;border-radius:13px;background-color:#ffffff;"><tr><td style="padding:16px 18px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="em-muted" style="color:#626a88;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;"><strong class="em-strong" style="color:#414966;">${escapeHtml(author)}</strong>${community}</td><td align="right" style="color:#5962d7;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:.6px;">${escapeHtml(type.toUpperCase())} · ${index}</td></tr></table>${pollQuestion}<p class="em-p" style="margin:9px 0 13px;color:#30364b;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;">${escapeHtml(body)}</p><a class="em-pill" href="${escapeHtml(url)}" style="display:inline-block;padding:9px 13px;border-radius:8px;background-color:#f0f1ff;color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read conversation &nbsp;&rarr;</a></td></tr></table></td></tr>`;
 }
 
 async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPosts = [], communityPosts = [] }) {
@@ -424,7 +425,7 @@ async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPost
     ? `<tr><td style="padding:26px 0 0;"><div style="margin-bottom:5px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;">${rows.length} selected for you</div><h2 class="em-h" style="margin:0;color:#202641;font-family:Arial,sans-serif;font-size:19px;line-height:1.35;">${heading}</h2><p class="em-muted" style="margin:5px 0 13px;color:#737b91;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">${description}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl, ++cardNumber)).join('')}</table></td></tr>`
     : '';
   const html = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="em-soft" style="padding:18px 20px;background-color:#f2f3ff;border:1px solid #e0e2ff;border-radius:12px;"><div style="margin-bottom:7px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.4px;">YOUR PERSONALIZED EDITION</div><p class="em-h" style="margin:0;color:#252b45;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;line-height:1.5;">${posts.length} conversations, ideas, and communities to explore</p><p style="margin:5px 0 0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">A blend of your interests, what's trending, and communities you may enjoy.</p></td></tr>${section('Picked for you', 'Posts from people and topics that match your interests.', personalizedPosts)}${section('Trending this week', 'Conversations resonating across Crowdwide.', trendingPosts)}${section('From communities you may like', 'Community conversations connected to your interests.', communityPosts)}<tr><td style="padding:10px 0 0;"><a href="${escapeHtml(appUrl)}/posts" style="display:block;padding:13px 18px;border-radius:9px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;text-align:center;text-decoration:none;">Explore more posts &nbsp;&rarr;</a></td></tr></table>`;
-  const text = posts.map((post) => `${post.author?.name || 'Crowdwide member'}: ${String(post.body || '').slice(0, 260)}\n${appUrl}/posts/${post._id}`).join('\n\n');
+  const text = posts.map((post) => `${post.author?.name || 'Crowdwide member'}: ${preview(post.body, 260)}\n${appUrl}/posts/${post._id}`).join('\n\n');
   return deliver({
     from: fromAddress(),
     to: user.email,

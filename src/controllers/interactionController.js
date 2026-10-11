@@ -10,6 +10,7 @@ const Message = require('../models/Message');
 const { previewText } = require('../services/chat');
 const { extractHashtags } = require('../utils/hashtags');
 const countWords = require('../utils/wordCount');
+const { preview } = require('../utils/textPreview');
 const { gifFromBody } = require('../services/gif');
 const { refreshPersonalization } = require('../services/feedService');
 const { notifyMentionedUsers } = require('../services/mentions');
@@ -443,10 +444,10 @@ exports.postDetail = async (req, res) => {
   const commentTree = buildCommentTree(comments);
   const postType = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post';
   const summary = post.type === 'poll' ? post.poll?.question || post.body : post.body;
-  const description = String(summary || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  const description = preview(summary, 160);
   const appUrl = String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
   const pageUrl = `${appUrl}/posts/${post._id}`;
-  const articleHeadline = String(post.body || '').split(/\r?\n/).find((line) => line.trim())?.trim().slice(0, 72) || 'Article';
+  const articleHeadline = preview(String(post.body || '').split(/\r?\n/).find((line) => line.trim()) || '', 72) || 'Article';
   const title = post.type === 'article'
     ? `${articleHeadline} · Article`
     : `${postType} by ${post.author?.name || 'Crowdwide member'}`;
