@@ -67,44 +67,92 @@ function safeEmailUrl(value) {
   }
 }
 
-function brandedEmail({ heading, message, preheader, eyebrow = 'ACCOUNT SECURITY', code, steps = [], details = [], actionUrl, actionLabel, note, contentHtml = '', greeting }) {
+const EMAIL_TONES = {
+  default: { accent: '#5c63ed', soft: '#f2f3ff', softBorder: '#e0e2ff', pillBg: '#eceeff', pillText: '#4d56d8' },
+  warning: { accent: '#e8890c', soft: '#fff6e8', softBorder: '#ffe1b3', pillBg: '#ffecd0', pillText: '#a85d00' },
+  success: { accent: '#18a36a', soft: '#eefaf4', softBorder: '#c9ecd9', pillBg: '#d7f4e6', pillText: '#0f7a4f' }
+};
+
+// Dark-mode and small-screen rules. Every colour is also set inline so clients
+// that strip <style> (or ignore prefers-color-scheme) still show the light layout.
+const EMAIL_STYLES = `
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  @media (max-width: 520px) {
+    .em-outer { padding: 16px 8px !important; }
+    .em-head { padding: 20px 20px !important; }
+    .em-pad { padding: 28px 20px 26px !important; }
+    .em-h1 { font-size: 24px !important; }
+    .em-code { font-size: 28px !important; letter-spacing: 5px !important; }
+    .em-btn a { display: block !important; text-align: center !important; }
+    .em-btn { width: 100% !important; }
+    .em-foot { padding: 18px 20px !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .em-body { background-color: #0d0f1e !important; }
+    .em-card { background-color: #171a2e !important; border-color: #2a2f4a !important; }
+    .em-h { color: #f1f3ff !important; }
+    .em-p { color: #c5cae0 !important; }
+    .em-muted { color: #9ba2bf !important; }
+    .em-strong { color: #e6e9fc !important; }
+    .em-soft { background-color: #1f2340 !important; border-color: #323862 !important; }
+    .em-line { border-color: #2a2f4a !important; }
+    .em-foot { background-color: #12142a !important; border-color: #2a2f4a !important; color: #9ba2bf !important; }
+    .em-link { color: #a9aeff !important; }
+    .em-accent { color: #a9aeff !important; }
+    .em-pill { background-color: #272c55 !important; color: #c3c7ff !important; }
+    .em-warn { background-color: #33260f !important; border-color: #e8890c !important; }
+    .em-ok { background-color: #0f2b20 !important; border-color: #18a36a !important; }
+  }`;
+
+function brandedEmail({ heading, message, preheader, eyebrow = 'ACCOUNT SECURITY', code, codeNote, steps = [], details = [], actionUrl, actionLabel, note, contentHtml = '', greeting, tone = 'default', manageUrl }) {
+  const palette = EMAIL_TONES[tone] || EMAIL_TONES.default;
+  const toneClass = tone === 'warning' ? ' em-warn' : tone === 'success' ? ' em-ok' : '';
   const safeActionUrl = safeEmailUrl(actionUrl);
-  const greetingBlock = greeting ? `<p style="margin:0 0 10px;color:#252b45;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;line-height:1.6;">Hello ${escapeHtml(greeting)},</p>` : '';
-  const safeMessage = greetingBlock + String(message || '').split(/\n\s*\n/).map((paragraph) => `<p style="margin:0 0 14px;color:#4b5268;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;">${escapeHtml(paragraph).replace(/\r?\n/g, '<br>')}</p>`).join('') + contentHtml;
+  const siteUrl = safeEmailUrl(env('APP_URL') || 'https://www.crowdwide.run.place');
+  const safeManageUrl = safeEmailUrl(manageUrl);
+  const greetingBlock = greeting ? `<p class="em-h" style="margin:0 0 10px;color:#252b45;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;line-height:1.6;">Hello ${escapeHtml(greeting)},</p>` : '';
+  const safeMessage = greetingBlock + String(message || '').split(/\n\s*\n/).map((paragraph) => `<p class="em-p" style="margin:0 0 14px;color:#4b5268;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;">${escapeHtml(paragraph).replace(/\r?\n/g, '<br>')}</p>`).join('') + contentHtml;
   const detailRows = details.length
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;border-collapse:collapse;">${details.map(({ label, value }) => `<tr><td style="padding:10px 12px;border-bottom:1px solid #e4e7f0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(label)}</td><td style="padding:10px 12px;border-bottom:1px solid #e4e7f0;color:#252b45;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;overflow-wrap:anywhere;">${escapeHtml(value)}</td></tr>`).join('')}</table>`
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="em-line" style="margin:22px 0;border-collapse:separate;border-spacing:0;border:1px solid #e4e7f0;border-radius:10px;">${details.map(({ label, value }, index) => `<tr><td class="em-line em-muted" width="34%" valign="top" style="padding:11px 14px;${index ? 'border-top:1px solid #e4e7f0;' : ''}color:#68708a;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:.6px;text-transform:uppercase;">${escapeHtml(label)}</td><td class="em-line em-strong" valign="top" style="padding:11px 14px;${index ? 'border-top:1px solid #e4e7f0;' : ''}color:#252b45;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;line-height:1.5;overflow-wrap:anywhere;word-break:break-word;">${escapeHtml(value)}</td></tr>`).join('')}</table>`
     : '';
   const stepsBlock = steps.length
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;background-color:#f2f3ff;border:1px solid #e0e2ff;border-radius:10px;"><tr><td style="padding:16px 18px;color:#414966;font-family:Arial,sans-serif;font-size:13px;line-height:1.8;">${steps.map((step, index) => `<div style="padding:3px 0;"><span style="display:inline-block;width:22px;height:22px;margin-right:8px;border-radius:50%;background-color:#5c63ed;color:#ffffff;font-size:12px;font-weight:bold;line-height:22px;text-align:center;">${index + 1}</span>${escapeHtml(step)}</div>`).join('')}</td></tr></table>`
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="em-soft" style="margin:22px 0;background-color:#f2f3ff;border:1px solid #e0e2ff;border-radius:10px;"><tr><td class="em-p" style="padding:16px 18px;color:#414966;font-family:Arial,sans-serif;font-size:13px;line-height:1.8;">${steps.map((step, index) => `<div style="padding:3px 0;"><span style="display:inline-block;width:22px;height:22px;margin-right:10px;border-radius:50%;background-color:#5c63ed;color:#ffffff;font-size:12px;font-weight:bold;line-height:22px;text-align:center;">${index + 1}</span>${escapeHtml(step)}</div>`).join('')}</td></tr></table>`
     : '';
   const action = safeActionUrl && actionLabel
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 16px;"><tr><td bgcolor="#5c63ed" style="border-radius:9px;background-color:#5c63ed;"><a href="${escapeHtml(safeActionUrl)}" style="display:inline-block;padding:15px 24px;color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;text-decoration:none;border-radius:9px;">${escapeHtml(actionLabel)} &nbsp;›</a></td></tr></table><p style="margin:0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.65;">Button not working? Paste this link into your browser:<br><a href="${escapeHtml(safeActionUrl)}" style="color:#4d56d8;word-break:break-all;">${escapeHtml(safeActionUrl)}</a></p>`
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" class="em-btn" style="margin:26px 0 16px;"><tr><td bgcolor="#5c63ed" style="border-radius:10px;background-color:#5c63ed;"><a href="${escapeHtml(safeActionUrl)}" style="display:inline-block;padding:15px 26px;color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;text-decoration:none;border-radius:10px;">${escapeHtml(actionLabel)} &nbsp;›</a></td></tr></table><p class="em-muted" style="margin:0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.65;">Button not working? Paste this link into your browser:<br><a class="em-link" href="${escapeHtml(safeActionUrl)}" style="color:#4d56d8;word-break:break-all;">${escapeHtml(safeActionUrl)}</a></p>`
     : '';
   const codeBlock = code !== undefined
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0;"><tr><td align="center" bgcolor="#f2f3ff" style="padding:22px 16px;border:1px solid #dfe2ff;border-radius:12px;background-color:#f2f3ff;"><div style="margin-bottom:8px;color:#626a88;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.5px;">YOUR ONE-TIME CODE</div><div style="color:#4d56d8;font-family:Arial,sans-serif;font-size:32px;font-weight:bold;letter-spacing:7px;">${escapeHtml(code)}</div></td></tr></table>`
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0;"><tr><td align="center" bgcolor="#f2f3ff" class="em-soft" style="padding:24px 16px;border:1px solid #dfe2ff;border-radius:14px;background-color:#f2f3ff;"><div class="em-muted" style="margin-bottom:10px;color:#626a88;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.6px;">YOUR ONE-TIME CODE</div><div class="em-code em-accent" style="color:#4d56d8;font-family:'SFMono-Regular',Menlo,Consolas,'Courier New',monospace;font-size:34px;font-weight:bold;letter-spacing:8px;">${escapeHtml(code)}</div>${codeNote ? `<div class="em-muted" style="margin-top:10px;color:#737b91;font-family:Arial,sans-serif;font-size:12px;">${escapeHtml(codeNote)}</div>` : ''}</td></tr></table>`
     : '';
-  const safeNote = note ? `<div style="margin-top:22px;padding:14px 16px;border-left:3px solid #5c63ed;background-color:#f2f3ff;color:#4b5268;font-family:Arial,sans-serif;font-size:12px;line-height:1.65;">${escapeHtml(note)}</div>` : '';
-  const siteUrl = safeEmailUrl(env('APP_URL') || 'https://www.crowdwide.run.place');
+  const safeNote = note ? `<div class="em-soft em-p${toneClass}" style="margin-top:24px;padding:14px 16px;border-left:3px solid ${palette.accent};border-radius:0 8px 8px 0;background-color:${palette.soft};color:#4b5268;font-family:Arial,sans-serif;font-size:12px;line-height:1.65;">${escapeHtml(note)}</div>` : '';
+  const footerLinks = [
+    siteUrl ? `<a class="em-link" href="${escapeHtml(siteUrl)}" style="color:#4d56d8;text-decoration:none;">Visit Crowdwide</a>` : '',
+    siteUrl ? `<a class="em-link" href="${escapeHtml(siteUrl.replace(/\/$/, ''))}/privacy" style="color:#4d56d8;text-decoration:none;">Privacy</a>` : '',
+    siteUrl ? `<a class="em-link" href="${escapeHtml(siteUrl.replace(/\/$/, ''))}/terms" style="color:#4d56d8;text-decoration:none;">Terms</a>` : '',
+    safeManageUrl ? `<a class="em-link" href="${escapeHtml(safeManageUrl)}" style="color:#4d56d8;text-decoration:none;">Email preferences</a>` : '',
+    '<a class="em-link" href="mailto:crowdwide.support@gmail.com" style="color:#4d56d8;text-decoration:none;">Contact support</a>'
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+  const reason = safeManageUrl
+    ? 'You are receiving this because of your Crowdwide notification settings.'
+    : 'This account message was sent to the email address associated with your Crowdwide account.';
 
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(heading)} · Crowdwide</title></head>
-<body style="margin:0;padding:0;background-color:#f0f1f8;color:#252b45;font-family:Arial,Helvetica,sans-serif;">
-<span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;color:transparent;">${escapeHtml(preheader || heading)}</span>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f0f1f8" style="width:100%;background-color:#f0f1f8;"><tr><td align="center" style="padding:36px 14px;">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${escapeHtml(heading)} · Crowdwide</title><style>${EMAIL_STYLES}</style></head>
+<body class="em-body" style="margin:0;padding:0;background-color:#f0f1f8;color:#252b45;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;">
+<span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;color:transparent;mso-hide:all;">${escapeHtml(preheader || heading)}${'&nbsp;&zwnj;'.repeat(24)}</span>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f0f1f8" class="em-body" style="width:100%;background-color:#f0f1f8;"><tr><td align="center" class="em-outer" style="padding:36px 14px;">
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;border-spacing:0;">
-<tr><td height="6" bgcolor="#5c63ed" style="height:6px;font-size:0;line-height:0;background-color:#5c63ed;">&nbsp;</td></tr>
-<tr><td bgcolor="#111426" style="padding:25px 32px;background-color:#111426;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
-<td><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
-<td align="center" width="38" height="38" bgcolor="#5c63ed" style="width:38px;height:38px;border-radius:11px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:18px;font-weight:bold;">C</td>
-<td style="padding-left:11px;"><div style="color:#ffffff;font-family:Arial,sans-serif;font-size:23px;font-weight:bold;letter-spacing:.2px;">Crowdwide<span style="color:#ff9850;">.</span></div><div style="margin-top:4px;color:#b8bdd3;font-family:Arial,sans-serif;font-size:12px;">A fair chance at discovery</div></td>
-</tr></table></td>
-<td align="right" style="color:#b8bdd3;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1px;">${escapeHtml(eyebrow)}</td>
+<tr><td height="6" bgcolor="#5c63ed" style="height:6px;font-size:0;line-height:0;background-color:#5c63ed;border-radius:14px 14px 0 0;">&nbsp;</td></tr>
+<tr><td bgcolor="#111426" class="em-head" style="padding:24px 32px;background-color:#111426;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+<td align="center" width="40" height="40" bgcolor="#5c63ed" style="width:40px;height:40px;border-radius:12px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:19px;font-weight:bold;">C</td>
+<td style="padding-left:12px;"><div style="color:#ffffff;font-family:Arial,sans-serif;font-size:23px;font-weight:bold;letter-spacing:.2px;">Crowdwide<span style="color:#ff9850;">.</span></div><div style="margin-top:3px;color:#b8bdd3;font-family:Arial,sans-serif;font-size:12px;">A fair chance at discovery</div></td>
 </tr></table></td></tr>
-<tr><td bgcolor="#ffffff" style="padding:36px 34px 32px;background-color:#ffffff;border-left:1px solid #e1e4eb;border-right:1px solid #e1e4eb;">
-<h1 style="margin:0 0 16px;color:#202641;font-family:Arial,sans-serif;font-size:28px;line-height:1.25;">${escapeHtml(heading)}</h1>${safeMessage}${stepsBlock}${codeBlock}${detailRows}${action}${safeNote}
+<tr><td bgcolor="#ffffff" class="em-card em-pad" style="padding:36px 34px 32px;background-color:#ffffff;border-left:1px solid #e1e4eb;border-right:1px solid #e1e4eb;">
+<span class="em-pill" style="display:inline-block;margin-bottom:16px;padding:5px 11px;border-radius:999px;background-color:${palette.pillBg};color:${palette.pillText};font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.3px;">${escapeHtml(eyebrow)}</span>
+<h1 class="em-h em-h1" style="margin:0 0 16px;color:#202641;font-family:Arial,sans-serif;font-size:28px;line-height:1.25;">${escapeHtml(heading)}</h1>${safeMessage}${stepsBlock}${codeBlock}${detailRows}${action}${safeNote}
 </td></tr>
-<tr><td bgcolor="#f8f9fd" style="padding:20px 32px;border:1px solid #e1e4eb;border-top:0;background-color:#f8f9fd;color:#68708a;font-family:Arial,sans-serif;font-size:11px;line-height:1.7;"><strong style="color:#343c5a;">A little more room for curiosity.</strong><br>This account message was sent to ${escapeHtml('the email address associated with your Crowdwide account')}.<br>${siteUrl ? `<a href="${escapeHtml(siteUrl)}" style="color:#4d56d8;text-decoration:none;">Visit Crowdwide</a> &nbsp;·&nbsp; ` : ''}<a href="mailto:crowdwide.support@gmail.com" style="color:#4d56d8;text-decoration:none;">Contact support</a><br><span style="color:#7d849b;">If you did not request this, you can safely ignore it.</span></td></tr>
+<tr><td bgcolor="#f8f9fd" class="em-foot" style="padding:22px 32px;border:1px solid #e1e4eb;border-top:0;border-radius:0 0 14px 14px;background-color:#f8f9fd;color:#68708a;font-family:Arial,sans-serif;font-size:11px;line-height:1.8;"><strong class="em-strong" style="color:#343c5a;">A little more room for curiosity.</strong><br>${reason}<br>${footerLinks}<br><span style="color:#7d849b;">If you did not request this, you can safely ignore it.</span></td></tr>
 </table></td></tr></table></body></html>`;
 }
 
@@ -296,9 +344,11 @@ async function sendVerificationCode(user, code) {
       message: bodyText,
       preheader: 'One quick step to join the Crowdwide community',
       eyebrow: 'WELCOME',
+      tone: 'success',
       greeting: user.name,
       steps: ['Return to your verification screen.', 'Enter the one-time code below.'],
       code,
+      codeNote: 'Expires in 15 minutes',
       actionUrl: verifyUrl,
       actionLabel: 'Continue verification',
       note: 'This code expires in 15 minutes. Never share it with anyone; Crowdwide will never ask you to do so.'
@@ -307,13 +357,13 @@ async function sendVerificationCode(user, code) {
   await deliver(message, `Verification code for ${user.email}: ${code}`);
 }
 
-async function sendSecurityAlert(user, { subject, heading, message, details = [], note = 'If you do not recognize this activity, change your password and review your account security.' }) {
+async function sendSecurityAlert(user, { subject, heading, message, details = [], tone = 'default', note = 'If you do not recognize this activity, change your password and review your account security.' }) {
   const mail = {
     from: fromAddress(),
     to: user.email,
     subject,
     text: [message, ...details.map(({ label, value }) => `${label}: ${value}`), note].filter(Boolean).join('\n\n'),
-    html: brandedEmail({ heading, message, preheader: subject, details, note, greeting: user.name })
+    html: brandedEmail({ heading, message, preheader: subject, details, note, greeting: user.name, tone })
   };
   await deliver(mail, `${subject} for ${user.email}: ${message}`);
 }
@@ -322,6 +372,7 @@ async function sendNewDeviceAlert(user, details) {
   return sendSecurityAlert(user, {
     subject: 'New Crowdwide sign-in',
     heading: 'A new device signed in',
+    tone: 'warning',
     message: 'We noticed a sign-in to your Crowdwide account from a device or location we have not seen before. Review the details below.',
     details: [
       { label: 'IP address', value: details.ipAddress || 'Unavailable' },
@@ -359,9 +410,9 @@ function postEmailCard(post, appUrl, index) {
   const body = String(post.body || '').slice(0, 260);
   const author = post.author?.name || 'Crowdwide member';
   const type = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post';
-  const community = post.community?.name ? `<span style="color:#737b91;"> · ${escapeHtml(post.community.name)}</span>` : '';
-  const pollQuestion = post.type === 'poll' && post.poll?.question ? `<p style="margin:0 0 8px;color:#252b45;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;line-height:1.5;">${escapeHtml(post.poll.question)}</p>` : '';
-  return `<tr><td style="padding:0 0 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border:1px solid #e2e5f0;border-radius:13px;background-color:#ffffff;"><tr><td style="padding:16px 18px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="color:#626a88;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;"><strong style="color:#414966;">${escapeHtml(author)}</strong>${community}</td><td align="right" style="color:#5962d7;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:.6px;">${escapeHtml(type.toUpperCase())} · ${index}</td></tr></table>${pollQuestion}<p style="margin:9px 0 13px;color:#30364b;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;">${escapeHtml(body)}${String(post.body || '').length > 260 ? '…' : ''}</p><a href="${escapeHtml(url)}" style="display:inline-block;padding:9px 13px;border-radius:8px;background-color:#f0f1ff;color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read conversation &nbsp;&rarr;</a></td></tr></table></td></tr>`;
+  const community = post.community?.name ? `<span class="em-muted" style="color:#737b91;"> · ${escapeHtml(post.community.name)}</span>` : '';
+  const pollQuestion = post.type === 'poll' && post.poll?.question ? `<p class="em-h" style="margin:0 0 8px;color:#252b45;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;line-height:1.5;">${escapeHtml(post.poll.question)}</p>` : '';
+  return `<tr><td style="padding:0 0 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="em-card" style="width:100%;border:1px solid #e2e5f0;border-radius:13px;background-color:#ffffff;"><tr><td style="padding:16px 18px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="em-muted" style="color:#626a88;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;"><strong class="em-strong" style="color:#414966;">${escapeHtml(author)}</strong>${community}</td><td align="right" style="color:#5962d7;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:.6px;">${escapeHtml(type.toUpperCase())} · ${index}</td></tr></table>${pollQuestion}<p class="em-p" style="margin:9px 0 13px;color:#30364b;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;">${escapeHtml(body)}${String(post.body || '').length > 260 ? '…' : ''}</p><a class="em-pill" href="${escapeHtml(url)}" style="display:inline-block;padding:9px 13px;border-radius:8px;background-color:#f0f1ff;color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read conversation &nbsp;&rarr;</a></td></tr></table></td></tr>`;
 }
 
 async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPosts = [], communityPosts = [] }) {
@@ -370,9 +421,9 @@ async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPost
   if (!posts.length) return false;
   let cardNumber = 0;
   const section = (heading, description, rows) => rows.length
-    ? `<tr><td style="padding:20px 22px 0;"><div style="margin-bottom:5px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;">${rows.length} selected for you</div><h2 style="margin:0;color:#202641;font-family:Arial,sans-serif;font-size:19px;line-height:1.35;">${heading}</h2><p style="margin:5px 0 13px;color:#737b91;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">${description}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl, ++cardNumber)).join('')}</table></td></tr>`
+    ? `<tr><td style="padding:26px 0 0;"><div style="margin-bottom:5px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;">${rows.length} selected for you</div><h2 class="em-h" style="margin:0;color:#202641;font-family:Arial,sans-serif;font-size:19px;line-height:1.35;">${heading}</h2><p class="em-muted" style="margin:5px 0 13px;color:#737b91;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">${description}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl, ++cardNumber)).join('')}</table></td></tr>`
     : '';
-  const html = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td style="padding:22px;background-color:#f2f3ff;border-bottom:1px solid #e0e2ff;"><div style="margin-bottom:7px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.4px;">YOUR PERSONALIZED EDITION</div><p style="margin:0;color:#252b45;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;line-height:1.5;">${posts.length} conversations, ideas, and communities to explore</p><p style="margin:5px 0 0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">A blend of your interests, what's trending, and communities you may enjoy.</p></td></tr>${section('Picked for you', 'Posts from people and topics that match your interests.', personalizedPosts)}${section('Trending this week', 'Conversations resonating across Crowdwide.', trendingPosts)}${section('From communities you may like', 'Community conversations connected to your interests.', communityPosts)}<tr><td style="padding:22px;"><a href="${escapeHtml(appUrl)}/posts" style="display:block;padding:13px 18px;border-radius:9px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;text-align:center;text-decoration:none;">Explore more posts &nbsp;&rarr;</a></td></tr></table>`;
+  const html = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="em-soft" style="padding:18px 20px;background-color:#f2f3ff;border:1px solid #e0e2ff;border-radius:12px;"><div style="margin-bottom:7px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.4px;">YOUR PERSONALIZED EDITION</div><p class="em-h" style="margin:0;color:#252b45;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;line-height:1.5;">${posts.length} conversations, ideas, and communities to explore</p><p style="margin:5px 0 0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">A blend of your interests, what's trending, and communities you may enjoy.</p></td></tr>${section('Picked for you', 'Posts from people and topics that match your interests.', personalizedPosts)}${section('Trending this week', 'Conversations resonating across Crowdwide.', trendingPosts)}${section('From communities you may like', 'Community conversations connected to your interests.', communityPosts)}<tr><td style="padding:10px 0 0;"><a href="${escapeHtml(appUrl)}/posts" style="display:block;padding:13px 18px;border-radius:9px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;text-align:center;text-decoration:none;">Explore more posts &nbsp;&rarr;</a></td></tr></table>`;
   const text = posts.map((post) => `${post.author?.name || 'Crowdwide member'}: ${String(post.body || '').slice(0, 260)}\n${appUrl}/posts/${post._id}`).join('\n\n');
   return deliver({
     from: fromAddress(),
@@ -385,9 +436,8 @@ async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPost
       preheader: `${posts.length} conversations and community posts selected for you`,
       eyebrow: 'YOUR WEEKLY DIGEST',
       contentHtml: html,
-      actionUrl: `${appUrl}/posts`,
-      actionLabel: 'Explore Crowdwide',
-      note: `This weekly email is optional. You can turn it off any time in Settings: ${appUrl}/settings/notifications`
+      manageUrl: `${appUrl}/settings/notifications`,
+      note: 'This weekly email is optional. You can turn it off any time from Email preferences below.'
     })
   }, `Weekly newsletter for ${user.email}`);
 }
@@ -397,7 +447,8 @@ async function sendUnreadNotificationSummary(user, notifications = []) {
   const entries = notifications.map((notification) => {
     const url = notification.post ? safeEmailUrl(`${appUrl}/posts/${notification.post}`) : safeEmailUrl(`${appUrl}/notifications`);
     const actor = notification.actor?.name || 'Crowdwide';
-    return `<tr><td style="padding:12px 14px;border-bottom:1px solid #e0e2f0;color:#252b45;font-family:Arial,sans-serif;font-size:13px;line-height:1.6;"><strong>${escapeHtml(actor)}</strong> ${escapeHtml(notification.message)}${url ? ` <a href="${escapeHtml(url)}" style="color:#4d56d8;font-weight:bold;text-decoration:none;">Open</a>` : ''}</td></tr>`;
+    const initial = escapeHtml(String(actor).trim().charAt(0).toUpperCase() || 'C');
+    return `<tr><td class="em-line em-p" style="padding:12px 4px;border-bottom:1px solid #e0e2f0;color:#252b45;font-family:Arial,sans-serif;font-size:13px;line-height:1.6;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td width="40" valign="top"><div class="em-pill" style="width:30px;height:30px;border-radius:50%;background-color:#eceeff;color:#4d56d8;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;line-height:30px;text-align:center;">${initial}</div></td><td valign="top"><strong class="em-strong">${escapeHtml(actor)}</strong> ${escapeHtml(notification.message)}${url ? ` <a class="em-link" href="${escapeHtml(url)}" style="color:#4d56d8;font-weight:bold;text-decoration:none;">Open &rsaquo;</a>` : ''}</td></tr></table></td></tr>`;
   }).join('');
   const list = entries ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:16px 0;border-collapse:collapse;">${entries}</table>` : '';
   const text = notifications.map((item) => `${item.actor?.name || 'Crowdwide'} ${item.message}`).join('\n');
@@ -414,6 +465,7 @@ async function sendUnreadNotificationSummary(user, notifications = []) {
       contentHtml: list,
       actionUrl: `${appUrl}/notifications`,
       actionLabel: 'View all notifications',
+      manageUrl: `${appUrl}/settings/notifications`,
       note: `Manage notification emails in Settings: ${appUrl}/settings/notifications`
     })
   }, `Unread notification summary for ${user.email}`);
