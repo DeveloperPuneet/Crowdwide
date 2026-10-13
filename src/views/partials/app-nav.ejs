@@ -13,7 +13,7 @@
       <summary aria-label="More navigation options">More <%- icon('chevron-down', { size: 14 }) %></summary>
       <div class="app-nav-more-menu">
         <a href="/advertising"><%- icon('megaphone', { size: 16 }) %><span>Advertiser dashboard</span></a>
-        <a href="/wallet"><span aria-hidden="true">◈</span><span>Waves wallet</span></a>
+        <a href="/wallet"><%- icon('waves', { size: 16 }) %><span>Waves wallet</span></a>
         <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 16 }) %><span>Your profile</span></a>
         <a href="/recap"><%- icon('trending-up', { size: 16 }) %><span>Your recap</span></a>
         <a href="/settings/account"><%- icon('settings', { size: 16 }) %><span>Account settings</span></a>
@@ -29,7 +29,7 @@
   </form>
   <div class="app-nav-actions">
     <% if (locals.currentUser) { %>
-    <a class="button button-small button-ghost" href="/wallet" aria-label="Waves balance: <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves"><span aria-hidden="true">◈</span> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
+    <a class="button button-small button-ghost" href="/wallet" aria-label="Waves balance: <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves"><%- icon('waves', { size: 16 }) %> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
     <% } %>
     <a class="icon-button" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
     <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden>0</b></a>
@@ -54,7 +54,7 @@
     <a href="/groups"><%- icon('message-circle', { size: 18 }) %> Groups</a>
     <a href="/notifications"><%- icon('bell', { size: 18 }) %> Notifications</a>
     <% if (locals.currentUser) { %>
-    <a href="/wallet"><span aria-hidden="true">◈</span> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
+    <a href="/wallet"><%- icon('waves', { size: 16 }) %> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
     <details class="nav-drawer-more">
       <summary>More <%- icon('chevron-down', { size: 16 }) %></summary>
       <a class="nav-drawer-advertising" href="/advertising"><%- icon('megaphone', { size: 18 }) %> Advertiser dashboard</a>

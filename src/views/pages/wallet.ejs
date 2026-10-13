@@ -5,19 +5,19 @@
   <a class="back-link" href="/dashboard">← Back to your feed</a>
   <header class="recap-heading wallet-heading">
     <p class="eyebrow">Crowdwide platform currency</p>
-    <h1>Your Waves wallet</h1>
+    <h1><%- icon('waves', { size: 34 }) %> Your Waves wallet</h1>
     <p>Waves are the platform currency for rewards, transfers, campaign budgets, and platform purchases. Crowdwide does not process real-money payments or payouts.</p>
     <p><a href="/waves/terms">Read the Waves Terms</a>.</p>
   </header>
   <section class="recap-stats wallet-stats" aria-label="Waves wallet totals">
-    <div class="recap-stat wallet-balance"><span>Available balance</span><strong><%= wallet.balance.toLocaleString() %> Waves</strong></div>
-    <div class="recap-stat wallet-earned"><span>Total earned</span><strong><%= wallet.totalEarned.toLocaleString() %></strong></div>
-    <div class="recap-stat wallet-spent"><span>Total spent</span><strong><%= wallet.totalSpent.toLocaleString() %></strong></div>
+    <div class="recap-stat wallet-balance"><span>Available balance</span><strong class="waves-amount"><%- icon('waves', { size: 24 }) %> <%= wallet.balance.toLocaleString() %> Waves</strong></div>
+    <div class="recap-stat wallet-earned"><span>Total earned</span><strong class="waves-amount"><%- icon('waves', { size: 20 }) %> <%= wallet.totalEarned.toLocaleString() %></strong></div>
+    <div class="recap-stat wallet-spent"><span>Total spent</span><strong class="waves-amount"><%- icon('waves', { size: 20 }) %> <%= wallet.totalSpent.toLocaleString() %></strong></div>
   </section>
   <% if (locals.earnGuide && earnGuide.items.length) { %>
   <section class="recap-panel wallet-earn" id="earn">
     <div class="recap-section-heading"><div><p class="eyebrow"><%= locals.isWelcome ? 'Welcome to Crowdwide' : 'Earn Waves' %></p><h2><%= locals.isWelcome ? 'Your first Waves are here' : 'How to earn Waves' %></h2></div></div>
-    <% if (locals.isWelcome && earnGuide.welcomeBonus > 0) { %><p class="wallet-welcome">🎉 We added <strong><%= earnGuide.welcomeBonus.toLocaleString() %> Waves</strong> to your wallet. Here is how to earn more:</p><% } else { %><p class="recap-muted">Waves are rewarded for taking part. Typical rewards per action:</p><% } %>
+    <% if (locals.isWelcome && earnGuide.welcomeBonus > 0) { %><p class="wallet-welcome">🎉 We added <strong><%- icon('waves', { size: 16 }) %> <%= earnGuide.welcomeBonus.toLocaleString() %> Waves</strong> to your wallet. Here is how to earn more:</p><% } else { %><p class="recap-muted">Waves are rewarded for taking part. Typical rewards per action:</p><% } %>
     <div class="wallet-earn-grid">
       <% earnGuide.items.forEach((item) => { %>
       <div class="wallet-earn-item"><span class="wallet-earn-icon"><%- icon(item.icon, { size: 18 }) %></span><div><strong><%= item.title %></strong><small><%= item.detail %></small></div><b>+<%= item.range %></b></div>
@@ -40,7 +40,7 @@
         <input type="hidden" name="plan" value="<%= plan.id %>">
         <% if (plan.savingsPercent > 0) { %><b class="wallet-plan-badge">Save <%= plan.savingsPercent %>%</b><% } %>
         <h3><%= plan.label %></h3>
-        <p class="wallet-plan-price"><strong><%= plan.price.toLocaleString() %></strong> Waves</p>
+        <p class="wallet-plan-price"><%- icon('waves', { size: 18 }) %> <strong><%= plan.price.toLocaleString() %></strong> Waves</p>
         <button class="button <%= plan.id === '4m' ? 'button-primary' : 'button-ghost' %> button-small" type="submit" <%= wallet.balance < plan.price ? 'disabled' : '' %>><%= wallet.balance < plan.price ? 'Not enough Waves' : (adFreeInfo.active ? 'Extend' : 'Get Ad-Free') %></button>
       </form>
       <% }) %>
@@ -71,7 +71,7 @@
             <td data-label="When"><%= new Date(entry.createdAt).toLocaleString() %></td>
             <td data-label="Activity"><span class="wallet-type"><%= entry.type.replace(/-/g, ' ') %></span> · <span class="wallet-status"><%= entry.status %></span></td>
             <td data-label="Details"><%= entry.description || entry.reason || 'Waves transaction' %><% if (entry.community?.name) { %> · <a href="/communities/<%= entry.community.slug %>"><%= entry.community.name %></a><% } %><% if (entry.relatedUser?.name) { %> · <%= entry.relatedUser.name %><% } %></td>
-            <td data-label="Amount" class="wallet-amount <%= entry.amount > 0 ? 'is-in' : 'is-out' %>"><%= entry.amount > 0 ? '+' : '' %><%= Number(entry.amount).toLocaleString() %></td>
+            <td data-label="Amount" class="wallet-amount <%= entry.amount > 0 ? 'is-in' : 'is-out' %>"><span class="wallet-amount-value"><%= entry.amount > 0 ? '+' : '' %><%= Number(entry.amount).toLocaleString() %> <%- icon('waves', { size: 14 }) %></span></td>
             <td data-label="Balance"><%= Number(entry.balanceAfter || 0).toLocaleString() %></td>
           </tr>
           <% }) %>

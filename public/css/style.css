@@ -3184,3 +3184,12 @@ pre { overflow-x: auto; }
   .public-post-filters a { transition: none; }
   .public-post-feed .post-card:hover { transform: none; }
 }
+
+/* Waves currency logo */
+.icon-waves { flex: none; vertical-align: -0.2em; }
+.waves-amount { display: inline-flex; align-items: center; gap: 8px; }
+.profile-waves, .wallet-plan-price, .wallet-amount-value { display: inline-flex; align-items: center; gap: 5px; }
+.wallet-amount-value { white-space: nowrap; }
+.wallet-welcome .icon-waves { margin-right: 2px; }
+.wallet-stats .waves-amount .icon-waves { width: .85em; height: .85em; }
+.wallet-balance .icon-waves circle:first-child { stroke: #fff; stroke-width: 1.2; }

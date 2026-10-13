@@ -1,0 +1,35 @@
+<%- include('../partials/head', { title, description, pagePath }) %>
+<% if (locals.currentUser) { %>
+<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% } else { %>
+<header class="site-nav container public-posts-nav">
+	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
+	<div><a class="button button-small button-ghost" href="/auth/login">Sign in</a><a class="button button-small button-primary" href="/auth/register">Join Crowdwide</a></div>
+</header>
+<% } %>
+<main class="survey-page">
+	<%- include('../partials/flash') %>
+	<header class="survey-hero">
+		<p class="eyebrow">Your voice</p>
+		<h1>Surveys</h1>
+		<p>Short polls that help shape Crowdwide. Takes a minute, no account needed.</p>
+		<p class="survey-privacy" style="margin: 20px 0 20px 0;"><%- icon('shield', { size: 16 }) %> <span>Completely anonymous: we never ask for or store your name, email or any account details with your answers.</span></p>
+	</header>
+	<% if (!surveys.length) { %>
+	<div class="survey-thanks"><h2>No surveys right now</h2><p>Check back soon - new surveys appear here when they open.</p></div>
+	<% } else { %>
+	<div class="survey-list">
+		<% surveys.forEach((survey) => { %>
+		<article class="survey-list-item">
+			<div>
+				<h2><%= survey.title %></h2>
+				<p><%= survey.questionCount %> question<%= survey.questionCount === 1 ? '' : 's' %><% if (survey.status === 'closed') { %> · Closed<% } else if (survey.answered) { %> · You answered this one<% } %></p>
+			</div>
+			<a class="button button-small <%= survey.status === 'published' && !survey.answered ? 'button-primary' : 'button-ghost' %>" href="/surveys/<%= survey._id %>"><%= survey.status === 'published' && !survey.answered ? 'Take survey' : 'View' %></a>
+		</article>
+		<% }) %>
+	</div>
+	<% } %>
+</main>
+<% if (locals.currentUser) { %><%- include('../partials/app-footer') %><% } else { %><%- include('../partials/site-footer') %><% } %>
+<%- include('../partials/foot') %>

@@ -31,6 +31,7 @@ const TAB_CONFIG = {
 const TABS = Object.keys(TAB_CONFIG);
 
 const ENGAGEMENT_WEIGHTS = { likes: 1, reactions: 1.5, comments: 3, shares: 4, pollVotes: 1.2, views: 0.05 };
+const MIN_VIRAL_POINTS = 2; // e.g. two likes, or one comment - below this a post is not "viral"
 const GRAVITY = 1.35;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -292,10 +293,12 @@ function rankFeed(candidates, ctx, view = 'for-you', { limit = 96 } = {}) {
       .map((item) => ({ ...item, lane: full.joined.has(String(item.post.community)) ? 'network' : 'discovery' }));
   }
   if (view === 'posts-viral' || view === 'articles-viral') {
-    // "Viral" needs some traction; posts with none only fill in when the
-    // platform is too quiet for a real ranking.
-    const withTraction = scored.filter((item) => engagementPoints(item.post.counts) >= 2);
-    if (withTraction.length >= PAGE_SIZE) scored = withTraction;
+    // "Viral" always means real traction. It used to fall back to *every*
+    // post when fewer than a page had traction - on a young platform that
+    // made Viral a freshness-sorted list of everything, i.e. identical to
+    // "New". Posts with no traction are never shown here; an empty Viral tab
+    // simply means nothing is taking off yet.
+    scored = scored.filter((item) => engagementPoints(item.post.counts) >= MIN_VIRAL_POINTS);
   }
   const networkLane = diversify(scored.filter((item) => item.lane === 'network'));
   const discoveryLane = diversify(scored.filter((item) => item.lane === 'discovery'));
@@ -310,6 +313,7 @@ module.exports = {
   TAB_CONFIG,
   TABS,
   ENGAGEMENT_WEIGHTS,
+  MIN_VIRAL_POINTS,
   isFeedTab,
   resolveDiscoveryRatio,
   hash01,

@@ -1,0 +1,18 @@
+<%# One poll-style question in the survey builder. `index` is the form-field key (a number, or the __Q__ placeholder inside the JS template). %>
+<% const q = locals.question || { text: '', options: [{ text: '' }, { text: '' }] }; %>
+<fieldset class="survey-q" data-survey-q data-index="<%= index %>">
+  <legend>Question <span data-q-number><%= number %></span></legend>
+  <input type="text" name="questions[<%= index %>][text]" maxlength="300" placeholder="Ask your question, e.g. How did you find Crowdwide?" value="<%= q.text %>" aria-label="Question <%= number %> text" data-q-text>
+  <div class="survey-options" data-options>
+    <% q.options.forEach((option, optionIndex) => { %>
+    <div class="survey-option">
+      <input type="text" name="questions[<%= index %>][options][]" maxlength="150" placeholder="Option <%= optionIndex + 1 %>" value="<%= option.text %>" aria-label="Question <%= number %> option <%= optionIndex + 1 %>">
+      <button type="button" class="survey-icon-btn" data-remove-option aria-label="Remove this option">&times;</button>
+    </div>
+    <% }) %>
+  </div>
+  <div class="survey-q-actions">
+    <button class="button button-small button-ghost" type="button" data-add-option>+ Add option</button>
+    <button class="button button-small button-ghost" type="button" data-remove-question>Remove question</button>
+  </div>
+</fieldset>

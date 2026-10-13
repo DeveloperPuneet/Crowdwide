@@ -63,10 +63,22 @@ const PATHS = {
   clipboard: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>'
 };
 
+// Full-colour brand marks. Unlike the line icons above they ignore
+// currentColor so the Waves coin looks the same on every theme. No gradients
+// or ids on purpose: duplicate ids across inline SVGs break when the first
+// copy sits inside a hidden element (e.g. the closed mobile menu).
+const COLOR_ICONS = {
+  waves: '<circle cx="12" cy="12" r="11" fill="#1fb6ee"/><circle cx="12" cy="12" r="8.7" fill="none" stroke="#ffffff" stroke-opacity=".38" stroke-width="1"/><path d="M5.6 10.1c1.6-2 3.2-2 4.8 0s3.2 2 4.8 0 2.3-1.5 3.2-.8" fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round"/><path d="M5.6 14.6c1.6-2 3.2-2 4.8 0s3.2 2 4.8 0 2.3-1.5 3.2-.8" fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" stroke-opacity=".8"/>'
+};
+
 // Icons that read better as solid shapes when "on" (liked, saved).
 const FILLABLE = new Set(['heart', 'bookmark']);
 
 function icon(name, { size = 18, className = '', filled = false, strokeWidth = 1.8, label = '' } = {}) {
+  if (COLOR_ICONS[name]) {
+    const label_ = label ? `role="img" aria-label="${String(label).replace(/"/g, '&quot;')}"` : 'aria-hidden="true" focusable="false"';
+    return `<svg class="${['icon', `icon-${name}`, className].filter(Boolean).join(' ')}" width="${size}" height="${size}" viewBox="0 0 24 24" ${label_}>${COLOR_ICONS[name]}</svg>`;
+  }
   const body = PATHS[name];
   if (!body) return '';
   const classes = ['icon', `icon-${name}`, className].filter(Boolean).join(' ');
@@ -75,4 +87,4 @@ function icon(name, { size = 18, className = '', filled = false, strokeWidth = 1
   return `<svg class="${classes}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" ${a11y}>${body}</svg>`;
 }
 
-module.exports = { icon, ICON_NAMES: Object.keys(PATHS), FILLABLE };
+module.exports = { icon, ICON_NAMES: [...Object.keys(PATHS), ...Object.keys(COLOR_ICONS)], FILLABLE };

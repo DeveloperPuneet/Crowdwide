@@ -1,0 +1,47 @@
+<%- include('../partials/head', { title, description, pagePath }) %>
+<% if (locals.currentUser) { %>
+<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<% } else { %>
+<header class="site-nav container public-posts-nav">
+	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
+	<div><a class="button button-small button-ghost" href="/auth/login">Sign in</a><a class="button button-small button-primary" href="/auth/register">Join Crowdwide</a></div>
+</header>
+<% } %>
+<main class="survey-page">
+	<%- include('../partials/flash') %>
+	<header class="survey-hero">
+		<p class="eyebrow">Survey</p>
+		<h1><%= survey.title %></h1>
+		<% if (survey.description) { %><p><%= survey.description %></p><% } %>
+		<p class="survey-privacy" style="margin: 20px 0 20px 0;"><%- icon('shield', { size: 16 }) %> <span>Anonymous: your answers are stored without your name, email, account or IP address.</span></p>
+	</header>
+
+	<% if (justSubmitted || answered) { %>
+	<section class="survey-thanks">
+		<h2><%= justSubmitted ? 'Thank you!' : 'You have already answered' %></h2>
+		<p><%= justSubmitted ? 'Your anonymous answers were recorded.' : 'Thanks for taking part - each browser can answer a survey once.' %></p>
+		<a class="button button-ghost button-small" href="/surveys">More surveys</a>
+	</section>
+	<% } else if (survey.status === 'closed') { %>
+	<section class="survey-thanks">
+		<h2>This survey is closed</h2>
+		<p>It is no longer taking answers. Thanks for your interest!</p>
+		<a class="button button-ghost button-small" href="/surveys">Other surveys</a>
+	</section>
+	<% } else { %>
+	<form class="survey-form" method="post" action="/surveys/<%= survey._id %>/respond">
+		<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+		<% survey.questions.forEach((question, qi) => { %>
+		<fieldset class="survey-question">
+			<legend><span class="q-count">Question <%= qi + 1 %> of <%= survey.questions.length %></span><%= question.text %></legend>
+			<% question.options.forEach((option, oi) => { %>
+			<label class="survey-choice"><input type="radio" name="answers[<%= question._id %>]" value="<%= option._id %>" required><span><%= option.text %></span></label>
+			<% }) %>
+		</fieldset>
+		<% }) %>
+		<div><button class="button button-primary" type="submit">Submit answers</button></div>
+	</form>
+	<% } %>
+</main>
+<% if (locals.currentUser) { %><%- include('../partials/app-footer') %><% } else { %><%- include('../partials/site-footer') %><% } %>
+<%- include('../partials/foot') %>

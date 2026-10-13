@@ -32,7 +32,7 @@
 		<form class="post-promotion-action" method="post" action="/posts/<%= post._id %>/promote" data-confirm="Spend <%= promotionOffer.wavesCost %> Waves to promote this post for <%= promotionOffer.durationHours %> hours?">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<p>Promote this post in the feed for <%= promotionOffer.durationHours %> hours. Promoted posts are labeled and cost <strong><%= promotionOffer.wavesCost %> Waves</strong>.</p>
-			<button class="button button-primary button-small" type="submit">Promote with Waves</button>
+			<button class="button button-primary button-small" type="submit"><%- icon('waves', { size: 15 }) %> Promote with Waves</button>
 		</form>
 		<% } %>
 		<div class="post-view-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>

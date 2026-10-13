@@ -24,6 +24,7 @@
     <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (openReports.length) { %> (<%= openReports.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-queue" role="tab" aria-controls="admin-panel-queue" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-surveys" role="tab" aria-controls="admin-panel-surveys" data-tab="surveys">Surveys</button>
     <button type="button" class="admin-tab" id="admin-tab-moderators" role="tab" aria-controls="admin-panel-moderators" data-tab="moderators">Moderators</button>
     <button type="button" class="admin-tab" id="admin-tab-settings" role="tab" aria-controls="admin-panel-settings" data-tab="settings">Site settings</button>
     <button type="button" class="admin-tab" id="admin-tab-maintenance" role="tab" aria-controls="admin-panel-maintenance" data-tab="maintenance">Data cleanup</button>
@@ -556,6 +557,11 @@
     </div>
     <% }) %>
     <% } %>
+  </section>
+
+  <!-- SURVEYS -->
+  <section class="admin-panel" id="admin-panel-surveys" role="tabpanel" aria-labelledby="admin-tab-surveys" data-panel="surveys">
+    <%- include('../partials/admin-surveys', { surveys: locals.surveys || [], csrfToken }) %>
   </section>
 
   <!-- MODERATORS -->

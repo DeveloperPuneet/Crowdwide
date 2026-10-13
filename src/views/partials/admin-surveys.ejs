@@ -1,0 +1,85 @@
+<%# Admin "Surveys" tab. Locals: surveys (from services/surveys.adminSurveys), csrfToken %>
+<% const surveyList = Array.isArray(locals.surveys) ? locals.surveys : []; %>
+<% const statusLabel = { draft: 'Draft', published: 'Live', closed: 'Closed' }; %>
+<div class="admin-section-head"><div><h2>Surveys</h2><p>Build short poll-style surveys. Answers are anonymous: no name, email, account, IP address or time is stored with a response.</p></div></div>
+
+<details class="settings-block admin-wide survey-card" <%= surveyList.length ? '' : 'open' %>>
+  <summary><strong>+ New survey</strong></summary>
+  <%- include('survey-builder', { action: '/admin/surveys', submitLabel: 'Save survey', csrfToken, isNew: true }) %>
+</details>
+
+<% if (!surveyList.length) { %><p class="survey-empty">No surveys yet. Create your first one above.</p><% } %>
+
+<% surveyList.forEach((survey) => { const r = survey.results; %>
+<section class="settings-block admin-wide survey-card" id="survey-<%= survey._id %>">
+  <div class="survey-card-head">
+    <div>
+      <h3><%= survey.title %> <span class="admin-badge survey-status-<%= survey.status %>"><%= statusLabel[survey.status] %></span></h3>
+      <p class="survey-meta"><%= survey.questions.length %> question<%= survey.questions.length === 1 ? '' : 's' %> · <strong><%= r.totalResponses.toLocaleString() %></strong> response<%= r.totalResponses === 1 ? '' : 's' %><% if (survey.status !== 'draft') { %> · <a href="/surveys/<%= survey._id %>" target="_blank" rel="noopener">View public page</a><% } %></p>
+    </div>
+    <div class="survey-actions">
+      <% if (survey.status === 'draft') { %>
+        <form method="post" action="/admin/surveys/<%= survey._id %>/status"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="published"><button class="button button-primary button-small" type="submit">Publish</button></form>
+      <% } else if (survey.status === 'published') { %>
+        <form method="post" action="/admin/surveys/<%= survey._id %>/status"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="closed"><button class="button button-ghost button-small" type="submit">Close</button></form>
+        <form method="post" action="/admin/surveys/<%= survey._id %>/status"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="draft"><button class="button button-ghost button-small" type="submit">Unpublish</button></form>
+      <% } else { %>
+        <form method="post" action="/admin/surveys/<%= survey._id %>/status"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="published"><button class="button button-primary button-small" type="submit">Reopen</button></form>
+        <form method="post" action="/admin/surveys/<%= survey._id %>/status"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="draft"><button class="button button-ghost button-small" type="submit">Unpublish</button></form>
+      <% } %>
+      <form method="post" action="/admin/surveys/<%= survey._id %>/delete" data-confirm="Delete this survey and all of its responses? This cannot be undone."><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-danger button-small" type="submit">Delete</button></form>
+    </div>
+  </div>
+
+  <details class="survey-edit">
+    <summary>Edit questions</summary>
+    <%- include('survey-builder', { survey, action: '/admin/surveys/' + survey._id, submitLabel: 'Save changes', csrfToken, locked: r.totalResponses > 0 }) %>
+  </details>
+
+  <div class="survey-results">
+    <div class="survey-results-head">
+      <h4>Results</h4>
+      <div class="survey-actions">
+        <a class="button button-ghost button-small" href="/admin/surveys/<%= survey._id %>/export.json" download>Export JSON</a>
+        <form method="post" action="/admin/surveys/<%= survey._id %>/clear" data-confirm="Clear all <%= r.totalResponses %> response(s) for this survey? Export them first if you need a copy - this cannot be undone."><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-danger button-small" type="submit" <%= r.totalResponses ? '' : 'disabled' %>>Clear results</button></form>
+      </div>
+    </div>
+    <% if (!r.totalResponses) { %>
+      <p class="survey-empty">No responses yet<%= survey.status === 'draft' ? ' - publish the survey to start collecting answers.' : '.' %></p>
+    <% } else { %>
+      <% r.questions.forEach((question, qi) => { %>
+      <div class="survey-scroll">
+        <table class="admin-table survey-table">
+          <caption>Q<%= qi + 1 %>. <%= question.text %> <small>(<%= question.answered.toLocaleString() %> answered)</small></caption>
+          <thead><tr><th>Option</th><th>Votes</th><th>Share</th></tr></thead>
+          <tbody>
+            <% question.options.forEach((option) => { %>
+            <tr>
+              <td data-label="Option"><%= option.text %></td>
+              <td data-label="Votes"><%= option.votes.toLocaleString() %></td>
+              <td data-label="Share"><span class="survey-bar" aria-hidden="true"><span style="width: <%= option.percent %>%"></span></span> <%= option.percent %>%</td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% }) %>
+      <details class="survey-responses">
+        <summary>All responses (anonymous)<% if (r.rowsTruncated) { %> - latest <%= r.responseRows.length %> shown, export has all<% } %></summary>
+        <div class="survey-scroll">
+          <table class="admin-table survey-table">
+            <thead><tr><th>#</th><% r.questions.forEach((question, qi) => { %><th title="<%= question.text %>">Q<%= qi + 1 %></th><% }) %></tr></thead>
+            <tbody>
+              <% r.responseRows.slice().reverse().forEach((row) => { %>
+              <tr><td data-label="#"><%= row.number %></td><% row.answers.forEach((answer, qi) => { %><td data-label="Q<%= qi + 1 %>"><%= answer || '—' %></td><% }) %></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    <% } %>
+  </div>
+</section>
+<% }) %>
+
+<template id="survey-q-template"><%- include('survey-question-fields', { index: '__Q__', number: '__N__' }) %></template>

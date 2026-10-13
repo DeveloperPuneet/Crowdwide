@@ -244,6 +244,7 @@ exports.admin = async (req, res) => {
     : [];
   const communityAdShareById = new Map(communityAdShareCommunities.map((community) => [String(community._id), community]));
   communityAdShares.forEach((row) => { row.community = communityAdShareById.get(String(row._id)) || null; });
+  res.locals.surveys = await require('../services/surveys').adminSurveys();
   res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 

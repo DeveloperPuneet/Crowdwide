@@ -111,11 +111,12 @@ function fetchRecent(match, limit) {
   return Post.aggregate([{ $match: match }, { $sort: { createdAt: -1 } }, { $limit: limit }, { $project: candidateProjection() }]);
 }
 
-function fetchMostEngaged(match, limit) {
+function fetchMostEngaged(match, limit, minPoints = 0) {
   return Post.aggregate([
     { $match: match },
     { $project: candidateProjection() },
     { $addFields: { points: POINTS_EXPRESSION } },
+    ...(minPoints > 0 ? [{ $match: { points: { $gte: minPoints } } }] : []),
     { $sort: { points: -1, createdAt: -1 } },
     { $limit: limit }
   ]);
@@ -248,9 +249,10 @@ async function gatherCandidates({ user, view, restricted, excludedAuthors, inter
       joined.length ? fetchRecent({ ...base, community: { $in: joined }, ...since(60) }, 40) : []
     );
   } else {
-    // Viral: widen the window when the platform is quiet.
-    let engaged = await fetchMostEngaged({ ...base, ...since(14) }, 120);
-    if (engaged.length < ranker.PAGE_SIZE * 2) engaged = await fetchMostEngaged({ ...base, ...since(90) }, 120);
+    // Viral: only posts with real traction; widen the window when the
+    // platform is quiet (never by letting untouched posts in).
+    let engaged = await fetchMostEngaged({ ...base, ...since(14) }, 120, ranker.MIN_VIRAL_POINTS);
+    if (engaged.length < ranker.PAGE_SIZE * 2) engaged = await fetchMostEngaged({ ...base, ...since(90) }, 120, ranker.MIN_VIRAL_POINTS);
     lists.push(engaged);
   }
 

@@ -1,0 +1,19 @@
+<%# Survey builder form. Locals: survey (optional, to edit), action, submitLabel, csrfToken, locked (questions can't change), isNew %>
+<% const editing = locals.survey || null; const isLocked = Boolean(locals.locked); %>
+<form class="survey-builder" method="post" action="<%= action %>" data-survey-builder>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="survey-builder-meta">
+    <label>Survey title<input type="text" name="title" maxlength="120" required placeholder="e.g. Help us shape Crowdwide" value="<%= editing ? editing.title : '' %>"></label>
+    <label>Short intro (optional)<input type="text" name="description" maxlength="500" placeholder="One or two sentences shown above the questions" value="<%= editing ? editing.description : '' %>"></label>
+  </div>
+  <% if (isLocked) { %><p class="survey-lock-note">This survey already has responses, so its questions are locked to keep the results meaningful. Export what you need, then <strong>clear the results</strong> to edit the questions. You can still change the title and intro.</p><% } %>
+  <fieldset class="survey-questions" data-questions <%= isLocked ? 'disabled' : '' %>>
+    <% const list = editing ? editing.questions : [null]; %>
+    <% list.forEach((question, i) => { %><%- include('survey-question-fields', { index: i, number: i + 1, question: question || undefined }) %><% }) %>
+  </fieldset>
+  <div class="survey-builder-actions">
+    <button class="button button-ghost button-small" type="button" data-add-question <%= isLocked ? 'disabled' : '' %>>+ Add question</button>
+    <% if (locals.isNew) { %><label class="checkbox-field"><input type="checkbox" name="publish"> Publish immediately</label><% } %>
+    <button class="button button-primary button-small" type="submit"><%= submitLabel %></button>
+  </div>
+</form>

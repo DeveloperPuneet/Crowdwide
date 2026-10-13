@@ -69,6 +69,33 @@ test('tabs: posts tabs include polls, articles tabs only articles, viral needs t
   assert.equal(viral.length, 20, 'posts without traction are left out when enough viral ones exist');
 });
 
+test('Viral never falls back to untouched posts, so it differs from New on a quiet platform', () => {
+  // Regression: with fewer than a page of engaged posts, Viral used to include
+  // everything and order it by freshness - the same list as "New".
+  const quiet = [
+    cand({ createdAt: hoursAgo(1) }),
+    cand({ createdAt: hoursAgo(2) }),
+    cand({ createdAt: hoursAgo(30), counts: { likes: 9, comments: 2 } }),
+    cand({ createdAt: hoursAgo(3), counts: { likes: 1 } })
+  ];
+  const newIds = r.rankFeed(quiet, ctx(), 'posts-new').map((item) => item.post._id);
+  const viralIds = r.rankFeed(quiet, ctx(), 'posts-viral').map((item) => item.post._id);
+  assert.equal(newIds.length, 4);
+  assert.deepEqual(viralIds, [quiet[2]._id], 'only the post with real traction is viral');
+  assert.notDeepEqual(viralIds, newIds);
+  assert.deepEqual(r.rankFeed(quiet.slice(0, 2), ctx(), 'posts-viral'), [], 'nothing viral -> empty tab, not a copy of New');
+  assert.deepEqual(r.rankFeed(quiet.slice(0, 2), ctx(), 'articles-viral'), []);
+});
+
+test('Viral orders by decayed engagement, New by recency', () => {
+  const older = cand({ createdAt: hoursAgo(20), counts: { likes: 60, comments: 10 } });
+  const newer = cand({ createdAt: hoursAgo(1), counts: { likes: 2 } });
+  const viral = r.rankFeed([newer, older], ctx(), 'posts-viral').map((item) => item.post._id);
+  const fresh = r.rankFeed([newer, older], ctx(), 'posts-new').map((item) => item.post._id);
+  assert.deepEqual(viral, [older._id, newer._id]);
+  assert.deepEqual(fresh, [newer._id, older._id]);
+});
+
 test('New tab is newest-first (new voices get a small head start)', () => {
   const posts = [cand({ createdAt: hoursAgo(10) }), cand({ createdAt: hoursAgo(1) }), cand({ createdAt: hoursAgo(5) })];
   const order = r.rankFeed(posts, ctx(), 'posts-new').map((item) => item.post._id);
