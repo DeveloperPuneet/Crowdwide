@@ -1220,3 +1220,22 @@ test('guests can read comment threads but only see account-gated comment actions
   assert.match(html, /Join the conversation/);
   assert.doesNotMatch(html, /<form[^>]+action="\/(?:posts\/p102\/(?:like|poll\/vote|comments)|comments\/c1\/like)"/);
 });
+
+test('dashboard shows the Help in surveys link and panel for normal users', async () => {
+  const data = {
+    title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true,
+    feed: { posts: [], visiblePosts: [], hasMore: false, activeTab: 'for-you' }, sitewideFeedAds: [],
+    communities: [], composerCommunities: [], availableQuests: [], selectedQuestId: '', selectedCommunityId: '',
+    people: [], coAuthorSuggestions: [], joinedCommunities: [], following: [], wordLimits: { post: 60, article: 300 },
+    profileUser: currentUser, showEarnTip: false
+  };
+  const withSurveys = await render('pages/dashboard.ejs', { ...data, openSurveys: [{ _id: 's1', title: 'Feed feedback', questionCount: 4 }] });
+  assert.match(withSurveys, /Help in surveys/);
+  assert.match(withSurveys, /href="\/surveys\/s1"/);
+  assert.match(withSurveys, /4 questions/);
+  assert.match(withSurveys, /side-badge/);
+  const none = await render('pages/dashboard.ejs', { ...data, openSurveys: [] });
+  assert.match(none, /Help in surveys/);
+  assert.match(none, /all caught up - no new surveys/);
+  assert.doesNotMatch(none, /side-badge/);
+});

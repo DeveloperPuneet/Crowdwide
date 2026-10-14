@@ -27,6 +27,8 @@ const logger = require('../services/logger');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
 const { getSitewideFeedCampaigns } = require('../services/advertising');
+const Survey = require('../models/Survey');
+const surveyService = require('../services/surveys');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -193,6 +195,17 @@ exports.dashboard = async (req, res) => {
 			logger.error('Crowdwide-feed advertisements could not be loaded', error);
 		}
 		const sitewideFeedAds = buildSitewideFeedAds(sitewideCampaigns, feed.posts.length);
+		// "Help in surveys": live surveys this browser has not answered yet.
+		// Never let a survey problem take the dashboard down.
+		let openSurveys = [];
+		try {
+			const live = await Survey.find({ status: 'published' }).sort({ createdAt: -1 }).limit(20).select('title questions epoch').lean();
+			openSurveys = live
+				.filter((survey) => !surveyService.hasAnswered(req, survey))
+				.map((survey) => ({ _id: String(survey._id), title: survey.title, questionCount: (survey.questions || []).length }));
+		} catch (error) {
+			logger.error('Open surveys could not be loaded for the dashboard', error);
+		}
 		const joinedCommunityDocIds = joinedCommunityDocs.map((community) => community._id);
 		const availableQuests = joinedCommunityDocIds.length
 			? await Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
@@ -207,6 +220,7 @@ exports.dashboard = async (req, res) => {
 			noIndex: true,
 			feed: { ...feed, activeTab, visiblePosts: feed.posts },
 			sitewideFeedAds,
+			openSurveys,
 			communities,
 			composerCommunities,
 			availableQuests,

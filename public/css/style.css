@@ -3193,3 +3193,10 @@ pre { overflow-x: auto; }
 .wallet-welcome .icon-waves { margin-right: 2px; }
 .wallet-stats .waves-amount .icon-waves { width: .85em; height: .85em; }
 .wallet-balance .icon-waves circle:first-child { stroke: #fff; stroke-width: 1.2; }
+
+/* Help in surveys */
+.side-links .side-badge { margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--ac-blue); color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
+.survey-help-note, .survey-help-empty { color: var(--tx-faint); font-size: 12px; line-height: 1.5; padding: 4px 0 10px; margin: 0; }
+.survey-help-row { text-decoration: none; color: inherit; justify-content: space-between; }
+.survey-help-row strong { overflow-wrap: anywhere; }
+.survey-help-row:hover strong { text-decoration: underline; }

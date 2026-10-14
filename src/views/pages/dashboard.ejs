@@ -23,6 +23,7 @@
 			<a href="/settings/account"><%- icon('settings') %> <span>Account settings</span></a>
 			<a href="/communities/mine"><%- icon('users') %> <span>Your communities</span></a>
 			<a href="/people"><%- icon('plus') %> <span>People to follow</span></a>
+			<a href="/surveys" class="side-survey-link"><%- icon('message-square') %> <span>Help in surveys</span><% if ((locals.openSurveys || []).length) { %><b class="side-badge" aria-label="<%= openSurveys.length %> open surveys"><%= openSurveys.length %></b><% } %></a>
 		</nav>
 		</div>
 	</aside>
@@ -147,6 +148,20 @@
 			</div>
 			<% }) %>
 			<form class="create-community" method="post" action="/communities"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="name" placeholder="Create a community" required><input name="description" placeholder="What is it about?" required><select name="category" aria-label="Community category"><% communityCategories.forEach((category) => { %><option value="<%= category.value %>"><%= category.label %></option><% }) %></select><label class="privacy-check"><input type="checkbox" name="isPrivate"> Private community</label><button class="button button-dark button-small" type="submit">Create <span><%- icon('plus', { size: 14 }) %></span></button></form>
+		</section>
+		<section class="discover-panel survey-help-panel" id="survey-help">
+			<div class="panel-heading"><h2>Help in surveys</h2><a href="/surveys">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
+			<p class="survey-help-note">Quick, anonymous questions that help shape Crowdwide. No name or email is collected.</p>
+			<% const surveysToShow = (locals.openSurveys || []).slice(0, 3); %>
+			<% if (!surveysToShow.length) { %>
+			<p class="survey-help-empty">You're all caught up - no new surveys right now.</p>
+			<% } %>
+			<% surveysToShow.forEach((survey) => { %>
+			<a class="discover-row survey-help-row" href="/surveys/<%= survey._id %>">
+				<div><strong><%= survey.title %></strong><span><%= survey.questionCount %> question<%= survey.questionCount === 1 ? '' : 's' %> · about <%= Math.max(1, Math.ceil(survey.questionCount / 3)) %> min</span></div>
+				<span class="joined-mark">Answer</span>
+			</a>
+			<% }) %>
 		</section>
 		<section class="discover-panel" id="people">
 			<div class="panel-heading"><h2>People to follow</h2><a href="/people">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
