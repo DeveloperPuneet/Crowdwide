@@ -31,8 +31,13 @@ const TAB_CONFIG = {
 const TABS = Object.keys(TAB_CONFIG);
 
 const ENGAGEMENT_WEIGHTS = { likes: 1, reactions: 1.5, comments: 3, shares: 4, pollVotes: 1.2, views: 0.05 };
-const MIN_VIRAL_POINTS = 2; // e.g. two likes, or one comment - below this a post is not "viral"
-const GRAVITY = 1.35;
+const MIN_VIRAL_POINTS = 2; // real interactions only (views excluded): two likes, or one comment
+const GRAVITY = 1.35; // "hot" decay used by For you: fast, so the feed keeps moving
+// Viral decays far more slowly: a post that took off yesterday and is still
+// collecting likes should outrank a 2-like post from ten minutes ago.
+const VIRAL_GRAVITY = 0.85;
+// A post with fewer interactions than this is still in its "first look" window.
+const FIRST_LOOK_INTERACTIONS = 3;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
@@ -76,6 +81,17 @@ function engagementPoints(counts = {}) {
     + (counts.shares || 0) * ENGAGEMENT_WEIGHTS.shares
     + (counts.pollVotes || 0) * ENGAGEMENT_WEIGHTS.pollVotes
     + (counts.views || 0) * ENGAGEMENT_WEIGHTS.views;
+}
+
+// Engagement that required the reader to do something. Views are counted
+// when a post is opened, which is a weak signal on its own, so they never make
+// a post eligible for Viral.
+function interactionPoints(counts = {}) {
+  return engagementPoints({ ...counts, views: 0 });
+}
+
+function viralValue(points, hours) {
+  return points / Math.pow(hours + 2, VIRAL_GRAVITY);
 }
 
 // Hacker-News style "hot" value: engagement decays with age so yesterday's
@@ -124,6 +140,15 @@ function growthBoost({ authorAgeDays, authorFollowers, communityMembers, qualifi
   return clamp(Math.max(authorSide, communitySide), 0, 1);
 }
 
+// Cold-start test window: a fresh, substantial post that nobody has reacted to
+// yet gets a short boost, whoever wrote it, so every new voice is actually seen
+// by someone. The boost fades with age and ends once the post has real
+// interactions - from then on it competes on merit.
+function firstLook(post, hours, qualifies) {
+  if (!qualifies || interactionPoints(post.counts) >= FIRST_LOOK_INTERACTIONS) return 0;
+  return freshness(hours, 6);
+}
+
 function passesQualityBar(post) {
   const substantial = (post.bodyLength || 0) >= 25 || post.hasMedia || post.type === 'poll';
   return Boolean(substantial) && post.moderationStatus !== 'needs-review' && (post.moderationScore || 0) >= 0;
@@ -161,6 +186,7 @@ function describeSource(post, reason, parts, ctx) {
   if (topTag && topTag[1] >= 0.35) return `Because you like #${topTag[0]}`;
   if (reason === 'extended') return 'Popular with people you follow';
   if (parts.growth >= 0.5) return post.community && (ctx.communityMembers.get(String(post.community)) ?? 999) < 50 ? 'Growing community' : 'New voice worth a look';
+  if (parts.look >= 0.5 && parts.growth < 0.5) return 'Fresh - be the first to react';
   if (parts.hotN >= 0.6) return 'Trending on Crowdwide';
   return 'Discover';
 }
@@ -171,6 +197,7 @@ function scorePost(post, ctx, view = 'for-you') {
   const { lane, reason } = classifyPost(post, ctx);
   const points = engagementPoints(post.counts);
   const hotN = ctx.maxHot > 0 ? Math.log1p(hotValue(points, hours)) / Math.log1p(ctx.maxHot) : 0;
+  const viralN = ctx.maxViral > 0 ? Math.log1p(viralValue(interactionPoints(post.counts), hours)) / Math.log1p(ctx.maxViral) : 0;
   const fresh = freshness(hours, config.halfLifeHours);
   const interest = interestScore(post.hashtags, ctx.interests);
   const authorInfo = ctx.authors.get(String(post.author)) || {};
@@ -183,18 +210,23 @@ function scorePost(post, ctx, view = 'for-you') {
   });
   const affinity = clamp(ctx.authorAffinity.get(String(post.author)) || 0, 0, 1);
   const net = networkAffinity(reason);
-  const parts = { hotN: clamp(hotN, 0, 1), fresh, interest, growth, affinity, net };
+  const qualifies = passesQualityBar(post);
+  const look = firstLook(post, hours, qualifies);
+  const parts = { hotN: clamp(hotN, 0, 1), viralN: clamp(viralN, 0, 1), fresh, interest, growth, affinity, net, look };
 
   let score;
   if (view === 'posts-new' || view === 'articles-new') {
-    // Newest first, with a head start (in hours) for new voices and for
-    // topics you care about. Explainable: "as if it were posted N hours later".
-    score = -hours + 3 * growth + 1.5 * interest + 10 * qualityAdjustment(post);
+    // Newest first. The only adjustment is a small head start (at most ~2h,
+    // "as if it were posted N hours later") for new voices and topics you care
+    // about - small enough that the tab still reads as a timeline.
+    score = -hours + 1.5 * growth + 0.5 * interest + 4 * qualityAdjustment(post);
   } else if (view === 'posts-viral' || view === 'articles-viral') {
-    score = parts.hotN * (1 + 0.5 * growth) + 0.02 * fresh + qualityAdjustment(post);
+    // Real interactions with a slow decay, lifted for under-exposed voices:
+    // the same number of likes means more for an account nobody follows yet.
+    score = parts.viralN * (1 + 0.75 * growth) + 0.02 * fresh + qualityAdjustment(post);
   } else {
     const jitter = (hash01(`${ctx.userId}:${post._id}:${Math.floor(ctx.now / HOUR_MS)}`) - 0.5) * 0.05;
-    score = 0.28 * interest + 0.2 * net + 0.06 * affinity + 0.2 * parts.hotN + 0.2 * fresh + 0.1 * growth + qualityAdjustment(post) + jitter;
+    score = 0.28 * interest + 0.2 * net + 0.06 * affinity + 0.2 * parts.hotN + 0.2 * fresh + 0.1 * growth + 0.08 * look + qualityAdjustment(post) + jitter;
   }
   return { post, score, lane, reason, parts, source: describeSource(post, reason, parts, ctx) };
 }
@@ -202,16 +234,19 @@ function scorePost(post, ctx, view = 'for-you') {
 // Highest score first, but never more than `maxPerAuthor` posts from one
 // author in a row-window and never the same author back-to-back when
 // someone else is available.
-function diversify(scored, { gap = 2, maxPerAuthor = 3 } = {}) {
+function diversify(scored, { gap = 2, maxPerAuthor = 3, maxPerCommunity = Infinity } = {}) {
   const remaining = scored.slice().sort((a, b) => b.score - a.score);
   const out = [];
   const counts = new Map();
+  const communityCounts = new Map();
   const deferred = [];
   while (remaining.length) {
     const recent = out.slice(-gap).map((item) => String(item.post.author));
     let index = remaining.findIndex((item) => {
       const author = String(item.post.author);
-      return !recent.includes(author) && (counts.get(author) || 0) < maxPerAuthor;
+      const community = item.post.community ? String(item.post.community) : null;
+      return !recent.includes(author) && (counts.get(author) || 0) < maxPerAuthor
+        && (!community || (communityCounts.get(community) || 0) < maxPerCommunity);
     });
     if (index === -1) {
       // Everything left is from over-represented authors: hold them back
@@ -221,6 +256,7 @@ function diversify(scored, { gap = 2, maxPerAuthor = 3 } = {}) {
     }
     const [item] = remaining.splice(index, 1);
     counts.set(String(item.post.author), (counts.get(String(item.post.author)) || 0) + 1);
+    if (item.post.community) communityCounts.set(String(item.post.community), (communityCounts.get(String(item.post.community)) || 0) + 1);
     out.push(item);
   }
   return out.concat(deferred);
@@ -254,6 +290,18 @@ function mixLanes(network, discovery, { ratio = DEFAULT_DISCOVERY_RATIO, limit =
   return out;
 }
 
+// New and Viral have a visible sort order, so the outside-network quota may
+// only decide *which* posts land on a page, never their order: every page is
+// re-sorted by the tab's own score. (Without this a 4h-old post could sit above
+// a 3h-old one just because the quota pulled it forward.)
+function sortWithinPages(items, pageSize = PAGE_SIZE) {
+  const out = [];
+  for (let start = 0; start < items.length; start += pageSize) {
+    out.push(...items.slice(start, start + pageSize).sort((a, b) => b.score - a.score));
+  }
+  return out;
+}
+
 // Full pipeline: candidates in, ranked feed out.
 //   candidates: [{ _id, author, community, type, hashtags, createdAt, counts,
 //                  bodyLength, hasMedia, moderationStatus, moderationScore, contentWarning }]
@@ -283,6 +331,7 @@ function rankFeed(candidates, ctx, view = 'for-you', { limit = 96 } = {}) {
   });
   const maxHot = unique.reduce((max, post) => Math.max(max, hotValue(engagementPoints(post.counts), ageHours(post.createdAt, full.now))), 0);
   full.maxHot = maxHot;
+  full.maxViral = unique.reduce((max, post) => Math.max(max, viralValue(interactionPoints(post.counts), ageHours(post.createdAt, full.now))), 0);
 
   let scored = unique.map((post) => scorePost(post, full, view));
   if (view === 'my-community') {
@@ -298,11 +347,14 @@ function rankFeed(candidates, ctx, view = 'for-you', { limit = 96 } = {}) {
     // made Viral a freshness-sorted list of everything, i.e. identical to
     // "New". Posts with no traction are never shown here; an empty Viral tab
     // simply means nothing is taking off yet.
-    scored = scored.filter((item) => engagementPoints(item.post.counts) >= MIN_VIRAL_POINTS);
+    scored = scored.filter((item) => interactionPoints(item.post.counts) >= MIN_VIRAL_POINTS);
   }
   const networkLane = diversify(scored.filter((item) => item.lane === 'network'));
-  const discoveryLane = diversify(scored.filter((item) => item.lane === 'discovery'));
-  return mixLanes(networkLane, discoveryLane, { ratio, limit, strict: config.mixing === 'strict' });
+  // Discovery is capped per community so one busy community cannot crowd out
+  // the small, growing ones this lane exists to surface.
+  const discoveryLane = diversify(scored.filter((item) => item.lane === 'discovery'), { maxPerCommunity: 3 });
+  const mixed = mixLanes(networkLane, discoveryLane, { ratio, limit, strict: config.mixing === 'strict' });
+  return config.mixing === 'floor' ? sortWithinPages(mixed) : mixed;
 }
 
 module.exports = {
@@ -314,12 +366,18 @@ module.exports = {
   TABS,
   ENGAGEMENT_WEIGHTS,
   MIN_VIRAL_POINTS,
+  VIRAL_GRAVITY,
+  FIRST_LOOK_INTERACTIONS,
   isFeedTab,
   resolveDiscoveryRatio,
   hash01,
   ageHours,
   engagementPoints,
   hotValue,
+  viralValue,
+  interactionPoints,
+  firstLook,
+  sortWithinPages,
   freshness,
   interestScore,
   buildInterestMap,

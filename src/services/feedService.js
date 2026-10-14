@@ -9,8 +9,8 @@ const logger = require('./logger');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const POOL_LIMIT = 96; // ranked posts kept per feed (6 pages of 16)
-const FEED_CACHE_TTL_MS = 2 * 60 * 1000; // pages 2+ reuse the ranking of page 1
 const FEED_REFRESH_AFTER_MS = 30 * 1000; // reloading page 1 re-ranks after this long
+const FEED_PAGINATION_TTL_MS = 10 * 60 * 1000; // scrolling to page 2+ keeps the order page 1 had, even after a slow read
 const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 500;
 
@@ -20,10 +20,10 @@ const profileCache = new Map();
 const NOTES = {
   'for-you': 'Ranked for you: people you follow, your communities and interests - plus voices worth discovering.',
   'my-community': 'Posts from communities you have joined, with a few communities you might like.',
-  'posts-new': 'Newest posts first. New voices get a head start.',
-  'posts-viral': 'Posts gaining the most traction right now.',
-  'articles-new': 'Newest articles first. New voices get a head start.',
-  'articles-viral': 'Articles readers are engaging with the most.'
+  'posts-new': 'Newest posts first. New voices and small communities are always included.',
+  'posts-viral': 'Posts people are liking, reacting to and discussing most - new voices count extra.',
+  'articles-new': 'Newest articles first. New voices and small communities are always included.',
+  'articles-viral': 'Articles readers are liking, reacting to and discussing most - new voices count extra.'
 };
 
 function remember(cache, key, value) {
@@ -100,6 +100,18 @@ const POINTS_EXPRESSION = {
   ]
 };
 
+// Viral eligibility and ordering use interactions only: a post that was merely
+// opened a lot (views) is not "viral".
+const INTERACTION_EXPRESSION = {
+  $add: [
+    { $multiply: ['$counts.likes', W.likes] },
+    { $multiply: ['$counts.reactions', W.reactions] },
+    { $multiply: ['$counts.comments', W.comments] },
+    { $multiply: ['$counts.shares', W.shares] },
+    { $multiply: ['$counts.pollVotes', W.pollVotes] }
+  ]
+};
+
 // NOTE: Query#distinct ignores sort()/limit(), so bounded id lists must use
 // a normal find + select instead.
 async function idsOf(query) {
@@ -111,11 +123,11 @@ function fetchRecent(match, limit) {
   return Post.aggregate([{ $match: match }, { $sort: { createdAt: -1 } }, { $limit: limit }, { $project: candidateProjection() }]);
 }
 
-function fetchMostEngaged(match, limit, minPoints = 0) {
+function fetchMostEngaged(match, limit, minPoints = 0, { interactionsOnly = false } = {}) {
   return Post.aggregate([
     { $match: match },
     { $project: candidateProjection() },
-    { $addFields: { points: POINTS_EXPRESSION } },
+    { $addFields: { points: interactionsOnly ? INTERACTION_EXPRESSION : POINTS_EXPRESSION } },
     ...(minPoints > 0 ? [{ $match: { points: { $gte: minPoints } } }] : []),
     { $sort: { points: -1, createdAt: -1 } },
     { $limit: limit }
@@ -194,6 +206,16 @@ function typeFilter(view) {
   return types ? { type: { $in: types } } : {};
 }
 
+// Under-exposed sources every tab should be able to surface: recently joined
+// accounts and small public communities.
+async function loadGrowthSources(now) {
+  const [newAuthors, smallCommunities] = await Promise.all([
+    idsOf(User.find({ isVerified: true, createdAt: { $gte: new Date(now - 45 * DAY_MS) } }).sort({ createdAt: -1 }).limit(100)),
+    idsOf(Community.find({ isPrivate: false, membersCount: { $lte: 25 } }).sort({ createdAt: -1 }).limit(30))
+  ]);
+  return { newAuthors, smallCommunities };
+}
+
 // Collects candidate posts for a view. Every query is bounded and uses the
 // status/createdAt indexes, so the cost stays flat as the platform grows.
 async function gatherCandidates({ user, view, restricted, excludedAuthors, interests, now }) {
@@ -212,10 +234,9 @@ async function gatherCandidates({ user, view, restricted, excludedAuthors, inter
 
   if (view === 'for-you') {
     const tags = topInterestTags(interests);
-    const [followedFollowing, newAuthors, smallCommunities] = await Promise.all([
+    const [followedFollowing, { newAuthors, smallCommunities }] = await Promise.all([
       following.length ? User.find({ _id: { $in: following.slice(0, 200) } }).distinct('following') : [],
-      idsOf(User.find({ isVerified: true, createdAt: { $gte: new Date(now - 45 * DAY_MS) } }).sort({ createdAt: -1 }).limit(100)),
-      idsOf(Community.find({ isPrivate: false, membersCount: { $lte: 25 } }).sort({ createdAt: -1 }).limit(30))
+      loadGrowthSources(now)
     ]);
     const followingSet = new Set(following.map(String));
     extendedIds = followedFollowing.filter((id) => String(id) !== String(user._id) && !followingSet.has(String(id))).slice(0, 150);
@@ -243,17 +264,30 @@ async function gatherCandidates({ user, view, restricted, excludedAuthors, inter
       suggested.length ? fetchRecent({ ...base, community: { $in: suggested }, ...since(45) }, 80) : []
     );
   } else if (view.endsWith('-new')) {
+    const { newAuthors, smallCommunities } = await loadGrowthSources(now);
     lists.push(
       fetchRecent({ ...base, ...since(60) }, 120),
+      // Guarantees: a busy platform's newest 120 posts must not push out new
+      // accounts or small communities.
+      newAuthors.length ? fetchRecent({ ...base, author: { $in: newAuthors, $nin: excludedAuthors }, ...since(14) }, 40) : [],
+      smallCommunities.length ? fetchRecent({ ...base, community: { $in: smallCommunities, $nin: restricted }, ...since(14) }, 40) : [],
       following.length ? fetchRecent({ ...base, author: { $in: following, $nin: excludedAuthors }, ...since(60) }, 40) : [],
       joined.length ? fetchRecent({ ...base, community: { $in: joined }, ...since(60) }, 40) : []
     );
   } else {
     // Viral: only posts with real traction; widen the window when the
     // platform is quiet (never by letting untouched posts in).
-    let engaged = await fetchMostEngaged({ ...base, ...since(14) }, 120, ranker.MIN_VIRAL_POINTS);
-    if (engaged.length < ranker.PAGE_SIZE * 2) engaged = await fetchMostEngaged({ ...base, ...since(90) }, 120, ranker.MIN_VIRAL_POINTS);
-    lists.push(engaged);
+    const only = { interactionsOnly: true };
+    const { newAuthors, smallCommunities } = await loadGrowthSources(now);
+    let engaged = await fetchMostEngaged({ ...base, ...since(14) }, 120, ranker.MIN_VIRAL_POINTS, only);
+    if (engaged.length < ranker.PAGE_SIZE * 2) engaged = await fetchMostEngaged({ ...base, ...since(90) }, 120, ranker.MIN_VIRAL_POINTS, only);
+    lists.push(
+      engaged,
+      // Rising: small-reach posts that already have traction would never make
+      // a global top-120 on a big platform, so they get their own lane.
+      newAuthors.length ? fetchMostEngaged({ ...base, author: { $in: newAuthors, $nin: excludedAuthors }, ...since(21) }, 40, ranker.MIN_VIRAL_POINTS, only) : [],
+      smallCommunities.length ? fetchMostEngaged({ ...base, community: { $in: smallCommunities, $nin: restricted }, ...since(21) }, 40, ranker.MIN_VIRAL_POINTS, only) : []
+    );
   }
 
   const results = await Promise.all(lists);
@@ -414,7 +448,7 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   const key = `${userId}:${tab}`;
   const cached = feedCache.get(key);
   const age = cached ? now - cached.at : Infinity;
-  const reuse = cached && !force && age < FEED_CACHE_TTL_MS && (pageNumber > 1 || age < FEED_REFRESH_AFTER_MS);
+  const reuse = cached && !force && (pageNumber > 1 ? age < FEED_PAGINATION_TTL_MS : age < FEED_REFRESH_AFTER_MS);
   let entries;
   if (reuse) entries = cached.entries;
   else {

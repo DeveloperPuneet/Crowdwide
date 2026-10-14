@@ -116,3 +116,65 @@ test('my community only keeps posts that live in a community', () => {
   assert.equal(feed.length, 2);
   assert.equal(feed.filter((item) => item.lane === 'network').length, 1);
 });
+
+test('New is strictly newest-first inside every page even though the outside-network quota picks the posts', () => {
+  // Regression: the quota used to pull older outside posts ahead of newer
+  // network posts, so "New" was not in time order.
+  const following = new Set(['f1', 'f2']);
+  const posts = [
+    cand({ author: 'f1', createdAt: hoursAgo(1) }), cand({ author: 'f2', createdAt: hoursAgo(3) }), cand({ author: 'f1', createdAt: hoursAgo(5) }),
+    cand({ author: 'x1', createdAt: hoursAgo(2) }), cand({ author: 'x2', createdAt: hoursAgo(4) }), cand({ author: 'x3', createdAt: hoursAgo(6) }),
+    cand({ author: 'x4', createdAt: hoursAgo(7) }), cand({ author: 'x5', createdAt: hoursAgo(8) })
+  ];
+  const feed = r.rankFeed(posts, ctx({ following }), 'posts-new');
+  const ages = feed.map((item) => Math.round((NOW - item.post.createdAt) / 3600000));
+  assert.deepEqual(ages, ages.slice().sort((a, b) => a - b), 'newest first');
+  assert.ok(feed.slice(0, 8).filter((item) => item.lane === 'discovery').length >= 3, 'outside-network share is still guaranteed');
+});
+
+test('Viral counts real interactions only - opened-a-lot posts are not viral', () => {
+  const viewedOnly = cand({ counts: { views: 400 } });
+  const liked = cand({ counts: { likes: 2 } });
+  assert.equal(r.interactionPoints({ likes: 2, views: 400 }), 2);
+  assert.deepEqual(r.rankFeed([viewedOnly, liked], ctx(), 'posts-viral').map((item) => item.post._id), [liked._id]);
+});
+
+test('Viral keeps a big older hit above a tiny fresh post', () => {
+  const bigOld = cand({ createdAt: hoursAgo(70), counts: { likes: 60, comments: 20, shares: 5 } });
+  const tinyFresh = cand({ createdAt: hoursAgo(1.5), counts: { likes: 2 } });
+  const mid = cand({ createdAt: hoursAgo(10), counts: { likes: 8, comments: 2 } });
+  assert.deepEqual(r.rankFeed([tinyFresh, mid, bigOld], ctx(), 'posts-viral').map((item) => item.post._id), [bigOld._id, mid._id, tinyFresh._id]);
+});
+
+test('Viral lifts small-reach authors: same traction, the newcomer ranks higher', () => {
+  const newcomer = cand({ author: 'n', counts: { likes: 6 } });
+  const veteran = cand({ author: 'v', counts: { likes: 6 } });
+  const authors = new Map([['n', { ageDays: 3, followers: 0 }], ['v', { ageDays: 900, followers: 4000 }]]);
+  assert.deepEqual(r.rankFeed([veteran, newcomer], ctx({ authors }), 'posts-viral').map((item) => item.post._id), [newcomer._id, veteran._id]);
+});
+
+test('first look: a fresh, untouched quality post is boosted, and the boost ends once it has interactions', () => {
+  const c = ctx({ maxHot: 5 });
+  const untouched = r.scorePost(cand({ createdAt: hoursAgo(1) }), c, 'for-you');
+  const reacted = r.scorePost(cand({ createdAt: hoursAgo(1), counts: { likes: 3 } }), c, 'for-you');
+  assert.ok(untouched.parts.look > 0.8);
+  assert.equal(reacted.parts.look, 0);
+  assert.equal(r.scorePost(cand({ createdAt: hoursAgo(1), bodyLength: 4 }), c, 'for-you').parts.look, 0, 'junk gets no first look');
+  assert.ok(r.scorePost(cand({ createdAt: hoursAgo(40) }), c, 'for-you').parts.look < 0.02, 'fades with age');
+});
+
+test('discovery lane caps one community so small ones are not crowded out', () => {
+  const posts = [
+    ...Array.from({ length: 10 }, (_, i) => cand({ community: 'big', createdAt: hoursAgo(1 + i * 0.1) })),
+    cand({ community: 'tiny1', createdAt: hoursAgo(5) }), cand({ community: 'tiny2', createdAt: hoursAgo(6) }), cand({ community: 'tiny3', createdAt: hoursAgo(7) })
+  ];
+  const feed = r.rankFeed(posts, ctx(), 'for-you', { limit: 16 });
+  const firstSeven = feed.slice(0, 6).map((item) => item.post.community);
+  assert.ok(firstSeven.filter((community) => community === 'big').length <= 3);
+  assert.ok(['tiny1', 'tiny2', 'tiny3'].every((community) => firstSeven.includes(community)));
+});
+
+test('sortWithinPages only reorders inside a page', () => {
+  const items = [3, 9, 5, 1].map((score) => ({ score }));
+  assert.deepEqual(r.sortWithinPages(items, 2).map((item) => item.score), [9, 3, 5, 1]);
+});

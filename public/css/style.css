@@ -3200,3 +3200,7 @@ pre { overflow-x: auto; }
 .survey-help-row { text-decoration: none; color: inherit; justify-content: space-between; }
 .survey-help-row strong { overflow-wrap: anywhere; }
 .survey-help-row:hover strong { text-decoration: underline; }
+
+/* Advertising dashboard title icon */
+.page-title-icon { vertical-align: -4px; margin-right: 6px; color: var(--ac-blue); }
+.eyebrow .icon { vertical-align: -2px; margin-right: 2px; }

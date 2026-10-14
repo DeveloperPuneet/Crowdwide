@@ -4,7 +4,7 @@
 <main class="explore-page admin-wide advertising-page">
   <%- include('../partials/flash') %>
   <header class="admin-page-header">
-    <div><p class="eyebrow">Advertiser tools</p><h1>Advertising dashboard</h1><p>Manage campaigns funded with Waves and review their delivery statistics.</p><p class="advertising-payment-note">Campaign budgets and all Crowdwide platform charges use Waves. Crowdwide does not process real-money payments or payouts.</p></div>
+    <div><p class="eyebrow"><%- icon('megaphone', { size: 14 }) %> Advertiser tools</p><h1><%- icon('megaphone', { size: 26, className: 'page-title-icon' }) %> Advertising dashboard</h1><p>Manage campaigns funded with Waves and review their delivery statistics.</p><p class="advertising-payment-note">Campaign budgets and all Crowdwide platform charges use Waves. Crowdwide does not process real-money payments or payouts.</p></div>
     <a class="button button-small button-ghost" href="/wallet"><%- icon('waves', { size: 16 }) %> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
   </header>
 
