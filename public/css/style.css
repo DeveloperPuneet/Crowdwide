@@ -3207,7 +3207,7 @@ pre { overflow-x: auto; }
 
 /* Install-app button (shown only when the browser says the site is installable). */
 .nav-drawer-panel .nav-drawer-install { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 8px; padding: 13px 12px; font: inherit; font-size: 14px; color: var(--tx-mid); cursor: pointer; }
-.nav-drawer-panel .nav-drawer-install:hover { background: var(--sf-2); color: #fff; }
+.nav-drawer-panel .nav-drawer-install:hover { background: var(--sf-2); color: var(--tx-hi); }
 .nav-drawer-panel .nav-drawer-install .icon { color: var(--ac-blue); }
 .nav-drawer-panel .nav-drawer-install[hidden] { display: none; }
 .install-app-button[hidden] { display: none; }
@@ -3270,3 +3270,6 @@ pre { overflow-x: auto; }
   .onboarding-actions > * { flex: 1 1 auto; }
   .onboarding-actions form .button { width: 100%; }
 }
+
+/* Onboarding selected-state text on light themes (accent is dark there) */
+:is(body[data-theme="light"], body[data-theme="pink"]) .onboarding-row-label:has(input:checked) .onboarding-row-action { color: #fff; }
