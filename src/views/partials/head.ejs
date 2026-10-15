@@ -1,4 +1,14 @@
-<!doctype html>
+<%
+  const siteUrl = String(locals.appUrl || 'http://localhost:3000').replace(/\/$/, '');
+  const absolutize = (value) => /^https?:\/\//i.test(value || '') ? value : (value && String(value).startsWith('/') ? siteUrl + value : '');
+  const defaultOgImage = siteUrl + '/images/Crowdwide_cover.png';
+  const shareImage = absolutize(locals.ogImage) || defaultOgImage;
+  const usingDefaultImage = shareImage === defaultOgImage;
+  const shareImageAlt = locals.ogImageAlt || (usingDefaultImage ? 'Crowdwide — a fair chance at discovery' : title);
+  const twitterCard = locals.twitterCard || (usingDefaultImage || locals.ogImageLarge ? 'summary_large_image' : 'summary');
+  const shareTitle = locals.ogTitle || (title + ' · Crowdwide');
+  const shareDescription = locals.description || 'A fair chance at discovery.';
+%><!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -12,26 +22,39 @@
 
     gtag('config', 'G-VW1V8S9J0V');
   </script>
-  <title><%= title %> · Crowdwide</title>
+  <title><%= /Crowdwide$/.test(title) ? title : title + ' · Crowdwide' %></title>
   <meta name="description" content="<%= locals.description || 'Crowdwide is a calmer social network for real discovery, thoughtful communities, and voices worth finding.' %>">
   <meta name="robots" content="<%= locals.noIndex ? 'noindex,nofollow' : 'index,follow' %>">
   <link rel="canonical" href="<%= locals.canonicalUrl || (locals.appUrl || 'http://localhost:3000').replace(/\/$/, '') + (locals.pagePath || '/') %>">
   <meta property="og:type" content="<%= locals.ogType || 'website' %>">
   <meta property="og:site_name" content="Crowdwide">
-  <meta property="og:title" content="<%= title %> · Crowdwide">
-  <meta property="og:description" content="<%= locals.description || 'A fair chance at discovery.' %>">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:title" content="<%= shareTitle %>">
+  <meta property="og:description" content="<%= shareDescription %>">
   <meta property="og:url" content="<%= locals.canonicalUrl || (locals.appUrl || 'http://localhost:3000').replace(/\/$/, '') + (locals.pagePath || '/') %>">
-  <meta property="og:image" content="<%= locals.ogImage || (locals.appUrl || 'http://localhost:3000').replace(/\/$/, '') + '/images/Crowdwide_cover.png' %>">
-  <meta property="og:image:alt" content="Crowdwide — a fair chance at discovery">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="<%= title %> · Crowdwide">
-  <meta name="twitter:description" content="<%= locals.description || 'A fair chance at discovery.' %>">
-  <meta name="twitter:image" content="<%= locals.ogImage || (locals.appUrl || 'http://localhost:3000').replace(/\/$/, '') + '/images/Crowdwide_cover.png' %>">
+  <meta property="og:image" content="<%= shareImage %>">
+  <meta property="og:image:alt" content="<%= shareImageAlt %>">
+  <% if (usingDefaultImage) { %><meta property="og:image:width" content="1672">
+  <meta property="og:image:height" content="941"><% } %>
+  <meta name="twitter:card" content="<%= twitterCard %>">
+  <meta name="twitter:title" content="<%= shareTitle %>">
+  <meta name="twitter:description" content="<%= shareDescription %>">
+  <meta name="twitter:image" content="<%= shareImage %>">
+  <meta name="twitter:image:alt" content="<%= shareImageAlt %>">
+  <% if (process.env.TWITTER_SITE) { %><meta name="twitter:site" content="<%= process.env.TWITTER_SITE %>"><% } %>
+  <% if (locals.ogArticleAuthor) { %><meta property="article:author" content="<%= locals.ogArticleAuthor %>"><% } %>
+  <% if (locals.ogPublishedTime) { %><meta property="article:published_time" content="<%= locals.ogPublishedTime %>"><% } %>
   <meta name="csrf-token" content="<%= csrfToken || '' %>">
   <meta name="app-url" content="<%= locals.appUrl || 'http://localhost:3000' %>">
   <link rel="alternate" type="application/rss+xml" title="Crowdwide RSS" href="/rss.xml">
   <link rel="icon" type="image/png" href="/images/Crowdwide_logo_192.png">
-  <link rel="apple-touch-icon" href="/images/Crowdwide_logo_192.png">
+  <link rel="apple-touch-icon" href="/images/Crowdwide_apple_touch_180.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#080914">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Crowdwide">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <% if (locals.structuredData) { %><script type="application/ld+json"><%- JSON.stringify(locals.structuredData).replace(/</g, '\\u003c') %></script><% } %>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

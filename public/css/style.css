@@ -3204,3 +3204,69 @@ pre { overflow-x: auto; }
 /* Advertising dashboard title icon */
 .page-title-icon { vertical-align: -4px; margin-right: 6px; color: var(--ac-blue); }
 .eyebrow .icon { vertical-align: -2px; margin-right: 2px; }
+
+/* Install-app button (shown only when the browser says the site is installable). */
+.nav-drawer-panel .nav-drawer-install { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 8px; padding: 13px 12px; font: inherit; font-size: 14px; color: var(--tx-mid); cursor: pointer; }
+.nav-drawer-panel .nav-drawer-install:hover { background: var(--sf-2); color: #fff; }
+.nav-drawer-panel .nav-drawer-install .icon { color: var(--ac-blue); }
+.nav-drawer-panel .nav-drawer-install[hidden] { display: none; }
+.install-app-button[hidden] { display: none; }
+
+/* Public share-preview page (links opened without signing in) */
+.share-preview-page { display: grid; place-items: center; min-height: 70vh; padding: 32px 16px; }
+.share-preview-card { width: min(100%, 520px); text-align: center; padding: 36px 28px; border: 1px solid var(--bd-1); border-radius: 20px; background: var(--sf-1); }
+.share-preview-image { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; margin: 0 auto 14px; display: block; background: var(--sf-2); }
+.share-preview-image.share-preview-logo { border-radius: 24px; object-fit: contain; padding: 10px; }
+.share-preview-card h1 { margin: 6px 0 4px; font-size: clamp(1.5rem, 5vw, 2rem); overflow-wrap: anywhere; }
+.share-preview-meta { margin: 0 0 12px; color: var(--tx-faint); font-size: 14px; }
+.share-preview-text { margin: 0 0 22px; color: var(--tx-lo); line-height: 1.6; overflow-wrap: anywhere; }
+.share-preview-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.share-preview-note { margin: 18px 0 0; color: var(--tx-faint); font-size: 12.5px; }
+
+/* First-time onboarding */
+.onboarding-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left)); max-width: 760px; margin: 0 auto; }
+.onboarding-page { max-width: 760px; margin: 0 auto; padding: 8px 16px 48px; }
+.onboarding-steps { display: flex; gap: 8px; list-style: none; margin: 8px 0 20px; padding: 0; }
+.onboarding-steps li { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 999px; background: var(--sf-1); border: 1px solid var(--bd-1); color: var(--tx-faint); font-size: 13px; }
+.onboarding-steps li.is-current { border-color: var(--ac-blue); color: var(--tx-hi); }
+.onboarding-steps li.is-done { color: var(--tx-mid); }
+.onboarding-step-num { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--sf-3); font-size: 12px; font-weight: 700; }
+.onboarding-steps li.is-current .onboarding-step-num { background: linear-gradient(110deg, #5068ff, #893cff); color: #fff; }
+.onboarding-step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.onboarding-card { padding: 28px; border: 1px solid var(--bd-1); border-radius: 20px; background: var(--sf-1); }
+.onboarding-card h1 { margin: 4px 0 8px; font-size: clamp(1.5rem, 5vw, 2rem); }
+.onboarding-lead { margin: 0 0 20px; color: var(--tx-lo); line-height: 1.6; }
+.onboarding-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.onboarding-chip { position: relative; cursor: pointer; }
+.onboarding-chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.onboarding-chip span { display: inline-block; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--bd-2); background: var(--sf-2); color: var(--tx-mid); font-size: 14px; transition: background .15s, border-color .15s, color .15s; }
+.onboarding-chip input:checked + span { background: linear-gradient(110deg, #5068ff, #893cff); border-color: transparent; color: #fff; }
+.onboarding-chip input:focus-visible + span { outline: 3px solid var(--ac-blue); outline-offset: 2px; }
+.onboarding-field { display: grid; gap: 6px; color: var(--tx-mid); font-size: 14px; }
+.onboarding-field small { color: var(--tx-faint); }
+.onboarding-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 8px; }
+.onboarding-row-label { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--bd-1); border-radius: 14px; background: var(--sf-2); cursor: pointer; }
+.onboarding-row-label:has(input:checked) { border-color: var(--ac-blue); background: var(--sf-3); }
+.onboarding-row-label input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.onboarding-row-label:has(input:focus-visible) { outline: 3px solid var(--ac-blue); outline-offset: 2px; }
+.onboarding-row-text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.onboarding-row-text strong { color: var(--tx-hi); overflow-wrap: anywhere; }
+.onboarding-row-text span { color: var(--tx-lo); font-size: 13px; overflow-wrap: anywhere; }
+.onboarding-row-text small { color: var(--tx-faint); font-size: 12px; }
+.onboarding-row-action { flex: none; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--bd-2); color: var(--tx-mid); font-size: 13px; font-weight: 600; }
+.onboarding-row-label:has(input:checked) .onboarding-row-action { background: var(--ac-blue); border-color: var(--ac-blue); color: #0d1020; }
+.onboarding-row-label:has(input:checked) .onboarding-row-action::after { content: 'ing'; }
+.onboarding-community-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--sf-3); color: var(--ac-blue); overflow: hidden; }
+.onboarding-community-icon img { width: 100%; height: 100%; object-fit: cover; }
+.onboarding-empty { padding: 14px; border: 1px dashed var(--bd-2); border-radius: 12px; color: var(--tx-lo); }
+.onboarding-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.onboarding-next { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 12px; }
+.onboarding-next li { display: flex; gap: 12px; align-items: flex-start; color: var(--tx-mid); line-height: 1.5; }
+.onboarding-next .icon { flex: none; color: var(--ac-blue); margin-top: 3px; }
+@media (max-width: 520px) {
+  .onboarding-card { padding: 20px 16px; }
+  .onboarding-step-label { display: none; }
+  .onboarding-steps li { justify-content: center; }
+  .onboarding-actions > * { flex: 1 1 auto; }
+  .onboarding-actions form .button { width: 100%; }
+}

@@ -34,16 +34,35 @@ async function establishSession(req, user) {
 
 exports.establishSession = establishSession;
 
-// Where to go after signing in: a pending group invite if there is one.
+// Pages a visitor may be sent back to after signing in or signing up: group and
+// community invites, and public-facing profile / community links that were
+// shared with them. Anything else falls back to the dashboard.
+const RETURN_PATHS = [
+  /^\/groups\/join\/[A-Za-z0-9_-]+$/,
+  /^\/communities\/invite\/[A-Za-z0-9_-]+$/,
+  /^\/communities\/[a-z0-9-]+$/,
+  /^\/u\/[a-f0-9]{24}$/
+];
+function safeReturnPath(value) {
+  return typeof value === 'string' && value.length <= 200 && RETURN_PATHS.some((pattern) => pattern.test(value)) ? value : null;
+}
+exports.safeReturnPath = safeReturnPath;
+
+// Where to go after signing in: a pending invite / shared link if there is one.
 function landingPath(req) {
-  const next = req.session.returnTo;
+  const next = safeReturnPath(req.session.returnTo);
   delete req.session.returnTo;
-  return typeof next === 'string' && /^\/groups\/join\/[A-Za-z0-9_-]+$/.test(next) ? next : '/dashboard';
+  return next || '/dashboard';
 }
 exports.landingPath = landingPath;
 
-exports.loginPage = (req, res) => res.render('pages/login', { title: 'Sign in' });
+function rememberNext(req) {
+  const next = safeReturnPath(req.query.next);
+  if (next) req.session.returnTo = next;
+}
+exports.loginPage = (req, res) => { rememberNext(req); res.render('pages/login', { title: 'Sign in' }); };
 exports.registerPage = (req, res) => {
+  rememberNext(req);
   const managed = turnstileEnabled();
   if (managed) req.session.registerFormShownAt = Date.now();
   res.render('pages/register', { title: 'Create your account', captcha: managed ? null : generateChallenge(req), turnstileSiteKey: managed ? turnstileSiteKey() : '' });
@@ -159,7 +178,9 @@ exports.verify = async (req, res) => {
     try { welcome = await grantWelcomeBonus(user._id); } catch (bonusError) { logger.warn('Welcome bonus could not be granted', bonusError); }
     await establishSession(req, user);
     if (welcome.granted) setFlash(req, 'success', `Welcome to Crowdwide! ${welcome.amount.toLocaleString()} Waves were added to your wallet. Earn more by posting, commenting and joining communities - see how in your wallet.`);
-    res.redirect(welcome.granted ? '/wallet?welcome=1' : landingPath(req));
+    // New members start with onboarding (interests, people, communities); it hands them on to
+    // wherever they were heading (or the dashboard) when they finish.
+    res.redirect('/welcome');
   } catch (error) {
     logger.error('Email verification failed', error);
     setFlash(req, 'error', 'We could not verify that code right now.');

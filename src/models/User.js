@@ -118,7 +118,11 @@ const userSchema = new mongoose.Schema({
   verificationExpires: Date,
   resetToken: String,
   resetExpires: Date,
-  dataDownloadRequestedAt: Date
+  dataDownloadRequestedAt: Date,
+  // First-time onboarding (interests, people, communities). A user with neither
+  // field set - every existing account too - is shown it once.
+  onboardingCompletedAt: Date,
+  onboardingSkippedAt: Date
 }, { timestamps: true });
 
 // Feed ranking counts followers ("who follows this author") from this field.

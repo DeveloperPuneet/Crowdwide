@@ -16,6 +16,7 @@
         <a href="/wallet"><%- icon('waves', { size: 16 }) %><span>Waves wallet</span></a>
         <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 16 }) %><span>Your profile</span></a>
         <a href="/recap"><%- icon('trending-up', { size: 16 }) %><span>Your recap</span></a>
+        <a href="/welcome"><%- icon('sparkles', { size: 16 }) %><span>Personalize your feed</span></a>
         <a href="/settings/account"><%- icon('settings', { size: 16 }) %><span>Account settings</span></a>
         <a href="/communities/mine"><%- icon('users', { size: 16 }) %><span>Your communities</span></a>
         <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 16 }) %><span>Admin console</span></a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 16 }) %><span>Moderator console</span></a><% } %>
@@ -54,6 +55,7 @@
     <a href="/messages"><%- icon('mail', { size: 18 }) %> Messages</a>
     <a href="/groups"><%- icon('message-circle', { size: 18 }) %> Groups</a>
     <a href="/notifications"><%- icon('bell', { size: 18 }) %> Notifications</a>
+    <button class="nav-drawer-install" type="button" data-pwa-install hidden><%- icon('plus', { size: 18 }) %> Install Crowdwide app</button>
     <% if (locals.currentUser) { %>
     <a href="/wallet"><%- icon('waves', { size: 16 }) %> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
     <details class="nav-drawer-more">
@@ -61,6 +63,7 @@
       <a class="nav-drawer-advertising" href="/advertising"><%- icon('megaphone', { size: 18 }) %> Advertiser dashboard</a>
       <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Your profile</a>
       <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>
+      <a href="/welcome"><%- icon('sparkles', { size: 18 }) %> Personalize your feed</a>
       <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Account settings</a>
       <a href="/communities/mine"><%- icon('users', { size: 18 }) %> Your communities</a>
       <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>

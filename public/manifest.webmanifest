@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "Crowdwide",
+  "short_name": "Crowdwide",
+  "description": "A calmer social network for real discovery, thoughtful communities, and voices worth finding.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/dashboard?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#080914",
+  "theme_color": "#080914",
+  "categories": ["social", "lifestyle"],
+  "icons": [
+    { "src": "/images/Crowdwide_logo_192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/images/Crowdwide_logo_512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/images/Crowdwide_icon_maskable_192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/images/Crowdwide_icon_maskable_512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Home feed", "short_name": "Home", "url": "/dashboard?source=shortcut", "icons": [{ "src": "/images/Crowdwide_logo_192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Notifications", "short_name": "Alerts", "url": "/notifications?source=shortcut", "icons": [{ "src": "/images/Crowdwide_logo_192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Messages", "short_name": "Messages", "url": "/messages?source=shortcut", "icons": [{ "src": "/images/Crowdwide_logo_192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Communities", "short_name": "Communities", "url": "/communities?source=shortcut", "icons": [{ "src": "/images/Crowdwide_logo_192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}

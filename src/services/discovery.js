@@ -1,5 +1,12 @@
 const Post = require('../models/Post');
+const mongoose = require('mongoose');
 const User = require('../models/User');
+
+// Aggregation pipelines do not cast ids the way find() does: a string id never
+// equals an ObjectId, so exclusions built from session ids silently matched nothing.
+function toObjectIds(ids = []) {
+  return ids.filter((id) => mongoose.isValidObjectId(id)).map((id) => new mongoose.Types.ObjectId(String(id)));
+}
 
 async function getViralPosts(limit = 4) {
   return Post.aggregate([
@@ -16,6 +23,7 @@ async function getViralPosts(limit = 4) {
 }
 
 async function getPopularPeople(limit = 5, excludeIds = []) {
+  excludeIds = toObjectIds(excludeIds);
   return User.aggregate([
     { $match: { following: { $exists: true, $ne: [] } } },
     { $unwind: '$following' },
@@ -34,6 +42,7 @@ async function getPopularPeople(limit = 5, excludeIds = []) {
 // their learned feed interests), ranked by how much overlap there is.
 async function getCommonInterestPeople(tags, excludeIds = [], limit = 6) {
   if (!tags.length) return [];
+  excludeIds = toObjectIds(excludeIds);
   const rows = await User.aggregate([
     { $match: { _id: { $nin: excludeIds }, isVerified: true, hashtags: { $in: tags } } },
     { $project: { name: 1, bio: 1, profilePicture: 1, hashtags: 1, followersCount: { $size: { $ifNull: ['$following', []] } } } },
@@ -52,6 +61,8 @@ async function getCommonInterestPeople(tags, excludeIds = [], limit = 6) {
 // follow also follow this person.
 async function getMutualNetworkPeople(followingIds, excludeIds = [], limit = 6) {
   if (!followingIds.length) return [];
+  excludeIds = toObjectIds(excludeIds);
+  followingIds = toObjectIds(followingIds);
   return User.aggregate([
     { $match: { _id: { $in: followingIds }, following: { $exists: true, $ne: [] } } },
     { $unwind: '$following' },
@@ -70,6 +81,7 @@ async function getMutualNetworkPeople(followingIds, excludeIds = [], limit = 6) 
 // engagement right now - a much better "trending" signal than lifetime
 // follower count, which just re-surfaces the same big accounts forever.
 async function getTrendingCreators(excludeIds = [], limit = 6) {
+  excludeIds = toObjectIds(excludeIds);
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   return Post.aggregate([
     { $match: { status: 'published', createdAt: { $gte: since }, author: { $nin: excludeIds } } },

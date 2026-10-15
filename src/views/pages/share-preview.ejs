@@ -1,0 +1,20 @@
+<%- include('../partials/head', { title, description, pagePath, noIndex, ogImage: locals.ogImage, ogImageAlt: locals.ogImageAlt, ogImageLarge: locals.ogImageLarge, ogType: locals.ogType, ogTitle: locals.ogTitle || (/Crowdwide$/.test(title) ? title : title + ' · Crowdwide') }) %>
+<header class="site-nav container public-posts-nav">
+	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
+	<div><a class="button button-small button-ghost" href="/auth/login?next=<%= encodeURIComponent(nextPath) %>">Sign in</a><a class="button button-small button-primary" href="/auth/register?next=<%= encodeURIComponent(nextPath) %>">Join Crowdwide</a></div>
+</header>
+<main class="share-preview-page">
+	<article class="share-preview-card">
+		<% if (locals.image) { %><img class="share-preview-image" src="<%= image %>" alt="" width="96" height="96"><% } else { %><img class="share-preview-image share-preview-logo" src="/images/Crowdwide_logo_192.png" alt="" width="96" height="96"><% } %>
+		<p class="eyebrow">Shared on Crowdwide</p>
+		<h1><%= heading %></h1>
+		<% if (locals.subheading) { %><p class="share-preview-meta"><%= subheading %></p><% } %>
+		<p class="share-preview-text"><%= description %></p>
+		<div class="share-preview-actions">
+			<a class="button button-primary" href="/auth/register?next=<%= encodeURIComponent(nextPath) %>"><%= locals.ctaLabel || 'Join Crowdwide' %></a>
+			<a class="button button-ghost" href="/auth/login?next=<%= encodeURIComponent(nextPath) %>">I already have an account</a>
+		</div>
+		<p class="share-preview-note">Free to join. A fair chance at discovery.</p>
+	</article>
+</main>
+<%- include('../partials/foot') %>
