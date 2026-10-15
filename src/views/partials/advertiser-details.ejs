@@ -1,0 +1,10 @@
+<%# Business details of an advertiser who is being screened together with their first ad. %>
+<% if (advertiser && advertiser.status === 'pending' && advertiser.viaCampaign) { %>
+<div class="advertiser-application-identity">
+  <% if (advertiser.logoUrl) { %><img class="advertiser-application-logo" src="<%= advertiser.logoUrl %>" alt="<%= advertiser.businessName %> logo" loading="lazy"><% } %>
+  <div><strong>New advertiser: <%= advertiser.businessName %></strong><span>Approving this ad also approves this advertiser.</span></div>
+</div>
+<% if (advertiser.businessDescription) { %><p>Business: <%= advertiser.businessDescription %></p><% } %>
+<% if (advertiser.website) { %><p>Website: <a href="<%= advertiser.website %>" rel="nofollow noopener noreferrer"><%= advertiser.website %></a></p><% } %>
+<% if (advertiser.notes) { %><p>Additional information: <%= advertiser.notes %></p><% } %>
+<% } %>

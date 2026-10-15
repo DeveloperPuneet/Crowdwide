@@ -111,7 +111,7 @@ test('validateCommunityUpload passes when no files were submitted', () => {
 
 test('validateAdvertiserApplicationUpload rejects an oversized logo before image decoding', async () => {
   const req = fakeReq({
-    path: '/advertising/apply',
+    path: '/advertising/submit',
     files: { logo: [{ fieldname: 'logo', size: 1.5 * 1024 * 1024 }] }
   });
   const res = fakeRes();
@@ -124,7 +124,7 @@ test('validateAdvertiserApplicationUpload rejects an oversized logo before image
 
 test('validateAdvertiserApplicationUpload rejects an oversized banner independently', async () => {
   const req = fakeReq({
-    path: '/advertising/apply',
+    path: '/advertising/submit',
     files: { banner: [{ fieldname: 'banner', size: 2 * 1024 * 1024 }] }
   });
   const res = fakeRes();

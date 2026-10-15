@@ -7,9 +7,9 @@ const SiteSetting = require('../models/SiteSetting');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
 const logger = require('../services/logger');
 const {
-  createCampaign,
   ADVERTISING_TERMS_VERSION,
-  registerAdvertiser,
+  AD_RETENTION_DAYS,
+  submitAdvertisement,
   submitCampaign,
   updateCampaignStatus,
   recordCampaignEvent,
@@ -69,6 +69,7 @@ exports.dashboard = async (req, res) => {
     campaignAnalytics,
     totals,
     advertisingTermsVersion: ADVERTISING_TERMS_VERSION,
+    adRetentionDays: AD_RETENTION_DAYS,
     advertisingTermsAccepted: advertiser?.termsVersion === ADVERTISING_TERMS_VERSION && Boolean(advertiser.termsAcceptedAt),
     advertiserAppeal
   });
@@ -108,88 +109,14 @@ exports.submitAdvertiserAppeal = async (req, res) => {
   return res.redirect('/advertising');
 };
 
-exports.apply = async (req, res) => {
-  const name = String(req.body.businessName || '').trim();
-  const businessDescription = String(req.body.businessDescription || '').trim();
-  const website = String(req.body.website || '').trim();
-  if (!name || !businessDescription) {
-    flash(req, 'error', 'Enter your business name and a short business description.');
-    return res.redirect('/advertising');
-  }
-  if (req.body.acceptAdvertisingTerms !== 'on') {
-    flash(req, 'error', 'Accept the Advertising Terms before applying.');
-    return res.redirect('/advertising');
-  }
-  if (website && (!/^https?:\/\//i.test(website) || website.length > 300)) {
-    flash(req, 'error', 'Enter a valid website URL starting with http:// or https://.');
-    return res.redirect('/advertising');
-  }
-
-  try {
-    const existing = await getOwnedAdvertiser(req.session.user.id);
-    if (existing && ['pending', 'approved', 'suspended'].includes(existing.status)) {
-      flash(req, 'error', 'Your advertiser profile already has an active review or approval.');
-      return res.redirect('/advertising');
-    }
-    const logoFile = req.files?.logo?.[0];
-    const bannerFile = req.files?.banner?.[0];
-    const [storedLogo, storedBanner] = await Promise.all([
-      logoFile
-        ? uploadBuffer(logoFile.buffer, logoFile.originalname, logoFile.mimetype, { kind: 'advertiser-logo', owner: req.session.user.id })
-        : null,
-      bannerFile
-        ? uploadBuffer(bannerFile.buffer, bannerFile.originalname, bannerFile.mimetype, { kind: 'advertiser-banner', owner: req.session.user.id })
-        : null
-    ]);
-    await registerAdvertiser({
-      userId: req.session.user.id,
-      businessName: name,
-      businessDescription,
-      website,
-      logoUrl: storedLogo ? mediaUrl(storedLogo) : '',
-      bannerUrl: storedBanner ? mediaUrl(storedBanner) : '',
-      notes: String(req.body.notes || '').trim().slice(0, 2000),
-      acceptedTerms: true
-    });
-    flash(req, 'success', 'Advertiser application submitted for moderator screening and admin review.');
-  } catch (error) {
-    logger.error('Advertiser application failed', error);
-    flash(req, 'error', 'The advertiser application could not be saved. Please try again.');
-  }
-  return res.redirect('/advertising');
-};
-
-exports.acceptTerms = async (req, res) => {
-  if (req.body.acceptAdvertisingTerms !== 'on') {
-    flash(req, 'error', 'Confirm that you accept the Advertising Terms.');
-    return res.redirect('/advertising');
-  }
+// One form for everything: business details (first time only), ad details, budget and
+// terms. The budget is escrowed on submit; a moderator then an admin review the ad once
+// and, when approved, it goes live. Nothing else is needed from the advertiser.
+exports.submitAd = async (req, res) => {
   const advertiser = await getOwnedAdvertiser(req.session.user.id);
-  if (!advertiser) {
-    flash(req, 'error', 'Apply as an advertiser before accepting advertiser terms.');
-    return res.redirect('/advertising');
-  }
-  try {
-    advertiser.termsAcceptedAt = new Date();
-    advertiser.termsVersion = ADVERTISING_TERMS_VERSION;
-    await advertiser.save();
-  } catch (error) {
-    logger.error('Advertising Terms acceptance could not be saved', error);
-    flash(req, 'error', 'Your acceptance could not be saved. Please try again.');
-    return res.redirect('/advertising');
-  }
-  flash(req, 'success', 'Advertising Terms accepted.');
-  return res.redirect('/advertising');
-};
-
-exports.createCampaign = async (req, res) => {
-  const advertiser = await getOwnedAdvertiser(req.session.user.id);
-  if (!advertiser || advertiser.status !== 'approved') {
-    flash(req, 'error', 'An approved advertiser profile is required to create a campaign.');
-    return res.redirect('/advertising');
-  }
-  if (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt) {
-    flash(req, 'error', 'Accept the current Advertising Terms before creating or submitting campaigns.');
+  const needsBusinessDetails = !advertiser || advertiser.status === 'rejected';
+  if (req.body.acceptAdvertisingTerms !== 'on') {
+    flash(req, 'error', 'Accept the Advertising Terms before submitting your ad.');
     return res.redirect('/advertising');
   }
   if (req.body.confirmAdvertisingRights !== 'on') {
@@ -225,9 +152,10 @@ exports.createCampaign = async (req, res) => {
       flash(req, 'error', 'Choose a monetized community or select the Crowdwide-feed fallback.');
       return res.redirect('/advertising');
     }
+    const minimumBudget = Number(settings.advertisingMinimumCampaignBudget ?? 25);
     const budget = Number(req.body.totalBudget);
-    if (!Number.isFinite(budget) || budget < Number(settings.advertisingMinimumCampaignBudget ?? 25)) {
-      flash(req, 'error', `Campaign budget must be at least ${Number(settings.advertisingMinimumCampaignBudget ?? 25)} Waves.`);
+    if (!Number.isFinite(budget) || budget < minimumBudget) {
+      flash(req, 'error', `Campaign budget must be at least ${minimumBudget} Waves.`);
       return res.redirect('/advertising');
     }
     let destination;
@@ -238,39 +166,59 @@ exports.createCampaign = async (req, res) => {
       flash(req, 'error', 'Add a valid http or https destination link for your advertisement.');
       return res.redirect('/advertising');
     }
-    let bannerUrl = '';
-    if (req.file) {
-      const uploaded = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, {
-        kind: 'advertisement-banner',
-        owner: req.session.user.id
-      });
-      bannerUrl = mediaUrl(uploaded);
+    if (req.body.endDate) {
+      const end = new Date(req.body.endDate);
+      if (Number.isNaN(end.getTime()) || end < new Date(new Date().toISOString().slice(0, 10))) {
+        flash(req, 'error', 'The end date cannot be in the past.');
+        return res.redirect('/advertising');
+      }
     }
-    await createCampaign({
-      advertiserId: advertiser._id,
-      title: req.body.title,
-      campaignType: req.body.campaignType,
-      productName: req.body.productName,
-      productPrice: req.body.productPrice,
-      advertisingRightsConfirmed: true,
-      description: req.body.description,
-      destinationUrl: destination.toString(),
-      bannerUrl,
-      sitewideFallback,
-      totalBudget: budget,
-      dailyBudget: req.body.dailyBudget,
-      minimumBudget: settings.advertisingMinimumCampaignBudget ?? 25,
-      impressionCostWaves: settings.advertisingCostPerImpression ?? 0.1,
-      clickCostWaves: settings.advertisingCostPerClick ?? 1,
-      startDate: req.body.startDate || undefined,
-      endDate: req.body.endDate || undefined,
-      targetCommunities,
-      status: 'draft'
+
+    const logoFile = needsBusinessDetails ? req.files?.logo?.[0] : null;
+    const bannerFile = req.files?.banner?.[0];
+    const [storedLogo, storedBanner] = await Promise.all([
+      logoFile
+        ? uploadBuffer(logoFile.buffer, logoFile.originalname, logoFile.mimetype, { kind: 'advertiser-logo', owner: req.session.user.id })
+        : null,
+      bannerFile
+        ? uploadBuffer(bannerFile.buffer, bannerFile.originalname, bannerFile.mimetype, { kind: 'advertisement-banner', owner: req.session.user.id })
+        : null
+    ]);
+
+    const result = await submitAdvertisement({
+      userId: req.session.user.id,
+      acceptedTerms: true,
+      business: {
+        businessName: req.body.businessName,
+        businessDescription: req.body.businessDescription,
+        website: req.body.website,
+        notes: String(req.body.notes || '').trim().slice(0, 2000),
+        logoUrl: storedLogo ? mediaUrl(storedLogo) : ''
+      },
+      campaign: {
+        title: req.body.title,
+        campaignType: req.body.campaignType,
+        productName: req.body.productName,
+        productPrice: req.body.productPrice,
+        advertisingRightsConfirmed: true,
+        description: req.body.description,
+        destinationUrl: destination.toString(),
+        bannerUrl: storedBanner ? mediaUrl(storedBanner) : '',
+        sitewideFallback,
+        totalBudget: budget,
+        dailyBudget: req.body.dailyBudget,
+        minimumBudget,
+        impressionCostWaves: settings.advertisingCostPerImpression ?? 0.1,
+        clickCostWaves: settings.advertisingCostPerClick ?? 1,
+        startDate: req.body.startDate || undefined,
+        endDate: req.body.endDate || undefined,
+        targetCommunities
+      }
     });
-    flash(req, 'success', 'Campaign draft created.');
+    flash(req, 'success', `Ad submitted and ${result.campaign.totalBudget.toLocaleString()} Waves reserved. After moderator and admin approval it goes live automatically.`);
   } catch (error) {
-    logger.warn('Campaign draft could not be created', { userId: req.session.user.id, error });
-    flash(req, 'error', error.message || 'The campaign draft could not be created.');
+    logger.warn('Advertisement submission failed', { userId: req.session.user.id, error });
+    flash(req, 'error', error.message || 'Your ad could not be submitted.');
   }
   return res.redirect('/advertising');
 };
@@ -313,7 +261,7 @@ exports.campaignAction = async (req, res) => {
         throw new Error('This campaign cannot be cancelled in its current state.');
       }
       await updateCampaignStatus({ campaignId: campaign._id, status: 'cancelled', actorId: req.session.user.id });
-      flash(req, 'success', 'Campaign cancelled. Any unused funded budget was returned to your Waves wallet.');
+      flash(req, 'success', `Campaign stopped. Any unused budget was refunded to your Waves wallet, and the campaign data will be deleted in ${AD_RETENTION_DAYS} days.`);
     } else {
       throw new Error('Choose a valid campaign action.');
     }

@@ -204,7 +204,8 @@ test('advertiser dashboard renders application form and campaign metrics', async
   assert.match(html, /Admin A/);
   assert.match(html, /Admin B/);
   assert.match(html, /href="\/advertising\/terms"/);
-  assert.match(html, /Fund and submit|Activate/);
+  assert.match(html, /Fund and submit|Resume/);
+  assert.match(html, /action="\/advertising\/submit"/);
 });
 
 test('advertiser campaign card explains pending review and approved activation states', async () => {
@@ -221,7 +222,7 @@ test('advertiser campaign card explains pending review and approved activation s
     campaigns: [{ _id: 'c1', title: 'My product ad', campaignType: 'product', productName: 'My product', status: 'submitted', fundingStatus: 'funded', remainingBudget: 40, moderatorReview: { status: 'cleared', reason: 'Looks fine' }, moderationHistory: [] }]
   });
   assert.match(submitted, /campaign-status-submitted/);
-  assert.match(submitted, /Moderator cleared · awaiting final admin approval/);
+  assert.match(submitted, /Moderator cleared · awaiting admin approval/);
   assert.doesNotMatch(submitted, /name="action" value="activate"/);
 
   const approved = await render('pages/advertising-dashboard.ejs', {
@@ -229,7 +230,7 @@ test('advertiser campaign card explains pending review and approved activation s
     campaigns: [{ _id: 'c2', title: 'My product ad', campaignType: 'product', productName: 'My product', status: 'approved', fundingStatus: 'funded', remainingBudget: 40, moderationHistory: [] }]
   });
   assert.match(approved, /campaign-status-approved/);
-  assert.match(approved, /Activate the campaign below to start showing it in the feed/);
+  assert.match(approved, /Press Resume below to start showing it in the feed/);
   assert.match(approved, /name="action" value="activate"/);
 });
 

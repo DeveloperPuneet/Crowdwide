@@ -8,9 +8,16 @@ const Community = require('../models/Community');
 const SiteSetting = require('../models/SiteSetting');
 const { calculateCommunityAdShare } = require('./communityRevenue');
 const wavesService = require('./waves');
+const Report = require('../models/Report');
+const { deleteFile } = require('./storageCluster');
 const logger = require('./logger');
 
 const ADVERTISING_TERMS_VERSION = '2026-10-07-v3';
+// Finished campaigns (budget used up, stopped and refunded, or rejected) and their
+// delivery data are deleted this many days after they finish.
+const AD_RETENTION_DAYS = 10;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FINISHED_CAMPAIGN_STATUSES = ['completed', 'cancelled', 'rejected'];
 const BOT_ACTIVITY_EVENT_THRESHOLD = 20;
 const BOT_ACTIVITY_WINDOW_MS = 60 * 1000;
 const ADVERTISING_POLICY_CATEGORIES = [
@@ -50,6 +57,13 @@ function unavailableAdvertisement(message) {
   return error;
 }
 
+// A new advertiser is screened together with their first ad, so a pending profile
+// created by an ad submission may already own a (funded, submitted) campaign.
+function advertiserCanRunCampaign(advertiser) {
+  return Boolean(advertiser)
+    && (advertiser.status === 'approved' || (advertiser.status === 'pending' && advertiser.viaCampaign === true));
+}
+
 async function registerAdvertiser({
   userId,
   businessName,
@@ -59,7 +73,8 @@ async function registerAdvertiser({
   bannerUrl = '',
   notes = '',
   isVerified = false,
-  acceptedTerms = false
+  acceptedTerms = false,
+  viaCampaign = false
 }) {
   if (!userId) throw new Error('Advertiser user ID is required.');
 
@@ -79,6 +94,8 @@ async function registerAdvertiser({
       notes: String(notes || '').trim().slice(0, 2000),
       isVerified: Boolean(isVerified),
       status: 'pending',
+      viaCampaign: Boolean(viaCampaign),
+      rejectionReason: '',
       termsAcceptedAt: new Date(),
       termsVersion: ADVERTISING_TERMS_VERSION,
       moderatorReview: { status: 'pending', reason: '', reviewedAt: null, reviewedBy: null },
@@ -86,7 +103,7 @@ async function registerAdvertiser({
       reviewedBy: null,
       moderationHistory: [{
         status: 'pending',
-        reason: 'Advertiser application submitted.',
+        reason: viaCampaign ? 'Advertiser details submitted with first advertisement.' : 'Advertiser application submitted.',
         createdAt: new Date(),
         actor: userId
       }],
@@ -193,7 +210,7 @@ async function createCampaign({
 
   const advertiser = await Advertiser.findById(advertiserId);
   if (!advertiser) throw new Error('Advertiser not found.');
-  if (advertiser.status !== 'approved') {
+  if (!advertiserCanRunCampaign(advertiser)) {
     throw new Error('Only approved advertisers can create campaigns.');
   }
   if (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt) {
@@ -278,6 +295,92 @@ async function submitCampaign({ campaignId, actorId = null }) {
   return fundCampaign({ campaignId, actorId });
 }
 
+/**
+ * One-step ad submission: business details (first time only), ad details and
+ * budget are entered once. The budget is escrowed straight away and the ad then
+ * goes through a single moderator -> admin review; on approval it goes live.
+ */
+async function submitAdvertisement({ userId, acceptedTerms = false, business = {}, campaign: input = {} }) {
+  if (!userId) throw new Error('User ID is required.');
+  if (acceptedTerms !== true) throw new Error('Accept the Advertising Terms before submitting your ad.');
+
+  const existing = await Advertiser.findOne({ user: userId });
+  if (existing?.status === 'suspended') {
+    throw new Error('Your advertiser account is suspended. Contact support for assistance.');
+  }
+  if (existing?.status === 'pending') {
+    throw new Error(existing.viaCampaign
+      ? 'Your ad is still being reviewed. You can submit another once it has been decided.'
+      : 'Your advertiser application is still being reviewed.');
+  }
+
+  const budget = normalizePositiveNumber(input.totalBudget, 'Campaign budget');
+  const wallet = await User.findById(userId).select('wavesBalance wavesSuspendedUntil').lean();
+  if (!wallet || Number(wallet.wavesBalance || 0) < budget) {
+    throw new Error(`You need at least ${budget} Waves in your wallet to fund this campaign.`);
+  }
+  if (wallet.wavesSuspendedUntil && new Date(wallet.wavesSuspendedUntil) > new Date()) {
+    throw new Error('An active Waves hold prevents campaign funding.');
+  }
+
+  // Business details are only collected until the advertiser has been approved once.
+  const snapshot = existing ? existing.toObject() : null;
+  let advertiser = existing;
+  let createdAdvertiser = false;
+  let replacedAdvertiser = false;
+  if (!existing || existing.status === 'rejected') {
+    const name = String(business.businessName || '').trim();
+    const description = String(business.businessDescription || '').trim();
+    const website = String(business.website || '').trim();
+    if (!name || !description) throw new Error('Enter your business name and a short business description.');
+    if (website && (!/^https?:\/\//i.test(website) || website.length > 300)) {
+      throw new Error('Enter a valid website URL starting with http:// or https://.');
+    }
+    advertiser = await registerAdvertiser({
+      userId,
+      businessName: name,
+      businessDescription: description,
+      website,
+      logoUrl: business.logoUrl || '',
+      bannerUrl: '',
+      notes: business.notes || '',
+      acceptedTerms: true,
+      viaCampaign: true
+    });
+    createdAdvertiser = !existing;
+    replacedAdvertiser = Boolean(existing);
+  } else if (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt) {
+    advertiser.termsAcceptedAt = new Date();
+    advertiser.termsVersion = ADVERTISING_TERMS_VERSION;
+    await advertiser.save();
+  }
+
+  const rollback = async () => {
+    try {
+      if (createdAdvertiser) await Advertiser.deleteOne({ _id: advertiser._id });
+      else if (replacedAdvertiser && snapshot) await Advertiser.replaceOne({ _id: snapshot._id }, snapshot);
+    } catch (error) {
+      logger.error('Advertiser rollback after failed ad submission failed', { userId, error });
+    }
+  };
+
+  let campaign;
+  try {
+    campaign = await createCampaign({ ...input, advertiserId: advertiser._id, status: 'draft' });
+  } catch (error) {
+    await rollback();
+    throw error;
+  }
+  try {
+    campaign = await fundCampaign({ campaignId: campaign._id, actorId: userId });
+  } catch (error) {
+    await Campaign.deleteOne({ _id: campaign._id });
+    await rollback();
+    throw error;
+  }
+  return { advertiser, campaign, firstTime: createdAdvertiser || replacedAdvertiser };
+}
+
 async function fundCampaign({ campaignId, actorId = null }) {
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new Error('Campaign not found.');
@@ -289,7 +392,7 @@ async function fundCampaign({ campaignId, actorId = null }) {
   }
 
   const advertiser = await Advertiser.findById(campaign.advertiser);
-  if (!advertiser || advertiser.status !== 'approved') {
+  if (!advertiserCanRunCampaign(advertiser)) {
     throw new Error('An approved advertiser is required to fund a campaign.');
   }
   if (advertiser.termsVersion !== ADVERTISING_TERMS_VERSION || !advertiser.termsAcceptedAt) {
@@ -473,7 +576,7 @@ async function refundCampaignBudget({ campaignId, reason = 'Unused campaign budg
   return campaign;
 }
 
-async function updateCampaignStatus({ campaignId, status, rejectionReason = '', reason = '', actorId = null }) {
+async function updateCampaignStatus({ campaignId, status, rejectionReason = '', reason = '', actorId = null, activateOnApproval = false }) {
   if (!campaignId) throw new Error('Campaign ID is required.');
 
   const campaign = await Campaign.findById(campaignId);
@@ -526,7 +629,62 @@ async function updateCampaignStatus({ campaignId, status, rejectionReason = '', 
     throw new Error('This campaign cannot be cancelled in its current state.');
   }
 
-  campaign.status = nextStatus;
+  const now = new Date();
+  const wasSubmitted = campaign.status === 'submitted';
+  // Admin approval of a submitted, funded campaign is the last gate: the ad goes live
+  // (it still only serves inside its start/end dates). If its end date already passed
+  // while it waited for review, it is closed and the budget refunded instead.
+  let effectiveStatus = nextStatus;
+  let followUpReason = '';
+  if (nextStatus === 'approved' && wasSubmitted && activateOnApproval
+    && campaign.isWavesFunded && campaign.fundingStatus === 'funded') {
+    if (campaign.endDate && campaign.endDate < now) {
+      effectiveStatus = 'completed';
+      followUpReason = 'End date passed before approval; unused budget refunded.';
+    } else {
+      effectiveStatus = 'active';
+      followUpReason = 'Went live automatically after admin approval.';
+    }
+  }
+
+  // A first-time advertiser is screened together with their first ad.
+  if (wasSubmitted && ['approved', 'rejected'].includes(nextStatus)) {
+    const advertiser = await Advertiser.findById(campaign.advertiser);
+    if (advertiser && advertiser.status === 'pending' && advertiser.viaCampaign) {
+      if (nextStatus === 'approved') {
+        advertiser.status = 'approved';
+        advertiser.approvedAt = now;
+        if (!advertiser.isVerified) {
+          advertiser.isVerified = true;
+          advertiser.verifiedAt = now;
+        }
+        advertiser.rejectionReason = '';
+        advertiser.moderatorReview = {
+          status: 'cleared',
+          reason: campaign.moderatorReview?.reason || 'Cleared with first advertisement.',
+          reviewedAt: campaign.moderatorReview?.reviewedAt || now,
+          reviewedBy: campaign.moderatorReview?.reviewedBy || null
+        };
+      } else {
+        advertiser.status = 'rejected';
+        advertiser.rejectionReason = String(rejectionReason || '').trim().slice(0, 500);
+      }
+      advertiser.reviewedAt = now;
+      advertiser.reviewedBy = actorId || null;
+      advertiser.moderationHistory = [
+        ...(advertiser.moderationHistory || []).slice(-9),
+        {
+          status: advertiser.status,
+          reason: nextStatus === 'approved' ? 'Approved together with first advertisement.' : advertiser.rejectionReason,
+          createdAt: now,
+          actor: actorId || null
+        }
+      ];
+      await advertiser.save();
+    }
+  }
+
+  campaign.status = effectiveStatus;
   campaign.reviewedAt = new Date();
   campaign.reviewedBy = actorId || campaign.reviewedBy || null;
   campaign.rejectionReason = nextStatus === 'rejected' ? String(rejectionReason || '').trim().slice(0, 500) : '';
@@ -544,6 +702,7 @@ async function updateCampaignStatus({ campaignId, status, rejectionReason = '', 
     campaign.suspensionReason = '';
   }
   if (nextStatus === 'cancelled') campaign.cancelledAt = new Date();
+  if (FINISHED_CAMPAIGN_STATUSES.includes(effectiveStatus)) campaign.finishedAt = now;
 
   campaign.moderationHistory = [
     ...(campaign.moderationHistory || []).slice(-9),
@@ -556,14 +715,17 @@ async function updateCampaignStatus({ campaignId, status, rejectionReason = '', 
           : '',
       createdAt: new Date(),
       actor: actorId || null
-    }
+    },
+    ...(effectiveStatus !== nextStatus
+      ? [{ status: effectiveStatus, reason: followUpReason, createdAt: new Date(), actor: actorId || null }]
+      : [])
   ];
 
   await campaign.save();
-  if (['rejected', 'cancelled', 'completed'].includes(nextStatus) && campaign.remainingBudget > 0 && campaign.fundingStatus === 'funded') {
+  if (['rejected', 'cancelled', 'completed'].includes(effectiveStatus) && campaign.remainingBudget > 0 && campaign.fundingStatus === 'funded') {
     return refundCampaignBudget({
       campaignId: campaign._id,
-      reason: nextStatus === 'rejected' ? `Campaign rejected: ${campaign.rejectionReason || 'moderation decision'}` : `Unused budget returned when campaign ${nextStatus}.`,
+      reason: effectiveStatus === 'rejected' ? `Campaign rejected: ${campaign.rejectionReason || 'moderation decision'}` : `Unused budget returned when campaign ${effectiveStatus}.`,
       actorId
     });
   }
@@ -830,7 +992,8 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
               0
             ]
           },
-          status: { $cond: [{ $lte: ['$remainingBudget', 0] }, 'completed', '$status'] }
+          status: { $cond: [{ $lte: ['$remainingBudget', 0] }, 'completed', '$status'] },
+          finishedAt: { $cond: [{ $lte: ['$remainingBudget', 0] }, '$$NOW', { $ifNull: ['$finishedAt', null] }] }
         } }
       ],
       { new: true }
@@ -960,6 +1123,7 @@ async function spendCampaignBudget({ campaignId, amount }) {
   campaign.dailyBudgetDate = today;
   if (campaign.remainingBudget <= 0) {
     campaign.status = 'completed';
+    campaign.finishedAt = new Date();
   }
 
   await campaign.save();
@@ -982,7 +1146,106 @@ async function getCampaignSummary(campaignId) {
   };
 }
 
+/**
+ * Campaigns whose scheduled end date has passed are closed here (status
+ * "completed") and any unused budget is refunded, so they start their
+ * retention countdown like every other finished campaign.
+ */
+async function expireEndedCampaigns(now = new Date()) {
+  const ended = await Campaign.find({
+    status: { $in: ['active', 'approved', 'paused'] },
+    endDate: { $ne: null, $lt: now }
+  }).select('_id').limit(500).lean();
+  let expired = 0;
+  let failed = 0;
+  for (const { _id } of ended) {
+    try {
+      await updateCampaignStatus({ campaignId: _id, status: 'completed', reason: 'Scheduled end date reached.' });
+      expired += 1;
+    } catch (error) {
+      failed += 1;
+      logger.warn('Ended campaign could not be closed', { campaignId: _id, error });
+    }
+  }
+  return { expired, failed };
+}
+
+function campaignBannerFile(bannerUrl) {
+  const match = /^\/media\/(\d+)\/([a-f\d]{24})$/i.exec(String(bannerUrl || ''));
+  return match ? { cluster: Number(match[1]), id: match[2] } : null;
+}
+
+/**
+ * Deletes finished campaigns (budget used up, cancelled/refunded, rejected, or
+ * paused with nothing left) once they have been finished for AD_RETENTION_DAYS,
+ * together with their delivery events, abuse signals, ad reports and banner file.
+ * Never deletes a campaign that still holds an unrefunded budget or has an unpaid
+ * community-owner share. Waves ledger entries are kept: they are the wallet history.
+ */
+async function deleteFinishedCampaigns({ now = new Date(), retentionDays = AD_RETENTION_DAYS } = {}) {
+  const cutoff = new Date(now.getTime() - retentionDays * DAY_MS);
+  const candidates = await Campaign.find({
+    remainingBudget: { $lte: 0 },
+    $or: [
+      {
+        status: { $in: FINISHED_CAMPAIGN_STATUSES },
+        $or: [
+          { finishedAt: { $lte: cutoff } },
+          { finishedAt: null, updatedAt: { $lte: cutoff } }
+        ]
+      },
+      { status: 'paused', updatedAt: { $lte: cutoff } }
+    ]
+  }).select('_id bannerUrl').limit(500).lean();
+  if (!candidates.length) return { campaigns: 0, events: 0, abuseSignals: 0, reports: 0, bannerFiles: 0, skipped: 0 };
+
+  const candidateIds = candidates.map((campaign) => campaign._id);
+  const unpaidShares = new Set((await CampaignEvent.distinct('campaign', {
+    campaign: { $in: candidateIds },
+    communityShareStatus: 'pending'
+  })).map(String));
+  const doomed = candidates.filter((campaign) => !unpaidShares.has(String(campaign._id)));
+  const ids = doomed.map((campaign) => campaign._id);
+  const skipped = candidates.length - doomed.length;
+  if (!ids.length) return { campaigns: 0, events: 0, abuseSignals: 0, reports: 0, bannerFiles: 0, skipped };
+
+  const [events, signals, reports] = await Promise.all([
+    CampaignEvent.deleteMany({ campaign: { $in: ids } }),
+    CampaignAbuseSignal.deleteMany({ campaign: { $in: ids } }),
+    Report.deleteMany({ targetType: 'advertisement', target: { $in: ids } })
+  ]);
+  let bannerFiles = 0;
+  for (const campaign of doomed) {
+    const file = campaignBannerFile(campaign.bannerUrl);
+    if (!file) continue;
+    await deleteFile(file.cluster, file.id);
+    bannerFiles += 1;
+  }
+  const removed = await Campaign.deleteMany({ _id: { $in: ids } });
+  return {
+    campaigns: removed.deletedCount,
+    events: events.deletedCount,
+    abuseSignals: signals.deletedCount,
+    reports: reports.deletedCount,
+    bannerFiles,
+    skipped
+  };
+}
+
+/** Daily ad housekeeping: close ended campaigns, then delete long-finished ones. */
+async function cleanupFinishedCampaigns({ now = new Date(), retentionDays = AD_RETENTION_DAYS } = {}) {
+  const closed = await expireEndedCampaigns(now);
+  const deleted = await deleteFinishedCampaigns({ now, retentionDays });
+  return { closedEnded: closed.expired, closeFailed: closed.failed, ...deleted };
+}
+
 module.exports = {
+  AD_RETENTION_DAYS,
+  FINISHED_CAMPAIGN_STATUSES,
+  cleanupFinishedCampaigns,
+  deleteFinishedCampaigns,
+  expireEndedCampaigns,
+  submitAdvertisement,
   ADVERTISING_POLICY_CATEGORIES,
   ADVERTISING_TERMS_VERSION,
   calculateCtr,

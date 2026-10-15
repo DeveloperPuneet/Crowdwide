@@ -35,6 +35,9 @@ const advertiserSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }],
+  // True when the advertiser profile was created together with an ad submission.
+  // Its single moderator -> admin review happens on the campaign, not on a separate application.
+  viaCampaign: { type: Boolean, default: false, index: true },
   createdByAdmin: { type: Boolean, default: false }
 }, { timestamps: true });
 

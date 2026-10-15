@@ -299,7 +299,7 @@
   <!-- CAMPAIGNS -->
   <section class="admin-panel" id="admin-panel-campaigns" role="tabpanel" aria-labelledby="admin-tab-campaigns" data-panel="campaigns">
     <h2>Advertisement campaigns</h2>
-    <p>Campaigns cleared or flagged by moderators wait here for your final decision. Approved campaigns still need advertiser activation before they can serve.</p>
+    <p>Campaigns cleared or flagged by moderators wait here for your final decision. Approving a campaign makes it live immediately (and approves a first-time advertiser with it); no further advertiser step is needed.</p>
     <% if (!pendingCampaignList.length) { %><p>No campaign decisions are waiting for admin review.</p><% } %>
     <% if (pendingCampaignList.length) { %>
     <section class="settings-block">
@@ -309,6 +309,7 @@
         <div>
           <strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong>
           <span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.email || '' %></span>
+          <%- include('../partials/advertiser-details', { advertiser: campaign.advertiser }) %>
           <% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-displayed price: <%= campaign.productPrice %></p><% } %>
           <p><%= campaign.description || 'No ad details provided.' %></p>
           <% if (campaign.bannerUrl) { %><img src="<%= campaign.bannerUrl %>" alt="Campaign banner for <%= campaign.productName || campaign.title %>" style="display:block;max-width:100%;max-height:180px;object-fit:contain;margin:8px 0;"><% } %>
@@ -335,7 +336,7 @@
     <% if (managedCampaignList.length) { %>
     <section class="settings-block">
       <h3>Approved campaign management</h3>
-      <p>Suspend a campaign to immediately stop delivery while keeping its remaining Waves held. Removal cancels it and refunds any unused funded balance. Reinstated campaigns return as approved and require advertiser activation.</p>
+      <p>Suspend a campaign to immediately stop delivery while keeping its remaining Waves held. Removal cancels it and refunds any unused funded balance. Reinstated campaigns return as approved and the advertiser resumes them.</p>
       <% managedCampaignList.forEach((campaign) => { %>
       <article class="device-row" style="flex-direction:column;align-items:stretch;">
         <div>

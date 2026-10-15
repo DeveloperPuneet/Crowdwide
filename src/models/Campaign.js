@@ -60,6 +60,9 @@ const campaignSchema = new mongoose.Schema({
   suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   suspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
   cancelledAt: Date,
+  // Set when a campaign ends (budget used up, cancelled/refunded, rejected). Finished
+  // campaigns and their delivery data are deleted AD_RETENTION_DAYS later.
+  finishedAt: { type: Date, default: null, index: true },
   moderationHistory: [{
     status: { type: String, enum: ['draft', 'submitted', 'approved', 'rejected', 'active', 'paused', 'suspended', 'cancelled', 'completed', 'moderator-cleared', 'moderator-flagged'], required: true },
     reason: { type: String, trim: true, maxlength: 500, default: '' },

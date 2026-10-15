@@ -10,6 +10,7 @@ const { clearGrowthStatsCache } = require('./publicStats');
 const { clearPopularSearchesCache } = require('./popularSearches');
 const { clearGifCache } = require('./gif');
 const { clearSiteConfigCache } = require('./siteConfig');
+const { AD_RETENTION_DAYS, cleanupFinishedCampaigns } = require('./advertising');
 const logger = require('./logger');
 
 const RETENTION_DAYS = 30;
@@ -46,6 +47,7 @@ const TASKS = {
     const result = await SearchEvent.deleteMany({ createdAt: { $lt: cutoff } });
     return { searchEvents: result.deletedCount };
   },
+  'finished-ad-campaigns': async (cutoff, { now = new Date() } = {}) => cleanupFinishedCampaigns({ now }),
   caches: async () => ({
     feed: clearAllFeedCaches(),
     growthStats: clearGrowthStatsCache(),
@@ -62,6 +64,7 @@ const TASK_LABELS = {
   'search-history': 'Personal search history older than 30 days',
   'recent-views': 'Recent-view history older than 30 days',
   'search-events': 'Search trend events older than 30 days',
+  'finished-ad-campaigns': `Finished ad campaigns older than ${AD_RETENTION_DAYS} days`,
   caches: 'In-memory caches'
 };
 
@@ -75,7 +78,7 @@ async function runMaintenance({ task, triggeredBy = null, scheduled = false, now
 
   for (const name of tasks) {
     try {
-      results[name] = { ok: true, cutoff, ...await TASKS[name](cutoff) };
+      results[name] = { ok: true, cutoff, ...await TASKS[name](cutoff, { now: startedAt }) };
     } catch (error) {
       failedTasks += 1;
       results[name] = { ok: false, error: error.message };

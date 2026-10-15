@@ -205,7 +205,7 @@ exports.admin = async (req, res) => {
         { 'monetizationApplication.appealStatus': 'pending' }
       ]
     }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationModeratorReview monetizationStatus monetizationSettings monetizationHistory createdAt').populate('owner', 'name email').lean(),
-    Advertiser.find({ status: 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').populate('moderationHistory.actor', 'name role').populate('moderatorReview.reviewedBy', 'name role').lean(),
+    Advertiser.find({ status: 'pending', viaCampaign: { $ne: true } }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').populate('moderationHistory.actor', 'name role').populate('moderatorReview.reviewedBy', 'name role').lean(),
     Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderatorReview.reviewedBy', 'name role').populate('moderationHistory.actor', 'name role').lean(),
     Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean(),
     getReciprocalRewardSignals(),
@@ -340,10 +340,13 @@ exports.reviewCampaign = async (req, res) => {
       campaignId: req.params.id,
       status: decision,
       rejectionReason: reason,
-      actorId: req.roleUser._id
+      actorId: req.roleUser._id,
+      activateOnApproval: true
     });
-    await audit(req, `campaign-${decision}`, 'campaign', campaign._id, { reason });
-    flash(req, 'success', `Campaign ${decision}${campaign.fundingStatus === 'refunded' ? '; unused Waves were refunded.' : '.'}`);
+    await audit(req, `campaign-${decision}`, 'campaign', campaign._id, { reason, status: campaign.status });
+    flash(req, 'success', decision === 'approved'
+      ? (campaign.status === 'active' ? 'Campaign approved and live.' : campaign.status === 'completed' ? 'Campaign approved, but its end date had already passed; it was closed and the budget refunded.' : 'Campaign approved.')
+      : `Campaign rejected${campaign.fundingStatus === 'refunded' ? '; unused Waves were refunded.' : '.'}`);
   } catch (error) {
     logger.warn('Admin campaign review failed', { campaignId: req.params.id, error });
     flash(req, 'error', error.message || 'Campaign review could not be completed.');
@@ -1103,7 +1106,7 @@ exports.moderator = async (req, res) => {
       'moderatorReview.status': 'pending',
       'moderatorReview.reviewedAt': null
     }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).populate('moderationHistory.actor', 'name role').lean(),
-    Advertiser.find({ status: 'pending', 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name').populate('moderationHistory.actor', 'name role').lean(),
+    Advertiser.find({ status: 'pending', viaCampaign: { $ne: true }, 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name').populate('moderationHistory.actor', 'name role').lean(),
     Community.find({
       monetizationStatus: 'pending',
       $or: [

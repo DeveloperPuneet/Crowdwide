@@ -967,6 +967,7 @@ test('updateCampaignStatus writes moderation changes and rejection reason', asyn
   };
 
   t.mock.method(Campaign, 'findById', async () => campaign);
+  t.mock.method(Advertiser, 'findById', async () => ({ _id: 'advertiser-x', status: 'approved' }));
 
   const updated = await updateCampaignStatus({
     campaignId: 'campaign-2',

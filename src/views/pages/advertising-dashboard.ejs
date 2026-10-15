@@ -8,30 +8,27 @@
     <a class="button button-small button-ghost" href="/wallet"><%- icon('waves', { size: 16 }) %> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
   </header>
 
-  <% if (!advertiser) { %>
-  <section class="settings-block admin-wide">
-    <h2>Apply as an advertiser</h2>
-    <p>Advertisers are reviewed before campaign creation is enabled.</p>
-    <form class="admin-edit-form" method="post" action="/advertising/apply" enctype="multipart/form-data">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <label>Business or organization name<input name="businessName" maxlength="120" required></label>
-      <label class="full-width">Short business description<textarea name="businessDescription" maxlength="500" rows="3" required placeholder="What does your business offer? (500 characters max)"></textarea></label>
-      <label>Website<input type="url" name="website" maxlength="300" placeholder="https://example.com"></label>
-      <label>Business logo<input type="file" name="logo" accept="image/*"><small>Optional. Image under 1.5 MB; scanned before upload.</small></label>
-      <label class="full-width">Business banner<input type="file" name="banner" accept="image/*"><small>Optional. Image under 2 MB; scanned before upload.</small></label>
-      <label class="full-width">Additional information<textarea name="notes" maxlength="2000" rows="3"></textarea></label>
-      <label class="consent-check full-width"><input type="checkbox" name="acceptAdvertisingTerms" required><span>I agree to the <a href="/advertising/terms" target="_blank" rel="noopener">Advertising Terms</a>.</span></label>
-      <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Submit application</button></div>
-    </form>
-  </section>
-  <% } else { %>
+
+  <%
+    const retentionDays = Number(locals.adRetentionDays || 10);
+    const needsBusinessDetails = !advertiser || advertiser.status === 'rejected';
+    const canSubmitAd = !advertiser || advertiser.status === 'rejected' || advertiser.status === 'approved';
+    const finishedStatuses = ['completed', 'cancelled', 'rejected'];
+    const deletionDate = (campaign) => {
+      const finished = finishedStatuses.includes(campaign.status) || (campaign.status === 'paused' && Number(campaign.remainingBudget || 0) <= 0);
+      if (!finished) return null;
+      const from = new Date(campaign.finishedAt || campaign.updatedAt || Date.now());
+      return new Date(from.getTime() + retentionDays * 24 * 60 * 60 * 1000);
+    };
+  %>
+
+  <% if (advertiser) { %>
   <section class="settings-block admin-wide">
     <h2><%= advertiser.businessName %></h2>
-    <p>Advertiser status: <strong><%= advertiser.status %></strong><% if (advertiser.isVerified) { %> · Verified<% } %></p>
+    <p>Advertiser status: <strong><%= advertiser.status === 'pending' && advertiser.viaCampaign ? 'awaiting review with your first ad' : advertiser.status %></strong><% if (advertiser.isVerified) { %> · Verified<% } %></p>
     <% if (advertiser.bannerUrl) { %><img class="advertiser-brand-banner" src="<%= advertiser.bannerUrl %>" alt="<%= advertiser.businessName %> banner"><% } %>
     <% if (advertiser.logoUrl) { %><img class="advertiser-application-logo" src="<%= advertiser.logoUrl %>" alt="<%= advertiser.businessName %> logo"><% } %>
     <% if (advertiser.businessDescription) { %><p><%= advertiser.businessDescription %></p><% } %>
-    <% if (advertiser.termsAcceptedAt) { %><p>Advertising Terms accepted: version <%= advertiser.termsVersion %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleDateString() %></p><% } %>
     <details class="post-owner-tools">
       <summary>Advertiser review history (<%= (advertiser.moderationHistory || []).length %>)</summary>
       <% if (!(advertiser.moderationHistory || []).length) { %><p>No review history yet.</p><% } %>
@@ -39,8 +36,9 @@
       <p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || (String(event.actor) === String(advertiser.user) ? 'You' : 'Staff') %><% if (event.reason) { %><br><%= event.reason %><% } %></p>
       <% }) %>
     </details>
-    <% if (advertiser.status === 'pending') { %><p>Your advertiser application is awaiting moderator screening, followed by an admin decision.</p><% } %>
-    <% if (advertiser.status === 'rejected') { %><p><%= advertiser.rejectionReason || 'Application not approved.' %></p><% } %>
+    <% if (advertiser.status === 'pending' && advertiser.viaCampaign) { %><p>Your ad is being reviewed by a moderator and then an admin. When it is approved, your advertiser profile and the ad both go live automatically.</p><% } %>
+    <% if (advertiser.status === 'pending' && !advertiser.viaCampaign) { %><p>Your advertiser application is awaiting moderator screening, followed by an admin decision.</p><% } %>
+    <% if (advertiser.status === 'rejected') { %><p><%= advertiser.rejectionReason || 'Not approved.' %> You can fix the details and submit again below<% if (!locals.advertiserAppeal) { %>, or appeal the decision<% } %>.</p><% } %>
     <% if (advertiser.status === 'suspended') { %><p>Your advertiser account is suspended. Contact support for assistance.</p><% } %>
     <% if (locals.advertiserAppeal) { %>
     <p>Your advertiser appeal is pending admin review. Filed <%= new Date(locals.advertiserAppeal.createdAt).toLocaleDateString() %>.</p>
@@ -52,20 +50,9 @@
     </form>
     <% } %>
   </section>
-
-  <% if (!advertisingTermsAccepted) { %>
-  <section class="settings-block admin-wide">
-    <h2>Review updated Advertising Terms</h2>
-    <p>Your advertiser profile has not accepted the current terms (version <%= advertisingTermsVersion %>). Accept them before creating or submitting campaigns.</p>
-    <form method="post" action="/advertising/accept-terms">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <label class="consent-check"><input type="checkbox" name="acceptAdvertisingTerms" required><span>I agree to the <a href="/advertising/terms" target="_blank" rel="noopener">Advertising Terms</a>.</span></label>
-      <button class="button button-primary button-small" type="submit">Accept terms</button>
-    </form>
-  </section>
   <% } %>
 
-  <% if (advertiser.status === 'approved' && advertisingTermsAccepted) { %>
+  <% if (advertiser && campaigns.length) { %>
   <div class="admin-stats" aria-label="Campaign performance totals">
     <article class="admin-stat"><span>Delivery</span><strong><%= totals.impressions.toLocaleString() %></strong><small>impressions</small></article>
     <article class="admin-stat"><span>Engagement</span><strong><%= totals.clicks.toLocaleString() %></strong><small>clicks</small></article>
@@ -73,12 +60,25 @@
     <article class="admin-stat"><span>Budget</span><strong><%= totals.remainingBudget.toLocaleString() %></strong><small>Waves remaining</small></article>
     <article class="admin-stat"><span>Spend</span><strong><%= totals.wavesSpent.toLocaleString() %></strong><small>Waves spent</small></article>
   </div>
+  <% } %>
 
+  <% if (canSubmitAd) { %>
   <section class="settings-block admin-wide">
-    <h2>Create campaign draft</h2>
-    <p>Submitting a campaign escrows its Waves budget and sends it for admin review. It cannot run until approved.</p>
-    <form class="admin-edit-form" method="post" action="/advertising/campaigns" enctype="multipart/form-data">
+    <h2>Submit an ad</h2>
+    <p>Fill in everything once. Your budget is reserved from your Waves wallet when you submit, a moderator and an admin review the ad, and when it is approved it goes live automatically. Unused budget is refunded if it is rejected or stopped.</p>
+    <form class="admin-edit-form" method="post" action="/advertising/submit" enctype="multipart/form-data">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <% if (needsBusinessDetails) { %>
+      <h3 class="full-width">1. Your business</h3>
+      <label>Business or organization name<input name="businessName" maxlength="120" required value="<%= advertiser?.businessName || '' %>"></label>
+      <label>Website<input type="url" name="website" maxlength="300" placeholder="https://example.com" value="<%= advertiser?.website || '' %>"></label>
+      <label class="full-width">Short business description<textarea name="businessDescription" maxlength="500" rows="3" required placeholder="What does your business offer? (500 characters max)"><%= advertiser?.businessDescription || '' %></textarea></label>
+      <label>Business logo<input type="file" name="logo" accept="image/*"><small>Optional. Image under 1.5 MB; scanned before upload.</small></label>
+      <label>Additional information<input name="notes" maxlength="2000" placeholder="Optional"></label>
+      <h3 class="full-width">2. Your ad</h3>
+      <% } else { %>
+      <h3 class="full-width">Your ad</h3>
+      <% } %>
       <label>Campaign title<input name="title" maxlength="120" required></label>
       <label>What are you advertising?
         <select name="campaignType" required>
@@ -92,14 +92,14 @@
       <label>Product name<input name="productName" maxlength="120" placeholder="Required for product ads"></label>
       <label>Advertiser-listed price (optional)<input name="productPrice" maxlength="60" placeholder="Display only; not paid on Crowdwide"></label>
       <label>Destination link<input type="url" name="destinationUrl" maxlength="1000" placeholder="https://example.com" required></label>
-      <p class="full-width">For product ads, add the product name and optionally an advertiser-provided displayed price. Campaign budgets and charges on Crowdwide are in Waves. Any purchase linked from an ad happens outside Crowdwide; this platform does not process that payment.</p>
       <label>Banner image<input type="file" name="banner" accept="image/*"><small>Optional. Image only, under 2 MB. Scanned before upload.</small></label>
-      <label>Total budget (Waves)<input type="number" name="totalBudget" min="<%= Number(locals.advertisingMinimumCampaignBudget || 25) %>" step="0.01" required><small>Minimum <%= Number(locals.advertisingMinimumCampaignBudget || 25).toLocaleString() %> Waves.</small></label>
-      <label>Daily budget (Waves)<input type="number" name="dailyBudget" min="0" step="0.01" value="0"></label>
+      <label class="full-width">Ad details<textarea name="description" maxlength="2000" rows="3" placeholder="Describe your product, service, article, or event."></textarea></label>
+      <p class="full-width">For product ads, add the product name and optionally an advertiser-provided displayed price. Any purchase linked from an ad happens outside Crowdwide; this platform does not process that payment.</p>
+      <h3 class="full-width"><%= needsBusinessDetails ? '3. Budget, schedule and placement' : 'Budget, schedule and placement' %></h3>
+      <label>Total budget (Waves)<input type="number" name="totalBudget" min="<%= Number(locals.advertisingMinimumCampaignBudget || 25) %>" step="0.01" required><small>Minimum <%= Number(locals.advertisingMinimumCampaignBudget || 25).toLocaleString() %> Waves. Your balance: <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves.</small></label>
+      <label>Daily budget (Waves)<input type="number" name="dailyBudget" min="0" step="0.01" value="0"><small>0 means no daily limit.</small></label>
       <label>Start date<input type="date" name="startDate"></label>
       <label>End date<input type="date" name="endDate"></label>
-      <label class="full-width">Ad details<textarea name="description" maxlength="2000" rows="3" placeholder="Describe your product, service, article, or event."></textarea></label>
-      <label class="consent-check full-width"><input type="checkbox" name="confirmAdvertisingRights" required><span>I own or am authorized to advertise this product, service, content, or event and have permission to use the submitted images and destination.</span></label>
       <% if (communities.length) { %>
       <fieldset class="full-width">
         <legend>Target monetized communities</legend>
@@ -108,19 +108,24 @@
         <% }) %>
       </fieldset>
       <% } else { %><p class="full-width">There are currently no public monetized communities accepting advertisements.</p><% } %>
-      <% if (sitewideFallbackAvailable) { %>
+      <% if (locals.sitewideFallbackAvailable) { %>
       <label class="checkbox-field full-width"><input type="checkbox" name="sitewideFallback" checked> Show this ad in the normal Crowdwide feed while no public community is monetized</label>
       <% } %>
-      <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save draft</button></div>
+      <label class="consent-check full-width"><input type="checkbox" name="confirmAdvertisingRights" required><span>I own or am authorized to advertise this product, service, content, or event and have permission to use the submitted images and destination.</span></label>
+      <label class="consent-check full-width"><input type="checkbox" name="acceptAdvertisingTerms" required><span>I agree to the <a href="/advertising/terms" target="_blank" rel="noopener">Advertising Terms</a>.</span></label>
+      <p class="full-width advertising-payment-note">Campaign budgets and all Crowdwide platform charges use Waves. Crowdwide does not process real-money payments or payouts. Finished campaigns (budget used up, stopped, or rejected) and their statistics are deleted <%= retentionDays %> days after they finish.</p>
+      <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Submit ad for approval</button></div>
     </form>
   </section>
+  <% } %>
 
+  <% if (advertiser && campaigns.length) { %>
   <section class="settings-block admin-wide">
     <h2>Your campaigns</h2>
-    <% if (!campaigns.length) { %><p>No campaigns yet.</p><% } %>
     <% campaigns.forEach((campaign) => {
       const communityStats = campaignAnalytics.byCommunity.filter((row) => row.campaignId === String(campaign._id));
       const dailyStats = campaignAnalytics.daily.filter((row) => row.campaignId === String(campaign._id));
+      const deleteOn = deletionDate(campaign);
     %>
     <article class="campaign-dashboard-card">
       <header class="campaign-dashboard-header">
@@ -130,10 +135,11 @@
         </div>
         <span class="campaign-status-badge campaign-status-<%= campaign.status %>"><%= campaign.status %></span>
       </header>
-      <% if (campaign.status === 'submitted' && campaign.moderatorReview?.status === 'cleared') { %><p class="campaign-status-note">Moderator cleared · awaiting final admin approval. This campaign is not serving yet.</p><% } else if (campaign.status === 'submitted' && campaign.moderatorReview?.status === 'flagged') { %><p class="campaign-status-note">Moderator flagged this campaign for admin review. This campaign is not serving yet.</p><% } else if (campaign.status === 'submitted') { %><p class="campaign-status-note">Your Waves are funded and held while moderator screening is completed. This campaign is not serving yet.</p><% } %>
-      <% if (campaign.status === 'approved') { %><p class="campaign-status-note">Approved and ready to run. Activate the campaign below to start showing it in the feed.</p><% } %>
-      <% if (campaign.status === 'active') { %><p class="campaign-status-note">Campaign is active and eligible to serve when its placement conditions are met.</p><% } %>
-      <% if (campaign.status === 'paused') { %><p class="campaign-status-note">Campaign is paused and is not currently serving.</p><% } %>
+      <% if (campaign.status === 'submitted' && campaign.moderatorReview?.status === 'cleared') { %><p class="campaign-status-note">Moderator cleared · awaiting admin approval. It goes live automatically once approved.</p><% } else if (campaign.status === 'submitted' && campaign.moderatorReview?.status === 'flagged') { %><p class="campaign-status-note">A moderator flagged this ad for the admin's decision. It is not serving yet.</p><% } else if (campaign.status === 'submitted') { %><p class="campaign-status-note">Your Waves are reserved while a moderator and then an admin review this ad. It goes live automatically once approved.</p><% } %>
+      <% if (campaign.status === 'approved') { %><p class="campaign-status-note">Approved. Press Resume below to start showing it in the feed.</p><% } %>
+      <% if (campaign.status === 'active') { %><p class="campaign-status-note">Live. It serves whenever its placement conditions, dates and budget allow.</p><% } %>
+      <% if (campaign.status === 'paused') { %><p class="campaign-status-note">Paused and not currently serving.</p><% } %>
+      <% if (deleteOn) { %><p class="campaign-status-note">Finished. This campaign and its statistics will be deleted on <%= deleteOn.toLocaleDateString() %>.</p><% } %>
       <% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p class="campaign-dashboard-description">Advertiser-listed price: <%= campaign.productPrice %></p><% } %>
       <p class="campaign-dashboard-description"><%= campaign.description || 'No ad details provided.' %></p>
       <% if (campaign.bannerUrl) { %><img class="campaign-dashboard-banner" src="<%= campaign.bannerUrl %>" alt="Campaign banner for <%= campaign.productName || campaign.title %>" loading="lazy"><% } %>
@@ -169,19 +175,18 @@
         <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" name="action" value="submit" type="submit">Fund and submit</button></form>
         <% } %>
         <% if (campaign.status === 'approved' || campaign.status === 'paused') { %>
-        <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" name="action" value="activate" type="submit">Activate</button></form>
+        <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" name="action" value="activate" type="submit">Resume</button></form>
         <% } %>
         <% if (campaign.status === 'approved' || campaign.status === 'active') { %>
         <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" name="action" value="pause" type="submit">Pause</button></form>
         <% } %>
         <% if (['draft', 'submitted', 'approved', 'active', 'paused'].includes(campaign.status)) { %>
-        <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action" data-confirm="Cancel this campaign and refund unused funded Waves?"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-danger" name="action" value="cancel" type="submit">Cancel</button></form>
+        <form method="post" action="/advertising/campaigns/<%= campaign._id %>/action" data-confirm="Stop this campaign and refund unused Waves? Its data will be deleted <%= retentionDays %> days later."><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-danger" name="action" value="cancel" type="submit">Stop and refund</button></form>
         <% } %>
       </div>
     </article>
     <% }) %>
   </section>
-  <% } %>
   <% } %>
 </main>
 <%- include('../partials/app-footer') %>
