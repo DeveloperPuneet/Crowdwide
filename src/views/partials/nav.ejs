@@ -33,6 +33,7 @@
     <% if (currentUser) { %>
       <a href="/dashboard">Open app</a>
       <a href="/notifications">Notifications</a>
+      <% if (['admin', 'moderator'].includes(currentUser.role)) { %><a href="/moderator">Moderator console</a><% } %>
     <% } else { %>
       <a href="/auth/login">Sign in</a>
       <a href="/auth/register">Join Crowdwide</a>

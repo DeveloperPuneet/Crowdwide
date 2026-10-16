@@ -87,6 +87,13 @@
 	<% (locals.sidebarAds || []).forEach((ad) => { %>
 	<%- include('../partials/community-ad', { ad, community }) %>
 	<% }) %>
+	<% if (locals.acceptsAds) { %>
+	<section class="discover-panel community-advertise-panel">
+		<div class="panel-heading"><h2>Advertise here</h2></div>
+		<p class="community-guidelines-copy">Reach this community’s members with a Sponsored ad shown only in <%= community.name %>. Ads are reviewed before they go live.</p>
+		<a class="button button-small button-ghost" href="/advertising?community=<%= encodeURIComponent(community.slug) %>#submit-ad"><%- icon('megaphone', { size: 16 }) %> Advertise in this community</a>
+	</section>
+	<% } %>
 	<% if (community.guidelines) { %>
 	<section class="discover-panel">
 		<div class="panel-heading"><h2>About & guidelines</h2></div>

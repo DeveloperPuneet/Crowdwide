@@ -206,8 +206,8 @@ exports.admin = async (req, res) => {
       ]
     }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationModeratorReview monetizationStatus monetizationSettings monetizationHistory createdAt').populate('owner', 'name email').lean(),
     Advertiser.find({ status: 'pending', viaCampaign: { $ne: true } }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').populate('moderationHistory.actor', 'name role').populate('moderatorReview.reviewedBy', 'name role').lean(),
-    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderatorReview.reviewedBy', 'name role').populate('moderationHistory.actor', 'name role').lean(),
-    Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('moderationHistory.actor', 'name role').lean(),
+    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('targetCommunities', 'name slug').populate('moderatorReview.reviewedBy', 'name role').populate('moderationHistory.actor', 'name role').lean(),
+    Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('targetCommunities', 'name slug').populate('moderationHistory.actor', 'name role').lean(),
     getReciprocalRewardSignals(),
     WavesLedgerEntry.aggregate([
       { $match: { status: 'posted', createdAt: { $gte: new Date(Date.now() - 30 * DAY_MS) } } },
@@ -1105,7 +1105,7 @@ exports.moderator = async (req, res) => {
       status: 'submitted',
       'moderatorReview.status': 'pending',
       'moderatorReview.reviewedAt': null
-    }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).populate('moderationHistory.actor', 'name role').lean(),
+    }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).populate('targetCommunities', 'name slug').populate('moderationHistory.actor', 'name role').lean(),
     Advertiser.find({ status: 'pending', viaCampaign: { $ne: true }, 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name').populate('moderationHistory.actor', 'name role').lean(),
     Community.find({
       monetizationStatus: 'pending',

@@ -14,7 +14,8 @@ const {
   updateCampaignStatus,
   recordCampaignEvent,
   getCampaignAnalytics,
-  hasMonetizedPublicCommunity
+  hasMonetizedPublicCommunity,
+  COMMUNITY_AD_ELIGIBLE_FILTER
 } = require('../services/advertising');
 
 function flash(req, type, message) {
@@ -34,9 +35,10 @@ exports.dashboard = async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(100)
         .populate('moderationHistory.actor', 'name role')
+        .populate('targetCommunities', 'name slug')
         .lean()
       : [],
-    Community.find({ monetizationStatus: 'approved', isMonetized: true, isPrivate: false, 'monetizationSettings.adsEnabled': true })
+    Community.find(COMMUNITY_AD_ELIGIBLE_FILTER)
       .select('name slug')
       .sort({ name: 1 })
       .limit(300)
@@ -57,8 +59,15 @@ exports.dashboard = async (req, res) => {
   }, { impressions: 0, clicks: 0, remainingBudget: 0, wavesSpent: 0 });
   totals.ctr = totals.impressions ? Number((totals.clicks / totals.impressions * 100).toFixed(4)) : 0;
 
+  // /advertising?community=<slug> (linked from a community page) pre-selects that community.
+  const preselectedSlug = String(req.query.community || '').trim().toLowerCase().slice(0, 120);
+  const preselectedCommunityId = preselectedSlug
+    ? String(communities.find((community) => String(community.slug || '').toLowerCase() === preselectedSlug)?._id || '')
+    : '';
+
   res.render('pages/advertising-dashboard', {
     title: 'Advertising dashboard',
+    preselectedCommunityId,
     pagePath: '/advertising',
     noIndex: true,
     advertiser,
@@ -130,13 +139,7 @@ exports.submitAd = async (req, res) => {
   const sitewideFallback = req.body.sitewideFallback === 'on';
   try {
     const [eligibleTargets, settings, hasMonetizedCommunity] = await Promise.all([
-      Community.find({
-        _id: { $in: targetCommunities },
-        monetizationStatus: 'approved',
-        isMonetized: true,
-        isPrivate: false,
-        'monetizationSettings.adsEnabled': true
-      }).select('_id').lean(),
+      Community.find({ _id: { $in: targetCommunities }, ...COMMUNITY_AD_ELIGIBLE_FILTER }).select('_id').lean(),
       SiteSetting.getSingleton(),
       hasMonetizedPublicCommunity()
     ]);

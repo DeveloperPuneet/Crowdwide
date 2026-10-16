@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Advertiser = require('../models/Advertiser');
 const Campaign = require('../models/Campaign');
 const User = require('../models/User');
@@ -20,6 +21,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const FINISHED_CAMPAIGN_STATUSES = ['completed', 'cancelled', 'rejected'];
 const BOT_ACTIVITY_EVENT_THRESHOLD = 20;
 const BOT_ACTIVITY_WINDOW_MS = 60 * 1000;
+// A community can only be targeted by advertisers while it is public, approved for monetization
+// and has ads switched on. The same filter drives the advertiser's community picker, submission
+// validation and (via getCommunityCampaigns) delivery, so the three cannot drift apart.
+const COMMUNITY_AD_ELIGIBLE_FILTER = Object.freeze({
+  monetizationStatus: 'approved',
+  isMonetized: true,
+  isPrivate: false,
+  'monetizationSettings.adsEnabled': true,
+  'monetizationSettings.adPlacement': { $ne: 'none' }
+});
 const ADVERTISING_POLICY_CATEGORIES = [
   'adult-18-plus',
   'sexual-content',
@@ -182,6 +193,23 @@ async function updateAdvertiserStatus({ advertiserId, status, reason = '', actor
   return advertiser;
 }
 
+// Normalizes and validates the communities an ad is aimed at. Returns de-duplicated ids of
+// communities that currently accept ads; throws if any requested community does not.
+async function resolveTargetCommunities(targetCommunities, sitewideFallback) {
+  const requested = [...new Set((Array.isArray(targetCommunities) ? targetCommunities : [targetCommunities])
+    .filter(Boolean).map(String))];
+  if (!requested.length) return [];
+  if (sitewideFallback) {
+    throw new Error('A campaign targets either specific communities or the Crowdwide-feed fallback, not both.');
+  }
+  const invalid = () => new Error('Choose only public communities that currently accept approved ads.');
+  if (!requested.every((id) => mongoose.isValidObjectId(id))) throw invalid();
+  const eligible = await Community.find({ _id: { $in: requested }, ...COMMUNITY_AD_ELIGIBLE_FILTER })
+    .select('_id').lean();
+  if (eligible.length !== requested.length) throw invalid();
+  return eligible.map((community) => community._id);
+}
+
 async function createCampaign({
   advertiserId,
   title,
@@ -257,6 +285,7 @@ async function createCampaign({
   if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
     throw new Error('End date cannot be before the start date.');
   }
+  const cleanedTargets = await resolveTargetCommunities(targetCommunities, sitewideFallback);
 
   const campaign = await Campaign.create({
     advertiser: advertiserId,
@@ -275,7 +304,7 @@ async function createCampaign({
     remainingBudget: 0,
     startDate: startDate ? new Date(startDate) : null,
     endDate: endDate ? new Date(endDate) : null,
-    targetCommunities: Array.isArray(targetCommunities) ? targetCommunities : [],
+    targetCommunities: cleanedTargets,
     sitewideFallback: Boolean(sitewideFallback),
     isWavesFunded: Boolean(isWavesFunded),
     notes: String(notes || '').trim().slice(0, 2000),
@@ -1241,6 +1270,7 @@ async function cleanupFinishedCampaigns({ now = new Date(), retentionDays = AD_R
 
 module.exports = {
   AD_RETENTION_DAYS,
+  COMMUNITY_AD_ELIGIBLE_FILTER,
   FINISHED_CAMPAIGN_STATUSES,
   cleanupFinishedCampaigns,
   deleteFinishedCampaigns,

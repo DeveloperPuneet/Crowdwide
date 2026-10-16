@@ -1,0 +1,3 @@
+<%# Lists the communities a campaign is aimed at. Accepts populated ({ name, slug }) or raw id entries. %>
+<% const adTargets = Array.isArray(campaign.targetCommunities) ? campaign.targetCommunities : []; const namedTargets = adTargets.filter((target) => target && target.name); %>
+<%= adTargets.length %> communit<%= adTargets.length === 1 ? 'y' : 'ies' %><% if (namedTargets.length) { %>: <% namedTargets.forEach((target, index) => { %><%= index ? ', ' : '' %><% if (target.slug) { %><a href="/communities/<%= encodeURIComponent(target.slug) %>"><%= target.name %></a><% } else { %><%= target.name %><% } %><% }) %><% } %>

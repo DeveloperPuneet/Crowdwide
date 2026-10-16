@@ -23,7 +23,7 @@
   %>
 
   <% if (advertiser) { %>
-  <section class="settings-block admin-wide">
+  <section class="settings-block admin-wide" style="margin-bottom: 2rem;">
     <h2><%= advertiser.businessName %></h2>
     <p>Advertiser status: <strong><%= advertiser.status === 'pending' && advertiser.viaCampaign ? 'awaiting review with your first ad' : advertiser.status %></strong><% if (advertiser.isVerified) { %> · Verified<% } %></p>
     <% if (advertiser.bannerUrl) { %><img class="advertiser-brand-banner" src="<%= advertiser.bannerUrl %>" alt="<%= advertiser.businessName %> banner"><% } %>
@@ -63,7 +63,7 @@
   <% } %>
 
   <% if (canSubmitAd) { %>
-  <section class="settings-block admin-wide">
+  <section class="settings-block admin-wide" id="submit-ad">
     <h2>Submit an ad</h2>
     <p>Fill in everything once. Your budget is reserved from your Waves wallet when you submit, a moderator and an admin review the ad, and when it is approved it goes live automatically. Unused budget is refunded if it is rejected or stopped.</p>
     <form class="admin-edit-form" method="post" action="/advertising/submit" enctype="multipart/form-data">
@@ -103,8 +103,9 @@
       <% if (communities.length) { %>
       <fieldset class="full-width">
         <legend>Target monetized communities</legend>
+        <p class="full-width"><small>Your ad is shown only inside the communities you pick, labelled “Sponsored”, and only while each community stays public and accepts ads. It is not shown site-wide.</small></p>
         <% communities.forEach((community) => { %>
-        <label class="checkbox-field"><input type="checkbox" name="targetCommunities" value="<%= community._id %>"> <%= community.name %></label>
+        <label class="checkbox-field"><input type="checkbox" name="targetCommunities" value="<%= community._id %>"<%= String(community._id) === String(locals.preselectedCommunityId || '') ? ' checked' : '' %>> <%= community.name %></label>
         <% }) %>
       </fieldset>
       <% } else { %><p class="full-width">There are currently no public monetized communities accepting advertisements.</p><% } %>
@@ -149,6 +150,7 @@
         <div><dt>Spend</dt><dd><%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves</dd></div>
         <div><dt>Rates</dt><dd><%= Number(campaign.impressionCostWaves ?? 0.1) %> Waves/impression · <%= Number(campaign.clickCostWaves ?? 1) %> Waves/click</dd></div>
         <% if (campaign.sitewideFallback) { %><div><dt>Placement</dt><dd>Normal Crowdwide feed, only while no public community is monetized</dd></div><% } %>
+        <% if (!campaign.sitewideFallback && (campaign.targetCommunities || []).length) { %><div><dt>Placement</dt><dd>Sponsored in <%- include('../partials/campaign-targets', { campaign }) %> only. It is never shown anywhere else.</dd></div><% } %>
         <% if (campaign.destinationUrl) { %><div class="campaign-dashboard-destination"><dt>Destination</dt><dd><a href="<%= campaign.destinationUrl %>" target="_blank" rel="noopener noreferrer nofollow"><%= campaign.destinationUrl %></a></dd></div><% } %>
       </dl>
       <% if (campaign.rejectionReason) { %><p class="campaign-dashboard-alert">Review reason: <%= campaign.rejectionReason %></p><% } %>

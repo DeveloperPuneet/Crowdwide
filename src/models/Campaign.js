@@ -72,4 +72,7 @@ const campaignSchema = new mongoose.Schema({
   createdByAdmin: { type: Boolean, default: false }
 }, { timestamps: true });
 
+// Community ad delivery looks up active campaigns by target community on every community page view.
+campaignSchema.index({ status: 1, targetCommunities: 1 });
+
 module.exports = mongoose.model('Campaign', campaignSchema);

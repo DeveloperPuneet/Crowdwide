@@ -19,7 +19,8 @@
         <a href="/welcome"><%- icon('sparkles', { size: 16 }) %><span>Personalize your feed</span></a>
         <a href="/settings/account"><%- icon('settings', { size: 16 }) %><span>Account settings</span></a>
         <a href="/communities/mine"><%- icon('users', { size: 16 }) %><span>Your communities</span></a>
-        <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 16 }) %><span>Admin console</span></a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 16 }) %><span>Moderator console</span></a><% } %>
+        <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 16 }) %><span>Admin console</span></a><% } %>
+        <% if (['admin', 'moderator'].includes(currentUser.role)) { %><a href="/moderator"><%- icon('shield', { size: 16 }) %><span>Moderator console</span></a><% } %>
       </div>
     </details>
     <% } %>
@@ -66,7 +67,8 @@
       <a href="/welcome"><%- icon('sparkles', { size: 18 }) %> Personalize your feed</a>
       <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Account settings</a>
       <a href="/communities/mine"><%- icon('users', { size: 18 }) %> Your communities</a>
-      <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } else if (currentUser.role === 'moderator') { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>
+      <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } %>
+      <% if (['admin', 'moderator'].includes(currentUser.role)) { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>
     </details>
     <% } %>
     <hr class="nav-drawer-hr">

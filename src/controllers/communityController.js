@@ -332,7 +332,9 @@ exports.detail = async (req, res) => {
   const sidebarAds = ['sidebar', 'all'].includes(placement) && communityAds.length
     ? [{ campaign: communityAds[0], eventToken: crypto.randomUUID() }]
     : [];
-  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests, feedAds, sidebarAds });
+  const acceptsAds = !community.isPrivate && community.isMonetized === true && community.monetizationStatus === 'approved'
+    && community.monetizationSettings?.adsEnabled === true && placement !== 'none';
+  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests, feedAds, sidebarAds, acceptsAds });
 };
 exports.manage = async (req, res) => {
   const [members, posts, pendingPosts, requests, moderators, quests, monetizationEligibility, adEvents, communityPromotionOffer, ownerEarnings, ownerEarningsHistory] = await Promise.all([
