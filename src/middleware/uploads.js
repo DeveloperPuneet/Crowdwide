@@ -72,6 +72,36 @@ const advertiserApplicationUpload = multer({
   fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
 }).fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 1 }]);
 
+// Partner logos are added by admins only. PNG, JPEG and WebP only (no SVG: it can carry script).
+const PARTNER_LOGO_LIMIT = 1024 * 1024;
+const partnerLogoUpload = multer({
+  storage,
+  limits: { fileSize: PARTNER_LOGO_LIMIT + 1, files: 1 },
+  fileFilter: (req, file, callback) => callback(null, ['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype))
+}).single('logo');
+
+async function validatePartnerLogo(req, res, next) {
+  const back = '/admin#partners';
+  if (!req.file) return next();
+  if (req.file.size > PARTNER_LOGO_LIMIT) {
+    req.session.flash = { type: 'error', message: 'Partner logos must be 1MB or smaller.' };
+    return res.redirect(back);
+  }
+  try {
+    const { getImageSize } = require('../services/storage');
+    if (!await getImageSize(req.file.buffer)) {
+      req.session.flash = { type: 'error', message: 'Choose a valid PNG, JPEG or WebP logo.' };
+      return res.redirect(back);
+    }
+    req.file.mediaKind = 'image';
+    return next();
+  } catch (error) {
+    logger.error('Partner logo validation failed', error);
+    req.session.flash = { type: 'error', message: 'The partner logo could not be validated.' };
+    return res.redirect(back);
+  }
+}
+
 const chatAttachmentUpload = multer({
   storage,
   limits: { fileSize: CHAT_ATTACHMENT_LIMIT, files: 1 }
@@ -235,8 +265,9 @@ function handleUploadError(error, req, res, next) {
   if (req.path.startsWith('/messages')) return res.redirect(req.get('referer') || '/messages');
   if (req.path.startsWith('/settings')) return res.redirect('/settings/profile');
   if (req.path.startsWith('/advertising')) return res.redirect('/advertising');
+  if (req.path.startsWith('/admin/partners')) return res.redirect('/admin#partners');
   if (req.path.includes('/manage') || req.path.includes('/report')) return res.redirect(req.get('referer') || '/dashboard');
   res.redirect('/dashboard');
 }
 
-module.exports = { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, chatAttachmentUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };
+module.exports = { partnerLogoUpload, validatePartnerLogo, postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, chatAttachmentUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };

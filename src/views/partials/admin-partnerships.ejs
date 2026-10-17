@@ -1,0 +1,97 @@
+<%# Admin → Partnerships (applications) and Partner logos (public listing). Data: partnershipApplications, adminPartners. %>
+<% const applications = Array.isArray(locals.partnershipApplications) ? locals.partnershipApplications : []; const partnerList = Array.isArray(locals.adminPartners) ? locals.adminPartners : []; %>
+<% const pendingApps = applications.filter((a) => a.status === 'pending'); const decidedApps = applications.filter((a) => a.status !== 'pending'); %>
+<% const typeLabel = (value) => (locals.organizationTypeLabels || {})[value] || value; %>
+
+<section class="admin-panel" id="admin-panel-partnerships" role="tabpanel" aria-labelledby="admin-tab-partnerships" data-panel="partnerships">
+  <h2>Partnership requests</h2>
+  <p>Organizations apply from <a href="/partnerships/apply">/partnerships/apply</a>. Approving creates a hidden partner entry; add the logo and switch it on in <strong>Partner logos</strong>. The applicant is emailed the decision. Terms version in force: <%= locals.partnershipTermsVersion || '' %>.</p>
+  <% if (!pendingApps.length) { %><p>No partnership requests are waiting for review.</p><% } %>
+  <% pendingApps.forEach((app) => { %>
+  <article class="device-row partner-application" style="flex-direction:column;align-items:stretch;">
+    <header><strong><%= app.organizationName %></strong> <span class="partner-badge partner-badge--warn">Pending</span> <small>Ref <%= app.reference %> · <%= new Date(app.createdAt).toLocaleString() %></small></header>
+    <dl>
+      <dt>Website</dt><dd><a href="<%= app.websiteUrl %>" target="_blank" rel="noopener noreferrer nofollow"><%= app.websiteUrl %></a></dd>
+      <dt>Type</dt><dd><%= typeLabel(app.organizationType) %><% if (app.country) { %> · <%= app.country %><% } %></dd>
+      <dt>Contact</dt><dd><%= app.contactName %><% if (app.contactRole) { %> (<%= app.contactRole %>)<% } %> · <a href="mailto:<%= app.contactEmail %>"><%= app.contactEmail %></a> <span class="partner-badge <%= app.emailMatchesWebsite ? 'partner-badge--ok' : '' %>"><%= app.emailMatchesWebsite ? 'Email matches website' : 'Email differs from website' %></span></dd>
+      <dt>About</dt><dd><%= app.description %></dd>
+      <dt>Proposal</dt><dd><%= app.collaboration %></dd>
+      <% if (app.displayUrl) { %><dt>Crowdwide shown at</dt><dd><a href="<%= app.displayUrl %>" target="_blank" rel="noopener noreferrer nofollow"><%= app.displayUrl %></a></dd><% } %>
+      <% if (app.logoLink) { %><dt>Logo link</dt><dd><a href="<%= app.logoLink %>" target="_blank" rel="noopener noreferrer nofollow"><%= app.logoLink %></a> (check before using)</dd><% } %>
+      <dt>Confirmations</dt><dd>All six ticked · terms <%= app.termsVersion %> · <%= new Date(app.attestedAt).toLocaleString() %> · IP <%= app.ipAddress || 'n/a' %></dd>
+    </dl>
+    <div class="partner-actions">
+      <form method="post" action="/admin/partnerships/<%= app._id %>/review">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve partnership</button>
+      </form>
+      <form method="post" action="/admin/partnerships/<%= app._id %>/review" class="advertiser-reject-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Rejection reason (sent to the applicant)<input type="text" name="reason" maxlength="500" placeholder="Required to reject" required></label>
+        <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject</button>
+      </form>
+    </div>
+  </article>
+  <% }) %>
+
+  <h3>Decided requests</h3>
+  <% if (!decidedApps.length) { %><p>Nothing decided yet. Rejected and ended requests are deleted after <%= locals.partnershipRetentionDays || 180 %> days.</p><% } %>
+  <% decidedApps.forEach((app) => { %>
+  <p><strong><%= app.organizationName %></strong>
+    <span class="partner-badge <%= app.status === 'approved' ? 'partner-badge--ok' : app.status === 'rejected' ? 'partner-badge--bad' : '' %>"><%= app.status %></span>
+    · <%= app.contactEmail %> · Ref <%= app.reference %><% if (app.reviewedAt) { %> · <%= new Date(app.reviewedAt).toLocaleDateString() %><% } %><% if (app.reviewedBy && app.reviewedBy.name) { %> by <%= app.reviewedBy.name %><% } %><% if (app.decisionReason) { %><br><small><%= app.decisionReason %></small><% } %></p>
+  <% }) %>
+</section>
+
+<section class="admin-panel" id="admin-panel-partners" role="tabpanel" aria-labelledby="admin-tab-partners" data-panel="partners">
+  <h2>Partner logos</h2>
+  <p>Everything shown in the partner sections (home page, footers, About and Partnerships pages) comes from this list, in the order set here. Logos: PNG, JPEG or WebP, up to 1 MB, scanned before upload. Hidden partners are never shown.</p>
+
+  <details class="post-owner-tools" <%= partnerList.length ? '' : 'open' %>>
+    <summary>Add a partner manually</summary>
+    <form class="partner-admin-form" method="post" action="/admin/partners" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>Name *<input name="name" maxlength="120" required></label>
+      <label>Website *<input type="url" name="websiteUrl" maxlength="300" required placeholder="https://example.com"></label>
+      <label class="full-width">Short description (tooltip, optional)<input name="description" maxlength="200"></label>
+      <label>Logo<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
+      <label>Display order (low first)<input type="number" name="displayOrder" value="100" min="0" max="9999"></label>
+      <label class="check"><input type="checkbox" name="isVisible" checked> Show on the site</label>
+      <label class="check"><input type="checkbox" name="showOnLanding" checked> Show on the landing page</label>
+      <div class="full-width"><button class="button button-small button-primary" type="submit">Add partner</button></div>
+    </form>
+  </details>
+
+  <% if (!partnerList.length) { %><p>No partners yet. Approve a request or add one above.</p><% } %>
+  <div class="partner-admin-grid">
+    <% partnerList.forEach((partner) => { %>
+    <article class="partner-admin-card">
+      <header>
+        <div class="partner-admin-logo"><% if (partner.logoUrl) { %><img src="<%= partner.logoUrl %>" alt="<%= partner.name %> logo" loading="lazy"><% } else { %>No logo<% } %></div>
+        <div><strong><%= partner.name %></strong><span><%= partner.websiteUrl %></span>
+          <span class="partner-badge <%= partner.isVisible ? 'partner-badge--ok' : 'partner-badge--warn' %>"><%= partner.isVisible ? 'Shown' : 'Hidden' %></span>
+          <% if (!partner.logoUrl) { %><span class="partner-badge partner-badge--warn">Needs logo</span><% } %></div>
+      </header>
+      <details>
+        <summary>Edit logo, name and website</summary>
+        <form class="partner-admin-form" method="post" action="/admin/partners/<%= partner._id %>" enctype="multipart/form-data">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label>Name *<input name="name" maxlength="120" required value="<%= partner.name %>"></label>
+          <label>Website *<input type="url" name="websiteUrl" maxlength="300" required value="<%= partner.websiteUrl %>"></label>
+          <label class="full-width">Short description<input name="description" maxlength="200" value="<%= partner.description || '' %>"></label>
+          <label class="full-width">Replace logo<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
+          <label>Display order<input type="number" name="displayOrder" min="0" max="9999" value="<%= partner.displayOrder %>"></label>
+          <span></span>
+          <label class="check"><input type="checkbox" name="isVisible" <%= partner.isVisible ? 'checked' : '' %>> Show on the site</label>
+          <label class="check"><input type="checkbox" name="showOnLanding" <%= partner.showOnLanding !== false ? 'checked' : '' %>> Show on the landing page</label>
+          <div class="full-width"><button class="button button-small button-primary" type="submit">Save changes</button></div>
+        </form>
+      </details>
+      <div class="partner-actions">
+        <form method="post" action="/admin/partners/<%= partner._id %>/visibility"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="visible" value="<%= partner.isVisible ? '0' : '1' %>"><button class="button button-small button-ghost" type="submit"><%= partner.isVisible ? 'Hide from site' : 'Show on site' %></button></form>
+        <form method="post" action="/admin/partners/<%= partner._id %>/delete" data-confirm="End this partnership? The listing and its logo are deleted from Crowdwide."><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-danger" type="submit">End partnership</button></form>
+      </div>
+    </article>
+    <% }) %>
+  </div>
+</section>

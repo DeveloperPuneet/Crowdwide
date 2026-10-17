@@ -29,6 +29,7 @@ const { rewardWavesForAction } = require('../services/waves');
 const { getSitewideFeedCampaigns } = require('../services/advertising');
 const Survey = require('../models/Survey');
 const surveyService = require('../services/surveys');
+const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_SECTION } = require('../utils/partnershipPages');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -1047,12 +1048,17 @@ exports.infoPage = async (req, res) => {
 			]
 		}
 	};
+	Object.assign(pages, partnershipPages({ appUrl: process.env.APP_URL }));
+	// Cross-references so the general legal pages cover the partner program too.
+	if (pages['/privacy']) pages['/privacy'] = { ...pages['/privacy'], updated: 'Last updated October 2026', sections: [...pages['/privacy'].sections, PARTNERSHIP_PRIVACY_SECTION] };
+	if (pages['/terms']) pages['/terms'] = { ...pages['/terms'], updated: 'Last updated October 2026', sections: [...pages['/terms'].sections, PARTNERSHIP_TERMS_OF_USE_SECTION] };
+	pages['/about'].showPartners = true;
 	const page = pages[req.path] || pages['/about'];
 	let growthStats = null;
 	if (page.growthChart) {
 		try { growthStats = await getGrowthStats(); } catch (error) { logger.error('Growth stats failed', error); }
 	}
-	res.render('pages/info', { ...page, growthChart: Boolean(growthStats), growthStats, pagePath: req.path, description: page.intro });
+	res.render('pages/info', { ...page, showPartners: Boolean(page.showPartners), growthChart: Boolean(growthStats), growthStats, pagePath: req.path, description: page.intro });
 };
 
 exports.robots = (req, res) => {
@@ -1069,7 +1075,7 @@ exports.sitemap = async (req, res) => {
 			moderationStatus: { $ne: 'reported' },
 			community: { $nin: restrictedCommunityIds }
 		}).sort({ updatedAt: -1 }).limit(1000).select('_id updatedAt').lean();
-		const pages = ['/', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
+		const pages = ['/', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships', '/partnerships/apply', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
 		const urls = [
 			...pages.map((page) => `<url><loc>${escapeXml(`${baseUrl}${page}`)}</loc></url>`),
 			...posts.map((post) => `<url><loc>${escapeXml(`${baseUrl}/posts/${post._id}`)}</loc><lastmod>${new Date(post.updatedAt).toISOString()}</lastmod></url>`)

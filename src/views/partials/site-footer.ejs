@@ -1,5 +1,6 @@
 <footer class="site-footer">
   <div class="container">
+    <% if (!locals.showPartners) { %><%- include('partners-strip', { variant: 'footer' }) %><% } %>
     <div class="footer-top">
       <div class="footer-brand">
         <a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
@@ -25,6 +26,7 @@
         <a href="/community-guidelines">Guidelines</a>
         <a href="/guide">Guide & tips</a>
         <a href="/help">Help center</a>
+        <a href="/partnerships">Partnerships</a>
         <a href="/contact">Contact</a>
       </div>
       <div class="footer-col">
@@ -32,6 +34,8 @@
         <a href="/privacy">Privacy policy</a>
         <a href="/terms">Terms of use</a>
         <a href="/advertising/terms">Advertising Terms</a>
+        <a href="/partnerships/terms">Partnership Terms</a>
+        <a href="/partnerships/brand-guidelines">Partner Brand Guidelines</a>
         <a href="/waves/terms">Waves Terms</a>
         <a href="/community-monetization/terms">Community Monetization Terms</a>
         <a href="/accessibility">Accessibility</a>
@@ -44,6 +48,7 @@
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
         <a href="/advertising/terms">Advertising Terms</a>
+        <a href="/partnerships/terms">Partnership Terms</a>
         <a href="/waves/terms">Waves Terms</a>
         <a href="/community-monetization/terms">Community Monetization Terms</a>
         <a href="/accessibility">Accessibility</a>

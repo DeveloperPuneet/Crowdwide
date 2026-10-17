@@ -17,6 +17,7 @@ const logger = require('./services/logger');
 const { stagingMiddleware } = require('./services/environment');
 const { alertOnCriticalError } = require('./services/alerting');
 const User = require('./models/User');
+const { getVisiblePartners } = require('./services/partnerships');
 
 function createApp({ port = process.env.PORT || 3000 } = {}) {
   const app = express();
@@ -114,6 +115,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
       res.locals.renderRichBody = renderRichBody;
       res.locals.icon = icon;
       res.locals.gifsEnabled = gifsEnabled();
+      // Approved partners for the footer / landing strips (cached for a minute; never throws).
+      res.locals.partners = req.method === 'GET' && !req.path.startsWith('/api/') && !req.path.startsWith('/media/') ? await getVisiblePartners() : [];
       delete req.session.flash;
       next();
     } catch (error) {

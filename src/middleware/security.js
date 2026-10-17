@@ -13,6 +13,15 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts. Try again in a few minutes.'
 });
 
+// Public partnership requests: a handful per hour per address is plenty for a real organization.
+const partnershipLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 6,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: 'Too many partnership requests from this connection. Please try again later.'
+});
+
 const interactionLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 60,
@@ -70,4 +79,4 @@ function csrfProtection(req, res, next) {
   return csrfSynchronisedProtection(req, res, next);
 }
 
-module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter };
+module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, partnershipLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter };

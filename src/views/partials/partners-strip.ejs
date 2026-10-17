@@ -1,0 +1,27 @@
+<%# Public partner logos. variant: 'footer' (compact), 'landing' (full section) or 'inline'. Reads res.locals.partners. %>
+<% const stripVariant = locals.variant || 'footer'; const stripPartners = (locals.partners || []).filter((partner) => stripVariant !== 'landing' || partner.showOnLanding !== false); %>
+<% if (stripPartners.length || stripVariant === 'landing') { %>
+<section class="partners-strip partners-strip--<%= stripVariant %>" aria-labelledby="partners-heading-<%= stripVariant %>">
+  <% if (stripVariant === 'landing') { %>
+  <div class="section-intro"><p class="eyebrow">Better together</p><h2 id="partners-heading-landing">Our partners.</h2></div>
+  <% } else { %>
+  <h4 class="partners-strip-title" id="partners-heading-<%= stripVariant %>">Our partners</h4>
+  <% } %>
+  <% if (stripPartners.length) { %>
+  <ul class="partner-logos">
+    <% stripPartners.forEach((partner) => { %>
+    <li>
+      <a class="partner-logo-tile" href="<%= partner.websiteUrl %>" target="_blank" rel="noopener noreferrer" title="<%= partner.description || partner.name %>">
+        <% if (partner.logoUrl) { %><img src="<%= partner.logoUrl %>" alt="<%= partner.name %>" loading="lazy"><% } else { %><span class="partner-logo-name"><%= partner.name %></span><% } %>
+        <span class="visually-hidden">(opens in a new tab)</span>
+      </a>
+    </li>
+    <% }) %>
+  </ul>
+  <% } else { %>
+  <p class="partners-empty">We are opening our partner program to websites and organizations that share our values. Be among the first.</p>
+  <% } %>
+  <p class="partners-note">Partners are independent organizations. A partnership is not an endorsement of any product or service.
+    <a href="/partnerships"><%= stripPartners.length ? 'Learn about partnerships' : 'Become a partner' %></a><% if (stripVariant === 'landing') { %> · <a href="/partnerships/apply">Apply now</a><% } %></p>
+</section>
+<% } %>

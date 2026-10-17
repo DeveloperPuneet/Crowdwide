@@ -1,0 +1,11 @@
+<%- include('../partials/head', { title, pagePath, noIndex }) %>
+<div class="info-page info-modern partnerships-page"><%- include('../partials/nav') %>
+<main class="info-main container">
+  <p class="eyebrow">Crowdwide / Partnerships</p>
+  <h1>Request received.</h1>
+  <p class="info-intro">Thank you<%= receipt.organization ? `, ${receipt.organization}` : '' %>. An administrator will review your request and we will email <strong><%= receipt.email %></strong> with the decision.</p>
+  <div class="partner-receipt" role="status"><span>Your reference</span><strong><%= receipt.reference %></strong><small>Keep this number. Quote it if you write to us about this request. If the email does not arrive, check your spam folder.</small></div>
+  <p class="partner-cta-row"><a class="button button-primary" href="/">Back to Crowdwide</a><a class="button button-ghost" href="/partnerships/terms">Partnership Terms</a></p>
+</main>
+<%- include('../partials/site-footer') %></div>
+<%- include('../partials/foot') %>

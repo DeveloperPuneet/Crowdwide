@@ -1,0 +1,58 @@
+<%- include('../partials/head', { title, description, pagePath }) %>
+<div class="info-page info-modern partnerships-page"><%- include('../partials/nav') %>
+<main class="info-main container partner-apply">
+  <p class="eyebrow">Crowdwide / Partnerships / Apply</p>
+  <h1>Apply to partner.</h1>
+  <p class="info-intro" style="margin-bottom:28px;">Tell us about your organization and website. It takes about five minutes. Fields marked * are required. Read the <a href="/partnerships/terms">Partnership Terms</a> and <a href="/partnerships/brand-guidelines">Brand Guidelines</a> first.</p>
+  <%- include('../partials/flash') %>
+  <form class="partner-form" method="post" action="/partnerships/apply" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <fieldset>
+      <legend>Your organization</legend>
+      <label>Organization or website name *<input type="text" name="organizationName" maxlength="120" required autocomplete="organization" value="<%= form.organizationName || '' %>"></label>
+      <label>Type of organization *
+        <select name="organizationType" required>
+          <option value="">Choose one</option>
+          <% organizationTypes.forEach(([value, label]) => { %><option value="<%= value %>" <%= form.organizationType === value ? 'selected' : '' %>><%= label %></option><% }) %>
+        </select>
+      </label>
+      <label>Website address *<input type="url" name="websiteUrl" maxlength="300" required placeholder="https://example.com" inputmode="url" value="<%= form.websiteUrl || '' %>"><small>Must be a public website you own or control.</small></label>
+      <label>Country or region<input type="text" name="country" maxlength="80" autocomplete="country-name" value="<%= form.country || '' %>"></label>
+      <label class="full-width">About your organization *<textarea name="description" maxlength="1000" rows="4" required placeholder="Who you are, what you do and who your audience is (30–1000 characters)."><%= form.description || '' %></textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>The partnership</legend>
+      <label class="full-width">What would you like the partnership to involve? *<textarea name="collaboration" maxlength="1500" rows="4" required placeholder="For example: showing each other's logos, co-hosting an event, sharing resources (30–1500 characters)."><%= form.collaboration || '' %></textarea></label>
+      <label>Page where you would show Crowdwide<input type="url" name="displayUrl" maxlength="400" placeholder="https://example.com/partners" value="<%= form.displayUrl || '' %>"><small>Optional. We may check that the Crowdwide brand is used correctly.</small></label>
+      <label>Link to your logo<input type="url" name="logoLink" maxlength="500" placeholder="https://example.com/logo.png" value="<%= form.logoLink || '' %>"><small>Optional. If approved, an administrator adds your logo to Crowdwide; this link just helps them find the right one. We do not upload files from visitors.</small></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Who we should contact</legend>
+      <label>Contact name *<input type="text" name="contactName" maxlength="100" required autocomplete="name" value="<%= form.contactName || '' %>"></label>
+      <label>Role or title<input type="text" name="contactRole" maxlength="100" autocomplete="organization-title" value="<%= form.contactRole || '' %>"></label>
+      <label>Contact email *<input type="email" name="contactEmail" maxlength="200" required autocomplete="email" value="<%= form.contactEmail || '' %>"><small>We send the decision here. An address at your website's own domain helps us verify you.</small></label>
+    </fieldset>
+
+    <fieldset class="partner-consents">
+      <legend>Confirmations (all required)</legend>
+      <label class="consent-check"><input type="checkbox" name="authorized" required><span>I am authorized to make this request and to bind the organization named above to the Partnership Terms.</span></label>
+      <label class="consent-check"><input type="checkbox" name="accurate" required><span>The information in this request is true, accurate and complete.</span></label>
+      <label class="consent-check"><input type="checkbox" name="ownsAssets" required><span>The organization owns, or has permission to license, its name, logo and website content, and its use as described does not infringe anyone's rights.</span></label>
+      <label class="consent-check"><input type="checkbox" name="lawfulContent" required><span>The website does not host or promote adult or sexually explicit content, gambling or betting, illegal goods or services, hate or harassment, fraud, malware or deceptive practices.</span></label>
+      <label class="consent-check"><input type="checkbox" name="displayConsent" required><span>If this request is approved, I grant Crowdwide permission to display the organization's name, logo and website link on Crowdwide as described in the Partnership Terms, until the partnership ends.</span></label>
+      <label class="consent-check"><input type="checkbox" name="acceptsTerms" required><span>I have read and agree to the <a href="/partnerships/terms" target="_blank" rel="noopener">Partnership Terms</a>, the <a href="/partnerships/brand-guidelines" target="_blank" rel="noopener">Partner Brand Guidelines</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy policy</a> (terms version <%= termsVersion %>).</span></label>
+    </fieldset>
+
+    <% if (turnstileSiteKey) { %><div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>"></div><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <% } else { %><label>Quick check: what is <%= captcha.a %> + <%= captcha.b %>? *<input type="text" inputmode="numeric" name="captchaAnswer" placeholder="Your answer" required autocomplete="off"></label><% } %>
+    <div class="hp-field" aria-hidden="true"><label>Leave this field empty<input type="text" name="companyFax" tabindex="-1" autocomplete="off"></label></div>
+
+    <p class="partner-form-note">We use these details only to review and manage your request. See the <a href="/privacy">Privacy policy</a>. Submitting does not create a partnership; a Crowdwide administrator must approve it.</p>
+    <button class="button button-primary" type="submit">Submit partnership request <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
+  </form>
+</main>
+<%- include('../partials/site-footer') %></div>
+<%- include('../partials/foot') %>

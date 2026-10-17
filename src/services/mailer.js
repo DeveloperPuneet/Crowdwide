@@ -405,6 +405,59 @@ async function sendPasswordResetLink(user, resetUrl) {
   await deliver(mail, `Password reset email for ${user.email} (reset link omitted)`);
 }
 
+async function sendPartnershipReceipt(application) {
+  const base = env('APP_URL') || 'https://www.crowdwide.run.place';
+  const message = `Thank you for asking to partner with Crowdwide. We received the request for ${application.organizationName} and an administrator will review it. We will email you at this address with the decision.\n\nKeep your reference number: ${application.reference}.`;
+  const mail = {
+    from: fromAddress(),
+    to: application.contactEmail,
+    subject: `We received your Crowdwide partnership request (${application.reference})`,
+    text: `${message}\n\nPartnership Terms: ${base}/partnerships/terms`,
+    html: brandedEmail({
+      heading: 'Partnership request received',
+      message,
+      preheader: 'Your Crowdwide partnership request is in review',
+      eyebrow: 'PARTNERSHIPS',
+      greeting: application.contactName,
+      details: [{ label: 'Reference', value: application.reference }, { label: 'Organization', value: application.organizationName }, { label: 'Website', value: application.websiteUrl }],
+      steps: ['An administrator reviews your request.', 'You receive the decision by email.', 'If approved, you may use the Crowdwide name and logo under the Brand Guidelines.'],
+      actionUrl: `${base}/partnerships/terms`,
+      actionLabel: 'Read the Partnership Terms',
+      note: 'If you did not send this request, you can ignore this email. Nothing happens unless the request is approved.'
+    })
+  };
+  return deliver(mail, `Partnership receipt for ${application.contactEmail} (${application.reference})`);
+}
+
+async function sendPartnershipDecision(application) {
+  const base = env('APP_URL') || 'https://www.crowdwide.run.place';
+  const approved = application.status === 'approved';
+  const message = approved
+    ? `Good news: ${application.organizationName} is now a Crowdwide partner. We will list your name and logo on Crowdwide once your logo has been added, and you may now display the Crowdwide name and logo on your website under the Partner Brand Guidelines.${application.decisionReason ? `\n\nNote from the team: ${application.decisionReason}` : ''}`
+    : `Thank you for your interest in partnering with Crowdwide. After review we are not able to approve the request for ${application.organizationName} at this time.\n\nReason: ${application.decisionReason || 'Not provided.'}\n\nYou are welcome to apply again once the points above have been addressed.`;
+  const mail = {
+    from: fromAddress(),
+    to: application.contactEmail,
+    subject: approved ? 'Welcome to the Crowdwide partner program' : 'Update on your Crowdwide partnership request',
+    text: `${message}\n\nReference: ${application.reference}\nBrand guidelines: ${base}/partnerships/brand-guidelines`,
+    html: brandedEmail({
+      heading: approved ? 'Your partnership is approved' : 'Your partnership request was not approved',
+      message,
+      preheader: approved ? 'You are now a Crowdwide partner' : 'A decision on your partnership request',
+      eyebrow: 'PARTNERSHIPS',
+      tone: approved ? 'success' : 'warning',
+      greeting: application.contactName,
+      details: [{ label: 'Reference', value: application.reference }],
+      actionUrl: `${base}/partnerships/brand-guidelines`,
+      actionLabel: approved ? 'Get the brand kit' : 'Partnership information',
+      note: approved
+        ? 'Either side may end the partnership at any time as described in the Partnership Terms.'
+        : 'This decision does not affect your Crowdwide account, if you have one.'
+    })
+  };
+  return deliver(mail, `Partnership decision (${application.status}) for ${application.contactEmail}`);
+}
+
 function postEmailCard(post, appUrl, index) {
   const url = safeEmailUrl(`${appUrl}/posts/${post._id}`);
   if (!url) return '';
@@ -479,6 +532,8 @@ module.exports = {
   sendPasswordResetLink,
   sendWeeklyNewsletter,
   sendUnreadNotificationSummary,
+  sendPartnershipReceipt,
+  sendPartnershipDecision,
   verifyMailConfig,
   sendTestEmail,
   explainMailError

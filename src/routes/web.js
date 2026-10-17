@@ -5,10 +5,10 @@ const settingsController = require('../controllers/settingsController');
 const communityController = require('../controllers/communityController');
 const { visitorPreview } = require('../controllers/sharePreviewController');
 const onboardingController = require('../controllers/onboardingController');
-const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
+const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, partnerLogoUpload, validatePartnerLogo, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
-const { interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter, csrfSynchronisedProtection } = require('../middleware/security');
+const { partnershipLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter, csrfSynchronisedProtection } = require('../middleware/security');
 const chatController = require('../controllers/chatController');
 const shareController = require('../controllers/shareController');
 const gifController = require('../controllers/gifController');
@@ -19,6 +19,7 @@ const surveyController = require('../controllers/surveyController');
 const translateController = require('../controllers/translateController');
 const wavesController = require('../controllers/wavesController');
 const advertisingController = require('../controllers/advertisingController');
+const partnershipController = require('../controllers/partnershipController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
 
 router.get('/', controller.home);
@@ -36,6 +37,10 @@ router.get('/dashboard', requireAuth, requireVerified, onboardingController.onbo
 router.get('/wallet', requireAuth, requireVerified, wavesController.wallet);
 router.post('/wallet/ad-free', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.buyAdFree);
 router.post('/wallet/transfer', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.transfer);
+router.get('/partnerships', partnershipController.overview);
+router.get('/partnerships/apply', partnershipController.applyPage);
+router.post('/partnerships/apply', partnershipLimiter, csrfSynchronisedProtection, partnershipController.submitApplication);
+router.get('/partnerships/received', partnershipController.received);
 router.get('/advertising', requireAuth, requireVerified, advertisingController.dashboard);
 router.post('/advertising/submit', requireAuth, requireVerified, interactionLimiter, advertiserApplicationUpload, csrfSynchronisedProtection, handleUploadError, validateAdvertiserApplicationUpload, scanUploadsForViruses, advertisingController.submitAd);
 router.post('/advertising/appeal', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.submitAdvertiserAppeal);
@@ -176,6 +181,12 @@ router.post('/admin/community-ad-shares/:id/retry', requireAuth, requireVerified
 router.post('/admin/ad-abuse/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdAbuseSignal);
 router.post('/admin/waves-abuse/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewWavesAbuseSignal);
 router.post('/moderator/communities/:id/monetization', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewCommunityMonetizationAsModerator);
+const partnersAdmin = [requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin')];
+router.post('/admin/partnerships/:id/review', ...partnersAdmin, csrfSynchronisedProtection, partnershipController.reviewApplication);
+router.post('/admin/partners', ...partnersAdmin, partnerLogoUpload, csrfSynchronisedProtection, handleUploadError, validatePartnerLogo, scanUploadsForViruses, partnershipController.savePartner);
+router.post('/admin/partners/:id', ...partnersAdmin, partnerLogoUpload, csrfSynchronisedProtection, handleUploadError, validatePartnerLogo, scanUploadsForViruses, partnershipController.savePartner);
+router.post('/admin/partners/:id/visibility', ...partnersAdmin, csrfSynchronisedProtection, partnershipController.togglePartner);
+router.post('/admin/partners/:id/delete', ...partnersAdmin, csrfSynchronisedProtection, partnershipController.deletePartner);
 router.post('/admin/advertisers/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdvertiser);
 router.post('/moderator/advertisers/:id/review', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewAdvertiserAsModerator);
 router.post('/admin/campaigns/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewCampaign);
@@ -217,7 +228,7 @@ router.get('/settings/account/download', requireAuth, requireVerified, settingsC
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
 router.get('/docs', controller.docs);
-['/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
+['/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);
 router.get('/sitemap.xml', controller.sitemap);
 

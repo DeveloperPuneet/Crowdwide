@@ -23,7 +23,7 @@
   %>
 
   <% if (advertiser) { %>
-  <section class="settings-block admin-wide" style="margin-bottom: 2rem;">
+  <section class="settings-block admin-wide">
     <h2><%= advertiser.businessName %></h2>
     <p>Advertiser status: <strong><%= advertiser.status === 'pending' && advertiser.viaCampaign ? 'awaiting review with your first ad' : advertiser.status %></strong><% if (advertiser.isVerified) { %> · Verified<% } %></p>
     <% if (advertiser.bannerUrl) { %><img class="advertiser-brand-banner" src="<%= advertiser.bannerUrl %>" alt="<%= advertiser.businessName %> banner"><% } %>

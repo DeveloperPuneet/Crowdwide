@@ -21,6 +21,8 @@
     <button type="button" class="admin-tab" id="admin-tab-communities" role="tab" aria-controls="admin-panel-communities" data-tab="communities">Communities</button>
     <button type="button" class="admin-tab" id="admin-tab-advertisers" role="tab" aria-controls="admin-panel-advertisers" data-tab="advertisers">Advertisers<% if (pendingAdvertiserList.length) { %> (<%= pendingAdvertiserList.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-campaigns" role="tab" aria-controls="admin-panel-campaigns" data-tab="campaigns">Campaigns<% if (pendingCampaignList.length) { %> (<%= pendingCampaignList.length %> pending)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-partnerships" role="tab" aria-controls="admin-panel-partnerships" data-tab="partnerships">Partnerships<% const pendingPartnerCount = (locals.partnershipApplications || []).filter((a) => a.status === 'pending').length; if (pendingPartnerCount) { %> (<%= pendingPartnerCount %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-partners" role="tab" aria-controls="admin-panel-partners" data-tab="partners">Partner logos</button>
     <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (openReports.length) { %> (<%= openReports.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-queue" role="tab" aria-controls="admin-panel-queue" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
@@ -295,6 +297,8 @@
     </section>
     <% } %>
   </section>
+
+  <%- include('../partials/admin-partnerships', { csrfToken }) %>
 
   <!-- CAMPAIGNS -->
   <section class="admin-panel" id="admin-panel-campaigns" role="tabpanel" aria-labelledby="admin-tab-campaigns" data-panel="campaigns">
