@@ -13,7 +13,8 @@ const Comment = require('../models/Comment');
 const PostShare = require('../models/PostShare');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
-const { getFeedPage, refreshPersonalization } = require('../services/feedService');
+const { getFeedPage, refreshPersonalization, getInterestProfile } = require('../services/feedService');
+const { getRecommendedCommunities } = require('../services/communityRecommendations');
 const { isFeedTab } = require('../utils/feedRanker');
 const { getPopularSearches, recordSearch } = require('../services/popularSearches');
 const { notifyMentionedUsers } = require('../services/mentions');
@@ -182,7 +183,7 @@ exports.dashboard = async (req, res) => {
 		const followingIds = (user.following || []).map(String);
 		const [feed, communities, joinedCommunityDocs, people, followedPeople, followerPeople, wordLimits] = await Promise.all([
 			getFeedPage({ userId: user._id, view: activeTab, page: 1, user }),
-			Community.find().sort({ membersCount: -1, createdAt: -1 }).limit(6).lean(),
+			getRecommendedCommunities(user, { limit: 5, getInterestProfile }),
 			Community.find({ $or: [{ members: user._id }, { owner: user._id }] }).sort({ name: 1 }).lean(),
 			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean(),
 			User.find({ _id: { $in: user.following || [], $ne: user._id } }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),

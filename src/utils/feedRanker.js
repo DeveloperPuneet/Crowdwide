@@ -90,6 +90,18 @@ function interactionPoints(counts = {}) {
   return engagementPoints({ ...counts, views: 0 });
 }
 
+// How well a post converts attention into action: interactions per view,
+// smoothed so a post with 1 view and 1 like does not look perfect. 0..1.
+function resonance(counts = {}) {
+  const points = interactionPoints(counts);
+  if (!points) return 0;
+  return clamp(points / (points + 0.35 * (counts.views || 0) + 6), 0, 1);
+}
+
+// Posts the reader already opened recently are shown less, so For you keeps
+// moving instead of repeating itself. Ordered tabs (New/Viral) are unaffected.
+const SEEN_PENALTY = 0.14;
+
 function viralValue(points, hours) {
   return points / Math.pow(hours + 2, VIRAL_GRAVITY);
 }
@@ -212,7 +224,9 @@ function scorePost(post, ctx, view = 'for-you') {
   const net = networkAffinity(reason);
   const qualifies = passesQualityBar(post);
   const look = firstLook(post, hours, qualifies);
-  const parts = { hotN: clamp(hotN, 0, 1), viralN: clamp(viralN, 0, 1), fresh, interest, growth, affinity, net, look };
+  const res = resonance(post.counts);
+  const seenPenalty = ctx.seen && ctx.seen.has(String(post._id)) ? SEEN_PENALTY : 0;
+  const parts = { hotN: clamp(hotN, 0, 1), viralN: clamp(viralN, 0, 1), fresh, interest, growth, affinity, net, look, res, seenPenalty };
 
   let score;
   if (view === 'posts-new' || view === 'articles-new') {
@@ -226,15 +240,20 @@ function scorePost(post, ctx, view = 'for-you') {
     score = parts.viralN * (1 + 0.75 * growth) + 0.02 * fresh + qualityAdjustment(post);
   } else {
     const jitter = (hash01(`${ctx.userId}:${post._id}:${Math.floor(ctx.now / HOUR_MS)}`) - 0.5) * 0.05;
-    score = 0.28 * interest + 0.2 * net + 0.06 * affinity + 0.2 * parts.hotN + 0.2 * fresh + 0.1 * growth + 0.08 * look + qualityAdjustment(post) + jitter;
+    score = 0.28 * interest + 0.2 * net + 0.06 * affinity + 0.2 * parts.hotN + 0.2 * fresh + 0.1 * growth + 0.08 * look + 0.06 * res - seenPenalty + qualityAdjustment(post) + jitter;
   }
   return { post, score, lane, reason, parts, source: describeSource(post, reason, parts, ctx) };
+}
+
+function primaryTopic(post) {
+  const tag = (post.hashtags || [])[0];
+  return tag ? String(tag).toLowerCase() : null;
 }
 
 // Highest score first, but never more than `maxPerAuthor` posts from one
 // author in a row-window and never the same author back-to-back when
 // someone else is available.
-function diversify(scored, { gap = 2, maxPerAuthor = 3, maxPerCommunity = Infinity } = {}) {
+function diversify(scored, { gap = 2, maxPerAuthor = 3, maxPerCommunity = Infinity, topicGap = 1 } = {}) {
   const remaining = scored.slice().sort((a, b) => b.score - a.score);
   const out = [];
   const counts = new Map();
@@ -242,12 +261,16 @@ function diversify(scored, { gap = 2, maxPerAuthor = 3, maxPerCommunity = Infini
   const deferred = [];
   while (remaining.length) {
     const recent = out.slice(-gap).map((item) => String(item.post.author));
-    let index = remaining.findIndex((item) => {
+    const recentTopics = out.slice(-topicGap).map((item) => primaryTopic(item.post)).filter(Boolean);
+    const allowed = (item) => {
       const author = String(item.post.author);
       const community = item.post.community ? String(item.post.community) : null;
       return !recent.includes(author) && (counts.get(author) || 0) < maxPerAuthor
         && (!community || (communityCounts.get(community) || 0) < maxPerCommunity);
-    });
+    };
+    // Prefer a different topic from the last post when one is available.
+    let index = remaining.findIndex((item) => allowed(item) && !(topicGap > 0 && recentTopics.includes(primaryTopic(item.post))));
+    if (index === -1) index = remaining.findIndex(allowed);
     if (index === -1) {
       // Everything left is from over-represented authors: hold them back
       // (they still appear later if the pool is otherwise empty).
@@ -317,6 +340,7 @@ function rankFeed(candidates, ctx, view = 'for-you', { limit = 96 } = {}) {
     extended: new Set(),
     interests: new Map(),
     authorAffinity: new Map(),
+    seen: new Set(),
     authors: new Map(),
     communityMembers: new Map(),
     ...ctx
@@ -380,6 +404,8 @@ module.exports = {
   sortWithinPages,
   freshness,
   interestScore,
+  resonance,
+  SEEN_PENALTY,
   buildInterestMap,
   growthBoost,
   passesQualityBar,

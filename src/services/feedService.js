@@ -166,16 +166,18 @@ async function getInterestProfile(user) {
   ]);
   const commented = commentRows.length ? await Post.find({ _id: { $in: commentRows.map((row) => row.post) } }).select('hashtags author').lean() : [];
 
+  // Lists are newest-first: the latest actions say more about what someone is into now.
+  const recent = (posts, weight) => posts.map((post, index) => ({ tags: post.hashtags || [], weight: weight * (1 - 0.5 * (index / Math.max(1, posts.length))) }));
   const searchTags = (user.searchHistory || []).slice(0, 10).flatMap((entry) => String(entry.query || '').toLowerCase().replace(/^#/, '').split(/[^a-z0-9_]+/).filter((word) => word.length >= 3));
   const interests = ranker.buildInterestMap([
     { tags: user.hashtags || [], weight: 3 },
-    ...liked.map((post) => ({ tags: post.hashtags || [], weight: 1 })),
-    ...reacted.map((post) => ({ tags: post.hashtags || [], weight: 1.2 })),
+    ...recent(liked, 1),
+    ...recent(reacted, 1.2),
     ...saved.map((post) => ({ tags: post.hashtags || [], weight: 2.5 })),
     ...commented.map((post) => ({ tags: post.hashtags || [], weight: 2 })),
     ...ownPosts.map((post) => ({ tags: post.hashtags || [], weight: 1.5 })),
     ...communities.map((community) => ({ tags: community.hashtags || [], weight: 1.5 })),
-    ...viewed.map((post) => ({ tags: post.hashtags || [], weight: 0.6 })),
+    ...recent(viewed, 0.6),
     { tags: searchTags, weight: 1.2 }
   ]);
 
@@ -322,6 +324,7 @@ async function buildRanking({ user, view, now }) {
     extended: new Set(extendedIds.map(String)),
     interests: profile.interests,
     authorAffinity: profile.authorAffinity,
+    seen: new Set((user.recentViews || []).slice(0, 40).map((entry) => String(entry.post)).filter(Boolean)),
     authors: info.authors,
     communityMembers: info.communityMembers,
     discoveryRatio: process.env.FEED_DISCOVERY_RATIO

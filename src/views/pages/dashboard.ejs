@@ -134,9 +134,9 @@
 	</section>
 	<aside class="discover-column" id="explore">
 		<section class="discover-panel" id="communities">
-			<div class="panel-heading"><h2>Explore communities</h2><a href="/explore">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
+			<div class="panel-heading"><h2>Communities for you</h2><a href="/explore">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
 			<% if (!communities.length) { %>
-			<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">No communities yet — be the first to start one below.</p>
+			<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">No new communities to suggest right now — start one below.</p>
 			<% } %>
 			<% communities.forEach((community) => { %>
 			<div class="discover-row">
