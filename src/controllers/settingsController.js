@@ -17,6 +17,7 @@ const AccountEvent = require('../models/AccountEvent');
 const logger = require('../services/logger');
 const { logEvent } = require('../services/accountHistory');
 const countWords = require('../utils/wordCount');
+const { isValidTimezone } = require('../services/newsletterWorker');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -116,6 +117,15 @@ exports.changePassword = async (req, res) => {
     flash(req, 'error', 'Could not change your password right now.');
     res.redirect('/settings/security');
   }
+};
+
+// Called by public/js/timezone.js with the browser's IANA zone so the weekly
+// newsletter can arrive at 10:30 on the member's own clock.
+exports.setTimezone = async (req, res) => {
+  const zone = String(req.body?.timezone || '').trim();
+  if (!isValidTimezone(zone)) return res.status(400).json({ error: 'Unknown time zone.' });
+  await User.updateOne({ _id: req.session.user.id }, { $set: { timezone: zone } });
+  res.status(204).end();
 };
 
 exports.logoutDevice = async (req, res) => {

@@ -1,10 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { NEWSLETTER_CRON, buildNewsletterSelection } = require('../src/services/newsletterWorker');
+const { NEWSLETTER_CRON, NEWSLETTER_LOCAL_MINUTE, buildNewsletterSelection } = require('../src/services/newsletterWorker');
 const User = require('../src/models/User');
 
-test('newsletter delivery is scheduled Sunday at 10:30 and email options default on', () => {
-  assert.equal(NEWSLETTER_CRON, '30 10 * * 0');
+test('newsletter delivery targets Sunday 10:30 on each member\'s own clock and email options default on', () => {
+  // The worker ticks every 15 minutes and checks each member's local time (see newsletter-schedule.test.js).
+  assert.equal(NEWSLETTER_CRON, '*/15 * * * *');
+  assert.equal(NEWSLETTER_LOCAL_MINUTE, 10 * 60 + 30);
   assert.equal(User.schema.path('notificationPreferences.emailNewsletter').defaultValue, true);
   assert.equal(User.schema.path('notificationPreferences.emailUnreadSummary').defaultValue, true);
 });

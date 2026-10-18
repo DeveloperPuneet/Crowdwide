@@ -205,6 +205,20 @@ To test locally, register `http://localhost:3000/auth/google/callback` and
 `http://localhost:3000/auth/github/callback` (a second OAuth App for GitHub,
 since each one has a single callback URL) and set `APP_URL=http://localhost:3000`.
 
+## Weekly newsletter timing
+
+The newsletter goes out every Sunday at 10:30 on each member's own clock. The
+browser reports its time zone (saved as `timezone` on the user); members who
+have not reported one yet use `NEWSLETTER_TIMEZONE` (default `Asia/Kolkata`).
+Your server's own clock does not matter, so there is no need to set `TZ`.
+
+- The worker checks every 15 minutes and also once a minute after each start,
+  so if the host was asleep at 10:30 the email still goes out later that Sunday
+  (until 22:30 local).
+- A member gets at most one per six days, and none if there is nothing new to
+  recommend (the run is logged as "skipped").
+- To send a missed one by hand: `npm run newsletter:send`.
+
 ## Render commands
 
 For the Crowdwide app service, select the Node runtime and use:

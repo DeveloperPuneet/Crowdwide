@@ -209,6 +209,7 @@ router.post('/moderator/campaigns/:id/review', requireAuth, requireVerified, req
 router.post('/moderator/appeals/:id', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.resolveAppeal);
 router.get('/settings/:section?', requireAuth, requireVerified, settingsController.page);
 router.post('/settings/profile', requireAuth, requireVerified, profileUpload, csrfSynchronisedProtection, handleUploadError, validateProfileUpload, scanUploadsForViruses, settingsController.updateProfile);
+router.post('/settings/timezone', requireAuth, requireVerified, settingsController.setTimezone);
 router.post('/settings/security/password', requireAuth, requireVerified, settingsController.changePassword);
 router.get('/settings/security/2fa', requireAuth, requireVerified, twoFactorController.setupPage);
 router.post('/settings/security/2fa', requireAuth, requireVerified, twoFactorController.enable);

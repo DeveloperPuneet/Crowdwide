@@ -53,6 +53,9 @@ const userSchema = new mongoose.Schema({
     emailNewsletter: { type: Boolean, default: true },
     emailUnreadSummary: { type: Boolean, default: true }
   },
+  // IANA zone (e.g. "Asia/Kolkata") reported by the member's browser; the weekly
+  // newsletter is delivered at 10:30 on this clock. Empty = use the server default.
+  timezone: { type: String, trim: true, maxlength: 64, default: '' },
   theme: { type: String, enum: ['default', 'light', 'dark', 'violet', 'pink'], default: 'default' },
   newsletterSentPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   newsletterLastSentAt: Date,
