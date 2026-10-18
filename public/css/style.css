@@ -3273,3 +3273,15 @@ pre { overflow-x: auto; }
 
 /* Onboarding selected-state text on light themes (accent is dark there) */
 :is(body[data-theme="light"], body[data-theme="pink"]) .onboarding-row-label:has(input:checked) .onboarding-row-action { color: #fff; }
+
+
+/* Continue with Google / GitHub */
+.social-auth { margin-top: 24px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; color: var(--tx-faint); font-size: 12px; margin-bottom: 16px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.social-auth-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.social-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+.social-btn svg { flex: none; }
+.social-note { text-align: center; color: var(--tx-faint); font-size: 12px; line-height: 1.5; margin: 14px 0 0; }
+:is(body[data-theme="light"], body[data-theme="pink"]) :is(.social-note, .auth-divider) { color: var(--theme-muted); }
+:is(body[data-theme="light"], body[data-theme="pink"]) .auth-divider::before, :is(body[data-theme="light"], body[data-theme="pink"]) .auth-divider::after { background: var(--theme-border); }

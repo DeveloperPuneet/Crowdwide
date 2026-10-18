@@ -172,6 +172,39 @@ LibreTranslate fails. Google is billed per character. See
 `test/translate.test.js` for the provider logic and `.env.example` for
 the exact variable names.
 
+## Google and GitHub sign-in
+
+Members can sign in or create an account with "Continue with Google" or
+"Continue with GitHub". Each button only appears when its two variables are
+set, so you can enable one, both, or neither. `APP_URL` must be your real
+public address (for example `https://www.crowdwide.run.place`) because the
+callback URLs are built from it.
+
+| Variable | Where it comes from |
+| --- | --- |
+| `GOOGLE_AUTH_CLIENT_ID`, `GOOGLE_AUTH_CLIENT_SECRET` | [Google Cloud Console](https://console.cloud.google.com/) > APIs & Services > Credentials > Create credentials > OAuth client ID > "Web application". Add `{APP_URL}/auth/google/callback` under Authorized redirect URIs. First configure the OAuth consent screen (app name, support email; scopes `openid`, `email`, `profile`) and click Publish app so people outside your test list can sign in. |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | [github.com/settings/developers](https://github.com/settings/developers) > OAuth Apps > New OAuth App. Homepage URL: `{APP_URL}`. Authorization callback URL: `{APP_URL}/auth/github/callback`. After creating it, copy the Client ID and click "Generate a new client secret". |
+
+How it behaves:
+
+- Only an email the provider has verified is trusted. A GitHub account with no
+  verified email cannot be used.
+- If the verified email already belongs to a Crowdwide account, that account
+  is signed in and the provider is linked to it (the owner is emailed a
+  security alert). Two-factor authentication, suspensions and `ADMIN_EMAIL`
+  all still apply.
+- If a password sign-up with that email was never verified, the unverified
+  password is discarded when the real owner signs in with a provider.
+- Brand-new people confirm their name and accept the Terms before the account
+  is created. Accounts made this way have no password until the member uses
+  "Forgot password" to set one.
+- Only the provider's account id, the verified email and the display name are
+  stored. No access tokens are kept and no profile picture is copied.
+
+To test locally, register `http://localhost:3000/auth/google/callback` and
+`http://localhost:3000/auth/github/callback` (a second OAuth App for GitHub,
+since each one has a single callback URL) and set `APP_URL=http://localhost:3000`.
+
 ## Render commands
 
 For the Crowdwide app service, select the Node runtime and use:

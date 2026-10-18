@@ -91,6 +91,10 @@ exports.updateProfile = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const user = await User.findById(req.session.user.id);
+    if (user && user.passwordSet === false) {
+      flash(req, 'error', 'You signed up with Google or GitHub, so there is no password to change yet. Use "Forgot password" on the sign-in page to create one.');
+      return res.redirect('/settings/security');
+    }
     if (!user || !(await bcrypt.compare(req.body.currentPassword || '', user.password)) || !req.body.newPassword || req.body.newPassword.length < 8) {
       flash(req, 'error', 'Check your current password and use a new password of at least 8 characters.');
       return res.redirect('/settings/security');

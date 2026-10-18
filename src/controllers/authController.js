@@ -7,6 +7,7 @@ const LoginSession = require('../models/LoginSession');
 const { sendVerificationCode, sendNewDeviceAlert, sendPasswordResetLink, sendSecurityAlert } = require('../services/mailer');
 const { generateChallenge, verifyChallenge, looksAutomated, verifyTurnstile, turnstileEnabled, turnstileSiteKey } = require('../services/captcha');
 const logger = require('../services/logger');
+const { enabledProviders } = require('../services/oauth');
 const { logEvent } = require('../services/accountHistory');
 const { hashPassword } = require('../utils/passwords');
 
@@ -60,12 +61,12 @@ function rememberNext(req) {
   const next = safeReturnPath(req.query.next);
   if (next) req.session.returnTo = next;
 }
-exports.loginPage = (req, res) => { rememberNext(req); res.render('pages/login', { title: 'Sign in' }); };
+exports.loginPage = (req, res) => { rememberNext(req); res.render('pages/login', { title: 'Sign in', socialProviders: enabledProviders(), socialNext: safeReturnPath(req.query.next) }); };
 exports.registerPage = (req, res) => {
   rememberNext(req);
   const managed = turnstileEnabled();
   if (managed) req.session.registerFormShownAt = Date.now();
-  res.render('pages/register', { title: 'Create your account', captcha: managed ? null : generateChallenge(req), turnstileSiteKey: managed ? turnstileSiteKey() : '' });
+  res.render('pages/register', { title: 'Create your account', captcha: managed ? null : generateChallenge(req), turnstileSiteKey: managed ? turnstileSiteKey() : '', socialProviders: enabledProviders(), socialNext: safeReturnPath(req.query.next) });
 };
 exports.verifyPage = (req, res) => res.render('pages/verify', { title: 'Verify your email', email: req.query.email || '' });
 exports.forgotPage = (req, res) => res.render('pages/forgot-password', { title: 'Reset your password' });
@@ -235,6 +236,7 @@ exports.reset = async (req, res) => {
       return res.redirect(`/auth/reset?token=${encodeURIComponent(req.body.token || '')}`);
     }
     user.password = await hashPassword(req.body.password);
+    user.passwordSet = true;
     user.resetToken = undefined;
     user.resetExpires = undefined;
     await user.save();

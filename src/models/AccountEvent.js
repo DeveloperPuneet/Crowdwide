@@ -9,7 +9,7 @@ const accountEventSchema = new mongoose.Schema({
       'login', 'password-changed', 'two-factor-enabled', 'two-factor-disabled',
       'recovery-codes-regenerated', 'suspended', 'suspension-lifted',
       'posting-restricted', 'posting-restriction-lifted', 'warning-issued',
-      'warning-removed', 'appeal-submitted', 'appeal-approved', 'appeal-denied'
+      'warning-removed', 'appeal-submitted', 'appeal-approved', 'appeal-denied', 'social-login-linked'
     ]
   },
   detail: { type: String, trim: true, maxlength: 300, default: '' }

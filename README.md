@@ -77,6 +77,8 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
 - Security emails for new sign-ins, password changes and 2FA changes.
 
 ### Accounts and security
+- Sign in or sign up with Google or GitHub (optional, see `DEPLOYMENT.md`),
+  linked to an existing account by verified email.
 - Email verification, password reset, five-attempt login lockouts, 75-day
   session/device records with remote log-out, and TOTP two-factor with
   recovery codes.
@@ -194,6 +196,7 @@ for the full walkthrough)
 - `MONGO_DB_URL_0`, `MONGO_DB_URL_1`, ... - additional MongoDB clusters
   to spread media storage across. See **Extended media storage** below.
 - `TRUST_PROXY_HOPS` - see **Run locally** above.
+- `GOOGLE_AUTH_CLIENT_ID`, `GOOGLE_AUTH_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - enable "Continue with Google" / "Continue with GitHub". Each button is hidden until its pair is set. See `DEPLOYMENT.md`.
 - `GIPHY_API_KEY` (and optional `GIF_RATING`) - GIF search in chat, group chat and comments. Without a key the GIF buttons are hidden.
 - `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` - use Cloudflare Turnstile for the sign-up CAPTCHA instead of the built-in arithmetic question.
 - `APP_ENV=staging`, `STAGING_MAIL_ALLOWLIST` - staging mode for a second deployment. See `DEPLOYMENT.md`.

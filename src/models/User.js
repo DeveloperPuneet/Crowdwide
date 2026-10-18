@@ -15,6 +15,17 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   username: { type: String, lowercase: true, trim: true, minlength: 3, maxlength: 24, match: /^[a-z0-9_]+$/, unique: true, sparse: true },
   password: { type: String, required: true },
+  // False for accounts created with Google/GitHub: they hold a random password
+  // nobody knows until the person chooses one (via "Forgot password").
+  passwordSet: { type: Boolean, default: true },
+  // Linked "Continue with Google / GitHub" identities. `providerId` is the
+  // provider's stable account id (never the email, which can change).
+  socialLogins: [new mongoose.Schema({
+    provider: { type: String, enum: ['google', 'github'], required: true },
+    providerId: { type: String, required: true },
+    email: { type: String, lowercase: true, trim: true },
+    linkedAt: { type: Date, default: Date.now }
+  }, { _id: false })],
   bio: {
     type: String,
     trim: true,
@@ -128,5 +139,6 @@ const userSchema = new mongoose.Schema({
 // Feed ranking counts followers ("who follows this author") from this field.
 userSchema.index({ following: 1 });
 userSchema.index({ isVerified: 1, createdAt: -1 });
+userSchema.index({ 'socialLogins.provider': 1, 'socialLogins.providerId': 1 });
 
 module.exports = mongoose.model('User', userSchema);
