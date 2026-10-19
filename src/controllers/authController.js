@@ -10,6 +10,7 @@ const logger = require('../services/logger');
 const { enabledProviders } = require('../services/oauth');
 const { logEvent } = require('../services/accountHistory');
 const { hashPassword } = require('../utils/passwords');
+const { recordActivity } = require('../services/reengagement');
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
@@ -27,6 +28,8 @@ async function establishSession(req, user) {
     { upsert: true, setDefaultsOnInsert: true }
   );
   logEvent(user._id, 'login', req.ip);
+  // Remembers when they were last here (and notes a long absence for the welcome-back card).
+  await recordActivity(user._id, req.session).catch((error) => logger.warn('Could not record sign-in activity', error));
   if (existingSession && user.notificationPreferences?.security !== false) {
     // Not awaited: the email is a courtesy and must never slow sign-in down.
     sendNewDeviceAlert(user, { ipAddress: req.ip, userAgent: req.get('user-agent') });

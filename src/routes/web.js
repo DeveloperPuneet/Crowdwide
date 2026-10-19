@@ -22,7 +22,12 @@ const advertisingController = require('../controllers/advertisingController');
 const partnershipController = require('../controllers/partnershipController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
 
+const growthController = require('../controllers/growthController');
+
 router.get('/', controller.home);
+router.get('/question', growthController.questionPage);
+router.get('/unsubscribe/reminders/:id/:token', growthController.unsubscribePage);
+router.post('/unsubscribe/reminders/:id/:token', growthController.unsubscribe);
 router.get('/health', controller.health);
 router.get('/rss.xml', controller.rss);
 router.get('/u/:id/rss.xml', controller.profileRss);

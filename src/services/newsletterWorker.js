@@ -217,4 +217,4 @@ function stopNewsletterWorker() {
   newsletterTask = null;
 }
 
-module.exports = { NEWSLETTER_CRON, NEWSLETTER_LOCAL_MINUTE, NEWSLETTER_CATCH_UP_MINUTES, MIN_GAP_MS, isValidTimezone, isNewsletterWindow, mayBeSundayWindowSomewhere, buildNewsletterSelection, sendWeeklyNewsletters, startNewsletterWorker, stopNewsletterWorker };
+module.exports = { localClock, NEWSLETTER_CRON, NEWSLETTER_LOCAL_MINUTE, NEWSLETTER_CATCH_UP_MINUTES, MIN_GAP_MS, isValidTimezone, isNewsletterWindow, mayBeSundayWindowSomewhere, buildNewsletterSelection, sendWeeklyNewsletters, startNewsletterWorker, stopNewsletterWorker };

@@ -51,7 +51,20 @@ const userSchema = new mongoose.Schema({
     messages: { type: Boolean, default: true },
     security: { type: Boolean, default: true },
     emailNewsletter: { type: Boolean, default: true },
-    emailUnreadSummary: { type: Boolean, default: true }
+    emailUnreadSummary: { type: Boolean, default: true },
+    // "Come-back" reminders: a question to answer after a day away, a useful
+    // discussion after three, and one win-back note later. Covers email and push.
+    emailReminders: { type: Boolean, default: true }
+  },
+  // Last time this member actually used the site (touched by requireAuth at
+  // most every 5 minutes, and at sign-in). Drives the re-engagement reminders.
+  lastActiveAt: { type: Date, index: true },
+  // Bookkeeping for the re-engagement reminders. `sent` lists the stages already
+  // sent in the current inactivity spell; a visit after `lastSentAt` starts a new spell.
+  reengagement: {
+    sent: [{ type: String }],
+    lastSentAt: Date,
+    sentPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }]
   },
   // IANA zone (e.g. "Asia/Kolkata") reported by the member's browser; the weekly
   // newsletter is delivered at 10:30 on this clock. Empty = use the server default.

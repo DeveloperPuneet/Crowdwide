@@ -45,6 +45,26 @@
 		<nav class="feed-tabs" aria-label="Feed views">
 			<% feedTabs.forEach(([id, href, label, glyph]) => { %><a class="<%= feed.activeTab === id ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- feed.activeTab === id ? 'aria-current="page"' : '' %>><%- icon(glyph, { size: 15 }) %><span><%= label %></span></a><% }) %>
 		</nav>
+		<% if (locals.awayInfo) { %>
+		<aside class="welcome-back-card" aria-label="While you were away">
+			<div class="welcome-back-head"><span class="welcome-back-icon"><%- icon('sparkles', { size: 20 }) %></span><div><strong>Welcome back!</strong><p>Here is what happened in the last <%= awayInfo.days === 1 ? 'day' : awayInfo.days + ' days' %>.</p></div></div>
+			<ul class="welcome-back-stats">
+				<% if (awayInfo.comments) { %><li><b><%= awayInfo.comments %></b> new <%= awayInfo.comments === 1 ? 'reply' : 'replies' %></li><% } %>
+				<% if (awayInfo.likes) { %><li><b><%= awayInfo.likes %></b> <%= awayInfo.likes === 1 ? 'like' : 'likes' %></li><% } %>
+				<% if (awayInfo.follows) { %><li><b><%= awayInfo.follows %></b> new <%= awayInfo.follows === 1 ? 'follower' : 'followers' %></li><% } %>
+				<% if (awayInfo.mentions) { %><li><b><%= awayInfo.mentions %></b> <%= awayInfo.mentions === 1 ? 'mention' : 'mentions' %></li><% } %>
+				<% if (awayInfo.communityPosts) { %><li><b><%= awayInfo.communityPosts %></b> new in your communities</li><% } %>
+			</ul>
+			<% if (awayInfo.topPost) { %><p class="welcome-back-top">Busiest right now<%= awayInfo.topPost.community ? ' in ' + awayInfo.topPost.community : '' %>: <a href="/posts/<%= awayInfo.topPost._id %>"><%= awayInfo.topPost.text %></a></p><% } %>
+			<div class="welcome-back-actions"><a class="button button-small button-primary" href="/notifications">See notifications</a><button class="button button-small button-ghost" type="button" data-welcome-back-close>Dismiss</button></div>
+		</aside>
+		<% } %>
+		<% if (locals.qotd) { %>
+		<aside class="qotd-card" aria-label="Question of the Day">
+			<div class="qotd-body"><p class="eyebrow">Question of the Day</p><strong><%= qotd.text %></strong><span><%= qotdAnswers ? qotdAnswers + (qotdAnswers === 1 ? ' answer' : ' answers') + ' so far today' : 'Be the first to answer today' %> · <a href="/question">See answers</a></span></div>
+			<a class="button button-small button-primary" href="/dashboard?ask=qotd" data-qotd-answer data-prefill="<%= qotd.text %>&#10;&#10;#<%= qotd.tag %>">Answer</a>
+		</aside>
+		<% } %>
 		<% if (locals.showEarnTip) { %>
 		<aside class="earn-tip" data-earn-tip hidden>
 			<span class="earn-tip-icon"><%- icon('waves', { size: 26 }) %></span>
@@ -53,7 +73,7 @@
 			<button class="earn-tip-close" type="button" data-earn-tip-close aria-label="Dismiss"><%- icon('x', { size: 15 }) %></button>
 		</aside>
 		<% } %>
-		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-word-limits='{"post":<%= wordLimits.post %>,"article":<%= wordLimits.article %>,"poll":<%= wordLimits.poll %>}'>
+		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-prefill="<%= locals.composerPrefill || '' %>" data-word-limits='{"post":<%= wordLimits.post %>,"article":<%= wordLimits.article %>,"poll":<%= wordLimits.poll %>}'>
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">

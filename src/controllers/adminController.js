@@ -12,6 +12,7 @@ const CampaignAbuseSignal = require('../models/CampaignAbuseSignal');
 const { clearAllFeedCaches } = require('../services/feedService');
 const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
+const { reengagementReport } = require('../services/reengagement');
 const MaintenanceRun = require('../models/MaintenanceRun');
 const Appeal = require('../models/Appeal');
 const Advertiser = require('../models/Advertiser');
@@ -246,7 +247,8 @@ exports.admin = async (req, res) => {
   communityAdShares.forEach((row) => { row.community = communityAdShareById.get(String(row._id)) || null; });
   res.locals.surveys = await require('../services/surveys').adminSurveys();
   const partnershipData = await require('./partnershipController').adminData();
-  res.render('pages/admin', { title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, ...partnershipData, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  const reengagement = await reengagementReport().catch(() => null);
+  res.render('pages/admin', { reengagement, title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, ...partnershipData, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
 exports.retryCommunityAdShare = async (req, res) => {
@@ -891,6 +893,7 @@ exports.updateSiteSettings = async (req, res) => {
   settings.maintenanceMessage = req.body.maintenanceMessage?.trim().slice(0, 300) || '';
   settings.announcement = req.body.announcement?.trim().slice(0, 300) || '';
   settings.postApprovalDefault = req.body.postApprovalDefault === 'on';
+  settings.reengagementEnabled = req.body.reengagementEnabled === 'on';
   const postWordLimit = Number(req.body.postWordLimit);
   if (Number.isFinite(postWordLimit) && postWordLimit >= 10) settings.postWordLimit = Math.min(2000, Math.round(postWordLimit));
   const articleWordLimit = Number(req.body.articleWordLimit);

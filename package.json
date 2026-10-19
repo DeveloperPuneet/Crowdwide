@@ -12,7 +12,8 @@
     "backup:verify": "node scripts/restore-check.js",
     "reset:waves": "node scripts/reset-waves.js",
     "mail:test": "node scripts/test-mail.js",
-    "newsletter:send": "node scripts/send-newsletter.js"
+    "newsletter:send": "node scripts/send-newsletter.js",
+    "reminders:run": "node scripts/send-reminders.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^8.1.0",

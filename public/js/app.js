@@ -125,6 +125,20 @@ if (composer) {
   composer.querySelector('[data-composer-close]')?.addEventListener('click', () => setComposerOpen(false));
   composer.addEventListener('keydown', (event) => { if (event.key === 'Escape') setComposerOpen(false); });
   const textarea = composer.querySelector('textarea[name="body"]');
+  // "Answer" on the Question of the Day card (or ?ask=qotd from a reminder): open the
+  // composer with the question and #qotd already in place.
+  const fillComposer = (text) => {
+    if (!textarea || !text) return;
+    if (!textarea.value.trim()) textarea.value = text;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    setComposerOpen(true);
+    textarea.setSelectionRange(0, 0);
+  };
+  document.querySelectorAll('[data-qotd-answer]').forEach((link) => link.addEventListener('click', (event) => {
+    event.preventDefault();
+    fillComposer(link.dataset.prefill);
+  }));
+  if (composer.dataset.prefill) fillComposer(composer.dataset.prefill);
   const typeSelect = composer.querySelector('select[name="type"]');
   const communitySelect = composer.querySelector('[data-community-select]');
   const questSelect = composer.querySelector('[data-quest-picker]');
@@ -813,3 +827,6 @@ document.addEventListener('click', (event) => {
     try { window.localStorage.setItem('cw-earn-tip', '1'); } catch (error) { /* ignore */ }
   });
 })();
+
+
+document.querySelectorAll('[data-welcome-back-close]').forEach((button) => button.addEventListener('click', () => button.closest('.welcome-back-card')?.remove()));

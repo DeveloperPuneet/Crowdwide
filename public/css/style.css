@@ -3285,3 +3285,26 @@ pre { overflow-x: auto; }
 .social-note { text-align: center; color: var(--tx-faint); font-size: 12px; line-height: 1.5; margin: 14px 0 0; }
 :is(body[data-theme="light"], body[data-theme="pink"]) :is(.social-note, .auth-divider) { color: var(--theme-muted); }
 :is(body[data-theme="light"], body[data-theme="pink"]) .auth-divider::before, :is(body[data-theme="light"], body[data-theme="pink"]) .auth-divider::after { background: var(--theme-border); }
+
+/* Come-back features: welcome-back summary, Question of the Day */
+.welcome-back-card, .qotd-card { margin: 0 0 16px; padding: 16px 18px; border: 1px solid var(--bd-1); border-radius: 14px; background: var(--sf-2); color: var(--tx-mid); }
+.welcome-back-card { border-color: var(--bd-2); background: linear-gradient(135deg, var(--sf-2), var(--sf-3)); }
+.welcome-back-head { display: flex; gap: 12px; align-items: center; }
+.welcome-back-head strong { color: var(--tx-hi); font-size: 1.05rem; }
+.welcome-back-head p { margin: 2px 0 0; color: var(--tx-lo); font-size: .9rem; }
+.welcome-back-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex: none; border-radius: 12px; background: var(--sf-1); color: var(--ac-gold); }
+.welcome-back-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.welcome-back-stats li { padding: 6px 11px; border: 1px solid var(--bd-1); border-radius: 999px; background: var(--sf-1); color: var(--tx-mid); font-size: .86rem; }
+.welcome-back-stats b { color: var(--tx-hi); }
+.welcome-back-top { margin: 12px 0 0; color: var(--tx-lo); font-size: .9rem; overflow-wrap: anywhere; }
+.welcome-back-top a { color: var(--ac-blue); }
+.welcome-back-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.qotd-card { display: flex; gap: 14px; align-items: center; justify-content: space-between; }
+.qotd-body { min-width: 0; }
+.qotd-body .eyebrow { margin: 0 0 4px; }
+.qotd-body strong { display: block; color: var(--tx-hi); font-size: 1.02rem; line-height: 1.45; overflow-wrap: anywhere; }
+.qotd-body span { display: block; margin-top: 4px; color: var(--tx-faint); font-size: .84rem; }
+.qotd-body a { color: var(--ac-blue); }
+.question-hero h1 { max-width: 760px; overflow-wrap: anywhere; }
+.question-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 6px; }
+@media (max-width: 560px) { .qotd-card { flex-direction: column; align-items: stretch; } .qotd-card .button { width: 100%; text-align: center; } }

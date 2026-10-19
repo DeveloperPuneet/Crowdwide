@@ -525,8 +525,56 @@ async function sendUnreadNotificationSummary(user, notifications = []) {
   }, `Unread notification summary for ${user.email}`);
 }
 
+// Come-back reminder (24h question / 3-day discussion / 7-day win-back). The
+// `reminder` object is built by services/reengagement.js. Carries a one-click
+// unsubscribe (List-Unsubscribe headers + a visible link).
+async function sendReengagementEmail(user, reminder) {
+  const appUrl = (safeEmailUrl(reminder.appUrl || env('APP_URL') || 'https://www.crowdwide.run.place') || 'https://www.crowdwide.run.place').replace(/\/$/, '');
+  const unsubscribeUrl = safeEmailUrl(reminder.unsubscribeUrl);
+  const questionBlock = reminder.question?.text
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 4px;"><tr><td class="em-soft" style="padding:20px 22px;background-color:#f2f3ff;border:1px solid #e0e2ff;border-radius:12px;"><div style="margin-bottom:8px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.4px;">TODAY'S QUESTION</div><p class="em-h" style="margin:0;color:#202641;font-family:Arial,sans-serif;font-size:19px;font-weight:bold;line-height:1.5;">${escapeHtml(reminder.question.text)}</p></td></tr></table>`
+    : '';
+  const cards = (reminder.posts || []).length
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:8px;">${reminder.posts.map((post, index) => postEmailCard(post, appUrl, index + 1)).join('')}</table>`
+    : '';
+  const unsubscribeLine = unsubscribeUrl
+    ? `<p class="em-muted" style="margin:18px 0 0;color:#737b91;font-family:Arial,sans-serif;font-size:12px;line-height:1.6;">Not for you? <a class="em-link" href="${escapeHtml(unsubscribeUrl)}" style="color:#4d56d8;">Stop these reminders</a> with one click.</p>`
+    : '';
+  const text = [
+    reminder.heading,
+    '',
+    reminder.message,
+    reminder.question?.text ? `\nToday's question: ${reminder.question.text}` : '',
+    ...(reminder.posts || []).map((post) => `\n${post.author?.name || 'Crowdwide member'}: ${preview(post.body || post.poll?.question || '', 200)}\n${appUrl}/posts/${post._id}`),
+    '',
+    `${reminder.actionLabel}: ${reminder.actionUrl}`,
+    unsubscribeUrl ? `\nStop these reminders: ${unsubscribeUrl}` : ''
+  ].filter((line) => line !== null && line !== undefined).join('\n');
+  return deliver({
+    from: fromAddress(),
+    to: user.email,
+    subject: reminder.subject,
+    text,
+    ...(unsubscribeUrl ? { headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } } : {}),
+    html: brandedEmail({
+      heading: reminder.heading,
+      message: reminder.message,
+      greeting: reminder.firstName || '',
+      preheader: reminder.preheader,
+      eyebrow: reminder.eyebrow || 'FROM CROWDWIDE',
+      details: reminder.stats || [],
+      contentHtml: `${questionBlock}${cards}${unsubscribeLine}`,
+      actionUrl: reminder.actionUrl,
+      actionLabel: reminder.actionLabel,
+      manageUrl: `${appUrl}/settings/notifications`,
+      note: reminder.note
+    })
+  }, `Re-engagement (${reminder.stage}) for ${user.email}`);
+}
+
 module.exports = {
   sendVerificationCode,
+  sendReengagementEmail,
   sendNewDeviceAlert,
   sendSecurityAlert,
   sendPasswordResetLink,

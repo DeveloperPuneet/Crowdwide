@@ -29,6 +29,8 @@ const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/c
 const { rewardWavesForAction } = require('../services/waves');
 const { getSitewideFeedCampaigns } = require('../services/advertising');
 const Survey = require('../models/Survey');
+const { questionOfTheDay, answerPrefill, startOfDay, QUESTION_TAG } = require('../utils/questions');
+const { awaySummary } = require('../services/reengagement');
 const surveyService = require('../services/surveys');
 const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_SECTION } = require('../utils/partnershipPages');
 
@@ -208,6 +210,21 @@ exports.dashboard = async (req, res) => {
 		} catch (error) {
 			logger.error('Open surveys could not be loaded for the dashboard', error);
 		}
+		// "Welcome back": a one-time summary after a day or more away, and today's
+		// Question of the Day. Neither may ever take the dashboard down.
+		const awayFrom = req.session.awayFrom;
+		delete req.session.awayFrom;
+		const qotd = questionOfTheDay();
+		let awayInfo = null;
+		let qotdAnswers = 0;
+		try {
+			[awayInfo, qotdAnswers] = await Promise.all([
+				awayFrom ? awaySummary(user, awayFrom) : null,
+				Post.countDocuments({ hashtags: QUESTION_TAG, status: 'published', createdAt: { $gte: startOfDay() } })
+			]);
+		} catch (error) {
+			logger.error('Welcome-back summary could not be loaded', error);
+		}
 		const joinedCommunityDocIds = joinedCommunityDocs.map((community) => community._id);
 		const availableQuests = joinedCommunityDocIds.length
 			? await Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
@@ -223,6 +240,10 @@ exports.dashboard = async (req, res) => {
 			feed: { ...feed, activeTab, visiblePosts: feed.posts },
 			sitewideFeedAds,
 			openSurveys,
+			awayInfo,
+			qotd,
+			qotdAnswers,
+			composerPrefill: req.query.ask === 'qotd' ? answerPrefill(qotd) : '',
 			communities,
 			composerCommunities,
 			availableQuests,
@@ -915,7 +936,7 @@ exports.infoPage = async (req, res) => {
 				['What we collect', 'Account details you provide (name, email, password hash, bio, links), content you create (posts, comments, communities, hashtags), media you upload (images, video, audio, avatars, banners), your social graph (who you follow, block, and which communities/groups you join), messages you send in direct messages and group chats, and limited technical information such as IP address, device/browser identifiers, and session activity used to keep accounts secure.'],
 				['How we use it', 'We use this information to authenticate accounts, deliver verification and security emails, operate core features like feeds, search, notifications, and messaging, rank and personalize your "For you" feed, prevent abuse and spam, enforce our Terms and Community Guidelines, and improve the product over time. We do not sell your data. Crowdwide currently records authenticated ad impression and click events for campaign reporting and abuse prevention; these first-party event counts are not shared with an external ad network and are not represented as billable activity.'],
 				['Where it is stored', 'Account data, posts, comments, communities, and messages are stored in MongoDB. Media (images, video, audio, avatars, and community banners) is stored in MongoDB GridFS - optionally distributed across multiple MongoDB clusters for extra capacity - or, on deployments configured to use it, in a Google Cloud Storage bucket served through a CDN URL. Your session is tracked server-side via connect-mongo so signing out or expiring a session invalidates it immediately.'],
-				['Third-party services we use', 'Crowdwide relies on a small number of outside services to operate, and only sends them what each feature needs: <strong>Google (Gmail API or SMTP, via Nodemailer)</strong> to deliver verification, password-reset, login-alert, and security emails to your inbox; <strong>Google Cloud Storage</strong>, on deployments that enable it, to host uploaded media; <strong>GIPHY</strong> to power GIF search in chats and comments, when a deployment enables it - your search text is sent to GIPHY the way it would be on giphy.com; <strong>a self-hosted ClamAV virus scanner</strong>, on deployments that enable it, to scan uploaded files for malware before they are stored, entirely on infrastructure we control; and <strong>web push (VAPID)</strong> to deliver browser push notifications to devices where you have explicitly turned them on in Settings. If you choose <strong>Continue with Google</strong> or <strong>Continue with GitHub</strong> (when a deployment enables them), that provider confirms your identity and shares only your name and verified email address with us; we store your name, that email, and the provider\'s account id so you can sign in again, and we never receive your Google or GitHub password. We do not use third-party analytics or advertising trackers.'],
+				['Third-party services we use', 'Crowdwide relies on a small number of outside services to operate, and only sends them what each feature needs: <strong>Google (Gmail API or SMTP, via Nodemailer)</strong> to deliver verification, password-reset, login-alert, and security emails to your inbox, plus the optional weekly digest and come-back reminders (a question to answer after a day away, a discussion worth reading after three days, and one last "what you missed" note after a week - at most one every two days, only if you have not visited, with a one-click unsubscribe and a switch in Settings); <strong>Google Cloud Storage</strong>, on deployments that enable it, to host uploaded media; <strong>GIPHY</strong> to power GIF search in chats and comments, when a deployment enables it - your search text is sent to GIPHY the way it would be on giphy.com; <strong>a self-hosted ClamAV virus scanner</strong>, on deployments that enable it, to scan uploaded files for malware before they are stored, entirely on infrastructure we control; and <strong>web push (VAPID)</strong> to deliver browser push notifications to devices where you have explicitly turned them on in Settings. If you choose <strong>Continue with Google</strong> or <strong>Continue with GitHub</strong> (when a deployment enables them), that provider confirms your identity and shares only your name and verified email address with us; we store your name, that email, and the provider\'s account id so you can sign in again, and we never receive your Google or GitHub password. We do not use third-party analytics or advertising trackers.'],
 				['Link previews', 'When you post a link, Crowdwide\'s server fetches a small amount of publicly available metadata (title, description, preview image) from that page to build a preview card. This is a short, size-limited request made from our server, guarded against reaching private/internal addresses, and does not send it any of your account information.'],
 				['Cookies and sessions', 'Crowdwide uses a single session cookie to keep you signed in, plus a CSRF token used to protect forms from cross-site attacks. Both are required for the app to function and are not used for cross-site advertising tracking. We do not use third-party tracking or marketing cookies.'],
 				['Security measures', 'Passwords are hashed with bcrypt and never stored in plain text. Optional two-factor authentication (TOTP, with one-time recovery codes) adds a second layer to sign-in. Traffic is protected with security headers (Helmet), CSRF protection on forms, and rate limiting on sign-in, messaging, and API endpoints to slow down automated abuse. Critical server errors can trigger an internal alert email so problems are caught quickly - this alert never includes your password or message content.'],

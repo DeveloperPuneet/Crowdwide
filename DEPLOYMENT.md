@@ -219,6 +219,37 @@ Your server's own clock does not matter, so there is no need to set `TZ`.
   recommend (the run is logged as "skipped").
 - To send a missed one by hand: `npm run newsletter:send`.
 
+## Come-back reminders
+
+Members who go quiet get up to three gentle reminders, then nothing until they
+have visited again:
+
+| After | Reminder |
+| --- | --- |
+| 24 hours | A community question to answer (or today's Question of the Day if none is open) |
+| 3 days | A discussion that is genuinely active, plus what is new on Crowdwide |
+| 7 days | A last "what you missed" note: replies, likes, followers, top posts |
+
+Each goes by email, as a web push if the member enabled push, and as a
+notification waiting in the app. Rules built in: only during the member's local
+daytime (10:00-21:00), at most one every 40 hours, never to suspended members,
+a one-click unsubscribe link plus `List-Unsubscribe` headers, and a "Come-back
+reminders" switch in Settings > Notifications. Nothing is sent when there is
+nothing worth saying.
+
+- `REENGAGEMENT_ENABLED=off` turns it off from the environment; admins can also
+  untick it in Admin > Site settings (which also shows how many reminders
+  brought members back).
+- `REENGAGEMENT_DAILY_LIMIT` (default 150) caps reminders per rolling 24 hours,
+  to stay inside your mail provider's daily limit.
+- On first start, existing members get a starting "last active" time from their
+  newest sign-in session (or "now" if they have none), so nobody receives a
+  surprise burst the day this ships.
+- Check without sending: `npm run reminders:run -- --dry`. Send what is due
+  right now: `npm run reminders:run` (add `--anytime` to ignore the daytime rule).
+- The public page `/question` shows today's Question of the Day and its
+  answers (answers are normal public posts tagged `#qotd`).
+
 ## Render commands
 
 For the Crowdwide app service, select the Node runtime and use:

@@ -27,6 +27,8 @@ const siteSettingSchema = new mongoose.Schema({
   // Once this many distinct moderators have looked at a post, it drops out
   // of everyone's moderation queue - no point re-showing something 5+
   // people already judged.
+  // Master switch for the come-back reminders (email + push) sent to members who have been away.
+  reengagementEnabled: { type: Boolean, default: true },
   postReviewThreshold: { type: Number, default: 5, min: 1, max: 50 },
   monetizationMinimumPosts: { type: Number, default: 20, min: 0, max: 10000 },
   monetizationMinimumLikes: { type: Number, default: 30, min: 0, max: 100000 },

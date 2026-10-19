@@ -585,6 +585,8 @@
         <label class="full-width">Tagline<input type="text" name="tagline" value="<%= siteSettings.tagline %>"></label>
         <label class="checkbox-field"><input type="checkbox" name="registrationOpen" <%= siteSettings.registrationOpen ? 'checked' : '' %>> New signups open</label>
         <label class="checkbox-field"><input type="checkbox" name="postApprovalDefault" <%= siteSettings.postApprovalDefault ? 'checked' : '' %>> New communities require post approval by default</label>
+        <label class="checkbox-field"><input type="checkbox" name="reengagementEnabled" <%= siteSettings.reengagementEnabled !== false ? 'checked' : '' %>> Send come-back reminders to members who have been away</label>
+        <% if (locals.reengagement) { %><p class="form-note full-width">Last <%= reengagement.days %> days: <strong><%= reengagement.sent %></strong> reminders sent, <strong><%= reengagement.returned %></strong> members came back within a week (<%= reengagement.rate %>%). Question: <%= reengagement.byStage.question.returned %>/<%= reengagement.byStage.question.sent %> · Discussion: <%= reengagement.byStage.discussion.returned %>/<%= reengagement.byStage.discussion.sent %> · Win-back: <%= reengagement.byStage.winback.returned %>/<%= reengagement.byStage.winback.sent %>.</p><% } %>
         <label class="checkbox-field"><input type="checkbox" name="maintenanceMode" <%= siteSettings.maintenanceMode ? 'checked' : '' %>> Maintenance mode</label>
         <label class="full-width">Maintenance message<input type="text" name="maintenanceMessage" value="<%= siteSettings.maintenanceMessage %>"></label>
         <label class="full-width">Site-wide announcement banner<input type="text" name="announcement" value="<%= siteSettings.announcement %>"></label>

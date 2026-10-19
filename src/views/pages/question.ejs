@@ -1,0 +1,34 @@
+<%- include('../partials/head', { title, description, pagePath, canonicalUrl, bodyClass: 'public-posts-body' }) %>
+<% if (locals.currentUser) { %>
+<%- include('../partials/app-nav', { active: 'posts', currentUser }) %>
+<% } else { %>
+<header class="site-nav container public-posts-nav">
+	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
+	<div><a class="button button-small button-ghost" href="/auth/login">Sign in</a><a class="button button-small button-primary" href="/auth/register">Join Crowdwide</a></div>
+</header>
+<% } %>
+<main class="public-posts-page container public-posts-modern question-page">
+	<header class="public-posts-hero question-hero">
+		<p class="eyebrow">Question of the Day</p>
+		<h1><%= question.text %></h1>
+		<p>One open question, every day. A sentence or two is plenty — there are no wrong answers.</p>
+		<div class="question-actions">
+			<% if (locals.currentUser) { %>
+			<a class="button button-primary" href="/dashboard?ask=qotd">Share your answer</a>
+			<% } else { %>
+			<a class="button button-primary" href="/auth/register">Join to answer</a>
+			<a class="button button-ghost" href="/auth/login">Sign in</a>
+			<% } %>
+		</div>
+		<div class="public-posts-count"><strong><%= total.toLocaleString() %></strong> <%= total === 1 ? 'answer' : 'answers' %> today</div>
+	</header>
+	<section class="public-post-feed" aria-label="Today's answers">
+		<% if (answers.length) { %>
+			<% answers.forEach((post) => { %><%- include('../partials/post-card', { post }) %><% }) %>
+		<% } else { %>
+			<div class="public-post-empty"><h2>Be the first to answer</h2><p>Nobody has answered yet today — yours could start the conversation.</p></div>
+		<% } %>
+	</section>
+</main>
+<%- include('../partials/site-footer') %>
+<%- include('../partials/foot') %>
