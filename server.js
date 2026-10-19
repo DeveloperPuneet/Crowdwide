@@ -10,6 +10,7 @@ const { startKeepAlive, stopKeepAlive } = require('./src/services/keepAlive');
 const { startPostSearchIndexing } = require('./src/services/postSearch');
 const { startMaintenanceWorker, stopMaintenanceWorker } = require('./src/services/maintenance');
 const { startReengagementWorker, stopReengagementWorker } = require('./src/services/reengagement');
+const { startLifecycleWorker, stopLifecycleWorker } = require('./src/services/lifecycle');
 
 const port = process.env.PORT || 3000;
 const app = createApp({ port });
@@ -23,12 +24,13 @@ async function start() {
   startNewsletterWorker();
   startMaintenanceWorker();
   startReengagementWorker();
+  startLifecycleWorker();
   const server = app.listen(port, () => logger.info(`Crowdwide is live at http://localhost:${port}`));
 
   // Free-tier hosts put idle services to sleep; a node-cron job pings our own
   // /health URL every few minutes so the instance stays warm.
   startKeepAlive();
-  const shutdown = () => { stopKeepAlive(); stopNewsletterWorker(); stopMaintenanceWorker(); stopReengagementWorker(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); };
+  const shutdown = () => { stopKeepAlive(); stopNewsletterWorker(); stopMaintenanceWorker(); stopReengagementWorker(); stopLifecycleWorker(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); };
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);
 

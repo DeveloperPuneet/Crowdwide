@@ -54,8 +54,30 @@ const userSchema = new mongoose.Schema({
     emailUnreadSummary: { type: Boolean, default: true },
     // "Come-back" reminders: a question to answer after a day away, a useful
     // discussion after three, and one win-back note later. Covers email and push.
-    emailReminders: { type: Boolean, default: true }
+    emailReminders: { type: Boolean, default: true },
+    // Welcome emails in the first week and the "your post got its first reply" email.
+    emailWelcome: { type: Boolean, default: true }
   },
+  // First reply ever received on one of their posts (any age), and whether we emailed about it.
+  firstReplyAt: Date,
+  firstReplyEmailSentAt: Date,
+  // First-week welcome series: stages already sent/skipped and when the last one went out.
+  welcome: {
+    sent: [{ type: String }],
+    lastSentAt: Date
+  },
+  // Posting streak (consecutive days with a post or comment, on the member's own
+  // clock) and the badges earned so far.
+  streak: {
+    current: { type: Number, default: 0 },
+    longest: { type: Number, default: 0 },
+    lastDay: { type: String, default: '' },
+    saverSentDay: { type: String, default: '' }
+  },
+  badges: [new mongoose.Schema({
+    key: { type: String, required: true },
+    earnedAt: { type: Date, default: Date.now }
+  }, { _id: false })],
   // Last time this member actually used the site (touched by requireAuth at
   // most every 5 minutes, and at sign-in). Drives the re-engagement reminders.
   lastActiveAt: { type: Date, index: true },

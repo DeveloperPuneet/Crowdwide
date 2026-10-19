@@ -78,7 +78,7 @@ function csrfProtection(req, res, next) {
   if (req.is('multipart/form-data')) return next();
   // One-click unsubscribe (RFC 8058) is a POST from a mail client with no session
   // and no CSRF token; the signed link itself is the credential.
-  if (/^\/unsubscribe\/reminders\/[a-f0-9]{24}\/[a-f0-9]{32}$/.test(req.path)) return next();
+  if (/^\/unsubscribe\/(reminders|welcome)\/[a-f0-9]{24}\/[a-f0-9]{32}$/.test(req.path)) return next();
   return csrfSynchronisedProtection(req, res, next);
 }
 

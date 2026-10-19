@@ -61,7 +61,7 @@
 		<% } %>
 		<% if (locals.qotd) { %>
 		<aside class="qotd-card" aria-label="Question of the Day">
-			<div class="qotd-body"><p class="eyebrow">Question of the Day</p><strong><%= qotd.text %></strong><span><%= qotdAnswers ? qotdAnswers + (qotdAnswers === 1 ? ' answer' : ' answers') + ' so far today' : 'Be the first to answer today' %> · <a href="/question">See answers</a></span></div>
+			<div class="qotd-body"><p class="eyebrow">Question of the Day</p><strong><%= qotd.text %></strong><span><%= qotdAnswers ? qotdAnswers + (qotdAnswers === 1 ? ' answer' : ' answers') + ' so far today' : 'Be the first to answer today' %> · <a href="/question">See answers</a></span><% if (locals.streakInfo) { %><span class="streak-line <%= streakInfo.current ? 'is-live' : '' %>"><%- icon('flame', { size: 14 }) %> <%= streakInfo.current ? (streakInfo.doneToday ? streakInfo.current + '-day streak - done for today' : streakInfo.current + '-day streak - post or comment today to keep it') : 'Start a streak: post or comment today' %></span><% } %></div>
 			<a class="button button-small button-primary" href="/dashboard?ask=qotd" data-qotd-answer data-prefill="<%= qotd.text %>&#10;&#10;#<%= qotd.tag %>">Answer</a>
 		</aside>
 		<% } %>

@@ -262,10 +262,10 @@ test('the unsubscribe route flips the preference and rejects bad tokens', async 
   const rendered = [];
   const res = { status(code) { this.code = code; return this; }, render(view, data) { rendered.push({ view, data, code: this.code }); } };
   const id = oid(1);
-  await controller.unsubscribe({ params: { id, token: 'f'.repeat(32) } }, res);
+  await controller.unsubscribe({ params: { kind: 'reminders', id, token: 'f'.repeat(32) } }, res);
   assert.equal(rendered[0].data.state, 'invalid');
   assert.equal(updates.length, 0);
-  await controller.unsubscribe({ params: { id, token: signReminderToken(id) } }, res);
+  await controller.unsubscribe({ params: { kind: 'reminders', id, token: signReminderToken(id) } }, res);
   assert.equal(rendered[1].data.state, 'done');
   assert.deepEqual(updates[0].update, { $set: { 'notificationPreferences.emailReminders': false } });
 });
@@ -310,7 +310,7 @@ test('unsubscribe and question pages render', async () => {
   const views = path.join(__dirname, '..', 'src', 'views');
   const helpers = { icon: () => '', csrfToken: 't', cspNonce: 'n', appUrl: 'https://app.example.com', currentUser: null, flash: null, partners: [], renderRichBody: (v) => v, renderMentions: (v) => v, renderInlineText: (v) => v, plainText: (v) => v, preview: (v) => v, gifsEnabled: false, isStaging: false };
   for (const state of ['confirm', 'done', 'invalid', 'error']) {
-    const html = await ejs.renderFile(path.join(views, 'pages', 'unsubscribe.ejs'), { ...helpers, title: 'x', state, id: oid(1), token: 'f'.repeat(32) }, { views: [views] });
+    const html = await ejs.renderFile(path.join(views, 'pages', 'unsubscribe.ejs'), { ...helpers, title: 'x', state, kind: 'reminders', id: oid(1), token: 'f'.repeat(32) }, { views: [views] });
     assert.match(html, state === 'confirm' ? /Yes, stop the reminders/ : /Crowdwide/);
   }
   const q = questionOfTheDay(NOON);

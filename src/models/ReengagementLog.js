@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 // and how many brought the member back, and caps how many go out per day.
 const reengagementLogSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  stage: { type: String, enum: ['question', 'discussion', 'winback'], required: true },
+  stage: { type: String, enum: ['question', 'discussion', 'winback', 'welcome-1', 'welcome-2', 'welcome-3', 'welcome-4', 'first-reply'], required: true },
   channels: [{ type: String, enum: ['email', 'push', 'in-app'] }],
   sentAt: { type: Date, default: Date.now },
   returnedAt: Date

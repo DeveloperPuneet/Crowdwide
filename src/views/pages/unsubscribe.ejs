@@ -3,14 +3,14 @@
 <div class="auth-card">
 <% if (state === 'confirm') { %>
   <p class="eyebrow">Email preferences</p>
-  <h1>Stop come-back reminders?</h1>
-  <p class="form-note">You will no longer get the "a question for you", "worth reading" and "what you missed" emails or pushes. Your other settings, like security alerts, stay as they are.</p>
-  <form method="post" action="/unsubscribe/reminders/<%= id %>/<%= token %>"><button class="button button-primary button-full" type="submit">Yes, stop the reminders</button></form>
+  <h1><%= kind === 'welcome' ? 'Stop welcome emails and tips?' : 'Stop come-back reminders?' %></h1>
+  <p class="form-note"><%= kind === 'welcome' ? 'You will no longer get the first-week welcome emails or the "your post got its first reply" email.' : 'You will no longer get the "a question for you", "worth reading" and "what you missed" emails or pushes.' %> Your other settings, like security alerts, stay as they are.</p>
+  <form method="post" action="/unsubscribe/<%= kind %>/<%= id %>/<%= token %>"><button class="button button-primary button-full" type="submit"><%= kind === 'welcome' ? 'Yes, stop these emails' : 'Yes, stop the reminders' %></button></form>
   <p class="form-note" style="margin-top:14px;"><a href="/">Keep them, take me to Crowdwide</a></p>
 <% } else if (state === 'done') { %>
   <p class="eyebrow">All set</p>
   <h1>You are unsubscribed.</h1>
-  <p class="form-note">We will not send come-back reminders any more. Changed your mind? Turn them back on any time in Settings → Notifications.</p>
+  <p class="form-note"><%= kind === 'welcome' ? 'We will not send welcome emails or first-reply emails any more.' : 'We will not send come-back reminders any more.' %> Changed your mind? Turn them back on any time in Settings → Notifications.</p>
   <a class="button button-primary button-full" href="/settings/notifications">Open notification settings</a>
 <% } else if (state === 'error') { %>
   <p class="eyebrow">Something went wrong</p>

@@ -3308,3 +3308,26 @@ pre { overflow-x: auto; }
 .question-hero h1 { max-width: 760px; overflow-wrap: anywhere; }
 .question-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 6px; }
 @media (max-width: 560px) { .qotd-card { flex-direction: column; align-items: stretch; } .qotd-card .button { width: 100%; text-align: center; } }
+
+/* Streaks, badges, weekly top page */
+.profile-badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.streak-chip, .badge-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--bd-1); border-radius: 999px; background: var(--sf-2); color: var(--tx-mid); font-size: .84rem; line-height: 1.2; }
+.streak-chip { border-color: var(--ac-orange); color: var(--ac-orange); font-weight: 600; }
+.badge-chip svg { color: var(--ac-gold); }
+.badge-chip.is-locked { opacity: .65; }
+.badge-chip.is-locked svg { color: var(--tx-faint); }
+.badge-goals { margin: 12px 0 0; color: var(--tx-lo); font-size: .88rem; }
+.badge-goals summary { cursor: pointer; color: var(--ac-blue); }
+.badge-goals ul { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.badge-goals li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.streak-line { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--tx-faint); font-size: .84rem; }
+.streak-line.is-live { color: var(--ac-orange); font-weight: 600; }
+.top-share { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+.top-section { margin: 34px 0 0; }
+.top-section > h2 { margin: 0 0 4px; color: var(--tx-hi); }
+.top-section > p { margin: 0 0 14px; color: var(--tx-lo); }
+.top-people, .top-communities { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.top-people li, .top-communities li { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--bd-1); border-radius: 12px; background: var(--sf-2); }
+.top-people a, .top-communities a { color: var(--tx-hi); font-weight: 600; text-decoration: none; }
+.top-people small, .top-communities small { display: block; color: var(--tx-faint); font-weight: 400; }
+.top-rank { display: inline-flex; width: 28px; height: 28px; flex: none; align-items: center; justify-content: center; border-radius: 50%; background: var(--sf-3); color: var(--ac-gold); font-weight: 700; font-size: .85rem; }

@@ -1,0 +1,62 @@
+<%- include('../partials/head', { title, description, pagePath, canonicalUrl, structuredData, bodyClass: 'public-posts-body' }) %>
+<% if (locals.currentUser) { %>
+<%- include('../partials/app-nav', { active: 'posts', currentUser }) %>
+<% } else { %>
+<header class="site-nav container public-posts-nav">
+	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
+	<div><a class="button button-small button-ghost" href="/auth/login">Sign in</a><a class="button button-small button-primary" href="/auth/register">Join Crowdwide</a></div>
+</header>
+<% } %>
+<main class="public-posts-page container public-posts-modern top-page">
+	<header class="public-posts-hero">
+		<p class="eyebrow">Week of <%= range %></p>
+		<h1>This week on Crowdwide</h1>
+		<p>The conversations, creators and communities that got people talking. Everything here is public — share it with anyone.</p>
+		<div class="public-posts-count"><strong><%= totals.posts.toLocaleString() %></strong> posts · <strong><%= totals.members.toLocaleString() %></strong> members · <strong><%= totals.communities.toLocaleString() %></strong> communities this week</div>
+		<div class="top-share" aria-label="Share this page">
+			<button class="button button-small button-primary" type="button" data-copy-link="<%= shareUrl %>"><%- icon('copy', { size: 14 }) %> <span>Copy link</span></button>
+			<a class="button button-small button-ghost" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=<%= encodeURIComponent(shareText + ' ' + shareUrl) %>">WhatsApp</a>
+			<a class="button button-small button-ghost" target="_blank" rel="noopener noreferrer" href="https://twitter.com/intent/tweet?text=<%= encodeURIComponent(shareText) %>&url=<%= encodeURIComponent(shareUrl) %>">Post on X</a>
+			<a class="button button-small button-ghost" target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/sharing/share-offsite/?url=<%= encodeURIComponent(shareUrl) %>">LinkedIn</a>
+		</div>
+	</header>
+
+	<% if (!top.length) { %>
+	<section class="public-post-feed"><div class="public-post-empty"><h2>A quiet week so far</h2><p>Be the first to post — it only takes a sentence.</p></div></section>
+	<% } %>
+
+	<% if (top.length) { %>
+	<section class="top-section" aria-labelledby="top-posts"><h2 id="top-posts">Top posts</h2><p>Most loved and talked about.</p>
+		<div class="public-post-feed"><% top.forEach((post) => { %><%- include('../partials/post-card', { post }) %><% }) %></div>
+	</section>
+	<% } %>
+	<% if (discussed.length) { %>
+	<section class="top-section" aria-labelledby="top-discussed"><h2 id="top-discussed">Most discussed</h2><p>Where the conversation is happening.</p>
+		<div class="public-post-feed"><% discussed.forEach((post) => { %><%- include('../partials/post-card', { post }) %><% }) %></div>
+	</section>
+	<% } %>
+	<% if (articles.length) { %>
+	<section class="top-section" aria-labelledby="top-articles"><h2 id="top-articles">Worth a longer read</h2><p>Articles from this week.</p>
+		<div class="public-post-feed"><% articles.forEach((post) => { %><%- include('../partials/post-card', { post }) %><% }) %></div>
+	</section>
+	<% } %>
+	<% if (creators.length) { %>
+	<section class="top-section" aria-labelledby="top-creators"><h2 id="top-creators">Creators to watch</h2><p>The people whose posts resonated most.</p>
+		<ol class="top-people"><% creators.forEach((entry, index) => { %><li><span class="top-rank"><%= index + 1 %></span><div><a href="/u/<%= entry.author._id %>"><%= entry.author.name %></a><small><%= entry.posts %> <%= entry.posts === 1 ? 'post' : 'posts' %> this week</small></div></li><% }) %></ol>
+	</section>
+	<% } %>
+	<% if (communities.length) { %>
+	<section class="top-section" aria-labelledby="top-communities"><h2 id="top-communities">Communities on the rise</h2><p>Where people are gathering this week.</p>
+		<ol class="top-communities"><% communities.forEach((entry, index) => { %><li><span class="top-rank"><%= index + 1 %></span><div><a href="/communities/<%= entry.community.slug %>"><%= entry.community.name %></a><small><%= entry.posts %> <%= entry.posts === 1 ? 'post' : 'posts' %> this week · <%= (entry.community.membersCount || 0).toLocaleString() %> members</small></div></li><% }) %></ol>
+	</section>
+	<% } %>
+
+	<% if (!locals.currentUser) { %>
+	<aside class="public-posts-join">
+		<div><strong>Find your people on Crowdwide.</strong><span>Create a free account to like, comment, join communities and start your own streak.</span></div>
+		<a class="button button-primary button-small" href="/auth/register">Create your account</a>
+	</aside>
+	<% } %>
+</main>
+<%- include('../partials/site-footer') %>
+<%- include('../partials/foot') %>

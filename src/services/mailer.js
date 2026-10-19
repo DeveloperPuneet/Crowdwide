@@ -572,9 +572,58 @@ async function sendReengagementEmail(user, reminder) {
   }, `Re-engagement (${reminder.stage}) for ${user.email}`);
 }
 
+// Generic lifecycle email (welcome series, first reply). `content` = { subject,
+// eyebrow, heading, message, preheader, firstName, steps[], items[{title,text,url}],
+// quote:{author,text}, details[], actionUrl, actionLabel, note, unsubscribeUrl, label }.
+async function sendLifecycleEmail(user, content) {
+  const appUrl = (safeEmailUrl(content.appUrl || env('APP_URL') || 'https://www.crowdwide.run.place') || 'https://www.crowdwide.run.place').replace(/\/$/, '');
+  const unsubscribeUrl = safeEmailUrl(content.unsubscribeUrl);
+  const quote = content.quote?.text
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 4px;"><tr><td class="em-soft" style="padding:16px 18px;background-color:#f2f3ff;border-left:3px solid #5c63ed;border-radius:0 10px 10px 0;"><div class="em-muted" style="margin-bottom:6px;color:#626a88;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:.6px;">${escapeHtml(String(content.quote.author || 'Crowdwide member').toUpperCase())} SAID</div><p class="em-p" style="margin:0;color:#30364b;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;">${escapeHtml(content.quote.text)}</p></td></tr></table>`
+    : '';
+  const items = (content.items || []).map((item) => {
+    const url = safeEmailUrl(item.url);
+    return `<tr><td style="padding:0 0 10px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="em-card" style="border:1px solid #e2e5f0;border-radius:12px;background-color:#ffffff;"><tr><td style="padding:14px 16px;"><div class="em-h" style="color:#252b45;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;line-height:1.4;">${escapeHtml(item.title)}</div><p class="em-p" style="margin:5px 0 ${url ? '10' : '0'}px;color:#4b5268;font-family:Arial,sans-serif;font-size:13px;line-height:1.6;">${escapeHtml(item.text || '')}</p>${url ? `<a class="em-pill" href="${escapeHtml(url)}" style="display:inline-block;padding:8px 12px;border-radius:8px;background-color:#f0f1ff;color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">${escapeHtml(item.linkLabel || 'Take a look')} &nbsp;&rarr;</a>` : ''}</td></tr></table></td></tr>`;
+  }).join('');
+  const itemsBlock = items ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:12px;">${items}</table>` : '';
+  const unsubscribeLine = unsubscribeUrl
+    ? `<p class="em-muted" style="margin:18px 0 0;color:#737b91;font-family:Arial,sans-serif;font-size:12px;line-height:1.6;">Not for you? <a class="em-link" href="${escapeHtml(unsubscribeUrl)}" style="color:#4d56d8;">Stop these emails</a> with one click.</p>`
+    : '';
+  const text = [
+    content.heading, '', content.message,
+    content.quote?.text ? `\n${content.quote.author || 'Someone'} said: ${content.quote.text}` : '',
+    ...(content.steps || []).map((step, index) => `${index + 1}. ${step}`),
+    ...(content.items || []).map((item) => `\n${item.title}\n${item.text || ''}${item.url ? `\n${item.url}` : ''}`),
+    '', `${content.actionLabel}: ${content.actionUrl}`,
+    unsubscribeUrl ? `\nStop these emails: ${unsubscribeUrl}` : ''
+  ].join('\n');
+  return deliver({
+    from: fromAddress(),
+    to: user.email,
+    subject: content.subject,
+    text,
+    ...(unsubscribeUrl ? { headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } } : {}),
+    html: brandedEmail({
+      heading: content.heading,
+      message: content.message,
+      greeting: content.firstName || '',
+      preheader: content.preheader,
+      eyebrow: content.eyebrow || 'FROM CROWDWIDE',
+      steps: content.steps || [],
+      details: content.details || [],
+      contentHtml: `${quote}${itemsBlock}${unsubscribeLine}`,
+      actionUrl: content.actionUrl,
+      actionLabel: content.actionLabel,
+      manageUrl: `${appUrl}/settings/notifications`,
+      note: content.note
+    })
+  }, `${content.label || 'Lifecycle email'} for ${user.email}`);
+}
+
 module.exports = {
   sendVerificationCode,
   sendReengagementEmail,
+  sendLifecycleEmail,
   sendNewDeviceAlert,
   sendSecurityAlert,
   sendPasswordResetLink,

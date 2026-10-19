@@ -29,6 +29,8 @@ const siteSettingSchema = new mongoose.Schema({
   // people already judged.
   // Master switch for the come-back reminders (email + push) sent to members who have been away.
   reengagementEnabled: { type: Boolean, default: true },
+  // Master switch for the first-week welcome email series.
+  welcomeEmailsEnabled: { type: Boolean, default: true },
   postReviewThreshold: { type: Number, default: 5, min: 1, max: 50 },
   monetizationMinimumPosts: { type: Number, default: 20, min: 0, max: 10000 },
   monetizationMinimumLikes: { type: Number, default: 30, min: 0, max: 100000 },

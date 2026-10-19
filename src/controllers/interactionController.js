@@ -24,6 +24,8 @@ const { toggleReaction } = require('../utils/reactions');
 const { sendUnreadNotificationSummary } = require('../services/mailer');
 const { notificationPreferenceAllows } = require('../utils/notificationPreferences');
 const { rewardWavesForAction } = require('../services/waves');
+const { recordContribution } = require('../services/streaks');
+const { handleReplyReceived } = require('../services/lifecycle');
 
 const MAX_REPLY_POST_WORDS = 50;
 
@@ -213,6 +215,9 @@ exports.comment = async (req, res) => {
   refreshPersonalization(req.session.user.id);
   await notify(replyRecipient || post.author, req.session.user.id, parent ? 'reply' : 'comment', parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
   if (body) await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
+  // Streak/badges for the commenter, and the one-time "first reply" email for the post's author.
+  recordContribution(req.session.user.id, { kind: 'comment' });
+  handleReplyReceived({ postId: post._id, postAuthorId: post.author, replierId: req.session.user.id, replierName: req.session.user.name, replyText: body });
   if (req.get('X-Requested-With') === 'XMLHttpRequest') {
     // Send the finished comment back as HTML so the page can drop it into the
     // thread without reloading.
@@ -369,6 +374,8 @@ exports.replyPost = async (req, res) => {
   refreshPersonalization(req.session.user.id);
   await notifyMentionedUsers(body, req.session.user.id, reply._id, reply.community);
   await notify(source.author, req.session.user.id, 'comment', 'replied to your post.', source._id, source.community, req.session.user.name);
+  recordContribution(req.session.user.id, { kind: 'post', hashtags: reply.hashtags });
+  handleReplyReceived({ postId: source._id, postAuthorId: source.author, replierId: req.session.user.id, replierName: req.session.user.name, replyText: body });
   if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, reply: { id: reply._id, body: reply.body } });
   return res.redirect(`/posts/${source._id}`);
 };

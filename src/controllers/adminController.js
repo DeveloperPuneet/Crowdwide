@@ -894,6 +894,7 @@ exports.updateSiteSettings = async (req, res) => {
   settings.announcement = req.body.announcement?.trim().slice(0, 300) || '';
   settings.postApprovalDefault = req.body.postApprovalDefault === 'on';
   settings.reengagementEnabled = req.body.reengagementEnabled === 'on';
+  settings.welcomeEmailsEnabled = req.body.welcomeEmailsEnabled === 'on';
   const postWordLimit = Number(req.body.postWordLimit);
   if (Number.isFinite(postWordLimit) && postWordLimit >= 10) settings.postWordLimit = Math.min(2000, Math.round(postWordLimit));
   const articleWordLimit = Number(req.body.articleWordLimit);

@@ -59,6 +59,17 @@
 				<% } %>
 			</div>
 		</div>
+		<% if (locals.streakInfo && (streakInfo.current > 0 || (locals.badgeList || []).some((badge) => badge.earned))) { %>
+		<div class="profile-badges" aria-label="Streak and badges">
+			<% if (streakInfo.current > 0) { %><span class="streak-chip" title="Consecutive days with a post or comment"><%- icon('flame', { size: 14 }) %> <%= streakInfo.current %>-day streak</span><% } %>
+			<% (locals.badgeList || []).filter((badge) => badge.earned).forEach((badge) => { %><span class="badge-chip" title="<%= badge.description %>"><%- icon(badge.icon, { size: 13 }) %> <%= badge.name %></span><% }) %>
+		</div>
+		<% } %>
+		<% if (isSelf && (locals.badgeList || []).some((badge) => !badge.earned)) { %>
+		<details class="badge-goals"><summary>Badges you can still earn</summary>
+			<ul><% badgeList.filter((badge) => !badge.earned).forEach((badge) => { %><li><span class="badge-chip is-locked"><%- icon(badge.icon, { size: 13 }) %> <%= badge.name %></span> <small><%= badge.description %></small></li><% }) %></ul>
+		</details>
+		<% } %>
 		<% if (profileUser.bio) { %><p class="profile-bio person-bio"><%= profileUser.bio %></p><% } %>
 		<% if ((profileUser.hashtags || []).length) { %><div class="hashtag-row profile-hashtags" style="margin-top: 15px;"><% profileUser.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<% if ((profileUser.links || []).length) { %>

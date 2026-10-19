@@ -26,8 +26,9 @@ const growthController = require('../controllers/growthController');
 
 router.get('/', controller.home);
 router.get('/question', growthController.questionPage);
-router.get('/unsubscribe/reminders/:id/:token', growthController.unsubscribePage);
-router.post('/unsubscribe/reminders/:id/:token', growthController.unsubscribe);
+router.get('/top', growthController.weeklyTopPage);
+router.get('/unsubscribe/:kind(reminders|welcome)/:id/:token', growthController.unsubscribePage);
+router.post('/unsubscribe/:kind(reminders|welcome)/:id/:token', growthController.unsubscribe);
 router.get('/health', controller.health);
 router.get('/rss.xml', controller.rss);
 router.get('/u/:id/rss.xml', controller.profileRss);

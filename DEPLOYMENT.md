@@ -250,6 +250,35 @@ nothing worth saying.
 - The public page `/question` shows today's Question of the Day and its
   answers (answers are normal public posts tagged `#qotd`).
 
+## Welcome series, first-reply email, streaks, badges and the weekly top page
+
+- **First-reply email**: the first time anyone replies to a member's post, that
+  member (if their account is under 30 days old) gets one email with the reply
+  and a button to answer. Sent once per member; everyone also gets the
+  "Conversation starter" badge.
+- **Welcome series**: four short emails in the first week (about 2 hours, day 2,
+  day 4 and day 6 after sign-up), only during the member's local daytime. They
+  adapt to what the member has done: steps already done are marked, "say hello"
+  is skipped if they have posted, "communities for you" is skipped if they have
+  joined three or more. Members in their first week are not sent come-back
+  reminders. Admins can switch the series off in Admin > Site settings; members
+  can switch off "Welcome emails and tips" in Settings > Notifications. Each email
+  has its own one-click unsubscribe (`/unsubscribe/welcome/...`).
+- **Streaks and badges**: a streak is consecutive days with a post or comment on
+  the member's own clock. Ten badges (first post, first comment, conversation
+  starter, question answerer, 3/7/30-day streaks, 10/50 posts, 25 comments) are
+  awarded automatically, announced with a notification and shown on the profile
+  (the owner also sees what is still to earn). Members with push enabled and a
+  streak of 3+ days get one "save your streak" push on the evening it is at risk.
+- **Weekly top page**: `/top` is a public, shareable page (with Open Graph tags,
+  copy/WhatsApp/X/LinkedIn share buttons and a sitemap entry) with the week's top
+  posts, most-discussed posts, articles, creators and communities. It only uses
+  content that is already public and is cached for 10 minutes.
+- All welcome, first-reply and reminder emails share the daily cap
+  `REENGAGEMENT_DAILY_LIMIT` and the `REENGAGEMENT_ENABLED=off` switch.
+- Check without sending: the welcome series runs from the same 30-minute worker
+  as the streak savers; there is no new environment variable to set.
+
 ## Render commands
 
 For the Crowdwide app service, select the Node runtime and use:

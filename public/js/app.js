@@ -830,3 +830,15 @@ document.addEventListener('click', (event) => {
 
 
 document.querySelectorAll('[data-welcome-back-close]').forEach((button) => button.addEventListener('click', () => button.closest('.welcome-back-card')?.remove()));
+
+// "Copy link" buttons (e.g. on the weekly top page).
+document.querySelectorAll('[data-copy-link]').forEach((button) => button.addEventListener('click', async () => {
+  const label = button.querySelector('span');
+  const url = button.dataset.copyLink;
+  try {
+    await navigator.clipboard.writeText(url);
+    if (label) { const original = label.textContent; label.textContent = 'Link copied'; setTimeout(() => { label.textContent = original; }, 2000); }
+  } catch (error) {
+    window.prompt('Copy this link', url);
+  }
+}));

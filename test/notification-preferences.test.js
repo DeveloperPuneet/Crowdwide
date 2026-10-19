@@ -31,7 +31,8 @@ test('saving notification settings stores the selected comments mode and other i
       notifySecurity: 'on',
       emailNewsletter: '',
       emailUnreadSummary: 'on',
-      emailReminders: 'on'
+      emailReminders: 'on',
+      emailWelcome: 'on'
     }
   };
   const res = { redirect: (url) => { res.redirectedTo = url; } };
@@ -47,7 +48,8 @@ test('saving notification settings stores the selected comments mode and other i
     security: true,
     emailNewsletter: false,
     emailUnreadSummary: true,
-    emailReminders: true
+    emailReminders: true,
+    emailWelcome: true
   });
   assert.equal(res.redirectedTo, '/settings/notifications');
 });

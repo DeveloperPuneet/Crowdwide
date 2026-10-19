@@ -44,6 +44,7 @@ const SEND_FROM_MINUTE = 10 * 60;
 const SEND_UNTIL_MINUTE = 21 * 60;
 const REENGAGEMENT_CRON = '*/30 * * * *';
 const PER_TICK_LIMIT = 40;
+const NEW_MEMBER_GRACE_MS = 7 * DAY_MS;
 const AWAY_MS = DAY_MS; // a gap this long shows the "welcome back" summary
 
 const dailyLimit = () => {
@@ -78,6 +79,8 @@ function isSendHour(now, zone) {
 
 function dueStage(user, now = new Date()) {
   if (!user.lastActiveAt) return null;
+  // Members in their first week are looked after by the welcome series instead.
+  if (user.createdAt && now.getTime() - new Date(user.createdAt).getTime() < NEW_MEMBER_GRACE_MS) return null;
   const lastSentAt = user.reengagement?.lastSentAt ? new Date(user.reengagement.lastSentAt).getTime() : 0;
   if (lastSentAt && now.getTime() - lastSentAt < MIN_GAP_MS) return null;
   if (user.suspendedUntil && new Date(user.suspendedUntil) > now) return null;
@@ -359,7 +362,7 @@ async function sendReengagementReminders({ now = new Date(), limit = PER_TICK_LI
       { $or: [{ suspendedUntil: null }, { suspendedUntil: { $lte: now } }] },
       { $or: [{ 'reengagement.lastSentAt': null }, { 'reengagement.lastSentAt': { $lte: gapCutoff } }] }
     ]
-  }).select('_id name email timezone pushNotificationsEnabled lastActiveAt reengagement suspendedUntil notificationPreferences hashtags following joinedCommunities bookmarks searchHistory recentViews newsletterSentPosts')
+  }).select('_id name email timezone createdAt pushNotificationsEnabled lastActiveAt reengagement suspendedUntil notificationPreferences hashtags following joinedCommunities bookmarks searchHistory recentViews newsletterSentPosts')
     .sort({ lastActiveAt: -1 }).limit(400).lean();
   result.candidates = candidates.length;
 
@@ -421,6 +424,7 @@ async function sendReengagementReminders({ now = new Date(), limit = PER_TICK_LI
 // Used by the manual script: ignores the "local daytime" rule.
 function stageDisregardingHours(user, now) {
   if (!user.lastActiveAt) return null;
+  if (user.createdAt && now.getTime() - new Date(user.createdAt).getTime() < NEW_MEMBER_GRACE_MS) return null;
   const lastSentAt = user.reengagement?.lastSentAt ? new Date(user.reengagement.lastSentAt).getTime() : 0;
   if (lastSentAt && now.getTime() - lastSentAt < MIN_GAP_MS) return null;
   if (user.suspendedUntil && new Date(user.suspendedUntil) > now) return null;
@@ -478,7 +482,7 @@ function stopReengagementWorker() {
 }
 
 module.exports = {
-  STAGES, MIN_GAP_MS, AWAY_MS, REENGAGEMENT_CRON,
+  STAGES, MIN_GAP_MS, AWAY_MS, REENGAGEMENT_CRON, dailyLimit, envEnabled,
   stageFor, currentSpellSent, isSendHour, dueStage, pickQuestions, pickDiscussions, buildReminder,
   recordActivity, backfillLastActive, awaySummary, sendReengagementReminders, reengagementReport,
   startReengagementWorker, stopReengagementWorker

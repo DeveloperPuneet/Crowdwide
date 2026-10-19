@@ -31,6 +31,8 @@ const { getSitewideFeedCampaigns } = require('../services/advertising');
 const Survey = require('../models/Survey');
 const { questionOfTheDay, answerPrefill, startOfDay, QUESTION_TAG } = require('../utils/questions');
 const { awaySummary } = require('../services/reengagement');
+const { recordContribution, effectiveStreak, zoneOf } = require('../services/streaks');
+const { BADGES } = require('../utils/badges');
 const surveyService = require('../services/surveys');
 const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_SECTION } = require('../utils/partnershipPages');
 
@@ -241,6 +243,7 @@ exports.dashboard = async (req, res) => {
 			sitewideFeedAds,
 			openSurveys,
 			awayInfo,
+			streakInfo: effectiveStreak(user.streak, new Date(), zoneOf(user)),
 			qotd,
 			qotdAnswers,
 			composerPrefill: req.query.ask === 'qotd' ? answerPrefill(qotd) : '',
@@ -478,6 +481,7 @@ exports.createPost = async (req, res) => {
 		rewardWavesForAction({ userId: req.session.user.id, action: 'post', referenceType: 'post', referenceId: createdPost._id })
 			.catch((error) => logger.error('Could not award Waves for published post', error));
 	}
+	if (!isDraft && status === 'published') recordContribution(req.session.user.id, { kind: 'post', hashtags: createdPost.hashtags });
 	refreshPersonalization(req.session.user.id); // so the new post shows up, and shapes "for you", on the very next feed load
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
 	if (!isDraft && !media.length) {
@@ -575,7 +579,7 @@ exports.createCommunity = async (req, res) => {
 };
 
 exports.profile = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links username profilePicture bannerImage privacy createdAt isVerified following profileViews wavesBalance').lean();
+	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links username profilePicture bannerImage privacy createdAt isVerified following profileViews wavesBalance streak badges timezone').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
 	const viewerId = req.session.user.id;
 	const isSelf = String(profileUser._id) === String(viewerId);
@@ -675,6 +679,12 @@ exports.profile = async (req, res) => {
 		pagePath: `/u/${profileUser._id}`,
 		noIndex: profileUser.privacy !== 'public',
 		profileUser,
+		streakInfo: effectiveStreak(profileUser.streak, new Date(), zoneOf(profileUser)),
+		// Everyone sees the badges earned; the owner also sees what is still to earn.
+		badgeList: (() => {
+			const earned = new Map((profileUser.badges || []).map((badge) => [badge.key, badge.earnedAt]));
+			return BADGES.map((badge) => ({ ...badge, earned: earned.has(badge.key), earnedAt: earned.get(badge.key) })).filter((badge) => isSelf || badge.earned);
+		})(),
 		posts: posts_,
 		profileTab: tab,
 		profileLikes: populatedLikes,
@@ -1097,7 +1107,7 @@ exports.sitemap = async (req, res) => {
 			moderationStatus: { $ne: 'reported' },
 			community: { $nin: restrictedCommunityIds }
 		}).sort({ updatedAt: -1 }).limit(1000).select('_id updatedAt').lean();
-		const pages = ['/', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships', '/partnerships/apply', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
+		const pages = ['/', '/top', '/question', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships', '/partnerships/apply', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
 		const urls = [
 			...pages.map((page) => `<url><loc>${escapeXml(`${baseUrl}${page}`)}</loc></url>`),
 			...posts.map((post) => `<url><loc>${escapeXml(`${baseUrl}/posts/${post._id}`)}</loc><lastmod>${new Date(post.updatedAt).toISOString()}</lastmod></url>`)

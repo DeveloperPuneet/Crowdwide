@@ -162,7 +162,8 @@ exports.setNotifications = async (req, res) => {
       security: req.body.notifySecurity === 'on',
       emailNewsletter: req.body.emailNewsletter === 'on',
       emailUnreadSummary: req.body.emailUnreadSummary === 'on',
-      emailReminders: req.body.emailReminders === 'on'
+      emailReminders: req.body.emailReminders === 'on',
+      emailWelcome: req.body.emailWelcome === 'on'
     }
   });
   flash(req, 'success', 'Notification preferences saved.');
