@@ -84,6 +84,8 @@
 				<div class="composer-actions" style="margin-bottom: 10px;">
 					<select name="type" aria-label="Post type"><option value="post">Post · <%= wordLimits.post %> words</option><option value="article">Article · <%= wordLimits.article %> words</option><option value="poll">Poll · <%= wordLimits.poll %> words</option></select>
 					<select name="community" data-community-select aria-label="Choose a community"><option value="">Open Crowdwide</option><% composerCommunities.forEach((community) => { %><option value="<%= community._id %>" <%= String(community._id) === String(locals.selectedCommunityId || '') ? 'selected' : '' %>><%= community.name %></option><% }) %></select>
+					<input type="hidden" name="widewave" value="" data-ww-input data-preset="<%= locals.selectedWideWave || '' %>">
+					<button class="button button-ghost button-small ww-pick-button" type="button" data-ww-open aria-haspopup="dialog" title="Post to an open topic space"><%- icon('waves', { size: 14 }) %> <span data-ww-label>WideWave</span></button>
 					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
 					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
 					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
@@ -224,4 +226,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <%- include('../partials/app-footer') %>
+<%- include('../partials/widewave-picker') %>
 <%- include('../partials/foot') %>

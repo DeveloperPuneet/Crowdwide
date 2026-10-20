@@ -137,6 +137,7 @@ exports.submitAd = async (req, res) => {
     ? req.body.targetCommunities
     : [req.body.targetCommunities].filter(Boolean);
   const sitewideFallback = req.body.sitewideFallback === 'on';
+  const smartPlacement = req.body.smartPlacement === 'on';
   try {
     const [eligibleTargets, settings, hasMonetizedCommunity] = await Promise.all([
       Community.find({ _id: { $in: targetCommunities }, ...COMMUNITY_AD_ELIGIBLE_FILTER }).select('_id').lean(),
@@ -151,8 +152,12 @@ exports.submitAd = async (req, res) => {
       flash(req, 'error', 'Crowdwide-feed campaigns are available only when no public community is monetized.');
       return res.redirect('/advertising');
     }
-    if (!targetCommunities.length && !sitewideFallback) {
-      flash(req, 'error', 'Choose a monetized community or select the Crowdwide-feed fallback.');
+    if (smartPlacement && (targetCommunities.length || sitewideFallback)) {
+      flash(req, 'error', 'Smart placement cannot be combined with chosen communities or the Crowdwide-feed fallback.');
+      return res.redirect('/advertising');
+    }
+    if (!targetCommunities.length && !sitewideFallback && !smartPlacement) {
+      flash(req, 'error', 'Choose smart placement, a monetized community, or the Crowdwide-feed fallback.');
       return res.redirect('/advertising');
     }
     const minimumBudget = Number(settings.advertisingMinimumCampaignBudget ?? 25);
@@ -177,7 +182,8 @@ exports.submitAd = async (req, res) => {
       }
     }
 
-    const logoFile = needsBusinessDetails ? req.files?.logo?.[0] : null;
+    // The logo uploaded with an ad is that ad's logo; on the first ad it also becomes the business logo.
+    const logoFile = req.files?.logo?.[0] || null;
     const bannerFile = req.files?.banner?.[0];
     const [storedLogo, storedBanner] = await Promise.all([
       logoFile
@@ -200,6 +206,8 @@ exports.submitAd = async (req, res) => {
       },
       campaign: {
         title: req.body.title,
+        brandName: String(req.body.brandName || '').trim().slice(0, 120),
+        brandLogoUrl: storedLogo ? mediaUrl(storedLogo) : '',
         campaignType: req.body.campaignType,
         productName: req.body.productName,
         productPrice: req.body.productPrice,
@@ -208,6 +216,8 @@ exports.submitAd = async (req, res) => {
         destinationUrl: destination.toString(),
         bannerUrl: storedBanner ? mediaUrl(storedBanner) : '',
         sitewideFallback,
+        smartPlacement,
+        keywords: String(req.body.keywords || ''),
         totalBudget: budget,
         dailyBudget: req.body.dailyBudget,
         minimumBudget,
@@ -222,6 +232,38 @@ exports.submitAd = async (req, res) => {
   } catch (error) {
     logger.warn('Advertisement submission failed', { userId: req.session.user.id, error });
     flash(req, 'error', error.message || 'Your ad could not be submitted.');
+  }
+  return res.redirect('/advertising');
+};
+
+// Lets an advertiser keep their business profile current (logo, banner, website, description).
+// The business name stays fixed; a different brand name can be set per ad.
+exports.updateProfile = async (req, res) => {
+  const advertiser = await getOwnedAdvertiser(req.session.user.id);
+  if (!advertiser || advertiser.status === 'suspended') {
+    flash(req, 'error', 'Your advertiser profile cannot be edited right now.');
+    return res.redirect('/advertising');
+  }
+  try {
+    const website = String(req.body.website || '').trim();
+    if (website && (!/^https?:\/\//i.test(website) || website.length > 300)) throw new Error('Enter a valid website URL starting with http:// or https://.');
+    const description = String(req.body.businessDescription || '').trim().slice(0, 500);
+    if (!description) throw new Error('Add a short business description.');
+    const logoFile = req.files?.logo?.[0];
+    const bannerFile = req.files?.banner?.[0];
+    const [storedLogo, storedBanner] = await Promise.all([
+      logoFile ? uploadBuffer(logoFile.buffer, logoFile.originalname, logoFile.mimetype, { kind: 'advertiser-logo', owner: req.session.user.id }) : null,
+      bannerFile ? uploadBuffer(bannerFile.buffer, bannerFile.originalname, bannerFile.mimetype, { kind: 'advertisement-banner', owner: req.session.user.id }) : null
+    ]);
+    advertiser.website = website;
+    advertiser.businessDescription = description;
+    if (storedLogo) advertiser.logoUrl = mediaUrl(storedLogo);
+    if (storedBanner) advertiser.bannerUrl = mediaUrl(storedBanner);
+    if (req.body.removeLogo === 'on' && !storedLogo) advertiser.logoUrl = '';
+    await advertiser.save();
+    flash(req, 'success', 'Business profile updated.');
+  } catch (error) {
+    flash(req, 'error', error.message || 'Your business profile could not be updated.');
   }
   return res.redirect('/advertising');
 };

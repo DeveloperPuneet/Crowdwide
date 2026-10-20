@@ -2,6 +2,7 @@ const Survey = require('../models/Survey');
 const SurveyResponse = require('../models/SurveyResponse');
 const AuditLog = require('../models/AuditLog');
 const svc = require('../services/surveys');
+const { rewardWavesForAction } = require('../services/waves');
 
 const backToSurveys = (res) => res.redirect('/admin#surveys');
 
@@ -139,7 +140,9 @@ exports.show = async (req, res) => {
     description: survey.description || 'A short anonymous survey on Crowdwide.',
     survey,
     answered: svc.hasAnswered(req, survey),
-    justSubmitted: req.query.thanks === '1'
+    justSubmitted: req.query.thanks === '1',
+    wavesEarned: Math.min(10000, Math.max(0, Number(req.query.waves) || 0)),
+    wavesPossible: Boolean(req.session?.user)
   });
 };
 
@@ -166,5 +169,17 @@ exports.respond = async (req, res) => {
   // Only the chosen options are stored - nothing about who sent them.
   await SurveyResponse.create({ survey: survey._id, epoch: survey.epoch, answers });
   svc.markAnswered(res, survey);
-  return res.redirect(`${back}?thanks=1`);
+  // Signed-in members earn Waves for taking part. The answers stay anonymous: the
+  // reward ledger only records that this member completed this survey round.
+  let earned = 0;
+  const userId = req.session?.user?.id;
+  if (userId) {
+    try {
+      const reward = await rewardWavesForAction({ userId, action: 'survey', referenceType: `survey-e${survey.epoch || 0}`, referenceId: survey._id });
+      earned = Number(reward?.amount || 0);
+    } catch (error) {
+      require('../services/logger').error('Survey reward failed', error);
+    }
+  }
+  return res.redirect(`${back}?thanks=1${earned > 0 ? `&waves=${encodeURIComponent(earned.toFixed(2))}` : ''}`);
 };

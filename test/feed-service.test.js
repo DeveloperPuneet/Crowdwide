@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const Community = require('../src/models/Community');
 const Post = require('../src/models/Post');
+const User = require('../src/models/User');
 const { addActiveSponsoredPosts } = require('../src/services/feedService');
 
 test('active sponsored posts are randomly placed between organic feed posts, including the owner', async (t) => {
@@ -11,6 +12,7 @@ test('active sponsored posts are randomly placed between organic feed posts, inc
     { _id: 'promoted-owned' },
     { _id: 'promoted-third' }
   ];
+  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Community, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Post, 'find', (filter) => {
     assert.equal(filter.boostStatus, 'active');

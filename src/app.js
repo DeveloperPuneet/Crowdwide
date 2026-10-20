@@ -14,6 +14,7 @@ const { plainText, preview } = require('./utils/textPreview');
 const { icon } = require('./utils/icons');
 const { gifsEnabled } = require('./services/gif');
 const logger = require('./services/logger');
+const { presenceMiddleware } = require('./services/keepAlive');
 const { stagingMiddleware } = require('./services/environment');
 const { alertOnCriticalError } = require('./services/alerting');
 const User = require('./models/User');
@@ -71,6 +72,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   app.use('/vendor/leaflet', express.static(path.join(__dirname, '..', 'node_modules', 'leaflet', 'dist')));
   app.use('/vendor/prism', express.static(path.join(__dirname, '..', 'node_modules', 'prismjs')));
   app.use(express.static(path.join(__dirname, '..', 'public')));
+  // Real visits pause the keep-alive ping (see services/keepAlive.js).
+  app.use(presenceMiddleware);
   // Pages and JSON are personal and change constantly: never let a browser or a
   // shared cache show a stale copy (or another visitor's copy) of them. "no-cache"
   // still allows the back/forward cache, so Back stays instant.
@@ -101,8 +104,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
       const sessionUser = req.session.user || null;
       let currentUser = sessionUser;
       if (sessionUser?.id) {
-        const wallet = await User.findById(sessionUser.id).select('wavesBalance username adFreeUntil timezone').lean();
-        currentUser = { ...sessionUser, wavesBalance: Number(wallet?.wavesBalance || 0), username: wallet?.username || '', adFreeUntil: wallet?.adFreeUntil || null, timezone: wallet?.timezone || '' };
+        const wallet = await User.findById(sessionUser.id).select('wavesBalance username adFreeUntil timezone role passwordSet').lean();
+        currentUser = { ...sessionUser, wavesBalance: Number(wallet?.wavesBalance || 0), username: wallet?.username || '', adFreeUntil: wallet?.adFreeUntil || null, timezone: wallet?.timezone || '', role: wallet?.role || sessionUser.role, needsPanelPassword: ['admin', 'moderator'].includes(wallet?.role) && wallet?.passwordSet === false };
       }
       res.locals.currentUser = currentUser;
       res.locals.flash = req.session.flash || null;

@@ -160,11 +160,12 @@
 		</section>
 
 		<% if (community.requireApproval) { %>
-		<section class="settings-block">
-			<h2>Posts awaiting review</h2>
-			<% if (!pendingPosts.length) { %><p>Nothing waiting for review.</p><% } %>
+		<section class="settings-block" data-live-list data-review-queue-url="/communities/<%= community._id %>/review-queue">
+			<h2>Posts awaiting review <small>(<span data-live-count><%= pendingPosts.length %></span>)</small></h2>
+			<div class="live-new-banner" data-live-new hidden><span><strong data-live-new-count>0</strong> new post(s) need review.</span><button class="button button-small button-ghost" type="button">Show</button></div>
+			<p data-live-empty <%= pendingPosts.length ? 'hidden' : '' %>>Nothing waiting for review.</p>
 			<% pendingPosts.forEach((post) => { %>
-			<div style="border-top:1px solid var(--line);padding:14px 0;">
+			<div style="border-top:1px solid var(--line);padding:14px 0;" data-live-item data-post-id="<%= post._id %>">
 				<strong style="font-size:12px;"><a class="name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Member' %></a></strong>
 				<p style="color:var(--tx-mid);font-size:13px;margin:8px 0;"><%= preview(post.body, 260) %></p>
 				<form method="post" action="/communities/<%= community._id %>/posts/<%= post._id %>/review" style="display:flex;gap:8px;">

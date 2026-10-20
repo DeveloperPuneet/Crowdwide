@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Community = require('../models/Community');
+const { getHiddenAuthorIds } = require('../utils/profilePrivacy');
 const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const ranker = require('../utils/feedRanker');
 const logger = require('./logger');
@@ -313,7 +314,7 @@ async function loadAuthorAndCommunityInfo(candidates, now) {
 
 async function buildRanking({ user, view, now }) {
   const [restricted, profile] = await Promise.all([getRestrictedCommunityIds(user._id), getInterestProfile(user)]);
-  const excludedAuthors = [...(user.blockedUsers || []), ...(user.mutedUsers || [])];
+  const excludedAuthors = [...(user.blockedUsers || []), ...(user.mutedUsers || []), ...(await getHiddenAuthorIds(user._id, user.following || []))];
   const { candidates, extendedIds } = await gatherCandidates({ user, view, restricted, excludedAuthors, interests: profile.interests, now });
   const info = await loadAuthorAndCommunityInfo(candidates, now);
   const ranked = ranker.rankFeed(candidates, {
@@ -367,10 +368,11 @@ async function loadOwnPending(user) {
 
 async function recencyFallback({ user, view }) {
   const restricted = await getRestrictedCommunityIds(user._id);
+  const hiddenAuthors = await getHiddenAuthorIds(user._id, user.following || []);
   const posts = await Post.find({
     status: 'published',
     community: { $nin: restricted },
-    author: { $nin: [...(user.blockedUsers || []), ...(user.mutedUsers || [])] },
+    author: { $nin: [...(user.blockedUsers || []), ...(user.mutedUsers || []), ...hiddenAuthors] },
     ...typeFilter(view)
   }).sort({ createdAt: -1 }).limit(ranker.PAGE_SIZE * 3).select('_id').lean();
   return posts.map((post) => ({ id: String(post._id), source: 'Fresh from Crowdwide', lane: 'discovery' }));
@@ -404,6 +406,7 @@ async function addActiveSponsoredPosts(entries, user, view, now) {
   if (user?.adFreeUntil && new Date(user.adFreeUntil) > new Date(now)) return entries;
   try {
     const restricted = await getRestrictedCommunityIds(user._id);
+    const hiddenAuthors = await getHiddenAuthorIds(user._id, user.following || []);
     const types = ranker.TAB_CONFIG[view].types;
     const candidates = await Post.find({
       status: 'published',
@@ -412,7 +415,7 @@ async function addActiveSponsoredPosts(entries, user, view, now) {
       moderationStatus: { $in: ['unreviewed', 'good'] },
       replyTo: null,
       community: { $nin: restricted },
-      author: { $nin: [...(user.blockedUsers || []), ...(user.mutedUsers || [])] },
+      author: { $nin: [...(user.blockedUsers || []), ...(user.mutedUsers || []), ...hiddenAuthors] },
       ...(types ? { type: { $in: types } } : {})
     }).sort({ boostStartedAt: -1, createdAt: -1 }).limit(30).select('_id').lean();
     if (!candidates.length) return entries;

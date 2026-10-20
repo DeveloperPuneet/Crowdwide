@@ -445,10 +445,10 @@ test('community ad delivery only returns live funded campaigns for eligible publ
     _id: 'community-1', isPrivate: false, isMonetized: true, monetizationStatus: 'approved',
     monetizationSettings: { adsEnabled: true, adPlacement: 'feed' }
   };
-  const campaign = { _id: 'campaign-1', advertiser: { status: 'approved' } };
+  const campaign = { _id: 'campaign-1', advertiser: { status: 'approved' }, totalBudget: 50, remainingBudget: 50 };
   const query = {
     sort() { return this; },
-    limit(limit) { assert.equal(limit, 30); return this; },
+    limit(limit) { assert.equal(limit, 60); return this; },
     populate(path, fields) { assert.equal(path, 'advertiser'); assert.match(fields, /website/); return this; },
     lean: async () => [campaign]
   };
@@ -456,7 +456,8 @@ test('community ad delivery only returns live funded campaigns for eligible publ
   t.mock.method(Campaign, 'find', (filter) => {
     assert.equal(filter.status, 'active');
     assert.equal(filter.fundingStatus, 'funded');
-    assert.equal(filter.targetCommunities, community._id);
+    // targeted campaigns for this community, or smart-placement ones
+    assert.deepEqual(filter.$or, [{ targetCommunities: community._id }, { smartPlacement: true, targetCommunities: { $size: 0 } }]);
     return query;
   });
 

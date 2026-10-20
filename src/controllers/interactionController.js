@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
 const { getPostPromotionOffer, promotePost } = require('../services/postPromotion');
@@ -37,6 +38,19 @@ const redirectBack = (req, res, payload = {}) => {
 const canAccessPost = async (post, userId) => {
   if (!post) return false;
   if (post.status !== 'published' && String(post.author) !== String(userId)) return false;
+  // Posts on a private profile (outside any community) are for approved followers only.
+  if (!post.community && String(post.author) !== String(userId) && mongoose.isValidObjectId(post.author) && (!userId || mongoose.isValidObjectId(userId))) {
+    if (!userId) {
+      const authorPrivacy = await User.findById(post.author).select('privacy').lean();
+      return authorPrivacy?.privacy !== 'followers';
+    }
+    const author = await User.findById(post.author).select('privacy').lean();
+    if (author?.privacy === 'followers') {
+      const approved = await User.exists({ _id: userId, following: post.author });
+      const staff = await User.exists({ _id: userId, role: { $in: ['admin', 'moderator'] } });
+      if (!approved && !staff) return false;
+    }
+  }
   if (post.community) {
     const restricted = await Community.exists({ _id: post.community, isPrivate: true, members: { $ne: userId } });
     if (restricted) return false;
@@ -48,7 +62,7 @@ exports.canAccessPost = canAccessPost;
 async function notify(recipient, actor, type, message, post, community, actorName, url) {
   if (!recipient || String(recipient) === String(actor)) return;
   const recipientUser = await User.findById(recipient).select('name email notificationPreferences').lean();
-  const preferenceKey = type === 'like' ? 'likes' : type === 'follow' ? 'follows' : type === 'message' ? 'messages' : ['comment', 'reply', 'mention'].includes(type) ? 'comments' : 'security';
+  const preferenceKey = type === 'like' ? 'likes' : (type === 'follow' || type === 'follow_request') ? 'follows' : type === 'message' ? 'messages' : ['comment', 'reply', 'mention', 'post_reply'].includes(type) ? 'comments' : 'security';
   if (!notificationPreferenceAllows(recipientUser?.notificationPreferences, preferenceKey, type)) return;
   await Notification.create({ recipient, actor, type, message, post, community, ...(url ? { url } : {}) });
   if (recipientUser?.notificationPreferences?.emailUnreadSummary !== false) {
@@ -373,7 +387,12 @@ exports.replyPost = async (req, res) => {
   const reply = await Post.create({ author: req.session.user.id, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', media, type: 'post', community: source.community, replyTo: source._id, hashtags: extractHashtags(body), status: 'published' });
   refreshPersonalization(req.session.user.id);
   await notifyMentionedUsers(body, req.session.user.id, reply._id, reply.community);
-  await notify(source.author, req.session.user.id, 'comment', 'replied to your post.', source._id, source.community, req.session.user.name);
+  // The original author is told straight away, and the notification opens the reply itself.
+  try {
+    await notify(source.author, req.session.user.id, 'post_reply', 'replied to your post with a post.', reply._id, source.community, req.session.user.name, `/posts/${reply._id}`);
+  } catch (error) {
+    logger.error('Reply-with-post notification failed', error);
+  }
   recordContribution(req.session.user.id, { kind: 'post', hashtags: reply.hashtags });
   handleReplyReceived({ postId: source._id, postAuthorId: source.author, replierId: req.session.user.id, replierName: req.session.user.name, replyText: body });
   if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, reply: { id: reply._id, body: reply.body } });
@@ -652,11 +671,19 @@ exports.toggleFollow = async (req, res) => {
   if (targetId === String(req.session.user.id)) return redirectBack(req, res, { ok: false });
   const [user, target] = await Promise.all([
     User.findById(req.session.user.id),
-    User.findById(targetId).select('_id blockedUsers')
+    User.findById(targetId).select('_id blockedUsers privacy followRequests')
   ]);
   if (!user || !target) return redirectBack(req, res, { ok: false });
   if (target.blockedUsers.some((id) => String(id) === String(user._id))) return redirectBack(req, res, { ok: false });
   const alreadyFollowing = user.following.some((id) => String(id) === targetId);
+  if (!alreadyFollowing && target.privacy === 'followers') {
+    // Private profile: following needs the member's approval. Tapping again cancels the request.
+    const pending = (target.followRequests || []).some((id) => String(id) === String(user._id));
+    await User.updateOne({ _id: target._id }, pending ? { $pull: { followRequests: user._id } } : { $addToSet: { followRequests: user._id } });
+    if (!pending) await notify(target._id, user._id, 'follow_request', 'asked to follow you.', undefined, undefined, user.name, '/follow-requests');
+    const followersCount = await User.countDocuments({ following: targetId });
+    return redirectBack(req, res, { following: false, requested: !pending, followersCount });
+  }
   if (alreadyFollowing) {
     user.following.pull(targetId);
   } else {
@@ -667,4 +694,31 @@ exports.toggleFollow = async (req, res) => {
   refreshPersonalization(user._id); // follow changes what "For you" should show
   const followersCount = await User.countDocuments({ following: targetId });
   redirectBack(req, res, { following: !alreadyFollowing, followersCount });
+};
+
+// ---- follow requests (private profiles) ----------------------------------------
+exports.followRequestsPage = async (req, res) => {
+  const me = await User.findById(req.session.user.id).select('followRequests privacy').lean();
+  const requesters = me?.followRequests?.length
+    ? await User.find({ _id: { $in: me.followRequests }, isVerified: true }).select('name bio profilePicture').limit(100).lean()
+    : [];
+  res.render('pages/follow-requests', { title: 'Follow requests', pagePath: '/follow-requests', noIndex: true, requesters, isPrivate: me?.privacy === 'followers' });
+};
+
+exports.respondFollowRequest = async (req, res) => {
+  const requesterId = req.params.id;
+  const approve = req.params.decision === 'approve';
+  const me = await User.findById(req.session.user.id).select('followRequests').lean();
+  if (!/^[a-f\d]{24}$/i.test(requesterId) || !(me?.followRequests || []).some((id) => String(id) === requesterId)) {
+    return redirectBack(req, res, { ok: false, error: 'That request is no longer pending.' });
+  }
+  await User.updateOne({ _id: me._id }, { $pull: { followRequests: requesterId } });
+  if (approve) {
+    await User.updateOne({ _id: requesterId }, { $addToSet: { following: me._id } });
+    refreshPersonalization(requesterId);
+    await notify(requesterId, me._id, 'follow', 'approved your follow request.', undefined, undefined, req.session.user.name, `/u/${me._id}`);
+  }
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, approved: approve });
+  req.session.flash = { type: 'success', message: approve ? 'Follow request approved.' : 'Follow request declined.' };
+  return res.redirect('/follow-requests');
 };

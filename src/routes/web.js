@@ -16,6 +16,7 @@ const twoFactorController = require('../controllers/twoFactorController');
 const appealController = require('../controllers/appealController');
 const adminController = require('../controllers/adminController');
 const surveyController = require('../controllers/surveyController');
+const widewaveController = require('../controllers/widewaveController');
 const translateController = require('../controllers/translateController');
 const wavesController = require('../controllers/wavesController');
 const advertisingController = require('../controllers/advertisingController');
@@ -27,6 +28,17 @@ const growthController = require('../controllers/growthController');
 router.get('/', controller.home);
 router.get('/question', growthController.questionPage);
 router.get('/top', growthController.weeklyTopPage);
+// WideWaves: open topic spaces (ww/name). Reading is public; posting and creating need an account.
+router.get('/widewaves', widewaveController.home);
+router.get('/widewaves/search', apiLimiter, widewaveController.search);
+router.get('/widewaves/leaderboard', widewaveController.leaderboardPage);
+router.get('/widewaves/new', requireAuth, requireVerified, widewaveController.newPage);
+router.post('/widewaves', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, widewaveController.create);
+router.get('/ww/:name', widewaveController.show);
+router.post('/ww/:name/edit', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, widewaveController.edit);
+router.post('/ww/:name/delete', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, widewaveController.remove);
+router.post('/moderator/widewaves/:id/remove', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, widewaveController.staffRemoveWave);
+router.post('/moderator/widewaves/posts/:postId/unlink', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, widewaveController.staffUnlinkPost);
 router.get('/unsubscribe/:kind(reminders|welcome)/:id/:token', growthController.unsubscribePage);
 router.post('/unsubscribe/:kind(reminders|welcome)/:id/:token', growthController.unsubscribe);
 router.get('/health', controller.health);
@@ -49,6 +61,7 @@ router.post('/partnerships/apply', partnershipLimiter, csrfSynchronisedProtectio
 router.get('/partnerships/received', partnershipController.received);
 router.get('/advertising', requireAuth, requireVerified, advertisingController.dashboard);
 router.post('/advertising/submit', requireAuth, requireVerified, interactionLimiter, advertiserApplicationUpload, csrfSynchronisedProtection, handleUploadError, validateAdvertiserApplicationUpload, scanUploadsForViruses, advertisingController.submitAd);
+router.post('/advertising/profile', requireAuth, requireVerified, interactionLimiter, advertiserApplicationUpload, csrfSynchronisedProtection, handleUploadError, validateAdvertiserApplicationUpload, scanUploadsForViruses, advertisingController.updateProfile);
 router.post('/advertising/appeal', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.submitAdvertiserAppeal);
 router.post('/advertising/campaigns/:id/action', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.campaignAction);
 router.post('/ads/:id/impression', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.trackCampaignImpression);
@@ -136,6 +149,8 @@ router.post('/search/history/clear', requireAuth, requireVerified, controller.cl
 router.get('/hashtags/suggest', requireAuth, requireVerified, controller.hashtagSuggestions);
 router.get('/users/suggest', requireAuth, requireVerified, controller.userSuggestions);
 router.get('/u/:id', visitorPreview('profile'), requireAuth, requireVerified, controller.profile);
+router.get('/follow-requests', requireAuth, requireVerified, interactionController.followRequestsPage);
+router.post('/follow-requests/:id/:decision(approve|decline)', requireAuth, requireVerified, interactionLimiter, interactionController.respondFollowRequest);
 router.post('/users/:id/follow', requireAuth, requireVerified, interactionLimiter, interactionController.toggleFollow);
 router.post('/users/:id/block', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBlock);
 router.post('/users/:id/mute', requireAuth, requireVerified, interactionLimiter, interactionController.toggleMute);
@@ -163,6 +178,7 @@ router.post('/communities/:id/monetization', requireAuth, requireVerified, commu
 router.post('/communities/:id/monetization/appeal', requireAuth, requireVerified, communityController.ownerOnly, interactionLimiter, csrfSynchronisedProtection, communityController.submitMonetizationAppeal);
 router.post('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityUpload, csrfSynchronisedProtection, handleUploadError, validateCommunityUpload, scanUploadsForViruses, communityController.update);
 router.post('/communities/:id/moderators', requireAuth, requireVerified, communityController.ownerOnly, communityController.addModerator);
+router.get('/communities/:id/review-queue', requireAuth, requireVerified, communityController.moderationOnly, communityController.reviewQueueState);
 router.post('/communities/:id/posts/:postId/review', requireAuth, requireVerified, communityController.moderationOnly, communityController.reviewPost);
 router.post('/communities/:id/posts/:postId/pin', requireAuth, requireVerified, communityController.moderationOnly, communityController.togglePinPost);
 router.post('/communities/:id/members/:memberId/remove', requireAuth, requireVerified, communityController.ownerOnly, communityController.removeMember);
@@ -216,6 +232,7 @@ router.post('/moderator/appeals/:id', requireAuth, requireVerified, requireModer
 router.get('/settings/:section?', requireAuth, requireVerified, settingsController.page);
 router.post('/settings/profile', requireAuth, requireVerified, profileUpload, csrfSynchronisedProtection, handleUploadError, validateProfileUpload, scanUploadsForViruses, settingsController.updateProfile);
 router.post('/settings/timezone', requireAuth, requireVerified, settingsController.setTimezone);
+router.post('/account/panel-password', requireAuth, requireVerified, interactionLimiter, settingsController.setPanelPassword);
 router.post('/settings/security/password', requireAuth, requireVerified, settingsController.changePassword);
 router.get('/settings/security/2fa', requireAuth, requireVerified, twoFactorController.setupPage);
 router.post('/settings/security/2fa', requireAuth, requireVerified, twoFactorController.enable);

@@ -303,7 +303,7 @@ test('the single ad form refuses to submit without terms, rights confirmation, a
     [{ destinationUrl: 'javascript:alert(1)' }, /valid http or https/],
     [{ totalBudget: '5' }, /at least 25 Waves/],
     [{ endDate: '2020-01-01' }, /end date cannot be in the past/],
-    [{ sitewideFallback: undefined }, /Choose a monetized community/]
+    [{ sitewideFallback: undefined }, /Choose smart placement, a monetized community/]
   ]) {
     const req = fakeReq(validBody(extra));
     const res = fakeRes();

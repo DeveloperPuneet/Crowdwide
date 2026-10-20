@@ -20,6 +20,7 @@
 	<section class="survey-thanks">
 		<h2><%= justSubmitted ? 'Thank you!' : 'You have already answered' %></h2>
 		<p><%= justSubmitted ? 'Your anonymous answers were recorded.' : 'Thanks for taking part - each browser can answer a survey once.' %></p>
+		<% if (justSubmitted && (locals.wavesEarned || 0) > 0) { %><p class="survey-reward"><%- icon('waves', { size: 16 }) %> <strong>+<%= wavesEarned %> Waves</strong> added to your balance for taking part.</p><% } %>
 		<a class="button button-ghost button-small" href="/surveys">More surveys</a>
 	</section>
 	<% } else if (survey.status === 'closed') { %>
@@ -29,6 +30,7 @@
 		<a class="button button-ghost button-small" href="/surveys">Other surveys</a>
 	</section>
 	<% } else { %>
+	<% if (survey.status === 'published') { %><p class="survey-reward-note"><%- icon('waves', { size: 15 }) %> <%= locals.wavesPossible ? 'Finish this survey to earn Waves.' : 'Sign in before you answer to earn Waves for taking part.' %></p><% } %>
 	<form class="survey-form" method="post" action="/surveys/<%= survey._id %>/respond">
 		<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 		<% survey.questions.forEach((question, qi) => { %>

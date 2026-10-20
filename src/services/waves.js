@@ -332,7 +332,8 @@ async function rewardWavesForAction({ userId, actorId = null, action, referenceT
     receivedComment: { configKey: 'wavesReceivedCommentReward', description: 'Received comment reward' },
     communityJoin: { configKey: 'wavesCommunityJoinReward', description: 'Community join reward' },
     communityCreate: { configKey: 'wavesCommunityCreateReward', description: 'Community creation reward' },
-    questCompletion: { configKey: 'wavesQuestCompletionReward', description: 'Quest completion reward' }
+    questCompletion: { configKey: 'wavesQuestCompletionReward', description: 'Quest completion reward' },
+    survey: { configKey: 'wavesSurveyReward', description: 'Survey participation reward' }
   };
   const rewardConfig = rewardConfigs[action];
   if (!rewardConfig) throw new Error(`Unsupported Waves reward action: ${action}`);

@@ -279,6 +279,71 @@ nothing worth saying.
 - Check without sending: the welcome series runs from the same 30-minute worker
   as the streak savers; there is no new environment variable to set.
 
+## Advertising, private profiles, live moderation and WideWaves
+
+**Advertiser dashboard.** Every ad now has its own *brand name* and *logo*, so a new ad no longer
+shows the previous ad's name. Approved advertisers can edit their business profile (website,
+description, logo, banner) from the dashboard (`POST /advertising/profile`).
+
+**Keep-alive pauses while people are on the site.** Real page visits are tracked in memory;
+while someone has been seen within `KEEP_ALIVE_PRESENCE_SECONDS` (default 120, `0` turns this off)
+the keep-alive tick is skipped, and it resumes once everyone has left. Health checks and the
+keep-alive's own pings never count as visitors.
+
+**Private profiles.** "Private (approve followers)" in Settings now really hides a profile. Everyone
+still sees name, picture, bio and the post, follower and following *counts*. Posts, activity, likes,
+comments, communities, badges and the follower/following lists are for approved followers, the owner
+and staff only. Following a private profile sends a request (`/follow-requests`, Notification type
+`follow_request`); private authors are also filtered out of feeds, search, public lists, the open API,
+RSS and the sitemap.
+
+**Survey Waves.** Signed-in members earn Waves for completing a survey (once per survey round). The
+range is `Survey participation reward` in Admin -> Settings (default 2-5) and respects the daily
+earning limit. Answers stay anonymous: the ledger only records that the member took part.
+
+**Live moderation.** Review buttons in the moderator console and the community "Posts awaiting
+review" list submit in the background (`public/js/live-review.js`), remove the card at once and show
+a toast. The community queue also polls `/communities/:id/review-queue` every 15 s so posts another
+moderator handled disappear and new ones are announced. Without JavaScript the forms still work.
+
+**Panel password for Google/GitHub staff.** Admins and moderators who have no password see a blocking
+prompt on every page until they set one (`POST /account/panel-password`). It becomes their account
+password and therefore their panel password.
+
+**Ad algorithm and community ads.** Ads are scored by relevance (keywords and the community's topic),
+smoothed click-through rate, budget pacing (total, daily cap, days left) and freshness, with a
+fatigue penalty for ads the viewer just saw, one ad per advertiser and weighted-random selection
+(`src/services/adRanker.js`). New *smart placement* campaigns (with optional keywords) show in any
+public community: monetized communities with ads on earn their revenue share; other public
+communities show them every 4th post with no share. Communities that opted out and private
+communities never show ads.
+
+**Community page and feed fixes.** The public community page shows full formatted post cards with
+like, comment and share. Avatars in infinite-scroll feed pages, comments and chat now load. "Reply
+with a post" notifies the original author (type `post_reply`) and opens the reply.
+
+### WideWaves
+
+Open topic spaces written `ww/name`. Anyone can read them, post to them and engage like with normal
+posts, no joining or following.
+
+- **Names** are unique, lowercase, 3-30 letters/numbers/underscores. Reserved words are blocked.
+- **Posting:** the composer has a *WideWave* button (popup with trending WideWaves and search). A post
+  goes to a community *or* a WideWave. Pages: `/widewaves` (For you, Top posts, Newest, search),
+  `/ww/:name`, `/widewaves/leaderboard` (week, month, year, all time), `/widewaves/new`.
+- **Creators** may only edit the description and hashtags, or delete the WideWave. Deleting keeps all
+  posts as normal posts. Limits: 3 creations a day, 15 active per member.
+- **Moderation** is only by official moderators/admins (moderator console -> WideWaves tab): remove a
+  WideWave (posts become normal posts, the name stays blocked) or move a single post out of one.
+- **Recommendations** use the member's interest profile plus the WideWaves they post in or like.
+  Trending = posts in the last 7 days (weighted with likes and comments).
+- **Emails:** the weekly newsletter (personalised), come-back reminders and welcome emails include a
+  short "WideWaves worth a look" block.
+- **Admin switch:** Admin -> Settings -> "Enable WideWaves".
+
+Scheduled or draft posts attached to a WideWave are counted once published; `postsCount` is a cache
+used for ordering search results, while trending and leaderboards are computed live.
+
 ## Render commands
 
 For the Crowdwide app service, select the Node runtime and use:

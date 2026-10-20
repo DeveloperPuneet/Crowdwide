@@ -64,18 +64,9 @@
 		<% } %>
 		<% if (!locked) { %>
 		<% posts.forEach((post, postIndex) => { %>
-		<a class="post-open-link" href="/posts/<%= post._id %>" style="display:block;text-decoration:none;">
-		<article class="post-card">
-			<div class="post-meta">
-				<%- include('../partials/avatar', { person: post.author, size: 'small', link: false }) %>
-				<div><strong class="community-post-author"><%= post.author?.name || 'Member' %><% if (moderatorIds.includes(String(post.author?._id))) { %> <span class="community-moderator-label">MOD</span><% } %></strong><span><%= post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post' %><% if (community.pinnedPosts?.some((id) => String(id) === String(post._id))) { %> · Pinned<% } %></span></div>
-			</div>
-			<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
-			<p class="post-body"><%= preview(post.body, 320) %></p>
-			<% if ((post.media || [])[0]) { %><div class="post-media count-1"><div class="post-media-frame"><% if (post.media[0].kind === 'image') { %><img src="<%= post.media[0].thumbnailUrl || post.media[0].url %>" alt="" loading="lazy"><% } %></div></div><% } %>
-			<div class="post-stat-row" aria-hidden="true"><span><%- icon('heart', { size: 14 }) %><%= post.likes?.length || 0 %></span><span><%- icon('message-circle', { size: 14 }) %><%= post.commentsCount || 0 %></span><span><%- icon('send', { size: 14 }) %><%= post.sharesCount || 0 %></span><span><%- icon('eye', { size: 14 }) %><%= post.viewsCount || 0 %></span></div>
-		</article>
-		</a>
+		<% const isPinnedPost = (community.pinnedPosts || []).some((id) => String(id) === String(post._id)); const isModPost = moderatorIds.includes(String(post.author?._id)); %>
+		<% if (isPinnedPost || isModPost) { %><div class="community-post-flags"><% if (isPinnedPost) { %><span class="community-flag"><%- icon('map-pin', { size: 12 }) %> Pinned</span><% } %><% if (isModPost) { %><span class="community-moderator-label">MOD post</span><% } %></div><% } %>
+		<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
 		<% (locals.feedAds || []).filter((ad) => ad.afterPost === postIndex + 1).forEach((ad) => { %>
 		<%- include('../partials/community-ad', { ad, community }) %>
 		<% }) %>

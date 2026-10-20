@@ -1,0 +1,80 @@
+<%- include('../partials/head', { title, description, pagePath, bodyClass: 'ww-body' }) %>
+<% if (locals.currentUser) { %>
+<%- include('../partials/app-nav', { active: 'widewaves', currentUser }) %>
+<% } else { %>
+<header class="site-nav container public-posts-nav">
+	<a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
+	<div><a class="button button-small button-ghost" href="/auth/login">Sign in</a><a class="button button-small button-primary" href="/auth/register">Join Crowdwide</a></div>
+</header>
+<% } %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="ww-page">
+	<a class="back-link" href="/widewaves">← All WideWaves</a>
+	<header class="ww-hero ww-hero-wave">
+		<div>
+			<p class="eyebrow">WideWave · open to everyone</p>
+			<h1>ww/<%= wave.name %></h1>
+			<p><%= wave.description %></p>
+			<% if ((wave.hashtags || []).length) { %><div class="hashtag-row" style="margin-top:12px;"><% wave.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
+			<p class="ww-meta"><strong><%= totalPosts.toLocaleString() %></strong> post<%= totalPosts === 1 ? '' : 's' %> · <strong><%= weekPosts.toLocaleString() %></strong> this week<% if (creator) { %> · created by <a class="name-link" href="/u/<%= creator._id %>"><%= creator.name %></a><% } %></p>
+		</div>
+		<div class="ww-hero-actions">
+			<% if (locals.currentUser) { %><a class="button button-primary" href="/dashboard?widewave=<%= wave.name %>#composer"><%- icon('plus', { size: 15 }) %> Post in ww/<%= wave.name %></a><% } else { %><a class="button button-primary" href="/auth/register">Join to post</a><% } %>
+			<button class="button button-ghost" type="button" data-share-open data-post-url="/ww/<%= wave.name %>"><%- icon('send', { size: 15 }) %> Share</button>
+		</div>
+	</header>
+
+	<div class="ww-layout">
+		<section class="ww-main">
+			<nav class="feed-tabs" aria-label="Sort posts">
+				<a class="<%= sort === 'new' ? 'feed-tab-active' : '' %>" href="/ww/<%= wave.name %>?sort=new">Newest</a>
+				<a class="<%= sort === 'top' ? 'feed-tab-active' : '' %>" href="/ww/<%= wave.name %>?sort=top">Top this month</a>
+			</nav>
+			<% if (!feed.posts.length) { %><div class="empty-feed"><h2>No posts yet.</h2><p>Be the first to post in ww/<%= wave.name %>.</p></div><% } %>
+			<div class="ww-posts"><% feed.posts.forEach((post) => { %>
+				<% if (isStaff) { %><form class="ww-staff-unlink" method="post" action="/moderator/widewaves/posts/<%= post._id %>/unlink"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit" title="Official moderators only">Move out of ww/<%= wave.name %></button></form><% } %>
+				<%- include('../partials/post-card', { post, csrfToken: locals.csrfToken, hideSource: true }) %>
+			<% }) %></div>
+			<% if (feed.hasMore || page > 1) { %>
+			<nav class="ww-pager" aria-label="Pages">
+				<% if (page > 1) { %><a class="button button-ghost button-small" href="/ww/<%= wave.name %>?sort=<%= sort %>&page=<%= page - 1 %>">← Newer</a><% } %>
+				<% if (feed.hasMore) { %><a class="button button-ghost button-small" href="/ww/<%= wave.name %>?sort=<%= sort %>&page=<%= page + 1 %>">More posts →</a><% } %>
+			</nav>
+			<% } %>
+		</section>
+		<aside class="ww-side">
+			<section class="discover-panel">
+				<div class="panel-heading"><h2>Top posters this week</h2></div>
+				<% if (!contributors.length) { %><p class="ww-empty">No posts this week yet.</p><% } %>
+				<% contributors.forEach((person, index) => { %>
+				<div class="discover-row"><%- include('../partials/avatar', { person, size: 'tiny' }) %><div><strong><a class="name-link" href="/u/<%= person._id %>"><%= person.name %></a></strong><span><%= person.posts %> post<%= person.posts === 1 ? '' : 's' %></span></div></div>
+				<% }) %>
+			</section>
+			<% if (related.length) { %>
+			<section class="discover-panel"><div class="panel-heading"><h2>Related WideWaves</h2></div><% related.forEach((other) => { %><%- include('../partials/widewave-card', { wave: other }) %><% }) %></section>
+			<% } %>
+			<section class="discover-panel ww-rules">
+				<div class="panel-heading"><h2>About this WideWave</h2></div>
+				<p class="ww-empty">Open to everyone: read, post and comment without joining. It is moderated only by official Crowdwide moderators, following the <a href="/community-guidelines">Community Guidelines</a>.</p>
+			</section>
+			<% if (isCreator) { %>
+			<section class="discover-panel ww-owner">
+				<div class="panel-heading"><h2>Your WideWave</h2></div>
+				<form method="post" action="/ww/<%= wave.name %>/edit" class="ww-form">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<label>Description<textarea name="description" rows="3" maxlength="200" required><%= wave.description %></textarea></label>
+					<label>Hashtags<input name="hashtags" maxlength="200" value="<%= (wave.hashtags || []).join(', ') %>" required><small>Comma separated, up to 8.</small></label>
+					<button class="button button-primary button-small" type="submit">Save changes</button>
+				</form>
+				<form method="post" action="/ww/<%= wave.name %>/delete" data-confirm="Delete ww/<%= wave.name %>? Its posts stay on Crowdwide as normal posts.">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<button class="button button-danger button-small" type="submit">Delete WideWave</button>
+				</form>
+				<p class="ww-empty">You can change the description and hashtags, or delete the WideWave. The name cannot change.</p>
+			</section>
+			<% } %>
+		</aside>
+	</div>
+</main>
+<% if (locals.currentUser) { %><%- include('../partials/app-footer') %><% } else { %><%- include('../partials/site-footer') %><% } %>
+<%- include('../partials/foot') %>

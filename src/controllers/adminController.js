@@ -4,6 +4,7 @@ const { hashPassword } = require('../utils/passwords');
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
+const WideWave = require('../models/WideWave');
 const Report = require('../models/Report');
 const AuditLog = require('../models/AuditLog');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
@@ -123,8 +124,12 @@ exports.panelAccessPage = async (req, res) => {
 exports.panelAccess = async (req, res) => {
   const panel = req.params.panel;
   if (!panelRoles[panel]) return res.status(404).render('pages/not-found', { title: 'Page not found' });
-  const user = await User.findById(req.session.user.id).select('password role');
+  const user = await User.findById(req.session.user.id).select('password role passwordSet');
   if (!user || !panelRoles[panel].includes(user.role)) return res.status(403).render('pages/not-found', { title: 'Access denied' });
+  if (user.passwordSet === false) {
+    flash(req, 'error', 'Set your panel password first - use the prompt on any page.');
+    return res.redirect('/dashboard');
+  }
   if (!(await bcrypt.compare(req.body.password || '', user.password))) {
     flash(req, 'error', 'That password is not correct.');
     return res.redirect(`/${panel}/access`);
@@ -920,7 +925,8 @@ exports.updateSiteSettings = async (req, res) => {
     ['wavesReceivedCommentReward', 'receivedComment'],
     ['wavesCommunityJoinReward', 'communityJoin'],
     ['wavesCommunityCreateReward', 'communityCreate'],
-    ['wavesQuestCompletionReward', 'questCompletion']
+    ['wavesQuestCompletionReward', 'questCompletion'],
+    ['wavesSurveyReward', 'survey']
   ]) {
     const minimum = Number(req.body[`waves${formName[0].toUpperCase()}${formName.slice(1)}RewardMinimum`]);
     const maximum = Number(req.body[`waves${formName[0].toUpperCase()}${formName.slice(1)}RewardMaximum`]);
@@ -941,6 +947,7 @@ exports.updateSiteSettings = async (req, res) => {
   }
   const wavesWelcomeBonus = Number(req.body.wavesWelcomeBonus);
   if (Number.isFinite(wavesWelcomeBonus) && wavesWelcomeBonus >= 0) settings.wavesWelcomeBonus = Math.min(10000, Math.round(wavesWelcomeBonus * 100) / 100);
+  settings.widewavesEnabled = req.body.widewavesEnabled === 'on';
   settings.postPromotionEnabled = req.body.postPromotionEnabled === 'on';
   const postPromotionWavesCost = Number(req.body.postPromotionWavesCost);
   if (Number.isFinite(postPromotionWavesCost) && postPromotionWavesCost >= 1) settings.postPromotionWavesCost = Math.min(10000, postPromotionWavesCost);
@@ -1125,7 +1132,18 @@ exports.moderator = async (req, res) => {
   const contentCounts = { post: 0, article: 0, poll: 0 };
   typeCountRows.forEach((row) => { if (row._id in contentCounts) contentCounts[row._id] = row.n; });
   const myOpenReportRecommendations = new Set(actions.filter((a) => a.action === 'resolve-report' && a.status === 'pending').map((a) => String(a.target)));
-  res.render('pages/moderator', { contentType, contentCounts, recentAuto: actions.filter((a) => a.autoApplied).slice(0, 8), title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization });
+  const widewaves = await WideWave.find({ status: 'active' }).sort({ createdAt: -1 }).limit(40).populate('creator', 'name').lean();
+  res.render('pages/moderator', { widewaves, contentType, contentCounts, recentAuto: actions.filter((a) => a.autoApplied).slice(0, 8), title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization });
+};
+
+// Moderation forms are submitted in the background (no page reload). The same handlers
+// still work as plain form posts: without the XHR header they flash and redirect.
+// Actions after which the post has left this moderator's queue.
+const QUEUE_CLEARING_ACTIONS = new Set(['mark-reviewed', 'rate-good-post', 'rate-bad-post', 'flag-spam', 'report-post', 'delete-post']);
+const modDone = (req, res, ok, message, remove = QUEUE_CLEARING_ACTIONS.has(req.body?.action)) => {
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok, message, remove: Boolean(ok && remove) });
+  flash(req, ok ? 'success' : 'error', message);
+  return res.redirect('/moderator');
 };
 
 exports.submitAction = async (req, res) => {
@@ -1135,28 +1153,25 @@ exports.submitAction = async (req, res) => {
   // showing up in their queue (and drops out of everyone's queue once
   // enough moderators have done the same - see the feed query below).
   if (req.body.action === 'mark-reviewed') {
-    if (!req.body.target) return res.redirect('/moderator');
+    if (!req.body.target) return modDone(req, res, false, 'Nothing to review.');
     const post = await Post.findOneAndUpdate({ _id: req.body.target, author: { $ne: req.roleUser._id } }, { $addToSet: { moderatorReviews: req.roleUser._id } }, { new: true }).select('_id').lean();
-    if (post) flash(req, 'success', 'Marked reviewed.');
-    return res.redirect('/moderator');
+    return modDone(req, res, Boolean(post), post ? 'Marked reviewed.' : 'Moderators cannot review their own posts.');
   }
 
   const allowed = ['delete-post', 'edit-post', 'suspend-user', 'unsuspend-user', 'warn-user', 'edit-community', 'resolve-report', 'rate-good-post', 'rate-bad-post', 'report-post', 'flag-spam'];
-  if (!allowed.includes(req.body.action) || !req.body.target || !req.body.reason?.trim()) return res.redirect('/moderator');
+  if (!allowed.includes(req.body.action) || !req.body.target || !req.body.reason?.trim()) return modDone(req, res, false, 'Please add a reason for this action.', false);
   const postActions = ['delete-post', 'edit-post', 'rate-good-post', 'rate-bad-post', 'report-post', 'flag-spam'];
   const userActions = ['suspend-user', 'unsuspend-user', 'warn-user'];
   const targetType = postActions.includes(req.body.action) ? 'post' : userActions.includes(req.body.action) ? 'user' : req.body.action === 'edit-community' ? 'community' : 'report';
   if (postActions.includes(req.body.action)) {
     const post = await Post.findOneAndUpdate({ _id: req.body.target, author: { $ne: req.roleUser._id } }, { $addToSet: { moderatorReviews: req.roleUser._id } }).select('_id').lean();
     if (!post) {
-      flash(req, 'error', 'Moderators cannot review or influence their own posts.');
-      return res.redirect('/moderator');
+      return modDone(req, res, false, 'Moderators cannot review or influence their own posts.');
     }
   }
   if (LOW_RISK_ACTIONS.has(req.body.action)) {
     const done = await applyLowRiskAction(req, { action: req.body.action, post: { _id: req.body.target }, reason: req.body.reason.trim(), payload: req.body.payload || {} });
-    flash(req, done ? 'success' : 'error', done ? LOW_RISK_MESSAGES[req.body.action] : 'That action could not be applied.');
-    return res.redirect('/moderator');
+    return modDone(req, res, Boolean(done), done ? LOW_RISK_MESSAGES[req.body.action] : 'That action could not be applied.');
   }
   let payload;
   if (req.body.action === 'edit-post' && req.body.payload?.body?.trim()) payload = { body: req.body.payload.body.trim().slice(0, 4000) };
@@ -1174,8 +1189,7 @@ exports.submitAction = async (req, res) => {
     // actual call (see applyApprovedAction / reviewAction).
     const report = await Report.findOne({ _id: req.body.target, status: 'open' });
     if (!report) {
-      flash(req, 'error', 'That report is already under review or has been closed.');
-      return res.redirect('/moderator');
+      return modDone(req, res, false, 'That report is already under review or has been closed.');
     }
     payload = { decision: req.body.payload?.decision === 'dismissed' ? 'dismissed' : 'resolved' };
     report.status = 'reviewing';
@@ -1183,6 +1197,5 @@ exports.submitAction = async (req, res) => {
   }
   await ModerationAction.create({ moderator: req.roleUser._id, action: req.body.action, targetType, target: req.body.target, reason: req.body.reason.trim(), payload });
   await audit(req, 'submit-moderation-action', targetType, req.body.target, { action: req.body.action });
-  flash(req, 'success', 'The action was sent to the administrator for approval.');
-  res.redirect('/moderator');
+  return modDone(req, res, true, 'The action was sent to the administrator for approval.');
 };

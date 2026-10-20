@@ -1,0 +1,10 @@
+<%# One WideWave in a list. locals: wave, rank (optional), stat (optional text) %>
+<a class="ww-card" href="/ww/<%= wave.name %>">
+	<% if (locals.rank) { %><span class="ww-rank">#<%= rank %></span><% } %>
+	<span class="ww-card-main">
+		<strong class="ww-name">ww/<%= wave.name %></strong>
+		<span class="ww-desc"><%= wave.description %></span>
+		<% if ((wave.hashtags || []).length) { %><span class="ww-tags"><% wave.hashtags.slice(0, 4).forEach((tag) => { %><i>#<%= tag %></i><% }) %></span><% } %>
+	</span>
+	<span class="ww-card-stat"><% if (locals.stat) { %><%= stat %><% } else { %><b><%= Number(wave.postsCount || 0).toLocaleString() %></b> post<%= wave.postsCount === 1 ? '' : 's' %><% } %></span>
+</a>

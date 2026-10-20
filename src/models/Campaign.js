@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const campaignSchema = new mongoose.Schema({
   advertiser: { type: mongoose.Schema.Types.ObjectId, ref: 'Advertiser', required: true, index: true },
   title: { type: String, required: true, trim: true, maxlength: 120 },
+  // Name and logo shown on THIS ad (reviewed with it). Empty = the advertiser's own business name/logo.
+  brandName: { type: String, trim: true, maxlength: 120, default: '' },
+  brandLogoUrl: { type: String, trim: true, maxlength: 500, default: '' },
   campaignType: { type: String, enum: ['product', 'service', 'article', 'event', 'other'], default: 'other', index: true },
   productName: { type: String, trim: true, maxlength: 120, default: '' },
   productPrice: { type: String, trim: true, maxlength: 60, default: '' },
@@ -30,6 +33,9 @@ const campaignSchema = new mongoose.Schema({
   endDate: Date,
   targetCommunities: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Community' }],
   sitewideFallback: { type: Boolean, default: false, index: true },
+  // Smart placement: shown in public communities (not just chosen ones), ranked by relevance.
+  smartPlacement: { type: Boolean, default: false, index: true },
+  keywords: [{ type: String, trim: true, lowercase: true, maxlength: 40 }],
   impressions: { type: Number, default: 0 },
   clicks: { type: Number, default: 0 },
   ctr: { type: Number, default: 0 },

@@ -10,7 +10,9 @@
 		<a class="<%= mode === 'following' ? 'feed-tab-active' : '' %>" href="/u/<%= profileUser._id %>/following">Following</a>
 	</div>
 
-	<% if (!list.length) { %>
+	<% if (locals.locked) { %>
+	<div class="empty-feed"><h2>This profile is private</h2><p>Only approved followers can see who <%= profileUser.name %> follows and who follows them. The counts are on the profile.</p></div>
+	<% } else if (!list.length) { %>
 	<div class="empty-feed">
 		<h2><%= mode === 'followers' ? 'No followers yet.' : 'Not following anyone yet.' %></h2>
 		<p><%= mode === 'followers' ? 'When people follow this profile, they will show up here.' : 'Posts from people this profile follows will show up here once they follow someone.' %></p>

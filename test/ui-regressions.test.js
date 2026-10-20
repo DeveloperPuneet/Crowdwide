@@ -111,7 +111,7 @@ test('light and pink themes set readable text, control, and surface colors', () 
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.message-thread \.chat-bubble|:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.chat-bubble \{ background: var\(--theme-soft\);/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.post-more > summary:hover \{ background: var\(--theme-soft\); color: var\(--theme-accent\);/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) :is\(\.chat-back:hover, \.chat-header-action:hover, \.post-back:hover\) \{ background: var\(--theme-soft\); color: var\(--theme-accent\);/);
-  assert.match(read('src', 'views', 'pages', 'community-detail.ejs'), /class="community-post-author"/);
+  assert.match(read('src', 'views', 'pages', 'community-detail.ejs'), /include\('..\/partials\/post-card'/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.conversations-search input:not\(\[type="checkbox"\]\).*\.chat-search input:not\(\[type="checkbox"\]\)/s);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.conversations-search:focus-within/);
   assert.match(css, /:is\(body\[data-theme="light"\], body\[data-theme="pink"\]\) \.settings-layout :is\(input:not\(\[type="checkbox"\]\).*textarea, select\):focus/);

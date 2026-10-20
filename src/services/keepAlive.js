@@ -16,6 +16,10 @@
 //   KEEP_ALIVE_URL       URL to ping. Default: RENDER_EXTERNAL_URL, then APP_URL.
 //   KEEP_ALIVE_CRON      Cron expression. Default every 10 minutes.
 //   KEEP_ALIVE_TIMEOUT_MS  Request timeout. Default 20000.
+//   KEEP_ALIVE_PRESENCE_SECONDS  While a real visitor has made a request this recently,
+//                        the ping is skipped (their traffic already keeps the host
+//                        awake) and it resumes by itself once they have gone. Default
+//                        120. Keep it well under the host's idle limit (~15 min).
 
 const cron = require('node-cron');
 const logger = require('./logger');
@@ -85,6 +89,30 @@ async function pingDatabase(mongoose) {
   }
 }
 
+// ---- visitor presence --------------------------------------------------------
+// Any real request (not our own health ping) counts as "someone is here".
+const DEFAULT_PRESENCE_SECONDS = 120;
+let lastVisitAt = 0;
+
+function recordVisit(now = Date.now()) { lastVisitAt = now; }
+function resetPresence() { lastVisitAt = 0; }
+
+function presenceWindowMs(env = process.env) {
+  const seconds = Number(env.KEEP_ALIVE_PRESENCE_SECONDS);
+  return (Number.isFinite(seconds) && seconds >= 0 ? seconds : DEFAULT_PRESENCE_SECONDS) * 1000;
+}
+
+function visitorsPresent(now = Date.now(), env = process.env) {
+  const windowMs = presenceWindowMs(env);
+  return windowMs > 0 && lastVisitAt > 0 && now - lastVisitAt < windowMs;
+}
+
+// Express middleware: records real visits. Health checks and our own pings never count.
+function presenceMiddleware(req, res, next) {
+  if (req.path !== '/health' && !String(req.get('user-agent') || '').startsWith('crowdwide-keepalive')) recordVisit();
+  next();
+}
+
 let activeTask = null;
 
 function startKeepAlive({ env = process.env, fetchImpl, cronImpl = cron, mongoose = require('mongoose') } = {}) {
@@ -101,8 +129,15 @@ function startKeepAlive({ env = process.env, fetchImpl, cronImpl = cron, mongoos
   const schedule = resolveSchedule(env, cronImpl.validate);
   const timeoutMs = Number(env.KEEP_ALIVE_TIMEOUT_MS) > 0 ? Number(env.KEEP_ALIVE_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS;
   let failures = 0;
+  let paused = false;
 
   const tick = async () => {
+    // Someone is on the site, so their own requests keep the host awake: do nothing, and carry on again once they leave.
+    if (visitorsPresent(Date.now(), env)) {
+      if (!paused) { paused = true; logger.info('Keep-alive paused: visitors are on the site.'); }
+      return { skipped: 'visitors-present' };
+    }
+    if (paused) { paused = false; logger.info('Keep-alive resumed: no visitors for a while.'); }
     const [web, db] = await Promise.all([pingOnce(target, { fetchImpl, timeoutMs }), pingDatabase(mongoose)]);
     if (web.ok) {
       // Only speak up when things change - a healthy ping every 10 minutes
@@ -129,4 +164,4 @@ function stopKeepAlive() {
   activeTask = null;
 }
 
-module.exports = { startKeepAlive, stopKeepAlive, resolveTarget, resolveSchedule, isEnabled, pingOnce, pingDatabase, DEFAULT_CRON };
+module.exports = { recordVisit, resetPresence, visitorsPresent, presenceMiddleware, presenceWindowMs, startKeepAlive, stopKeepAlive, resolveTarget, resolveSchedule, isEnabled, pingOnce, pingDatabase, DEFAULT_CRON };

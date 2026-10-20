@@ -52,6 +52,23 @@
   </section>
   <% } %>
 
+  <% if (advertiser && advertiser.status !== 'suspended') { %>
+  <section class="settings-block admin-wide" id="business-profile">
+    <details class="post-owner-tools">
+      <summary>Edit business profile (logo, banner, website, description)</summary>
+      <form class="admin-edit-form" method="post" action="/advertising/profile" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Website<input type="url" name="website" maxlength="300" placeholder="https://example.com" value="<%= advertiser.website || '' %>"></label>
+        <label>Business logo<input type="file" name="logo" accept="image/*"><small>Image under 1.5 MB. <% if (advertiser.logoUrl) { %>Choosing a file replaces the current logo.<% } %></small></label>
+        <label>Business banner<input type="file" name="banner" accept="image/*"><small>Image under 2 MB.</small></label>
+        <% if (advertiser.logoUrl) { %><label class="checkbox-field"><input type="checkbox" name="removeLogo"> Remove the current logo</label><% } %>
+        <label class="full-width">Short business description<textarea name="businessDescription" maxlength="500" rows="3" required><%= advertiser.businessDescription || '' %></textarea></label>
+        <div class="admin-edit-form-actions"><button class="button button-primary button-small" type="submit">Save business profile</button></div>
+      </form>
+    </details>
+  </section>
+  <% } %>
+
   <% if (advertiser && campaigns.length) { %>
   <div class="admin-stats" aria-label="Campaign performance totals">
     <article class="admin-stat"><span>Delivery</span><strong><%= totals.impressions.toLocaleString() %></strong><small>impressions</small></article>
@@ -73,12 +90,13 @@
       <label>Business or organization name<input name="businessName" maxlength="120" required value="<%= advertiser?.businessName || '' %>"></label>
       <label>Website<input type="url" name="website" maxlength="300" placeholder="https://example.com" value="<%= advertiser?.website || '' %>"></label>
       <label class="full-width">Short business description<textarea name="businessDescription" maxlength="500" rows="3" required placeholder="What does your business offer? (500 characters max)"><%= advertiser?.businessDescription || '' %></textarea></label>
-      <label>Business logo<input type="file" name="logo" accept="image/*"><small>Optional. Image under 1.5 MB; scanned before upload.</small></label>
       <label>Additional information<input name="notes" maxlength="2000" placeholder="Optional"></label>
       <h3 class="full-width">2. Your ad</h3>
       <% } else { %>
       <h3 class="full-width">Your ad</h3>
       <% } %>
+      <label>Brand name shown on this ad<input name="brandName" maxlength="120" placeholder="<%= advertiser?.businessName || 'Defaults to your business name' %>"><small>Optional. Use this when the ad is for a different brand or product line.</small></label>
+      <label>Logo for this ad<input type="file" name="logo" accept="image/*"><small>Optional. Image under 1.5 MB; scanned before upload.<%= needsBusinessDetails ? ' On your first ad it also becomes your business logo.' : ' Leave empty to use your business logo.' %></small></label>
       <label>Campaign title<input name="title" maxlength="120" required></label>
       <label>What are you advertising?
         <select name="campaignType" required>
@@ -100,6 +118,12 @@
       <label>Daily budget (Waves)<input type="number" name="dailyBudget" min="0" step="0.01" value="0"><small>0 means no daily limit.</small></label>
       <label>Start date<input type="date" name="startDate"></label>
       <label>End date<input type="date" name="endDate"></label>
+      <fieldset class="full-width ad-smart-placement">
+        <legend>Smart placement (recommended)</legend>
+        <label class="checkbox-field"><input type="checkbox" name="smartPlacement" checked> Show this ad in public communities whose topic matches it</label>
+        <p class="full-width"><small>Crowdwide ranks every ad by relevance, past click-through, remaining budget and freshness, and shows it where it fits best. It is labelled “Sponsored”. Untick this to choose communities yourself.</small></p>
+        <label class="full-width">Topics and keywords<input name="keywords" maxlength="300" placeholder="e.g. photography, travel, cameras"><small>Comma separated, up to 12. Helps match your ad to the right communities.</small></label>
+      </fieldset>
       <% if (communities.length) { %>
       <fieldset class="full-width">
         <legend>Target monetized communities</legend>
@@ -149,6 +173,7 @@
         <div><dt>Performance</dt><dd><%= Number(campaign.impressions || 0).toLocaleString() %> impressions · <%= Number(campaign.clicks || 0).toLocaleString() %> clicks · <%= Number(campaign.ctr || 0) %>% CTR</dd></div>
         <div><dt>Spend</dt><dd><%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves</dd></div>
         <div><dt>Rates</dt><dd><%= Number(campaign.impressionCostWaves ?? 0.1) %> Waves/impression · <%= Number(campaign.clickCostWaves ?? 1) %> Waves/click</dd></div>
+        <% if (campaign.smartPlacement) { %><div><dt>Placement</dt><dd>Smart placement in relevant public communities<%= (campaign.keywords || []).length ? ' · ' + campaign.keywords.join(', ') : '' %></dd></div><% } %>
         <% if (campaign.sitewideFallback) { %><div><dt>Placement</dt><dd>Normal Crowdwide feed, only while no public community is monetized</dd></div><% } %>
         <% if (!campaign.sitewideFallback && (campaign.targetCommunities || []).length) { %><div><dt>Placement</dt><dd>Sponsored in <%- include('../partials/campaign-targets', { campaign }) %> only. It is never shown anywhere else.</dd></div><% } %>
         <% if (campaign.destinationUrl) { %><div class="campaign-dashboard-destination"><dt>Destination</dt><dd><a href="<%= campaign.destinationUrl %>" target="_blank" rel="noopener noreferrer nofollow"><%= campaign.destinationUrl %></a></dd></div><% } %>

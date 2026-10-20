@@ -89,6 +89,43 @@ exports.updateProfile = async (req, res) => {
   res.redirect('/settings/profile');
 };
 
+// Admins and moderators who signed in with Google or GitHub have no password the panel
+// can ask for. Until they choose one, a blocking prompt asks them to set it; it then
+// doubles as their panel password (and lets them sign in with email + password too).
+exports.setPanelPassword = async (req, res) => {
+  const back = () => (req.get('X-Requested-With') === 'XMLHttpRequest' ? null : res.redirect(req.get('referer') || '/dashboard'));
+  const fail = (message) => {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(400).json({ ok: false, error: message });
+    flash(req, 'error', message);
+    return back();
+  };
+  try {
+    const user = await User.findById(req.session.user.id);
+    if (!user || !['admin', 'moderator'].includes(user.role)) return fail('Only admins and moderators need a panel password.');
+    if (user.passwordSet !== false) return fail('You already have a password. Change it in Settings → Security.');
+    const password = String(req.body.newPassword || '');
+    if (password.length < 8 || password.length > 200) return fail('Use a password of at least 8 characters.');
+    if (password !== String(req.body.confirmPassword || '')) return fail('The two passwords do not match.');
+    user.password = await hashPassword(password);
+    user.passwordSet = true;
+    await user.save();
+    logEvent(user._id, 'password-changed', 'Panel password set after social sign-in');
+    if (user.notificationPreferences?.security !== false) {
+      sendSecurityAlert(user, {
+        subject: 'A password was set on your Crowdwide account',
+        heading: 'Panel password set',
+        message: 'A password was just set on your Crowdwide account. It is now used to open the admin and moderator panels. If you did not do this, reset your password immediately and review your active sessions.'
+      });
+    }
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true });
+    flash(req, 'success', 'Panel password set. You can now open the panel.');
+    return back();
+  } catch (error) {
+    logger.error('Setting panel password failed', error);
+    return fail('Could not set your password right now.');
+  }
+};
+
 exports.changePassword = async (req, res) => {
   try {
     const user = await User.findById(req.session.user.id);

@@ -1,0 +1,26 @@
+<%- include('../partials/head', { title, pagePath, noIndex: true, bodyClass: 'ww-body' }) %>
+<%- include('../partials/app-nav', { active: 'widewaves', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="ww-page ww-narrow">
+	<a class="back-link" href="/widewaves">← All WideWaves</a>
+	<p class="eyebrow">Start something wide</p>
+	<h1>Create a WideWave</h1>
+	<p class="form-note">A WideWave is an open space for one topic. Anyone can read it and post in it, no joining needed. Choose a clear name and add hashtags so the right people find it. More posts means more trending.</p>
+	<form class="ww-form ww-form-card" method="post" action="/widewaves">
+		<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+		<label>Name
+			<span class="ww-name-input"><b>ww/</b><input name="name" value="<%= form.name %>" minlength="3" maxlength="30" pattern="[A-Za-z0-9_]{3,30}" placeholder="poetry" required autocomplete="off" autocapitalize="none" spellcheck="false"></span>
+			<small>3-30 letters, numbers or underscores. Names are unique and cannot be changed later.</small>
+		</label>
+		<label>Short description<textarea name="description" rows="3" maxlength="200" minlength="10" required placeholder="What is this WideWave about? (200 characters)"><%= form.description %></textarea></label>
+		<label>Hashtags<input name="hashtags" maxlength="200" value="<%= form.hashtags %>" placeholder="poetry, writing, verse" required><small>Comma separated, up to 8. They help recommend this WideWave to people who like the topic.</small></label>
+		<ul class="ww-rules-list">
+			<li>You can create up to <%= limits.perDay %> WideWaves a day.</li>
+			<li>Later you can edit only the description and hashtags, or delete it. Deleting keeps all posts as normal posts.</li>
+			<li>Only official Crowdwide moderators moderate WideWaves. Creators do not get moderation tools.</li>
+		</ul>
+		<button class="button button-primary" type="submit">Create ww/<span data-ww-name-preview><%= form.name || 'name' %></span></button>
+	</form>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

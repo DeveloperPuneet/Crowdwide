@@ -22,8 +22,8 @@
     </details>
   </div>
   <div class="community-ad-brand">
-    <% if (ad.campaign.advertiser?.logoUrl) { %><img src="<%= ad.campaign.advertiser.logoUrl %>" alt="" class="community-ad-logo" loading="lazy"><% } else { %><span class="community-ad-logo community-ad-logo-fallback" aria-hidden="true"><%= (ad.campaign.advertiser?.businessName || 'A').charAt(0).toUpperCase() %></span><% } %>
-    <div><strong><%= ad.campaign.advertiser?.businessName || 'Advertiser' %></strong><span><%= (ad.campaign.campaignType || 'other').replace(/-/g, ' ') %></span></div>
+    <% const adLogo = ad.campaign.brandLogoUrl || ad.campaign.advertiser?.logoUrl; const adBrand = ad.campaign.brandName || ad.campaign.advertiser?.businessName || 'Advertiser'; %><% if (adLogo) { %><img src="<%= adLogo %>" alt="" class="community-ad-logo" loading="lazy"><% } else { %><span class="community-ad-logo community-ad-logo-fallback" aria-hidden="true"><%= adBrand.charAt(0).toUpperCase() %></span><% } %>
+    <div><strong><%= adBrand %></strong><span><%= (ad.campaign.campaignType || 'other').replace(/-/g, ' ') %></span></div>
   </div>
   <% if (ad.campaign.bannerUrl) { %><img src="<%= ad.campaign.bannerUrl %>" alt="<%= ad.campaign.campaignType === 'product' ? `Image of ${ad.campaign.productName || ad.campaign.title}` : `Banner for ${ad.campaign.title}` %>" class="community-ad-image" loading="lazy"><% } %>
   <div class="community-ad-copy">

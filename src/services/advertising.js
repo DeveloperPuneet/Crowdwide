@@ -24,6 +24,7 @@ const BOT_ACTIVITY_WINDOW_MS = 60 * 1000;
 // A community can only be targeted by advertisers while it is public, approved for monetization
 // and has ads switched on. The same filter drives the advertiser's community picker, submission
 // validation and (via getCommunityCampaigns) delivery, so the three cannot drift apart.
+const { selectAds } = require('./adRanker');
 const COMMUNITY_AD_ELIGIBLE_FILTER = Object.freeze({
   monetizationStatus: 'approved',
   isMonetized: true,
@@ -213,6 +214,8 @@ async function resolveTargetCommunities(targetCommunities, sitewideFallback) {
 async function createCampaign({
   advertiserId,
   title,
+  brandName = '',
+  brandLogoUrl = '',
   campaignType = 'other',
   productName = '',
   productPrice = '',
@@ -226,6 +229,8 @@ async function createCampaign({
   destinationUrl = '',
   bannerUrl = '',
   sitewideFallback = false,
+  smartPlacement = false,
+  keywords = [],
   minimumBudget = 25,
   impressionCostWaves = 0.1,
   clickCostWaves = 1,
@@ -286,10 +291,17 @@ async function createCampaign({
     throw new Error('End date cannot be before the start date.');
   }
   const cleanedTargets = await resolveTargetCommunities(targetCommunities, sitewideFallback);
+  if (smartPlacement && (cleanedTargets.length || sitewideFallback)) {
+    throw new Error('Smart placement cannot be combined with specific communities or the Crowdwide-feed fallback.');
+  }
+  const cleanedKeywords = [...new Set((Array.isArray(keywords) ? keywords : String(keywords || '').split(/[,\n]/))
+    .map((word) => String(word).replace(/^#/, '').trim().toLowerCase().slice(0, 40)).filter(Boolean))].slice(0, 12);
 
   const campaign = await Campaign.create({
     advertiser: advertiserId,
     title: cleanedTitle,
+    brandName: String(brandName || '').trim().slice(0, 120),
+    brandLogoUrl: String(brandLogoUrl || '').trim().slice(0, 500),
     campaignType,
     productName: cleanedProductName,
     productPrice: cleanedProductPrice,
@@ -306,6 +318,8 @@ async function createCampaign({
     endDate: endDate ? new Date(endDate) : null,
     targetCommunities: cleanedTargets,
     sitewideFallback: Boolean(sitewideFallback),
+    smartPlacement: Boolean(smartPlacement),
+    keywords: cleanedKeywords,
     isWavesFunded: Boolean(isWavesFunded),
     notes: String(notes || '').trim().slice(0, 2000),
     status: 'draft',
@@ -776,26 +790,30 @@ async function recordCampaignPerformance({ campaignId, impressions = 0, clicks =
   return campaign;
 }
 
-async function getCommunityCampaigns(communityId, now = new Date()) {
+// Campaigns that may appear on this community's page, best first.
+//  - Monetized communities with ads switched on: campaigns that target them, plus smart ones.
+//  - Other public communities: smart-placement campaigns only (no revenue share).
+// Private communities and communities that opted out never show ads.
+async function getCommunityCampaigns(communityId, now = new Date(), { seen = new Map(), limit = 3, rng } = {}) {
   if (!communityId) return [];
   const community = await Community.findById(communityId).lean();
-  if (!community || community.isPrivate || !community.isMonetized || community.monetizationStatus !== 'approved'
-    || !community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none') {
-    return [];
-  }
+  if (!community || community.isPrivate) return [];
+  const monetized = community.isMonetized && community.monetizationStatus === 'approved';
+  if (monetized && (!community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none')) return [];
   const campaigns = await Campaign.find({
     status: 'active',
     fundingStatus: 'funded',
     remainingBudget: { $gt: 0 },
-    targetCommunities: communityId,
+    $or: [...(monetized ? [{ targetCommunities: communityId }] : []), { smartPlacement: true, targetCommunities: { $size: 0 } }],
     $and: [
       { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
       { $or: [{ endDate: null }, { endDate: { $gte: now } }] }
     ]
-  }).sort({ createdAt: 1 }).limit(30)
+  }).sort({ createdAt: 1 }).limit(60)
     .populate('advertiser', 'businessName website logoUrl status')
     .lean();
-  return campaigns.filter((campaign) => campaign.advertiser?.status === 'approved');
+  const approved = campaigns.filter((campaign) => campaign.advertiser?.status === 'approved');
+  return selectAds(approved, { context: community, seen, limit, now: now.getTime(), ...(rng ? { rng } : {}) });
 }
 
 async function hasMonetizedPublicCommunity() {
@@ -836,10 +854,14 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
     deliveryContext === 'community' ? Community.findById(communityId).lean() : Promise.resolve(null),
     Campaign.findById(campaignId).populate('advertiser', 'businessName website status user').lean()
   ]);
-  if (deliveryContext === 'community'
-    && (!community || community.isPrivate || !community.isMonetized || community.monetizationStatus !== 'approved'
-      || !community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none')) {
-    throw unavailableAdvertisement('Advertisements are not enabled for this community.');
+  const isSmartCampaign = Boolean(campaign?.smartPlacement) && !(campaign.targetCommunities || []).length;
+  const communityMonetized = Boolean(community?.isMonetized && community.monetizationStatus === 'approved');
+  if (deliveryContext === 'community') {
+    // Monetized communities need ads switched on; other public communities only carry smart-placement ads.
+    const allowed = community && !community.isPrivate && (communityMonetized
+      ? community.monetizationSettings?.adsEnabled && community.monetizationSettings?.adPlacement !== 'none'
+      : isSmartCampaign);
+    if (!allowed) throw unavailableAdvertisement('Advertisements are not enabled for this community.');
   }
   // A feed card may already be open when community monetization begins; let
   // its click finish, but never record a new sitewide impression afterward.
@@ -866,7 +888,8 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
     && (!candidate.endDate || candidate.endDate >= now)
     && (deliveryContext === 'sitewide'
       ? candidate.sitewideFallback && !(candidate.targetCommunities || []).length
-      : (candidate.targetCommunities || []).some((id) => String(id) === String(communityId)));
+      : ((candidate.targetCommunities || []).some((id) => String(id) === String(communityId))
+        || (candidate.smartPlacement && !(candidate.targetCommunities || []).length)));
   const canCompleteRenderedClick = (candidate) => isEligibleRenderedClick(candidate)
     && (candidate.status === 'completed' || Number(candidate.remainingBudget || 0) < spend);
   const resolveDestinationUrl = (candidate) => {
@@ -881,7 +904,7 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
   const completeRenderedClickWithoutCharge = canCompleteRenderedClick(campaign);
   if (!campaign || campaign.status !== 'active' || campaign.fundingStatus !== 'funded'
     || (Number(campaign.remainingBudget || 0) <= 0 && !completeRenderedClickWithoutCharge)
-    || (deliveryContext === 'community' && !(campaign.targetCommunities || []).some((id) => String(id) === String(communityId)))
+    || (deliveryContext === 'community' && !isSmartCampaign && !(campaign.targetCommunities || []).some((id) => String(id) === String(communityId)))
     || campaign.advertiser?.status !== 'approved'
     || (campaign.startDate && campaign.startDate > now)
     || (campaign.endDate && campaign.endDate < now)) {
@@ -902,7 +925,7 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
   const ownerId = community?.owner;
   const viewerIsOwner = ownerId && String(ownerId) === String(viewerId);
   const viewerIsAdvertiser = campaign.advertiser?.user && String(campaign.advertiser.user) === String(viewerId);
-  const requestedRevenueSharePercent = Number(community?.monetizationSettings?.revenueSharePercent ?? 0);
+  const requestedRevenueSharePercent = communityMonetized ? Number(community?.monetizationSettings?.revenueSharePercent ?? 0) : 0;
   const communityShareEligible = deliveryContext === 'community' && ownerId && !viewerIsOwner && !viewerIsAdvertiser;
   const revenueSharePercent = communityShareEligible ? requestedRevenueSharePercent : 0;
   const ownerShare = communityShareEligible

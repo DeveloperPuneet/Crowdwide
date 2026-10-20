@@ -16,7 +16,12 @@ const showLoadedAvatar = (image) => {
   const avatar = image.closest('.avatar');
   if (avatar) avatar.classList.add('image-loaded');
 };
-document.querySelectorAll('.avatar img').forEach((image) => {
+// Avatar images start hidden (the initial shows) until they load. This must also run for
+// anything added after the first paint - infinite-scroll feed pages, new comments, live
+// chat - otherwise those profile pictures stay invisible.
+const initAvatarImage = (image) => {
+  if (image.dataset.avatarInit === '1') return;
+  image.dataset.avatarInit = '1';
   if (image.complete) {
     if (image.naturalWidth === 0) removeBrokenAvatar(image);
     else showLoadedAvatar(image);
@@ -24,7 +29,17 @@ document.querySelectorAll('.avatar img').forEach((image) => {
     image.addEventListener('load', () => showLoadedAvatar(image), { once: true });
     image.addEventListener('error', () => removeBrokenAvatar(image), { once: true });
   }
-});
+};
+const initAvatars = (root = document) => {
+  if (root.matches?.('.avatar img')) initAvatarImage(root);
+  root.querySelectorAll?.('.avatar img').forEach(initAvatarImage);
+};
+initAvatars();
+if (typeof MutationObserver !== 'undefined') {
+  new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => { if (node.nodeType === 1) initAvatars(node); }));
+  }).observe(document.body, { childList: true, subtree: true });
+}
 const removeBrokenCommunityAvatar = (image) => {
   const glyph = image.closest('.search-community-glyph');
   if (!glyph) return;
@@ -580,7 +595,7 @@ document.addEventListener('submit', async (event) => {
     }
     if (data.following !== undefined) {
       button.classList.toggle('is-following', data.following);
-      button.textContent = data.following ? 'Following' : 'Follow';
+      button.textContent = data.following ? 'Following' : data.requested ? 'Requested' : 'Follow';
       document.querySelectorAll(`.follower-count[data-user="${form.dataset.user}"]`).forEach((el) => { el.textContent = data.followersCount; });
     }
     if (data.blocked !== undefined) {
@@ -714,6 +729,7 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
           const existing = new Set(Array.from(feedList.querySelectorAll('.post-card')).map((card) => card.id));
           feedList.append(...Array.from(wrapper.children).filter((card) => !existing.has(card.id)));
           Array.from(wrapper.querySelectorAll('.post-card img')).forEach((img) => { img.loading = 'lazy'; img.decoding = 'async'; });
+          initAvatars(feedList);
           enhanceCards(feedList);
         }
         feedSentinel.dataset.page = String(data.page || nextPage);

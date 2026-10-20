@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Post = require('../src/models/Post');
+const User = require('../src/models/User');
 const Community = require('../src/models/Community');
 const { apiPosts } = require('../src/controllers/webController');
 
@@ -25,6 +26,7 @@ function mockPostFind(t, posts) {
 }
 
 test('apiPosts clamps an out-of-range limit to the documented 1-50 bounds', async (t) => {
+  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Community, 'find', () => ({ distinct: () => Promise.resolve([]) }));
   const limitCalls = [];
   t.mock.method(Post, 'find', () => ({
@@ -46,6 +48,7 @@ test('apiPosts clamps an out-of-range limit to the documented 1-50 bounds', asyn
 });
 
 test('apiPosts sets Access-Control-Allow-Origin: * (CORS-open, as documented)', async (t) => {
+  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Community, 'find', () => ({ distinct: () => Promise.resolve([]) }));
   mockPostFind(t, []);
   const res = fakeRes();
@@ -54,6 +57,7 @@ test('apiPosts sets Access-Control-Allow-Origin: * (CORS-open, as documented)', 
 });
 
 test('apiPosts silently ignores an invalid community param instead of erroring', async (t) => {
+  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Community, 'find', () => ({ distinct: () => Promise.resolve([]) }));
   const findCalls = mockPostFind(t, []);
   const res = fakeRes();
@@ -65,6 +69,7 @@ test('apiPosts silently ignores an invalid community param instead of erroring',
 
 test('apiPosts returns an empty page for a private community ID without querying posts at all', async (t) => {
   const privateId = '507f1f77bcf86cd799439011';
+  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Community, 'find', () => ({ distinct: () => Promise.resolve([privateId]) }));
   const findCalls = t.mock.method(Post, 'find');
   const res = fakeRes();
@@ -74,6 +79,7 @@ test('apiPosts returns an empty page for a private community ID without querying
 });
 
 test('apiPosts sets nextCursor to the last item\'s createdAt only when a full page came back', async (t) => {
+  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Community, 'find', () => ({ distinct: () => Promise.resolve([]) }));
   const posts = [
     { _id: 'p1', body: 'a', type: 'post', author: {}, community: null, hashtags: [], media: [], createdAt: new Date('2026-01-02') },
@@ -86,6 +92,7 @@ test('apiPosts sets nextCursor to the last item\'s createdAt only when a full pa
 });
 
 test('apiPosts sets nextCursor to null when fewer results than the limit came back (last page)', async (t) => {
+  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Community, 'find', () => ({ distinct: () => Promise.resolve([]) }));
   mockPostFind(t, [{ _id: 'p1', body: 'a', type: 'post', author: {}, community: null, hashtags: [], media: [], createdAt: new Date() }]);
   const res = fakeRes();
@@ -94,6 +101,7 @@ test('apiPosts sets nextCursor to null when fewer results than the limit came ba
 });
 
 test('apiPosts returns a 500 with the documented error shape on an internal failure, not a hang or crash', async (t) => {
+  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
   t.mock.method(Community, 'find', () => { throw new Error('database unavailable'); });
   const res = fakeRes();
   await apiPosts({ query: {} }, res);

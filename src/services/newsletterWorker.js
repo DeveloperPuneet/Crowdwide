@@ -4,6 +4,7 @@ const Post = require('../models/Post');
 const { getInterestProfile } = require('./feedService');
 const { interestScore, ageHours, hotValue } = require('../utils/feedRanker');
 const { sendWeeklyNewsletter } = require('./mailer');
+const { recommendWideWaves } = require('./widewaves');
 const logger = require('./logger');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -164,7 +165,8 @@ async function sendWeeklyNewsletters({ now = new Date(), force = false } = {}) {
     if (!selected.length) { skippedNoPosts += 1; continue; }
     const claim = await User.updateOne({ _id: user._id, ...base, ...notRecentlySent }, { $set: { newsletterLastSentAt: now } });
     if (!claim.modifiedCount) continue;
-    const delivered = await sendWeeklyNewsletter(user, { personalizedPosts, trendingPosts, communityPosts });
+    const widewaves = await recommendWideWaves(user, { limit: 3 }).catch(() => []);
+    const delivered = await sendWeeklyNewsletter(user, { personalizedPosts, trendingPosts, communityPosts, widewaves });
     if (!delivered) {
       await User.updateOne({ _id: user._id, newsletterLastSentAt: now }, { $unset: { newsletterLastSentAt: 1 } });
       continue;

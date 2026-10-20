@@ -38,3 +38,42 @@ test('pingOnce reports failures and 5xx as not ok', async () => {
   assert.equal(failed.ok, false);
   assert.equal(failed.error, 'boom');
 });
+
+test('keep-alive pauses while a visitor is present and resumes once they have left', async () => {
+  keep.stopKeepAlive();
+  keep.resetPresence();
+  const urls = [];
+  const cronImpl = { validate: () => true, schedule: (expr, fn) => ({ stop() {}, fn }) };
+  const task = keep.startKeepAlive({ env: { NODE_ENV: 'production', APP_URL: 'https://x.io', KEEP_ALIVE_PRESENCE_SECONDS: '120' }, cronImpl, mongoose: { connection: { readyState: 0 } }, fetchImpl: async (url) => { urls.push(url); return { status: 200 }; } });
+
+  // Nobody around: pings.
+  assert.equal((await task.runNow()).web.ok, true);
+  assert.equal(urls.length, 1);
+
+  // A real visitor makes a request: the ping is skipped.
+  keep.recordVisit();
+  assert.deepEqual(await task.runNow(), { skipped: 'visitors-present' });
+  assert.equal(urls.length, 1);
+
+  // Health checks and our own pings never count as a visitor.
+  keep.resetPresence();
+  let passed = 0;
+  keep.presenceMiddleware({ path: '/health', get: () => 'Mozilla' }, {}, () => { passed += 1; });
+  keep.presenceMiddleware({ path: '/', get: () => 'crowdwide-keepalive/1.0' }, {}, () => { passed += 1; });
+  assert.equal(passed, 2);
+  assert.equal(keep.visitorsPresent(), false);
+  keep.presenceMiddleware({ path: '/dashboard', get: () => 'Mozilla' }, {}, () => {});
+  assert.equal(keep.visitorsPresent(), true);
+
+  // They leave: after the presence window the ping resumes by itself.
+  assert.equal(keep.visitorsPresent(Date.now() + 121 * 1000, { KEEP_ALIVE_PRESENCE_SECONDS: '120' }), false);
+  keep.resetPresence();
+  assert.equal((await task.runNow()).web.ok, true);
+  assert.equal(urls.length, 2);
+
+  // 0 switches the pause off entirely.
+  keep.recordVisit();
+  assert.equal(keep.visitorsPresent(Date.now(), { KEEP_ALIVE_PRESENCE_SECONDS: '0' }), false);
+  keep.resetPresence();
+  keep.stopKeepAlive();
+});

@@ -1,3 +1,4 @@
+<% const locked = locals.locked === true; const isRequested = locals.isRequested === true; %>
 <%- include('../partials/head', { title, description: profileUser.bio, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser }) %>
 <% const displayedPosts = profileTab === 'likes' ? profileLikes : profileTab === 'saved' ? savedPosts : posts; %>
@@ -48,7 +49,7 @@
 				<% } else { %>
 				<form class="follow-form" data-user="<%= profileUser._id %>" method="post" action="/users/<%= profileUser._id %>/follow">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-					<button class="follow-button <%= isFollowing ? 'is-following' : '' %>" type="submit"><%= isFollowing ? 'Following' : isFollowingBack ? 'Follow back' : 'Follow' %></button>
+					<button class="follow-button <%= isFollowing ? 'is-following' : '' %>" type="submit"><%= isFollowing ? 'Following' : isRequested ? 'Requested' : isFollowingBack ? 'Follow back' : 'Follow' %></button>
 				</form>
 				<form class="block-form" method="post" action="/users/<%= profileUser._id %>/block">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -59,7 +60,7 @@
 				<% } %>
 			</div>
 		</div>
-		<% if (locals.streakInfo && (streakInfo.current > 0 || (locals.badgeList || []).some((badge) => badge.earned))) { %>
+		<% if (!locked && locals.streakInfo && (streakInfo.current > 0 || (locals.badgeList || []).some((badge) => badge.earned))) { %>
 		<div class="profile-badges" aria-label="Streak and badges">
 			<% if (streakInfo.current > 0) { %><span class="streak-chip" title="Consecutive days with a post or comment"><%- icon('flame', { size: 14 }) %> <%= streakInfo.current %>-day streak</span><% } %>
 			<% (locals.badgeList || []).filter((badge) => badge.earned).forEach((badge) => { %><span class="badge-chip" title="<%= badge.description %>"><%- icon(badge.icon, { size: 13 }) %> <%= badge.name %></span><% }) %>
@@ -71,8 +72,8 @@
 		</details>
 		<% } %>
 		<% if (profileUser.bio) { %><p class="profile-bio person-bio"><%= profileUser.bio %></p><% } %>
-		<% if ((profileUser.hashtags || []).length) { %><div class="hashtag-row profile-hashtags" style="margin-top: 15px;"><% profileUser.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
-		<% if ((profileUser.links || []).length) { %>
+		<% if (!locked && (profileUser.hashtags || []).length) { %><div class="hashtag-row profile-hashtags" style="margin-top: 15px;"><% profileUser.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
+		<% if (!locked && (profileUser.links || []).length) { %>
 		<div class="profile-links">
 			<% profileUser.links.forEach((link) => { %><a class="profile-link-chip" href="<%= link.url %>" target="_blank" rel="noopener noreferrer nofollow">🔗 <%= link.label %></a><% }) %>
 		</div>
@@ -81,11 +82,11 @@
 			<span><strong><%= postCount %></strong> posts</span>
 			<a href="/u/<%= profileUser._id %>/followers" style="color:inherit;text-decoration:none;"><strong class="follower-count" data-user="<%= profileUser._id %>"><%= followersCount %></strong> followers</a>
 			<a href="/u/<%= profileUser._id %>/following" style="color:inherit;text-decoration:none;"><strong><%= followingCount %></strong> following</a>
-			<span><strong><%= (profileUser.profileViews || 0).toLocaleString() %></strong> profile views</span>
-			<span class="profile-waves"><%- icon('waves', { size: 15 }) %> <strong><%= Number(profileUser.wavesBalance || 0).toLocaleString() %></strong> Waves</span>
+			<% if (!locked) { %><span><strong><%= (profileUser.profileViews || 0).toLocaleString() %></strong> profile views</span>
+			<span class="profile-waves"><%- icon('waves', { size: 15 }) %> <strong><%= Number(profileUser.wavesBalance || 0).toLocaleString() %></strong> Waves</span><% } %>
 		</div>
 		<p class="profile-joined">Joined <time data-profile-joined-date datetime="<%= new Date(profileUser.createdAt).toISOString() %>"><%= new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) %></time></p>
-		<section class="profile-community-highlights" aria-label="Community roles and achievements">
+		<% if (!locked) { %><section class="profile-community-highlights" aria-label="Community roles and achievements">
 			<div class="profile-highlight-group">
 				<div class="profile-highlight-heading"><h2>Communities</h2><span><%= memberCommunities.length %></span></div>
 				<% if (!memberCommunities.length) { %><p class="profile-highlight-empty">No visible communities yet.</p><% } %>
@@ -110,7 +111,13 @@
 				<div><strong><%- icon('send', { size: 15 }) %><%= profileStats.totalShares.toLocaleString() %></strong><span>Shares</span></div>
 			</div>
 		</div>
+		<% } %>
 	</section>
+	<% if (locked) { %>
+	<section class="profile-locked">
+		<div class="empty-feed"><h2>This profile is private</h2><p>Only approved followers can see <%= profileUser.name %>'s posts, activity and connections. <%= isRequested ? 'Your follow request is waiting for approval.' : 'Send a follow request to ask for access.' %></p></div>
+	</section>
+	<% } else { %>
 	<nav class="profile-tabs" aria-label="Profile sections">
 		<a class="<%= profileTab === 'posts' ? 'profile-tab-active' : '' %>" href="/u/<%= profileUser._id %>?tab=posts">Posts</a>
 		<a class="<%= profileTab === 'activity' ? 'profile-tab-active' : '' %>" href="/u/<%= profileUser._id %>?tab=activity">Activity</a>
@@ -192,6 +199,7 @@
 		<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
 		<% }) %>
 	</section>
+	<% } %>
 	<% } %>
 	</div>
 

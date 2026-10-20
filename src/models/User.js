@@ -156,6 +156,8 @@ const userSchema = new mongoose.Schema({
   twoFactorLockedUntil: Date,
   isVerified: { type: Boolean, default: false },
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // People who asked to follow this (private) profile and are waiting for approval.
+  followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   joinedCommunities: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Community' }],
   wavesBalance: { type: Number, default: 0, min: 0 },
   adFreeUntil: { type: Date, default: null },

@@ -307,8 +307,8 @@ exports.detail = async (req, res) => {
   }
   const pinnedIds = (community.pinnedPosts || []).map(String);
   const [recentPosts, pinnedPosts, members, quests] = await Promise.all([
-    Post.find({ community: community._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').lean(),
-    pinnedIds.length ? Post.find({ _id: { $in: pinnedIds }, community: community._id, status: 'published' }).populate('author', 'name profilePicture').lean() : Promise.resolve([]),
+    Post.find({ community: community._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').populate('coAuthors', 'name profilePicture').populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name' } }).populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name' } }).lean(),
+    pinnedIds.length ? Post.find({ _id: { $in: pinnedIds }, community: community._id, status: 'published' }).populate('author', 'name profilePicture').populate('coAuthors', 'name profilePicture').populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name' } }).populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name' } }).lean() : Promise.resolve([]),
     User.find({ _id: { $in: community.members } }).select('name profilePicture').limit(60).lean(),
     Quest.find({ community: community._id }).sort({ createdAt: -1 }).populate('creator', 'name profilePicture').populate('participants', 'name profilePicture').populate('completedBy', 'name profilePicture').populate('winner', 'name profilePicture').lean()
   ]);
@@ -317,16 +317,37 @@ exports.detail = async (req, res) => {
     ...pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean),
     ...recentPosts.filter((post) => !pinnedById.has(String(post._id)))
   ];
-  const viewerAdFree = isAdFree(await User.findById(req.session.user.id).select('adFreeUntil').lean());
-  const communityAds = viewerAdFree ? [] : await getCommunityCampaigns(community._id);
-  const placement = community.monetizationSettings?.adPlacement || 'feed';
-  const frequency = Math.max(1, Math.min(10, Math.floor(Number(community.monetizationSettings?.adFrequency) || 1)));
+  const viewerDoc = await User.findById(req.session.user.id).select('adFreeUntil').lean();
+  const viewerAdFree = isAdFree(viewerDoc);
+  // Full post cards need the viewer's like state, as in the main feed.
+  const viewerKey = String(req.session.user.id);
+  posts.forEach((post) => { post.liked = (post.likes || []).some((id) => String(id) === viewerKey); });
+  // Ads this viewer saw recently count against an ad's score so the same one is not repeated.
+  const seenCounts = new Map(Object.entries(req.session.seenAds || {}));
+  const communityAds = viewerAdFree ? [] : await getCommunityCampaigns(community._id, new Date(), { seen: seenCounts, limit: 3 });
+  const communityMonetized = community.isMonetized && community.monetizationStatus === 'approved';
+  // Communities that are not monetized still carry platform ads, gently: every 4th post.
+  const placement = communityMonetized ? (community.monetizationSettings?.adPlacement || 'feed') : 'feed';
+  const frequency = communityMonetized
+    ? Math.max(1, Math.min(10, Math.floor(Number(community.monetizationSettings?.adFrequency) || 1)))
+    : 4;
+  if (communityAds.length) {
+    const seenNow = { ...(req.session.seenAds || {}) };
+    communityAds.forEach((campaign) => { seenNow[String(campaign._id)] = (seenNow[String(campaign._id)] || 0) + 1; });
+    const keys = Object.keys(seenNow);
+    if (keys.length > 40) keys.slice(0, keys.length - 40).forEach((key) => delete seenNow[key]);
+    req.session.seenAds = seenNow;
+  }
   const feedAds = [];
   if (['feed', 'all'].includes(placement)) {
     for (let afterPost = frequency; afterPost <= posts.length && feedAds.length < 3; afterPost += frequency) {
       const campaign = communityAds[feedAds.length % communityAds.length];
       if (!campaign) break;
       feedAds.push({ campaign, eventToken: crypto.randomUUID(), afterPost });
+    }
+    // Small communities still get one ad, after their last post.
+    if (!feedAds.length && communityAds.length && posts.length) {
+      feedAds.push({ campaign: communityAds[0], eventToken: crypto.randomUUID(), afterPost: Math.min(frequency, posts.length) });
     }
   }
   const sidebarAds = ['sidebar', 'all'].includes(placement) && communityAds.length
@@ -739,19 +760,28 @@ exports.reviewPost = async (req, res) => {
     post.status = req.body.decision === 'approve' ? 'published' : 'rejected';
     await post.save();
   }
+  const reviewMessage = !post ? 'Another moderator already reviewed this post.' : post.status === 'published' ? 'Post approved and published.' : 'Post rejected.';
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') {
+    const pending = await Post.countDocuments({ community: req.community._id, status: 'pending' });
+    return res.json({ ok: true, message: reviewMessage, remove: true, pending });
+  }
   res.redirect(`/communities/${req.community._id}/manage`);
 };
 
 exports.togglePinPost = async (req, res) => {
   const post = await Post.findOne({ _id: req.params.postId, community: req.community._id, status: 'published' }).select('_id').lean();
-  if (!post) return res.redirect(`/communities/${req.community._id}/manage`);
+  if (!post) return req.get('X-Requested-With') === 'XMLHttpRequest' ? res.json({ ok: false, message: 'That post is no longer published.' }) : res.redirect(`/communities/${req.community._id}/manage`);
   req.community.pinnedPosts = req.community.pinnedPosts || [];
   const isPinned = req.community.pinnedPosts.some((id) => String(id) === String(post._id));
-  if (isPinned) req.community.pinnedPosts.pull(post._id);
-  else if (req.community.pinnedPosts.length < 3) req.community.pinnedPosts.addToSet(post._id);
-  else req.session.flash = { type: 'error', message: 'A community can have up to three pinned posts.' };
+  let result;
+  if (isPinned) { req.community.pinnedPosts.pull(post._id); result = { type: 'success', message: 'Post unpinned.' }; }
+  else if (req.community.pinnedPosts.length < 3) { req.community.pinnedPosts.addToSet(post._id); result = { type: 'success', message: 'Post pinned.' }; }
+  else result = { type: 'error', message: 'A community can have up to three pinned posts.' };
   await req.community.save();
-  if (isPinned || req.community.pinnedPosts.some((id) => String(id) === String(post._id))) req.session.flash = { type: 'success', message: isPinned ? 'Post unpinned.' : 'Post pinned.' };
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') {
+    return res.json({ ok: result.type === 'success', message: result.message, pinned: req.community.pinnedPosts.some((id) => String(id) === String(post._id)), remove: false });
+  }
+  req.session.flash = result;
   res.redirect(`/communities/${req.community._id}/manage`);
 };
 
@@ -870,4 +900,11 @@ exports.removeMember = async (req, res) => {
   await User.findByIdAndUpdate(memberId, { $pull: { joinedCommunities: req.community._id } });
   req.session.flash = { type: 'success', message: 'Member removed from the community.' };
   res.redirect(`/communities/${req.community._id}/manage`);
+};
+
+// Live view of the review queue for community moderators: lets the manage page drop
+// posts another moderator already handled and show newly submitted ones.
+exports.reviewQueueState = async (req, res) => {
+  const pending = await Post.find({ community: req.community._id, status: 'pending' }).sort({ createdAt: 1 }).limit(100).select('_id').lean();
+  res.json({ ok: true, ids: pending.map((post) => String(post._id)) });
 };

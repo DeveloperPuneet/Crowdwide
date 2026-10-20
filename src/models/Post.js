@@ -14,6 +14,8 @@ const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   coAuthors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community' },
+  // Optional open topic space (ww/name). Cleared - the post stays - if the WideWave is deleted.
+  widewave: { type: mongoose.Schema.Types.ObjectId, ref: 'WideWave', default: null },
   quest: { type: mongoose.Schema.Types.ObjectId, ref: 'Quest' },
   questTitle: { type: String, trim: true, maxlength: 80, default: '' },
   body: {
@@ -84,6 +86,7 @@ const postSchema = new mongoose.Schema({
 
 postSchema.index({ status: 1, createdAt: -1 });
 postSchema.index({ status: 1, community: 1, createdAt: -1 });
+postSchema.index({ widewave: 1, status: 1, createdAt: -1 });
 postSchema.index({ status: 1, type: 1, createdAt: -1 });
 postSchema.index({ author: 1, status: 1, createdAt: -1 });
 // Feed ranking: interest lookups by hashtag and "posts this person liked".

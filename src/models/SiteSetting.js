@@ -44,6 +44,8 @@ const siteSettingSchema = new mongoose.Schema({
   wavesReceivedCommentReward: { type: wavesRewardRangeSchema, default: () => ({ minimum: 0.1, maximum: 1 }) },
   wavesCommunityJoinReward: { type: wavesRewardRangeSchema, default: () => ({ minimum: 1, maximum: 2 }) },
   wavesCommunityCreateReward: { type: wavesRewardRangeSchema, default: () => ({ minimum: 2, maximum: 5 }) },
+  widewavesEnabled: { type: Boolean, default: true },
+  wavesSurveyReward: { type: wavesRewardRangeSchema, default: () => ({ minimum: 2, maximum: 5 }) },
   wavesQuestCompletionReward: { type: wavesRewardRangeSchema, default: () => ({ minimum: 1, maximum: 5 }) },
   wavesDailyEarningLimit: { type: Number, default: 20, min: 0, max: 100000 },
   wavesMaxTransferAmount: { type: Number, default: 100, min: 0, max: 1000000 },

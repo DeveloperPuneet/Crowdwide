@@ -1,0 +1,14 @@
+<%# Popup used by the composer: trending WideWaves, plus search. %>
+<div class="ww-picker" data-ww-picker hidden role="dialog" aria-modal="true" aria-labelledby="ww-picker-title">
+	<div class="ww-picker-card">
+		<header class="ww-picker-head">
+			<div><h2 id="ww-picker-title">Post to a WideWave</h2><p>An open topic space anyone can read. Pick the one that fits your post.</p></div>
+			<button class="ww-picker-close" type="button" data-ww-close aria-label="Close"><%- icon('x', { size: 18 }) %></button>
+		</header>
+		<label class="ww-picker-search"><%- icon('search', { size: 16 }) %><input type="search" data-ww-search maxlength="60" placeholder="Search WideWaves (poetry, art, gaming...)" autocomplete="off" aria-label="Search WideWaves"></label>
+		<p class="ww-picker-heading" data-ww-heading>Trending now</p>
+		<div class="ww-picker-list" data-ww-list role="listbox" aria-label="WideWaves"></div>
+		<a class="ww-picker-create" data-ww-create href="/widewaves/new" hidden target="_blank" rel="noopener"></a>
+		<footer class="ww-picker-foot"><button class="button button-ghost button-small" type="button" data-ww-clear>Post without a WideWave</button></footer>
+	</div>
+</div>

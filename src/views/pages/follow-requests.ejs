@@ -1,0 +1,23 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex: true }) %>
+<%- include('../partials/app-nav', { active: 'notifications', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="explore-page connections-modern follow-requests-page">
+	<a class="back-link" href="/notifications">← Notifications</a>
+	<p class="eyebrow">Private profile</p>
+	<h1>Follow requests</h1>
+	<% if (!isPrivate) { %><p class="form-note">Your profile is public, so anyone can follow you without asking. Switch to a private profile in <a href="/settings/profile">Settings</a> to approve followers yourself.</p><% } %>
+	<% if (!requesters.length) { %>
+	<div class="empty-feed"><h2>No pending requests.</h2><p>When someone asks to follow your private profile, you can approve or decline here.</p></div>
+	<% } %>
+	<% requesters.forEach((person) => { %>
+	<div class="search-user-row follow-request-row">
+		<a class="search-user-link" href="/u/<%= person._id %>"><%- include('../partials/avatar', { person, size: 'small', link: false }) %><strong><%= person.name %></strong></a>
+		<span class="person-bio"><%= person.bio || 'Crowdwide member' %></span>
+		<span class="follow-request-actions">
+			<form method="post" action="/follow-requests/<%= person._id %>/approve"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" type="submit">Approve</button></form>
+			<form method="post" action="/follow-requests/<%= person._id %>/decline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit">Decline</button></form>
+		</span>
+	</div>
+	<% }) %>
+</main>
+<%- include('../partials/foot') %>

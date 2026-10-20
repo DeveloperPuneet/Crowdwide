@@ -458,6 +458,21 @@ async function sendPartnershipDecision(application) {
   return deliver(mail, `Partnership decision (${application.status}) for ${application.contactEmail}`);
 }
 
+// "Open topic spaces" block shared by the newsletter, come-back and welcome emails.
+function widewaveEmailBlock(waves = [], appUrl = '') {
+  const rows = (Array.isArray(waves) ? waves : []).filter((wave) => wave?.name).slice(0, 3);
+  if (!rows.length) return '';
+  const base = String(appUrl).replace(/\/$/, '');
+  const items = rows.map((wave) => `<tr><td style="padding:0 0 8px;"><a href="${escapeHtml(`${base}/ww/${wave.name}`)}" style="display:block;padding:11px 14px;border:1px solid #e2e5f0;border-radius:10px;text-decoration:none;"><strong style="color:#4d56d8;font-family:Arial,sans-serif;font-size:14px;">ww/${escapeHtml(wave.name)}</strong><span style="display:block;margin-top:2px;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.45;">${escapeHtml(preview(wave.description || '', 110))}</span></a></td></tr>`).join('');
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:22px;"><tr><td><div style="margin-bottom:5px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;">Open to everyone</div><h2 class="em-h" style="margin:0 0 10px;color:#202641;font-family:Arial,sans-serif;font-size:17px;line-height:1.35;">WideWaves worth a look</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${items}</table><a href="${escapeHtml(`${base}/widewaves`)}" style="color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;">Browse all WideWaves &rarr;</a></td></tr></table>`;
+}
+function widewaveEmailText(waves = [], appUrl = '') {
+  const rows = (Array.isArray(waves) ? waves : []).filter((wave) => wave?.name).slice(0, 3);
+  if (!rows.length) return '';
+  const base = String(appUrl).replace(/\/$/, '');
+  return `\nWideWaves worth a look:\n${rows.map((wave) => `ww/${wave.name} - ${preview(wave.description || '', 110)}\n${base}/ww/${wave.name}`).join('\n')}\n`;
+}
+
 function postEmailCard(post, appUrl, index) {
   const url = safeEmailUrl(`${appUrl}/posts/${post._id}`);
   if (!url) return '';
@@ -469,7 +484,7 @@ function postEmailCard(post, appUrl, index) {
   return `<tr><td style="padding:0 0 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="em-card" style="width:100%;border:1px solid #e2e5f0;border-radius:13px;background-color:#ffffff;"><tr><td style="padding:16px 18px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="em-muted" style="color:#626a88;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;"><strong class="em-strong" style="color:#414966;">${escapeHtml(author)}</strong>${community}</td><td align="right" style="color:#5962d7;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:.6px;">${escapeHtml(type.toUpperCase())} · ${index}</td></tr></table>${pollQuestion}<p class="em-p" style="margin:9px 0 13px;color:#30364b;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;">${escapeHtml(body)}</p><a class="em-pill" href="${escapeHtml(url)}" style="display:inline-block;padding:9px 13px;border-radius:8px;background-color:#f0f1ff;color:#4d56d8;font-family:Arial,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;">Read conversation &nbsp;&rarr;</a></td></tr></table></td></tr>`;
 }
 
-async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPosts = [], communityPosts = [] }) {
+async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPosts = [], communityPosts = [], widewaves = [] }) {
   const appUrl = (safeEmailUrl(env('APP_URL') || 'https://www.crowdwide.run.place') || 'https://www.crowdwide.run.place').replace(/\/$/, '');
   const posts = [...personalizedPosts, ...trendingPosts, ...communityPosts];
   if (!posts.length) return false;
@@ -477,13 +492,13 @@ async function sendWeeklyNewsletter(user, { personalizedPosts = [], trendingPost
   const section = (heading, description, rows) => rows.length
     ? `<tr><td style="padding:26px 0 0;"><div style="margin-bottom:5px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;">${rows.length} selected for you</div><h2 class="em-h" style="margin:0;color:#202641;font-family:Arial,sans-serif;font-size:19px;line-height:1.35;">${heading}</h2><p class="em-muted" style="margin:5px 0 13px;color:#737b91;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">${description}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map((post) => postEmailCard(post, appUrl, ++cardNumber)).join('')}</table></td></tr>`
     : '';
-  const html = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="em-soft" style="padding:18px 20px;background-color:#f2f3ff;border:1px solid #e0e2ff;border-radius:12px;"><div style="margin-bottom:7px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.4px;">YOUR PERSONALIZED EDITION</div><p class="em-h" style="margin:0;color:#252b45;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;line-height:1.5;">${posts.length} conversations, ideas, and communities to explore</p><p style="margin:5px 0 0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">A blend of your interests, what's trending, and communities you may enjoy.</p></td></tr>${section('Picked for you', 'Posts from people and topics that match your interests.', personalizedPosts)}${section('Trending this week', 'Conversations resonating across Crowdwide.', trendingPosts)}${section('From communities you may like', 'Community conversations connected to your interests.', communityPosts)}<tr><td style="padding:10px 0 0;"><a href="${escapeHtml(appUrl)}/posts" style="display:block;padding:13px 18px;border-radius:9px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;text-align:center;text-decoration:none;">Explore more posts &nbsp;&rarr;</a></td></tr></table>`;
+  const html = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td class="em-soft" style="padding:18px 20px;background-color:#f2f3ff;border:1px solid #e0e2ff;border-radius:12px;"><div style="margin-bottom:7px;color:#5c63ed;font-family:Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.4px;">YOUR PERSONALIZED EDITION</div><p class="em-h" style="margin:0;color:#252b45;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;line-height:1.5;">${posts.length} conversations, ideas, and communities to explore</p><p style="margin:5px 0 0;color:#68708a;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">A blend of your interests, what's trending, and communities you may enjoy.</p></td></tr>${section('Picked for you', 'Posts from people and topics that match your interests.', personalizedPosts)}${section('Trending this week', 'Conversations resonating across Crowdwide.', trendingPosts)}${section('From communities you may like', 'Community conversations connected to your interests.', communityPosts)}<tr><td>${widewaveEmailBlock(widewaves, appUrl)}</td></tr><tr><td style="padding:10px 0 0;"><a href="${escapeHtml(appUrl)}/posts" style="display:block;padding:13px 18px;border-radius:9px;background-color:#5c63ed;color:#ffffff;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;text-align:center;text-decoration:none;">Explore more posts &nbsp;&rarr;</a></td></tr></table>`;
   const text = posts.map((post) => `${post.author?.name || 'Crowdwide member'}: ${preview(post.body, 260)}\n${appUrl}/posts/${post._id}`).join('\n\n');
   return deliver({
     from: fromAddress(),
     to: user.email,
     subject: 'Your Crowdwide weekly: ideas and conversations for you',
-    text: `Your personalized Crowdwide edition: ${personalizedPosts.length} picks for you, ${trendingPosts.length} trending conversations, and ${communityPosts.length} community posts.\n\n${text}\n\nExplore more posts: ${appUrl}/posts\nManage this email in Settings: ${appUrl}/settings/notifications`,
+    text: `Your personalized Crowdwide edition: ${personalizedPosts.length} picks for you, ${trendingPosts.length} trending conversations, and ${communityPosts.length} community posts.\n\n${text}\n${widewaveEmailText(widewaves, appUrl)}\nExplore more posts: ${appUrl}/posts\nManage this email in Settings: ${appUrl}/settings/notifications`,
     html: brandedEmail({
       heading: `A week on Crowdwide${user.name ? `, ${user.name.split(' ')[0]}` : ''}`,
       message: 'A considered mix of your interests, lively conversations, and communities worth discovering.',
@@ -546,7 +561,7 @@ async function sendReengagementEmail(user, reminder) {
     reminder.message,
     reminder.question?.text ? `\nToday's question: ${reminder.question.text}` : '',
     ...(reminder.posts || []).map((post) => `\n${post.author?.name || 'Crowdwide member'}: ${preview(post.body || post.poll?.question || '', 200)}\n${appUrl}/posts/${post._id}`),
-    '',
+    widewaveEmailText(reminder.widewaves, appUrl),
     `${reminder.actionLabel}: ${reminder.actionUrl}`,
     unsubscribeUrl ? `\nStop these reminders: ${unsubscribeUrl}` : ''
   ].filter((line) => line !== null && line !== undefined).join('\n');
@@ -563,7 +578,7 @@ async function sendReengagementEmail(user, reminder) {
       preheader: reminder.preheader,
       eyebrow: reminder.eyebrow || 'FROM CROWDWIDE',
       details: reminder.stats || [],
-      contentHtml: `${questionBlock}${cards}${unsubscribeLine}`,
+      contentHtml: `${questionBlock}${cards}${widewaveEmailBlock(reminder.widewaves, appUrl)}${unsubscribeLine}`,
       actionUrl: reminder.actionUrl,
       actionLabel: reminder.actionLabel,
       manageUrl: `${appUrl}/settings/notifications`,
@@ -594,7 +609,7 @@ async function sendLifecycleEmail(user, content) {
     content.quote?.text ? `\n${content.quote.author || 'Someone'} said: ${content.quote.text}` : '',
     ...(content.steps || []).map((step, index) => `${index + 1}. ${step}`),
     ...(content.items || []).map((item) => `\n${item.title}\n${item.text || ''}${item.url ? `\n${item.url}` : ''}`),
-    '', `${content.actionLabel}: ${content.actionUrl}`,
+    widewaveEmailText(content.widewaves, appUrl), `${content.actionLabel}: ${content.actionUrl}`,
     unsubscribeUrl ? `\nStop these emails: ${unsubscribeUrl}` : ''
   ].join('\n');
   return deliver({
@@ -611,7 +626,7 @@ async function sendLifecycleEmail(user, content) {
       eyebrow: content.eyebrow || 'FROM CROWDWIDE',
       steps: content.steps || [],
       details: content.details || [],
-      contentHtml: `${quote}${itemsBlock}${unsubscribeLine}`,
+      contentHtml: `${quote}${itemsBlock}${widewaveEmailBlock(content.widewaves, appUrl)}${unsubscribeLine}`,
       actionUrl: content.actionUrl,
       actionLabel: content.actionLabel,
       manageUrl: `${appUrl}/settings/notifications`,
@@ -624,6 +639,7 @@ module.exports = {
   sendVerificationCode,
   sendReengagementEmail,
   sendLifecycleEmail,
+  widewaveEmailBlock,
   sendNewDeviceAlert,
   sendSecurityAlert,
   sendPasswordResetLink,

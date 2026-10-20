@@ -9,6 +9,7 @@
     <button type="button" class="admin-tab" id="admin-tab-content" role="tab" aria-controls="admin-panel-content" data-tab="content">Content review<% if (contentCounts.post + contentCounts.article + contentCounts.poll) { %> (<%= contentCounts.post + contentCounts.article + contentCounts.poll %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (reports.length) { %> (<%= reports.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
+    <button type="button" class="admin-tab" id="admin-tab-widewaves" role="tab" aria-controls="admin-panel-widewaves" data-tab="widewaves">WideWaves</button>
     <button type="button" class="admin-tab" id="admin-tab-communities" role="tab" aria-controls="admin-panel-communities" data-tab="communities">Community changes</button>
     <button type="button" class="admin-tab" id="admin-tab-monetization" role="tab" aria-controls="admin-panel-monetization" data-tab="monetization">Monetization<% if (monetizationApplications.length) { %> (<%= monetizationApplications.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-advertisers" role="tab" aria-controls="admin-panel-advertisers" data-tab="advertisers">Advertisers<% if (pendingAdvertisers.length) { %> (<%= pendingAdvertisers.length %>)<% } %></button>
@@ -49,9 +50,10 @@
         <span class="mod-filter-sep"></span>
         <a class="mod-chip<%= reportedOnly ? ' is-active' : '' %>" href="<%= q(contentType, !reportedOnly) %>">Reported only</a>
       </div>
-      <% if (!moderationFeed.length) { %><p class="recap-empty">Nothing to review here right now. 🎉</p><% } %>
+      <div data-live-list>
+      <p class="recap-empty" data-live-empty <%= moderationFeed.length ? 'hidden' : '' %>>Nothing to review here right now. 🎉</p>
       <% const csrf = csrfToken; moderationFeed.forEach((post) => { const typeLabel = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post'; %>
-      <article class="moderation-post mod-card">
+      <article class="moderation-post mod-card" data-live-item>
         <header class="mod-card-head">
           <div><strong><%= post.author?.name || 'Member' %></strong><span><%= post.community?.name || 'Open Crowdwide' %> · <%= new Date(post.createdAt).toLocaleDateString() %></span></div>
           <div class="mod-badges"><b class="mod-badge mod-badge-<%= post.type %>"><%= typeLabel %></b><% if (post.moderationStatus === 'reported') { %><b class="mod-badge mod-badge-reported">Reported</b><% } %><b class="mod-badge">Score <%= post.moderationScore || 0 %></b><b class="mod-badge">Reviewed <%= (post.moderatorReviews || []).length %>/<%= reviewThreshold %></b></div>
@@ -81,6 +83,7 @@
           <form method="post" action="/moderator/actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="delete-post"><input type="hidden" name="target" value="<%= post._id %>"><input name="reason" placeholder="Why should this be deleted?" required><button class="button button-small button-danger" type="submit">Request deletion</button></form></details>
       </article>
       <% }) %>
+      </div>
     </section>
   </section>
 
@@ -119,6 +122,19 @@
     </form>
   </div>
   <% }) %></section>
+  </section>
+
+  <section class="admin-panel" id="admin-panel-widewaves" role="tabpanel" aria-labelledby="admin-tab-widewaves" data-panel="widewaves">
+  <section class="settings-block admin-wide" data-live-list><h2>WideWaves</h2><p>WideWaves are moderated only by official Crowdwide moderators. Removing one turns its posts into normal posts, and the name stays blocked. To move a single post out of a WideWave, open the WideWave and use "Move out".</p>
+    <p class="recap-empty" data-live-empty <%= (locals.widewaves || []).length ? 'hidden' : '' %>>No WideWaves yet.</p>
+    <% (locals.widewaves || []).forEach((wave) => { %>
+    <div class="device-row" data-live-item style="flex-direction:column;align-items:stretch;">
+      <div><strong><a href="/ww/<%= wave.name %>" target="_blank" rel="noopener">ww/<%= wave.name %></a></strong><span> · <%= wave.postsCount || 0 %> posts · by <%= wave.creator?.name || 'member' %></span></div>
+      <p><%= wave.description %></p>
+      <form method="post" action="/moderator/widewaves/<%= wave._id %>/remove" style="display:flex;gap:8px;flex-wrap:wrap;"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" placeholder="Why remove this WideWave?" maxlength="300" required style="flex:1 1 220px;"><button class="button button-small button-danger" type="submit">Remove WideWave</button></form>
+    </div>
+    <% }) %>
+  </section>
   </section>
 
   <section class="admin-panel" id="admin-panel-communities" role="tabpanel" aria-labelledby="admin-tab-communities" data-panel="communities">
@@ -186,7 +202,7 @@
     <% if (!pendingCampaigns.length) { %><p>No campaigns are waiting for moderator screening. Cleared or flagged campaigns are no longer shown in this queue.</p><% } %>
     <% pendingCampaigns.forEach((campaign) => { %>
     <article class="device-row" style="flex-direction:column;align-items:stretch;">
-      <div><strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong><span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.advertiser?.businessName || 'Advertiser' %> · <%= campaign.advertiser?.user?.name || 'member' %></span><%- include('../partials/advertiser-details', { advertiser: campaign.advertiser }) %><% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-displayed price: <%= campaign.productPrice %></p><% } %><p><%= campaign.description || 'No description provided.' %></p><p>Rights attestation: <%= campaign.rightsConfirmedAt ? `confirmed ${new Date(campaign.rightsConfirmedAt).toLocaleString()}` : 'not recorded for this legacy campaign' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · <% if (campaign.sitewideFallback) { %>normal-feed fallback (only while no community is monetized)<% } else { %>targets: <%- include('../partials/campaign-targets', { campaign }) %> · shown only there, labelled Sponsored<% } %></p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p></div>
+      <div><strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong><span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.brandName ? campaign.brandName + ' (' + (campaign.advertiser?.businessName || 'Advertiser') + ')' : (campaign.advertiser?.businessName || 'Advertiser') %> · <%= campaign.advertiser?.user?.name || 'member' %></span><%- include('../partials/advertiser-details', { advertiser: campaign.advertiser }) %><% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-displayed price: <%= campaign.productPrice %></p><% } %><p><%= campaign.description || 'No description provided.' %></p><p>Rights attestation: <%= campaign.rightsConfirmedAt ? `confirmed ${new Date(campaign.rightsConfirmedAt).toLocaleString()}` : 'not recorded for this legacy campaign' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · <% if (campaign.sitewideFallback) { %>normal-feed fallback (only while no community is monetized)<% } else { %>targets: <%- include('../partials/campaign-targets', { campaign }) %> · shown only there, labelled Sponsored<% } %></p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p></div>
       <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
         <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
       </details>

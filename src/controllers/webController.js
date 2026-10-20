@@ -20,6 +20,7 @@ const { getPopularSearches, recordSearch } = require('../services/popularSearche
 const { notifyMentionedUsers } = require('../services/mentions');
 const { extractFirstUrl, fetchLinkPreview } = require('../services/linkPreview');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
+const { getHiddenAuthorIds, canSeeProfileDetails } = require('../utils/profilePrivacy');
 const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const { isRepeatPost } = require('../utils/spamDetection');
 const { getWordLimits } = require('../services/siteConfig');
@@ -27,6 +28,8 @@ const { searchPublishedPosts } = require('../services/postSearch');
 const logger = require('../services/logger');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
+const widewaveService = require('../services/widewaves');
+const WideWave = require('../models/WideWave');
 const { getSitewideFeedCampaigns } = require('../services/advertising');
 const Survey = require('../models/Survey');
 const { questionOfTheDay, answerPrefill, startOfDay, QUESTION_TAG } = require('../utils/questions');
@@ -96,10 +99,12 @@ exports.publicPosts = async (req, res) => {
 		const page = Math.min(Math.max(Number.isNaN(requestedPage) ? 1 : requestedPage, 1), 500);
 		const pageSize = 20;
 		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
+		const hiddenAuthorIds = await getHiddenAuthorIds(null);
 		const filter = {
 			status: 'published',
 			moderationStatus: { $ne: 'reported' },
 			community: { $nin: restrictedCommunityIds },
+			author: { $nin: hiddenAuthorIds },
 			...(type ? { type } : {})
 		};
 		const [results, total] = await Promise.all([
@@ -247,6 +252,7 @@ exports.dashboard = async (req, res) => {
 			qotd,
 			qotdAnswers,
 			composerPrefill: req.query.ask === 'qotd' ? answerPrefill(qotd) : '',
+			selectedWideWave: (await widewaveService.findActiveByName(req.query.widewave || ''))?.name || '',
 			communities,
 			composerCommunities,
 			availableQuests,
@@ -446,6 +452,21 @@ exports.createPost = async (req, res) => {
 		const isStaff = String(community.owner) === String(req.session.user.id) || community.moderators.some((id) => String(id) === String(req.session.user.id));
 		if (community.requireApproval && !isStaff) status = 'pending';
 	}
+	// A WideWave is an open topic space, so it is an alternative to a community, not an addition.
+	let waveTarget = null;
+	if (req.body.widewave) {
+		if (communityId) {
+			req.session.flash = { type: 'error', message: 'A post goes either to a community or to a WideWave. Clear one of them.' };
+			return res.redirect('/dashboard');
+		}
+		try {
+			waveTarget = await widewaveService.resolveTargetForPost(req.body.widewave);
+		} catch (error) {
+			if (!(error instanceof widewaveService.WideWaveError)) throw error;
+			req.session.flash = { type: 'error', message: error.message };
+			return res.redirect('/dashboard');
+		}
+	}
 	if (req.body.scheduledAt && req.body.saveAsDraft !== 'on') {
 		scheduledAt = new Date(req.body.scheduledAt);
 		if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
@@ -476,11 +497,12 @@ exports.createPost = async (req, res) => {
 	const coAuthorDocs = validCoAuthors.length ? await User.find({ _id: { $in: validCoAuthors } }).select('_id').lean() : [];
 	const coAuthorList = coAuthorDocs.map((userDoc) => userDoc._id);
 	const isDraft = req.body.saveAsDraft === 'on';
-	const createdPost = await Post.create({ author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+	const createdPost = await Post.create({ author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, widewave: waveTarget?._id || null, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	if (!isDraft && status === 'published') {
 		rewardWavesForAction({ userId: req.session.user.id, action: 'post', referenceType: 'post', referenceId: createdPost._id })
 			.catch((error) => logger.error('Could not award Waves for published post', error));
 	}
+	if (waveTarget && !isDraft && status === 'published') widewaveService.recountWideWave(waveTarget._id).catch((error) => logger.error('WideWave recount failed', error));
 	if (!isDraft && status === 'published') recordContribution(req.session.user.id, { kind: 'post', hashtags: createdPost.hashtags });
 	refreshPersonalization(req.session.user.id); // so the new post shows up, and shapes "for you", on the very next feed load
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
@@ -540,6 +562,8 @@ exports.apiPosts = async (req, res) => {
 			return res.json({ data: [], nextCursor: null });
 		}
 		filter.community = filter.community ? filter.community : { $nin: restrictedCommunityIds };
+		// Private profiles never appear in the open API.
+		filter.author = { $nin: await getHiddenAuthorIds(null) };
 		const posts = await Post.find(filter).sort({ createdAt: -1 }).limit(limit).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
 		const baseUrl = process.env.APP_URL || 'http://localhost:3000';
 		res.set('Access-Control-Allow-Origin', '*');
@@ -579,12 +603,15 @@ exports.createCommunity = async (req, res) => {
 };
 
 exports.profile = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links username profilePicture bannerImage privacy createdAt isVerified following profileViews wavesBalance streak badges timezone').lean();
+	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links username profilePicture bannerImage privacy followRequests createdAt isVerified following profileViews wavesBalance streak badges timezone').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
 	const viewerId = req.session.user.id;
 	const isSelf = String(profileUser._id) === String(viewerId);
+	const viewerAccess = isSelf ? null : await User.findById(viewerId).select('following role').lean();
+	const locked = !canSeeProfileDetails({ profileUser, viewerId, viewerFollowing: viewerAccess?.following || [], viewerRole: viewerAccess?.role });
 	let tab = ['posts', 'activity', 'likes', 'comments', 'saved', 'stats'].includes(req.query.tab) ? req.query.tab : 'posts';
 	if (!isSelf && (tab === 'saved' || tab === 'stats')) tab = 'posts';
+	if (locked) tab = 'posts';
 	if (!isSelf) {
 		const updatedProfile = await User.findByIdAndUpdate(profileUser._id, { $inc: { profileViews: 1 } }, { new: true }).select('profileViews').lean();
 		if (updatedProfile) profileUser.profileViews = updatedProfile.profileViews;
@@ -592,19 +619,20 @@ exports.profile = async (req, res) => {
 	const restrictedCommunityIds = await getRestrictedCommunityIds(viewerId);
 	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
 	const publishedFilter = { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
+	const none = Promise.resolve([]);
 	const [posts, followersCount, viewer, postCount, likedPosts, comments, engagementAgg, memberCommunities, wonQuests] = await Promise.all([
-		Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
+		locked ? none : Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
 		User.findById(viewerId).select('following bookmarks blockedUsers mutedUsers').lean(),
 		Post.countDocuments(publishedFilter),
-		Post.find({ likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ updatedAt: -1 }).limit(30).populate('community', 'name slug').lean(),
-		Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt community', populate: { path: 'author', select: 'name' } }).lean(),
-		Post.aggregate([
+		locked ? none : Post.find({ likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ updatedAt: -1 }).limit(30).populate('community', 'name slug').lean(),
+		locked ? none : Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt community', populate: { path: 'author', select: 'name' } }).lean(),
+		locked ? none : Post.aggregate([
 			{ $match: publishedFilter },
 			{ $group: { _id: null, totalLikes: { $sum: { $size: { $ifNull: ['$likes', []] } } }, totalComments: { $sum: '$commentsCount' }, totalViews: { $sum: '$viewsCount' }, totalShares: { $sum: '$sharesCount' } } }
 		]),
-		Community.find({ _id: { $nin: restrictedCommunityIds }, $or: [{ members: profileUser._id }, { owner: profileUser._id }] }).select('name slug owner').sort({ name: 1 }).limit(60).lean(),
-		Quest.find({ winner: profileUser._id, status: 'ended' }).sort({ endedAt: -1, updatedAt: -1 }).limit(20).populate('community', 'name slug').lean()
+		locked ? none : Community.find({ _id: { $nin: restrictedCommunityIds }, $or: [{ members: profileUser._id }, { owner: profileUser._id }] }).select('name slug owner').sort({ name: 1 }).limit(60).lean(),
+		locked ? none : Quest.find({ winner: profileUser._id, status: 'ended' }).sort({ endedAt: -1, updatedAt: -1 }).limit(20).populate('community', 'name slug').lean()
 	]);
 	const questAchievements = wonQuests.filter((quest) => quest.community && !restrictedCommunityIds.some((id) => String(id) === String(quest.community._id)));
 	const profileStats = engagementAgg[0] || { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 };
@@ -678,7 +706,7 @@ exports.profile = async (req, res) => {
 		title: `${profileUser.name} on Crowdwide`,
 		pagePath: `/u/${profileUser._id}`,
 		noIndex: profileUser.privacy !== 'public',
-		profileUser,
+		profileUser: { ...profileUser, followRequests: undefined },
 		streakInfo: effectiveStreak(profileUser.streak, new Date(), zoneOf(profileUser)),
 		// Everyone sees the badges earned; the owner also sees what is still to earn.
 		badgeList: (() => {
@@ -699,6 +727,8 @@ exports.profile = async (req, res) => {
 		memberCommunities: memberCommunities.map((community) => ({ ...community, isOwner: String(community.owner) === String(profileUser._id) })),
 		questAchievements,
 		isSelf,
+		locked,
+		isRequested: locked && (profileUser.followRequests || []).some((id) => String(id) === String(viewerId)),
 		isFollowing: !isSelf && (viewer?.following || []).some((id) => String(id) === String(profileUser._id)),
 		isFollowingBack: !isSelf && (profileUser.following || []).some((id) => String(id) === String(viewerId)),
 		isBlocked: !isSelf && (viewer?.blockedUsers || []).some((id) => String(id) === String(profileUser._id)),
@@ -740,7 +770,7 @@ exports.search = async (req, res) => {
 		await User.findByIdAndUpdate(req.session.user.id, { $push: { searchHistory: { $each: [{ query: q, searchedAt: new Date() }], $position: 0, $slice: 20 } } });
 	}
 	const restrictedCommunityIds = await getRestrictedCommunityIds(req.session.user.id);
-	const excludedAuthors = [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])];
+	const excludedAuthors = [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || []), ...(await getHiddenAuthorIds(req.session.user.id))];
 	const postFilter = { status: 'published', author: { $nin: excludedAuthors }, community: { $nin: restrictedCommunityIds }, ...(tag ? { hashtags: tag } : {}) };
 	if (filters.type) postFilter.type = filters.type;
 	if (filters.community) postFilter.community = filters.community;
@@ -813,9 +843,10 @@ exports.userSuggestions = async (req, res) => {
 };
 
 exports.followersPage = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name profilePicture').lean();
+	const profileUser = await User.findById(req.params.id).select('name profilePicture privacy').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
-	const viewer = await User.findById(req.session.user.id).select('following').lean();
+	const viewer = await User.findById(req.session.user.id).select('following role').lean();
+	if (!canSeeProfileDetails({ profileUser, viewerId: req.session.user.id, viewerFollowing: viewer?.following, viewerRole: viewer?.role })) return res.render('pages/connections', { title: `${profileUser.name}'s connections`, pagePath: `/u/${profileUser._id}/followers`, noIndex: true, profileUser, mode: 'followers', list: [], followingSet: [], suggestions: [], locked: true });
 	const followingSet = new Set((viewer.following || []).map(String));
 	const [followers, suggestions] = await Promise.all([
 		User.find({ following: profileUser._id }).select('name bio profilePicture').limit(60).lean(),
@@ -825,9 +856,10 @@ exports.followersPage = async (req, res) => {
 };
 
 exports.followingPage = async (req, res) => {
-	const profileUser = await User.findById(req.params.id).select('name profilePicture following').lean();
+	const profileUser = await User.findById(req.params.id).select('name profilePicture following privacy').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
-	const viewer = await User.findById(req.session.user.id).select('following').lean();
+	const viewer = await User.findById(req.session.user.id).select('following role').lean();
+	if (!canSeeProfileDetails({ profileUser, viewerId: req.session.user.id, viewerFollowing: viewer?.following, viewerRole: viewer?.role })) return res.render('pages/connections', { title: `${profileUser.name}'s connections`, pagePath: `/u/${profileUser._id}/following`, noIndex: true, profileUser: { _id: profileUser._id, name: profileUser.name }, mode: 'following', list: [], followingSet: [], suggestions: [], locked: true });
 	const followingSet = new Set((viewer.following || []).map(String));
 	const [following, suggestions] = await Promise.all([
 		User.find({ _id: { $in: profileUser.following || [] } }).select('name bio profilePicture').limit(60).lean(),
@@ -1105,11 +1137,14 @@ exports.sitemap = async (req, res) => {
 		const posts = await Post.find({
 			status: 'published',
 			moderationStatus: { $ne: 'reported' },
-			community: { $nin: restrictedCommunityIds }
+			community: { $nin: restrictedCommunityIds },
+			author: { $nin: await getHiddenAuthorIds(null) }
 		}).sort({ updatedAt: -1 }).limit(1000).select('_id updatedAt').lean();
-		const pages = ['/', '/top', '/question', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships', '/partnerships/apply', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
+		const pages = ['/', '/top', '/question', '/widewaves', '/widewaves/leaderboard', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships', '/partnerships/apply', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
+		const waves = await WideWave.find({ status: 'active' }).sort({ postsCount: -1 }).limit(500).select('name').lean();
 		const urls = [
 			...pages.map((page) => `<url><loc>${escapeXml(`${baseUrl}${page}`)}</loc></url>`),
+			...waves.map((wave) => `<url><loc>${escapeXml(`${baseUrl}/ww/${wave.name}`)}</loc></url>`),
 			...posts.map((post) => `<url><loc>${escapeXml(`${baseUrl}/posts/${post._id}`)}</loc><lastmod>${new Date(post.updatedAt).toISOString()}</lastmod></url>`)
 		];
 		res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`);
@@ -1142,7 +1177,7 @@ exports.rss = async (req, res) => {
 		// Public, unauthenticated feed - every private community is off-limits
 		// here regardless of who's requesting it, same as apiPosts below.
 		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
-		const posts = await Post.find({ status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
+		const posts = await Post.find({ status: 'published', community: { $nin: restrictedCommunityIds }, author: { $nin: await getHiddenAuthorIds(null) } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
 		res.type('application/rss+xml').send(buildRssFeed({ title: 'Crowdwide', link: baseUrl, description: 'Published posts and articles from Crowdwide.', posts, baseUrl }));
 	} catch (error) {
 		logger.error('Global RSS feed failed', error);
@@ -1153,8 +1188,8 @@ exports.rss = async (req, res) => {
 exports.profileRss = async (req, res) => {
 	try {
 		const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-		const profileUser = await User.findById(req.params.id).select('name isVerified').lean();
-		if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Member not found' });
+		const profileUser = await User.findById(req.params.id).select('name isVerified privacy').lean();
+		if (!profileUser || profileUser.privacy === 'followers') return res.status(404).render('pages/not-found', { title: 'Member not found' });
 		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
 		const posts = await Post.find({ author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name').lean();
 		res.type('application/rss+xml').send(buildRssFeed({
