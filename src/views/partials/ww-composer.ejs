@@ -1,0 +1,22 @@
+<%# Threads-style quick composer for WideWave pages. Posts through the normal /posts route and returns here.
+    locals: preset (wave name or ''), returnTo, placeholder %>
+<% if (locals.currentUser) { %>
+<form class="ww-composer" id="ww-composer" data-ww-composer method="post" action="/posts" enctype="multipart/form-data">
+	<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+	<input type="hidden" name="returnTo" value="<%= locals.returnTo || '/widewaves' %>">
+	<input type="hidden" name="widewave" value="" data-ww-input data-preset="<%= locals.preset || '' %>">
+	<%- include('avatar', { person: currentUser, size: 'small', link: false }) %>
+	<div class="ww-composer-body">
+		<textarea name="body" data-mention-input rows="1" maxlength="4000" required placeholder="<%= locals.placeholder || 'Start a thread...' %>" aria-label="Start a thread"></textarea>
+		<p class="ww-composer-preview" data-ww-file-name hidden></p>
+		<div class="ww-composer-bar">
+			<button class="ww-tool ww-pick-button" type="button" data-ww-open aria-haspopup="dialog" title="Choose a WideWave"><%- icon('waves', { size: 16 }) %> <span data-ww-label>Choose a WideWave</span></button>
+			<label class="ww-tool" title="Add a photo"><%- icon('image', { size: 16 }) %><input type="file" name="media" accept="image/*" hidden data-ww-file></label>
+			<span class="ww-composer-spacer"></span>
+			<button class="button button-primary button-small" type="submit">Post</button>
+		</div>
+	</div>
+</form>
+<% } else { %>
+<a class="ww-composer ww-composer-guest" href="/auth/register"><span>Start a thread...</span><b>Join to post</b></a>
+<% } %>

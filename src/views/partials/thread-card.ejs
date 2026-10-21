@@ -1,0 +1,48 @@
+<%# WideWave "thread" row: text-first, one slim column, avatar rail with a thread line, quiet icon actions.
+    Keeps the .post-card hooks (card click, like/share handlers, translate) so every behaviour works as before. %>
+<%
+  const ago = (value) => {
+    const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+    if (!Number.isFinite(seconds)) return '';
+    if (seconds < 60) return 'now';
+    if (seconds < 3600) return Math.floor(seconds / 60) + 'm';
+    if (seconds < 86400) return Math.floor(seconds / 3600) + 'h';
+    if (seconds < 604800) return Math.floor(seconds / 86400) + 'd';
+    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+  const replies = post.commentsCount || 0;
+%>
+<article class="post-card thread-card<%= post.contentWarning ? ' has-content-warning' : '' %>" id="post-<%= post._id %>" data-post-url="/posts/<%= post._id %>">
+	<div class="th-rail">
+		<%- include('avatar', { person: post.author, size: 'small' }) %>
+		<% if (replies > 0) { %><span class="th-line" aria-hidden="true"></span><span class="th-dot" aria-hidden="true"></span><% } %>
+	</div>
+	<div class="th-main">
+		<div class="th-head">
+			<a class="th-name name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a>
+			<% if (!locals.hideSource && post.widewave && post.widewave.name) { %><a class="th-ww" href="/ww/<%= post.widewave.name %>">ww/<%= post.widewave.name %></a><% } %>
+			<a class="th-time" href="/posts/<%= post._id %>" title="<%= new Date(post.createdAt).toLocaleString() %>"><%= ago(post.createdAt) %></a>
+		</div>
+		<% if (post.contentWarning) { %><button class="content-warning-toggle" type="button" data-warning-toggle>Show content: <%= post.contentWarning %></button><% } %>
+		<div class="post-body th-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
+		<% if (post.body && post.body.trim()) { %><button type="button" class="action-translate action-translate-inline" data-translate-trigger><%- icon('globe', { size: 13 }) %> <span class="label">Translate</span></button><% } %>
+		<% if (post.poll?.question && post.poll.options?.length) { %>
+		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (locals.currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %></section>
+		<% } %>
+		<% if (post.quotedPost) { %><a class="quoted-post" href="/posts/<%= post.quotedPost._id %>"><strong><%= post.quotedPost.author?.name || 'Crowdwide member' %>'s post</strong><p><%= preview(post.quotedPost.body, 200) %></p></a><% } %>
+		<% if (post.replyTo) { %><a class="quoted-post reply-source" href="/posts/<%= post.replyTo._id %>"><strong>Replying to <%= post.replyTo.author?.name || 'Crowdwide member' %></strong><p><%= preview(post.replyTo.body, 200) %></p></a><% } %>
+		<% if (post.linkPreview?.title) { %>
+		<a class="link-preview-card" href="<%= post.linkPreview.url %>" target="_blank" rel="noopener noreferrer nofollow">
+			<% if (post.linkPreview.image) { %><img src="<%= post.linkPreview.image %>" alt="" loading="lazy"><% } %>
+			<div class="link-preview-body"><span class="link-preview-site"><%= post.linkPreview.siteName %></span><strong><%= post.linkPreview.title %></strong></div>
+		</a>
+		<% } %>
+		<%- include('post-media', { post }) %>
+		<div class="post-actions th-actions" aria-label="Post activity">
+			<% if (locals.currentUser) { %><form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-label="Like" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 19 }) %><span class="count"><%= post.likes?.length || 0 %></span></button></form><% } else { %><a class="post-stat guest-like-link" href="/auth/register" aria-label="Create an account to like this post"><%- icon('heart', { size: 19 }) %><span><%= post.likes?.length || 0 %></span></a><% } %>
+			<a class="post-stat" href="/posts/<%= post._id %>#replies" aria-label="Replies"><%- icon('message-circle', { size: 19 }) %><span><%= replies %></span></a>
+			<% if (locals.currentUser) { %><button type="button" class="action-share" data-share-open data-post-id="<%= post._id %>" data-post-url="/posts/<%= post._id %>" aria-label="Share"><%- icon('send', { size: 19 }) %><span data-share-count-for="<%= post._id %>"><%= post.sharesCount || 0 %></span></button><% } else { %><a class="post-stat" href="/auth/register" aria-label="Create an account to share this post"><%- icon('send', { size: 19 }) %><span><%= post.sharesCount || 0 %></span></a><% } %>
+			<span class="post-stat post-views" aria-label="Views"><%- icon('eye', { size: 16 }) %><span><%= post.viewsCount || 0 %></span></span>
+		</div>
+	</div>
+</article>

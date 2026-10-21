@@ -8,37 +8,34 @@
 </header>
 <% } %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="ww-page">
-	<a class="back-link" href="/widewaves">← All WideWaves</a>
-	<header class="ww-hero ww-hero-wave">
-		<div>
-			<p class="eyebrow">WideWave · open to everyone</p>
-			<h1>ww/<%= wave.name %></h1>
-			<p><%= wave.description %></p>
-			<% if ((wave.hashtags || []).length) { %><div class="hashtag-row" style="margin-top:12px;"><% wave.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
-			<p class="ww-meta"><strong><%= totalPosts.toLocaleString() %></strong> post<%= totalPosts === 1 ? '' : 's' %> · <strong><%= weekPosts.toLocaleString() %></strong> this week<% if (creator) { %> · created by <a class="name-link" href="/u/<%= creator._id %>"><%= creator.name %></a><% } %></p>
-		</div>
-		<div class="ww-hero-actions">
-			<% if (locals.currentUser) { %><a class="button button-primary" href="/dashboard?widewave=<%= wave.name %>#composer"><%- icon('plus', { size: 15 }) %> Post in ww/<%= wave.name %></a><% } else { %><a class="button button-primary" href="/auth/register">Join to post</a><% } %>
-			<button class="button button-ghost" type="button" data-share-open data-post-url="/ww/<%= wave.name %>"><%- icon('send', { size: 15 }) %> Share</button>
-		</div>
-	</header>
-
-	<div class="ww-layout">
-		<section class="ww-main">
-			<nav class="feed-tabs" aria-label="Sort posts">
-				<a class="<%= sort === 'new' ? 'feed-tab-active' : '' %>" href="/ww/<%= wave.name %>?sort=new">Newest</a>
-				<a class="<%= sort === 'top' ? 'feed-tab-active' : '' %>" href="/ww/<%= wave.name %>?sort=top">Top this month</a>
+<main class="ww-page ww-threads">
+	<div class="ww-shell">
+		<section class="ww-column">
+			<a class="back-link" href="/widewaves">← WideWave</a>
+			<header class="ww-wave-head">
+				<%- include('../partials/widewave-story', { wave }) %>
+				<div class="ww-wave-info">
+					<h1>ww/<%= wave.name %></h1>
+					<p><%= wave.description %></p>
+					<% if ((wave.hashtags || []).length) { %><div class="hashtag-row"><% wave.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
+					<p class="ww-meta"><strong><%= totalPosts.toLocaleString() %></strong> thread<%= totalPosts === 1 ? '' : 's' %> · <strong><%= weekPosts.toLocaleString() %></strong> this week<% if (creator) { %> · by <a class="name-link" href="/u/<%= creator._id %>"><%= creator.name %></a><% } %></p>
+				</div>
+				<button class="button button-ghost button-small" type="button" data-share-open data-post-url="/ww/<%= wave.name %>"><%- icon('send', { size: 14 }) %> Share</button>
+			</header>
+			<nav class="ww-tabs" aria-label="Sort threads">
+				<a class="<%= sort === 'new' ? 'is-on' : '' %>" href="/ww/<%= wave.name %>?sort=new">Newest</a>
+				<a class="<%= sort === 'top' ? 'is-on' : '' %>" href="/ww/<%= wave.name %>?sort=top">Top this month</a>
 			</nav>
-			<% if (!feed.posts.length) { %><div class="empty-feed"><h2>No posts yet.</h2><p>Be the first to post in ww/<%= wave.name %>.</p></div><% } %>
-			<div class="ww-posts"><% feed.posts.forEach((post) => { %>
+			<%- include('../partials/ww-composer', { preset: wave.name, returnTo: '/ww/' + wave.name, placeholder: 'Start a thread in ww/' + wave.name + '...' }) %>
+			<% if (!feed.posts.length) { %><div class="empty-feed ww-empty-feed"><h2>No threads yet.</h2><p>Be the first to post in ww/<%= wave.name %>.</p></div><% } %>
+			<div class="ww-posts ww-thread-list"><% feed.posts.forEach((post) => { %>
 				<% if (isStaff) { %><form class="ww-staff-unlink" method="post" action="/moderator/widewaves/posts/<%= post._id %>/unlink"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit" title="Official moderators only">Move out of ww/<%= wave.name %></button></form><% } %>
-				<%- include('../partials/post-card', { post, csrfToken: locals.csrfToken, hideSource: true }) %>
+				<%- include('../partials/thread-card', { post, csrfToken: locals.csrfToken, hideSource: true }) %>
 			<% }) %></div>
 			<% if (feed.hasMore || page > 1) { %>
 			<nav class="ww-pager" aria-label="Pages">
 				<% if (page > 1) { %><a class="button button-ghost button-small" href="/ww/<%= wave.name %>?sort=<%= sort %>&page=<%= page - 1 %>">← Newer</a><% } %>
-				<% if (feed.hasMore) { %><a class="button button-ghost button-small" href="/ww/<%= wave.name %>?sort=<%= sort %>&page=<%= page + 1 %>">More posts →</a><% } %>
+				<% if (feed.hasMore) { %><a class="button button-ghost button-small" href="/ww/<%= wave.name %>?sort=<%= sort %>&page=<%= page + 1 %>">More threads →</a><% } %>
 			</nav>
 			<% } %>
 		</section>

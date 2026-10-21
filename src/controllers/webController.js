@@ -236,6 +236,13 @@ exports.dashboard = async (req, res) => {
 		const availableQuests = joinedCommunityDocIds.length
 			? await Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
 			: [];
+		// Topic bubbles for the WideWave strip above the feed. Never allowed to break the page.
+		let widewaveStrip = [];
+		try {
+			widewaveStrip = (await widewaveService.trendingWideWaves({ limit: 12 })) || [];
+		} catch (error) {
+			logger.error('WideWave strip could not be loaded', error);
+		}
 		const composerCommunities = joinedCommunityDocs;
 		const selectedQuest = availableQuests.find((quest) => String(quest._id) === String(req.query.quest || ''));
 		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
@@ -252,6 +259,7 @@ exports.dashboard = async (req, res) => {
 			qotd,
 			qotdAnswers,
 			composerPrefill: req.query.ask === 'qotd' ? answerPrefill(qotd) : '',
+			widewaveStrip,
 			selectedWideWave: (await widewaveService.findActiveByName(req.query.widewave || ''))?.name || '',
 			communities,
 			composerCommunities,
@@ -393,10 +401,12 @@ exports.activityRecap = async (req, res) => {
 };
 
 exports.createPost = async (req, res) => {
+	// Quick composers on WideWave pages send people back to where they were.
+	const backTo = /^\/(widewaves|ww\/[a-z0-9_]{1,40})$/.test(String(req.body?.returnTo || '')) ? req.body.returnTo : '/dashboard';
 	const restriction = await checkPostingRestriction(req.session.user.id);
 	if (restriction) {
 		req.session.flash = { type: 'error', message: restriction };
-		return res.redirect('/dashboard');
+		return res.redirect(backTo);
 	}
 	const body = req.body.body?.trim();
 	const type = ['article', 'poll'].includes(req.body.type) ? req.body.type : 'post';
@@ -405,18 +415,18 @@ exports.createPost = async (req, res) => {
 	const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
 	if (!body || wordCount > wordLimit) {
 		req.session.flash = { type: 'error', message: `${type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` };
-		return res.redirect('/dashboard');
+		return res.redirect(backTo);
 	}
 	if (req.body.saveAsDraft !== 'on' && await isRepeatPost(Post, req.session.user.id, body)) {
 		req.session.flash = { type: 'error', message: "You've already posted this recently. Try adding something new." };
-		return res.redirect('/dashboard');
+		return res.redirect(backTo);
 	}
 	const pollQuestion = req.body.pollQuestion?.trim();
 	const pollOptions = (Array.isArray(req.body.pollOptions) ? req.body.pollOptions : [req.body.pollOptions])
 		.map((option) => option?.trim()).filter(Boolean).filter((option, index, options) => options.indexOf(option) === index).slice(0, 4);
 	if (type === 'poll' && (!pollQuestion || pollOptions.length < 2)) {
 		req.session.flash = { type: 'error', message: 'Polls are available on posts and need at least two options.' };
-		return res.redirect('/dashboard');
+		return res.redirect(backTo);
 	}
 	let status = 'published';
 	let scheduledAt;
@@ -425,16 +435,16 @@ exports.createPost = async (req, res) => {
 	if (req.body.quest) {
 		if (typeof req.body.quest !== 'string' || !/^[a-f\d]{24}$/i.test(req.body.quest)) {
 			req.session.flash = { type: 'error', message: 'Choose a valid active quest.' };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 		quest = await Quest.findOne({ _id: req.body.quest, status: { $nin: ['ended', 'archived'] } }).select('title community participants');
 		if (!quest || (communityId && String(communityId) !== String(quest.community))) {
 			req.session.flash = { type: 'error', message: 'Choose an active quest from the selected community.' };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 		if (!quest.participants.some((id) => String(id) === String(req.session.user.id))) {
 			req.session.flash = { type: 'error', message: 'Join the quest before posting for it.' };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 		communityId = String(quest.community);
 	}
@@ -442,12 +452,12 @@ exports.createPost = async (req, res) => {
 		const community = await Community.findById(communityId).select('members bannedWords owner moderators requireApproval');
 		if (!community || (String(community.owner) !== String(req.session.user.id) && !community.members.some((id) => String(id) === String(req.session.user.id)))) {
 			req.session.flash = { type: 'error', message: 'Join that community before posting there.' };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 		const bodyLower = body.toLowerCase();
 		if ((community.bannedWords || []).some((word) => word && bodyLower.includes(word))) {
 			req.session.flash = { type: 'error', message: 'That post contains a word this community has blocked.' };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 		const isStaff = String(community.owner) === String(req.session.user.id) || community.moderators.some((id) => String(id) === String(req.session.user.id));
 		if (community.requireApproval && !isStaff) status = 'pending';
@@ -457,25 +467,25 @@ exports.createPost = async (req, res) => {
 	if (req.body.widewave) {
 		if (communityId) {
 			req.session.flash = { type: 'error', message: 'A post goes either to a community or to a WideWave. Clear one of them.' };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 		try {
 			waveTarget = await widewaveService.resolveTargetForPost(req.body.widewave);
 		} catch (error) {
 			if (!(error instanceof widewaveService.WideWaveError)) throw error;
 			req.session.flash = { type: 'error', message: error.message };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 	}
 	if (req.body.scheduledAt && req.body.saveAsDraft !== 'on') {
 		scheduledAt = new Date(req.body.scheduledAt);
 		if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
 			req.session.flash = { type: 'error', message: 'Choose a future time to schedule this post.' };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 		if (status === 'pending') {
 			req.session.flash = { type: 'error', message: 'Scheduled posts cannot wait for community approval. Publish it after approval instead.' };
-			return res.redirect('/dashboard');
+			return res.redirect(backTo);
 		}
 		status = 'scheduled';
 	}
@@ -523,7 +533,7 @@ exports.createPost = async (req, res) => {
 	} else if (status === 'pending') {
 		req.session.flash = { type: 'success', message: 'Posted - this community reviews posts before they appear, so a moderator needs to approve it first.' };
 	}
-	res.redirect('/dashboard');
+	res.redirect(backTo);
 };
 
 exports.signedUpload = async (req, res) => {

@@ -187,6 +187,8 @@ router.post('/communities/:id/members/:userId/role', requireAuth, requireVerifie
 router.get('/:panel(admin|moderator)/access', requireAuth, requireVerified, adminController.panelAccessPage);
 router.post('/:panel(admin|moderator)/access', requireAuth, requireVerified, adminController.panelAccess);
 router.get('/admin', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.admin);
+router.get('/admin/blocked-ips', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.blockedIpsPage);
+router.post('/admin/blocked-ips/unblock', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.unblockIp);
 router.post('/admin/moderators', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.createModerator);
 router.post('/admin/moderators/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteModerator);
 router.post('/admin/reports/:id', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.resolveReport);

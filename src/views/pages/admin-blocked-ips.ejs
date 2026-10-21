@@ -1,0 +1,19 @@
+<%- include('../partials/head', { title, pagePath: '/admin/blocked-ips', noIndex: true }) %>
+<%- include('../partials/app-nav', { active: 'admin', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="ww-page ww-narrow">
+	<a class="back-link" href="/admin">← Admin console</a>
+	<header class="ww-hero"><div><p class="eyebrow">Bot guard</p><h1>Blocked addresses</h1><p>Addresses that flooded the site, probed for weak spots or ignored the rate limit are blocked for 24 hours automatically. If a real person was caught (a shared school or office connection, say), unblock them here.</p></div></header>
+	<% if (!rows.length) { %><p class="ww-empty">Nothing is blocked right now.</p><% } %>
+	<ul class="ww-board">
+		<% rows.forEach((row) => { %>
+		<li class="ww-board-row" style="padding:14px;">
+			<strong><%= row.ip %></strong> · <%= row.reason %>
+			<p class="ww-empty" style="margin:4px 0;">Blocked <%= new Date(row.blockedAt).toLocaleString() %> · until <%= new Date(row.expiresAt).toLocaleString() %><% if (row.hits > 1) { %> · blocked <%= row.hits %> times<% } %><br>Last path: <%= row.lastPath || 'n/a' %><br><%= row.userAgent || 'No user agent' %></p>
+			<form method="post" action="/admin/blocked-ips/unblock"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="ip" value="<%= row.ip %>"><button class="button button-small button-ghost" type="submit">Unblock</button></form>
+		</li>
+		<% }) %>
+	</ul>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

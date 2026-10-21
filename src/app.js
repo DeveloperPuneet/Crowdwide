@@ -15,6 +15,7 @@ const { icon } = require('./utils/icons');
 const { gifsEnabled } = require('./services/gif');
 const logger = require('./services/logger');
 const { presenceMiddleware } = require('./services/keepAlive');
+const botGuard = require('./middleware/botGuard');
 const { stagingMiddleware } = require('./services/environment');
 const { alertOnCriticalError } = require('./services/alerting');
 const User = require('./models/User');
@@ -27,6 +28,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
 
   // Render places one trusted reverse proxy in front of the application.
   app.set('trust proxy', trustProxyHops);
+  // A blocked address (see middleware/botGuard.js) gets a 403 before anything else runs.
+  app.use(botGuard.gate);
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
@@ -97,6 +100,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     store: sessionStore,
     cookie: { maxAge: sessionDurationMs, httpOnly: true, sameSite: 'lax' }
   }));
+  // Counts requests per address and blocks floods, scanners and rate-limit abuse for 24 hours.
+  app.use(botGuard.track);
   app.use(csrfProtection);
 
   app.use(async (req, res, next) => {

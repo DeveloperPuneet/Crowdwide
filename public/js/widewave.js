@@ -14,7 +14,7 @@
   }
 })();
 (() => {
-  const composer = document.querySelector('#composer');
+  const composer = document.querySelector('[data-ww-composer], #composer');
   const picker = document.querySelector('[data-ww-picker]');
   const input = composer?.querySelector('[data-ww-input]');
   const openButton = composer?.querySelector('[data-ww-open]');
@@ -106,4 +106,35 @@
     const open = document.querySelector('[data-composer-open]');
     if (composer.classList.contains('composer-hidden')) open?.click();
   }
+})();
+
+// Threads-style quick composer: grows with the text, shows the picked photo, and
+// never posts without a WideWave (it opens the picker instead).
+(() => {
+  const form = document.querySelector('[data-ww-composer]');
+  if (!form) return;
+  const text = form.querySelector('textarea');
+  const file = form.querySelector('[data-ww-file]');
+  const fileName = form.querySelector('[data-ww-file-name]');
+  const input = form.querySelector('[data-ww-input]');
+  const open = form.querySelector('[data-ww-open]');
+  const grow = () => { text.style.height = 'auto'; text.style.height = `${Math.min(text.scrollHeight, 320)}px`; };
+  text.addEventListener('input', grow);
+  text.addEventListener('focus', () => form.classList.add('is-open'));
+  file?.addEventListener('change', () => {
+    const picked = file.files && file.files[0];
+    fileName.hidden = !picked;
+    fileName.textContent = picked ? `Photo: ${picked.name}` : '';
+    if (picked) form.classList.add('is-open');
+  });
+  form.addEventListener('submit', (event) => {
+    if (input.value) return;
+    event.preventDefault();
+    open?.click();
+  });
+  const focusComposer = () => { form.scrollIntoView({ block: 'center' }); text.focus(); };
+  if (window.location.hash === '#ww-composer') focusComposer();
+  document.querySelector('[data-bottom-compose]')?.addEventListener('click', (event) => {
+    if (window.location.pathname === '/widewaves' || window.location.pathname.startsWith('/ww/')) { event.preventDefault(); focusComposer(); }
+  });
 })();

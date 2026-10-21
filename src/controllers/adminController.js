@@ -1199,3 +1199,20 @@ exports.submitAction = async (req, res) => {
   await audit(req, 'submit-moderation-action', targetType, req.body.target, { action: req.body.action });
   return modDone(req, res, true, 'The action was sent to the administrator for approval.');
 };
+
+// ---- Bot guard: addresses blocked for 24 hours (see middleware/botGuard.js) ----
+exports.blockedIpsPage = async (req, res) => {
+  const BlockedIp = require('../models/BlockedIp');
+  const rows = await BlockedIp.find({ expiresAt: { $gt: new Date() } }).sort({ blockedAt: -1 }).limit(200).lean();
+  res.render('pages/admin-blocked-ips', { title: 'Blocked addresses', noIndex: true, rows, active: 'admin' });
+};
+
+exports.unblockIp = async (req, res) => {
+  const botGuard = require('../middleware/botGuard');
+  const ip = String(req.body.ip || '').trim().slice(0, 80);
+  if (!ip) { req.session.flash = { type: 'error', message: 'Choose an address to unblock.' }; return res.redirect('/admin/blocked-ips'); }
+  const key = await botGuard.unblock(ip);
+  await audit(req, 'bot_guard.unblock', 'BlockedIp', undefined, { ip: key });
+  req.session.flash = { type: 'success', message: `${key} can use Crowdwide again.` };
+  return res.redirect('/admin/blocked-ips');
+};

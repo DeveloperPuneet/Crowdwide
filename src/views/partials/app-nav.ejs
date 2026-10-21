@@ -1,12 +1,15 @@
-<% const active = locals.active || ''; %>
+<% const active = locals.active || ''; const inWide = active === 'widewaves'; %>
 <header class="app-nav">
   <a class="brand" href="/dashboard"><img src="/images/Crowdwide_logo_192.png" alt="Crowdwide logo"><span>Crowdwide</span></a>
+  <div class="mode-switch" role="navigation" aria-label="Switch space">
+    <a class="mode-switch-item<%= inWide ? '' : ' is-on' %>" href="/dashboard"<%- inWide ? '' : ' aria-current="page"' %>><%- icon('camera', { size: 15 }) %><span>Crowdwide</span></a>
+    <a class="mode-switch-item mode-switch-ww<%= inWide ? ' is-on' : '' %>" href="/widewaves"<%- inWide ? ' aria-current="page"' : '' %>><%- icon('waves', { size: 15 }) %><span>WideWave</span></a>
+  </div>
   <nav>
     <a class="<%= active === 'home' ? 'app-nav-active' : '' %>" href="/dashboard"><%- icon('home', { size: 16 }) %><span>Home</span></a>
     <a class="<%= active === 'explore' ? 'app-nav-active' : '' %>" href="/explore"><%- icon('compass', { size: 16 }) %><span>Explore</span></a>
     <a class="<%= active === 'posts' ? 'app-nav-active' : '' %>" href="/posts"><%- icon('file-text', { size: 16 }) %><span>Posts</span></a>
     <a class="<%= active === 'communities' ? 'app-nav-active' : '' %>" href="/communities"><%- icon('users', { size: 16 }) %><span>Communities</span></a>
-    <a class="<%= active === 'widewaves' ? 'app-nav-active' : '' %>" href="/widewaves"><%- icon('waves', { size: 16 }) %><span>WideWaves</span></a>
     <a class="<%= active === 'messages' ? 'app-nav-active' : '' %>" href="/messages"><%- icon('mail', { size: 16 }) %><span>Messages</span></a>
     <a class="<%= active === 'groups' ? 'app-nav-active' : '' %>" href="/groups"><%- icon('message-circle', { size: 16 }) %><span>Groups</span></a>
     <% if (locals.currentUser) { %>
@@ -20,7 +23,7 @@
         <a href="/welcome"><%- icon('sparkles', { size: 16 }) %><span>Personalize your feed</span></a>
         <a href="/settings/account"><%- icon('settings', { size: 16 }) %><span>Account settings</span></a>
         <a href="/communities/mine"><%- icon('users', { size: 16 }) %><span>Your communities</span></a>
-        <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 16 }) %><span>Admin console</span></a><% } %>
+        <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 16 }) %><span>Admin console</span></a><a href="/admin/blocked-ips"><%- icon('lock', { size: 16 }) %><span>Blocked addresses</span></a><% } %>
         <% if (['admin', 'moderator'].includes(currentUser.role)) { %><a href="/moderator"><%- icon('shield', { size: 16 }) %><span>Moderator console</span></a><% } %>
       </div>
     </details>
@@ -36,6 +39,7 @@
     <% } %>
     <a class="icon-button" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
     <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden>0</b></a>
+    <% if (locals.currentUser) { %><span class="welcome">Hey, <%= currentUser.name.split(' ')[0] %></span><% } %>
     <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false"><%- icon('menu', { size: 20 }) %></button>
   </div>
 </header>
@@ -51,7 +55,7 @@
     <a href="/explore"><%- icon('compass', { size: 18 }) %> Explore</a>
     <a href="/posts"><%- icon('file-text', { size: 18 }) %> Public posts</a>
     <a href="/communities"><%- icon('users', { size: 18 }) %> Communities</a>
-    <a href="/widewaves"><%- icon('waves', { size: 18 }) %> WideWaves</a>
+    <a href="/widewaves"><%- icon('waves', { size: 18 }) %> WideWave</a>
     <a href="/people"><%- icon('user-plus', { size: 18 }) %> People to follow</a>
     <a href="/surveys"><%- icon('message-square', { size: 18 }) %> Help in surveys</a>
     <a href="/messages"><%- icon('mail', { size: 18 }) %> Messages</a>
@@ -85,8 +89,8 @@
 <nav class="bottom-nav" aria-label="Quick navigation">
   <a class="<%= active === 'home' ? 'is-active' : '' %>" href="/dashboard"<%- active === 'home' ? ' aria-current="page"' : '' %>><%- icon('home', { size: 21 }) %><span>Home</span></a>
   <a class="<%= active === 'explore' ? 'is-active' : '' %>" href="/explore"<%- active === 'explore' ? ' aria-current="page"' : '' %>><%- icon('compass', { size: 21 }) %><span>Explore</span></a>
-  <a class="bottom-nav-post" href="/dashboard#composer" data-bottom-compose aria-label="Create a post"><%- icon('plus', { size: 22 }) %></a>
-  <a class="<%= active === 'communities' ? 'is-active' : '' %>" href="/communities"<%- active === 'communities' ? ' aria-current="page"' : '' %>><%- icon('users', { size: 21 }) %><span>Communities</span></a>
+  <a class="bottom-nav-post" href="<%= inWide ? '/widewaves#ww-composer' : '/dashboard#composer' %>" data-bottom-compose aria-label="Create a post"><%- icon('plus', { size: 22 }) %></a>
+  <a class="<%= active === 'widewaves' ? 'is-active' : '' %>" href="/widewaves"<%- active === 'widewaves' ? ' aria-current="page"' : '' %>><%- icon('waves', { size: 21 }) %><span>WideWave</span></a>
   <a class="<%= active === 'messages' ? 'is-active' : '' %>" href="/messages"<%- active === 'messages' ? ' aria-current="page"' : '' %>><%- icon('mail', { size: 21 }) %><span>Messages</span></a>
 </nav>
 <% } %>

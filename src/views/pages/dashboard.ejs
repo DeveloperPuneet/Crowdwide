@@ -42,6 +42,15 @@
 		['articles-viral', '/dashboard?view=articles-viral', 'Articles · Viral', 'trending-up']
 	];
 %>
+		<% if ((locals.widewaveStrip || []).length) { %>
+		<section class="ww-home-strip" aria-label="WideWave topics">
+			<div class="ww-home-strip-head"><strong><%- icon('waves', { size: 16 }) %> Trending in WideWave</strong><a href="/widewaves">Open WideWave <%- icon('arrow-right', { size: 13 }) %></a></div>
+			<div class="ww-stories">
+				<a class="ww-story ww-story-new" href="/widewaves#ww-composer"><span class="ww-ring"><span class="ww-badge"><%- icon('plus', { size: 22 }) %></span></span><small>Start a thread</small></a>
+				<% widewaveStrip.forEach((wave, index) => { %><%- include('../partials/widewave-story', { wave, hot: index < 3 }) %><% }) %>
+			</div>
+		</section>
+		<% } %>
 		<nav class="feed-tabs" aria-label="Feed views">
 			<% feedTabs.forEach(([id, href, label, glyph]) => { %><a class="<%= feed.activeTab === id ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- feed.activeTab === id ? 'aria-current="page"' : '' %>><%- icon(glyph, { size: 15 }) %><span><%= label %></span></a><% }) %>
 		</nav>

@@ -374,3 +374,11 @@ All structured log output (see `src/services/logger.js`) is JSON lines on
 stdout (`info`) or stderr (`warn`/`error`), which most log aggregators
 (CloudWatch, Render's own log viewer, Datadog, etc.) can parse without
 extra configuration.
+
+## Crowdwide | WideWave layout and the bot guard
+
+**Two spaces.** The top bar has a Crowdwide | WideWave switch, and phones get a WideWave tab in the bottom bar (Communities moved into the menu there). WideWave pages (`/widewaves`, `/ww/name`) use a Threads-style single column with a quick composer; the Crowdwide home shows a "Trending in WideWave" strip of topic bubbles. Posting from a WideWave page sends people back to that page.
+
+**Bot guard** (`src/middleware/botGuard.js`). An IP is blocked for 24 hours (`BOT_BLOCK_HOURS`) when it floods requests, hits scanner paths such as `/.env` or `/wp-login.php` twice, uses a known scanner User-Agent, keeps going after rate-limit replies, floods 404s, or floods unsigned-in form posts. Signed-in users and search crawlers get higher limits. Private/loopback addresses, `/health` and `/media/` are never counted, and `BOT_GUARD_ALLOWLIST` (comma separated) exempts addresses. Blocks are stored in the `blockedips` collection and expire on their own, so a restart does not free a bot. Admins can review and unblock at `/admin/blocked-ips`. Set `BOT_GUARD=off` to disable.
+
+Make sure `TRUST_PROXY_HOPS` matches your host (1 on Render). If it is wrong, every visitor looks like the proxy address; the guard never blocks private proxy addresses, but it cannot tell your visitors apart either.
