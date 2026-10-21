@@ -8,6 +8,7 @@ const wideWaveSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true, lowercase: true, trim: true, match: /^[a-z0-9_]{3,30}$/ },
   description: { type: String, required: true, trim: true, maxlength: 200 },
   hashtags: [{ type: String, trim: true, lowercase: true }],
+  picture: { type: String, trim: true, maxlength: 500, default: '' },
   creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   status: { type: String, enum: ['active', 'removed'], default: 'active', index: true },
   removedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

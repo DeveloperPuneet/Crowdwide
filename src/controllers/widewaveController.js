@@ -6,6 +6,14 @@ const svc = require('../services/widewaves');
 const SiteSetting = require('../models/SiteSetting');
 const logger = require('../services/logger');
 const { validateWideWaveName } = require('../utils/widewaveName');
+const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
+
+async function storePicture(req, name) {
+  const file = req.file;
+  if (!file) return '';
+  const stored = await uploadBuffer(file.buffer, file.originalname, file.mimetype, { kind: 'widewave-picture', owner: String(name || 'widewave') });
+  return mediaUrl(stored);
+}
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 const isXhr = (req) => req.get('X-Requested-With') === 'XMLHttpRequest';
@@ -144,7 +152,7 @@ exports.newPage = async (req, res) => {
 exports.create = async (req, res) => {
   if (!(await featureOn())) return disabledPage(res);
   try {
-    const wave = await svc.createWideWave({ userId: req.session.user.id, name: req.body.name, description: req.body.description, hashtags: req.body.hashtags });
+    const wave = await svc.createWideWave({ userId: req.session.user.id, name: req.body.name, description: req.body.description, hashtags: req.body.hashtags, picture: await storePicture(req, req.body.name) });
     flash(req, 'success', `ww/${wave.name} is live. Be the first to post in it!`);
     return res.redirect(`/ww/${wave.name}`);
   } catch (error) {
@@ -158,7 +166,7 @@ exports.edit = async (req, res) => {
   const wave = await svc.findActiveByName(req.params.name);
   if (!wave) return res.status(404).render('pages/not-found', { title: 'WideWave not found' });
   try {
-    await svc.updateWideWave({ wave, userId: req.session.user.id, description: req.body.description, hashtags: req.body.hashtags });
+    await svc.updateWideWave({ wave, userId: req.session.user.id, description: req.body.description, hashtags: req.body.hashtags, picture: await storePicture(req, wave.name), removePicture: req.body.removePicture === 'on' });
     flash(req, 'success', 'WideWave updated.');
   } catch (error) {
     if (!(error instanceof svc.WideWaveError)) throw error;

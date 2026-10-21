@@ -3542,3 +3542,21 @@ body[data-theme="light"] .ww-badge, body[data-theme="pink"] .ww-badge { color: h
   .ww-threads .ww-top { flex-wrap: nowrap; }
   .ww-threads .ww-top p { font-size: 12px; }
 }
+
+/* Posts / Articles: one tab each, with New | Viral underneath. */
+.feed-subtabs { display: flex; align-items: center; gap: 8px; margin: -6px 0 16px; }
+.feed-subtabs span { font-size: 12px; color: var(--tx-lo); margin-right: 2px; }
+.feed-subtabs a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid var(--bd-1); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--tx-mid); text-decoration: none; background: transparent; }
+.feed-subtabs a:hover { color: var(--tx-hi); border-color: var(--bd-2); }
+.feed-subtabs a.is-on { color: #fff; border-color: transparent; background: var(--ac-blue, #586aff); }
+.feed-subtabs a.is-on svg { color: #fff; }
+
+/* WideWave pictures. */
+.ww-badge.has-picture { padding: 0; overflow: hidden; }
+.ww-badge img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+.ww-card-pic { flex: none; width: 40px; height: 40px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: var(--sf-2); }
+.ww-card-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ww-card-main { min-width: 0; }
+.ww-card-stat { white-space: nowrap; }
+.ww-side .ww-card .ww-desc { -webkit-line-clamp: 1; }
+.ww-side .ww-card-pic { width: 36px; height: 36px; }

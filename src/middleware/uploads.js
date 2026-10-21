@@ -60,6 +60,13 @@ const groupUpload = multer({
   fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
 }).single('avatar');
 
+// WideWave picture (one image), chosen when creating or editing a WideWave.
+const widewaveUpload = multer({
+  storage,
+  limits: { fileSize: GROUP_AVATAR_LIMIT + 1, files: 1 },
+  fileFilter: (req, file, callback) => callback(null, file.mimetype.startsWith('image/'))
+}).single('picture');
+
 const advertisementBannerUpload = multer({
   storage,
   limits: { fileSize: AD_BANNER_LIMIT + 1, files: 1 },
@@ -139,6 +146,14 @@ function validateGroupUpload(req, res, next) {
   if (req.file && req.file.size >= GROUP_AVATAR_LIMIT) {
     req.session.flash = { type: 'error', message: 'Group pictures must be smaller than 1.5MB.' };
     return res.redirect(req.get('referer') || '/groups');
+  }
+  next();
+}
+
+function validateWideWaveUpload(req, res, next) {
+  if (req.file && req.file.size >= GROUP_AVATAR_LIMIT) {
+    req.session.flash = { type: 'error', message: 'WideWave pictures must be smaller than 1.5MB.' };
+    return res.redirect(req.get('referer') || '/widewaves');
   }
   next();
 }
@@ -270,4 +285,4 @@ function handleUploadError(error, req, res, next) {
   res.redirect('/dashboard');
 }
 
-module.exports = { partnerLogoUpload, validatePartnerLogo, postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, chatAttachmentUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };
+module.exports = { partnerLogoUpload, validatePartnerLogo, postUpload, profileUpload, communityUpload, reportUpload, groupUpload, widewaveUpload, validateWideWaveUpload, advertisementBannerUpload, advertiserApplicationUpload, chatAttachmentUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };

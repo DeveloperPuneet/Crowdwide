@@ -1,6 +1,6 @@
 <%# One round topic "story" bubble. locals: wave {name}, hot (bool) %>
 <% const hue = Array.from(String(wave.name)).reduce((sum, ch) => (sum * 31 + ch.charCodeAt(0)) % 360, 7); %>
 <a class="ww-story<%= locals.hot ? ' is-hot' : '' %>" href="/ww/<%= wave.name %>" style="--h: <%= hue %>" title="ww/<%= wave.name %>">
-	<span class="ww-ring"><span class="ww-badge"><%= String(wave.name).charAt(0).toUpperCase() %></span></span>
+	<span class="ww-ring"><span class="ww-badge<%= wave.picture ? ' has-picture' : '' %>"><% if (wave.picture) { %><img src="<%= wave.picture %>" alt="" loading="lazy"><% } else { %><%= String(wave.name).charAt(0).toUpperCase() %><% } %></span></span>
 	<small>ww/<%= wave.name %></small>
 </a>

@@ -65,3 +65,56 @@ test('WideWave pages and the home strip render', async () => {
   const dash = fs.readFileSync(path.join(views, 'pages/dashboard.ejs'), 'utf8');
   assert.match(dash, /ww-home-strip/);
 });
+
+test('WideWave has its own logo, different from the Waves coin', () => {
+  const ww = icon('widewave', { size: 20 });
+  const coin = icon('waves', { size: 20 });
+  assert.notEqual(ww, coin);
+  assert.match(ww, /linearGradient/);
+  assert.ok(fs.existsSync(path.join(__dirname, '../public/images/widewave-logo.svg')));
+  for (const file of ['partials/app-nav.ejs', 'partials/ww-composer.ejs', 'partials/post-card.ejs', 'pages/widewaves.ejs']) {
+    const source = fs.readFileSync(path.join(views, file), 'utf8');
+    const waveLines = source.split('\n').filter((line) => /WideWave|widewave|ww-chip|ww-tool/.test(line));
+    assert.ok(waveLines.some((line) => line.includes("icon('widewave'")), file);
+  }
+});
+
+test('home top bar drops the links the sidebar already has, and the sidebar starts collapsed', async () => {
+  const withSide = await render('partials/app-nav.ejs', { active: 'home', sideNav: true });
+  const header = (html) => html.slice(0, html.indexOf('</header>'));
+  assert.doesNotMatch(header(withSide), /href="\/explore"/);
+  assert.doesNotMatch(header(withSide), /href="\/communities"/);
+  assert.match(withSide, /class="mode-switch"/);
+  assert.match(withSide, /app-nav-more/);
+  const without = await render('partials/app-nav.ejs', { active: 'explore' });
+  assert.match(header(without), /href="\/explore"/);
+  const dash = fs.readFileSync(path.join(views, 'pages/dashboard.ejs'), 'utf8');
+  assert.match(dash, /app-layout dashboard-modern sidebar-collapsed/);
+  assert.match(dash, /data-sidebar-toggle aria-expanded="false"/);
+  assert.match(dash, /sideNav: true/);
+  const js = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
+  assert.match(js, /cw-sidebar/);
+});
+
+test('feed has single Posts and Articles tabs with New | Viral underneath', () => {
+  const dash = fs.readFileSync(path.join(views, 'pages/dashboard.ejs'), 'utf8');
+  assert.match(dash, /'Posts', 'file-text', \['posts-new', 'posts-viral'\]/);
+  assert.match(dash, /'Articles', 'edit', \['articles-new', 'articles-viral'\]/);
+  assert.doesNotMatch(dash, /Posts · New|Articles · Viral/);
+  assert.match(dash, /class="feed-subtabs"/);
+  assert.match(dash, /view=<%= subSorts\[0\] %>-viral/);
+});
+
+test('WideWaves accept a picture on create and edit and show it', async () => {
+  const route = fs.readFileSync(path.join(__dirname, '../src/routes/web.js'), 'utf8');
+  assert.match(route, /router\.post\('\/widewaves'[^\n]*widewaveUpload[^\n]*validateWideWaveUpload/);
+  assert.match(route, /router\.post\('\/ww\/:name\/edit'[^\n]*widewaveUpload[^\n]*validateWideWaveUpload/);
+  assert.match(require('../src/models/WideWave').schema.path('picture').instance, /String/);
+  const story = await render('partials/widewave-story.ejs', { wave: { name: 'poetry', picture: '/media/x.png' } });
+  assert.match(story, /<img src="\/media\/x\.png"/);
+  const plain = await render('partials/widewave-story.ejs', { wave: { name: 'poetry' } });
+  assert.match(plain, />P</);
+  const form = await render('pages/widewave-new.ejs', { title: 'x', pagePath: '/widewaves/new', form: { name: '', description: '', hashtags: '' }, limits: { perDay: 3 } });
+  assert.match(form, /enctype="multipart\/form-data"/);
+  assert.match(form, /name="picture"/);
+});

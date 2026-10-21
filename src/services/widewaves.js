@@ -33,7 +33,7 @@ async function recountWideWave(waveId) {
   return count;
 }
 
-async function createWideWave({ userId, name, description, hashtags }) {
+async function createWideWave({ userId, name, description, hashtags, picture = '' }) {
   const checked = validateWideWaveName(name);
   if (!checked.ok) throw new WideWaveError(checked.error);
   const desc = cleanDescription(description);
@@ -48,7 +48,7 @@ async function createWideWave({ userId, name, description, hashtags }) {
   if (today >= MAX_CREATED_PER_DAY) throw new WideWaveError(`You can create up to ${MAX_CREATED_PER_DAY} WideWaves a day. Try again tomorrow.`);
   if (active >= MAX_ACTIVE_PER_USER) throw new WideWaveError(`You already run ${MAX_ACTIVE_PER_USER} WideWaves. Delete one before creating another.`);
   try {
-    const wave = await WideWave.create({ name: checked.name, description: desc, hashtags: tags, creator: userId });
+    const wave = await WideWave.create({ name: checked.name, description: desc, hashtags: tags, creator: userId, picture });
     clearTrendingCache();
     return wave;
   } catch (error) {
@@ -57,8 +57,8 @@ async function createWideWave({ userId, name, description, hashtags }) {
   }
 }
 
-// The creator can change only the description and hashtags.
-async function updateWideWave({ wave, userId, description, hashtags }) {
+// The creator can change only the picture, description and hashtags.
+async function updateWideWave({ wave, userId, description, hashtags, picture, removePicture = false }) {
   if (!wave || wave.status !== 'active') throw new WideWaveError('That WideWave is not available.');
   if (String(wave.creator) !== String(userId)) throw new WideWaveError('Only the creator can edit this WideWave.');
   const desc = cleanDescription(description);
@@ -67,6 +67,8 @@ async function updateWideWave({ wave, userId, description, hashtags }) {
   if (!tags.length) throw new WideWaveError('Keep at least one hashtag.');
   wave.description = desc;
   wave.hashtags = tags;
+  if (picture) wave.picture = picture;
+  else if (removePicture) wave.picture = '';
   await wave.save();
   clearTrendingCache();
   return wave;

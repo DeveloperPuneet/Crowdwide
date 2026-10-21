@@ -3,11 +3,11 @@
 <% const composerCommunities = locals.composerCommunities || communities || []; %>
 <% const availableQuests = locals.availableQuests || []; %>
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
-<%- include('../partials/app-nav', { active: 'home', currentUser }) %>
+<%- include('../partials/app-nav', { active: 'home', currentUser, sideNav: true }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<main class="app-layout dashboard-modern">
+<main class="app-layout dashboard-modern sidebar-collapsed">
 	<aside class="app-sidebar">
-		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="true" aria-controls="dashboard-sidebar" aria-label="Close sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
+		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="false" aria-controls="dashboard-sidebar" aria-label="Open sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
 		<div id="dashboard-sidebar">
 		<div class="sidebar-profile">
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser }) %>
@@ -16,7 +16,10 @@
 		<nav class="side-links">
 			<a class="side-active" href="/dashboard"><%- icon('home') %> <span>Home feed</span></a>
 			<a href="/explore"><%- icon('compass') %> <span>Explore</span></a>
+			<a href="/posts"><%- icon('file-text') %> <span>Public posts</span></a>
 			<a href="/communities"><%- icon('users') %> <span>Communities</span></a>
+			<a href="/messages"><%- icon('mail') %> <span>Messages</span></a>
+			<a href="/groups"><%- icon('message-circle') %> <span>Groups</span></a>
 			<a href="/u/<%= currentUser.id %>"><%- icon('user') %> <span>Your profile</span></a>
 			<a href="/recap"><%- icon('trending-up') %> <span>Your recap</span></a>
 			<a href="/notifications"><%- icon('bell') %> <span>Notifications</span></a>
@@ -34,17 +37,16 @@
 		</div>
 		<%
 	const feedTabs = [
-		['for-you', '/dashboard?view=for-you', 'For you', 'sparkles'],
-		['my-community', '/dashboard?view=my-community&feed=personalized', 'My community', 'users'],
-		['posts-new', '/dashboard?view=posts-new', 'Posts · New', 'clock'],
-		['posts-viral', '/dashboard?view=posts-viral', 'Posts · Viral', 'flame'],
-		['articles-new', '/dashboard?view=articles-new', 'Articles · New', 'file-text'],
-		['articles-viral', '/dashboard?view=articles-viral', 'Articles · Viral', 'trending-up']
+		['for-you', '/dashboard?view=for-you', 'For you', 'sparkles', ['for-you']],
+		['my-community', '/dashboard?view=my-community&feed=personalized', 'My community', 'users', ['my-community']],
+		['posts', '/dashboard?view=posts-new', 'Posts', 'file-text', ['posts-new', 'posts-viral']],
+		['articles', '/dashboard?view=articles-new', 'Articles', 'edit', ['articles-new', 'articles-viral']]
 	];
+	const subSorts = feed.activeTab.startsWith('posts-') ? ['posts', 'Posts'] : feed.activeTab.startsWith('articles-') ? ['articles', 'Articles'] : null;
 %>
 		<% if ((locals.widewaveStrip || []).length) { %>
 		<section class="ww-home-strip" aria-label="WideWave topics">
-			<div class="ww-home-strip-head"><strong><%- icon('waves', { size: 16 }) %> Trending in WideWave</strong><a href="/widewaves">Open WideWave <%- icon('arrow-right', { size: 13 }) %></a></div>
+			<div class="ww-home-strip-head"><strong><%- icon('widewave', { size: 18 }) %> Trending in WideWave</strong><a href="/widewaves">Open WideWave <%- icon('arrow-right', { size: 13 }) %></a></div>
 			<div class="ww-stories">
 				<a class="ww-story ww-story-new" href="/widewaves#ww-composer"><span class="ww-ring"><span class="ww-badge"><%- icon('plus', { size: 22 }) %></span></span><small>Start a thread</small></a>
 				<% widewaveStrip.forEach((wave, index) => { %><%- include('../partials/widewave-story', { wave, hot: index < 3 }) %><% }) %>
@@ -52,8 +54,16 @@
 		</section>
 		<% } %>
 		<nav class="feed-tabs" aria-label="Feed views">
-			<% feedTabs.forEach(([id, href, label, glyph]) => { %><a class="<%= feed.activeTab === id ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- feed.activeTab === id ? 'aria-current="page"' : '' %>><%- icon(glyph, { size: 15 }) %><span><%= label %></span></a><% }) %>
+			<% feedTabs.forEach(([id, href, label, glyph, views]) => { const on = views.includes(feed.activeTab); %><a class="<%= on ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- on ? 'aria-current="page"' : '' %>><%- icon(glyph, { size: 15 }) %><span><%= label %></span></a>
+			<% }) %>
 		</nav>
+		<% if (subSorts) { %>
+		<nav class="feed-subtabs" aria-label="Sort <%= subSorts[1].toLowerCase() %>">
+			<span>Sort by</span>
+			<a class="<%= feed.activeTab.endsWith('-new') ? 'is-on' : '' %>" href="/dashboard?view=<%= subSorts[0] %>-new"><%- icon('clock', { size: 13 }) %> New</a>
+			<a class="<%= feed.activeTab.endsWith('-viral') ? 'is-on' : '' %>" href="/dashboard?view=<%= subSorts[0] %>-viral"><%- icon('flame', { size: 13 }) %> Viral</a>
+		</nav>
+		<% } %>
 		<% if (locals.awayInfo) { %>
 		<aside class="welcome-back-card" aria-label="While you were away">
 			<div class="welcome-back-head"><span class="welcome-back-icon"><%- icon('sparkles', { size: 20 }) %></span><div><strong>Welcome back!</strong><p>Here is what happened in the last <%= awayInfo.days === 1 ? 'day' : awayInfo.days + ' days' %>.</p></div></div>
@@ -94,7 +104,7 @@
 					<select name="type" aria-label="Post type"><option value="post">Post · <%= wordLimits.post %> words</option><option value="article">Article · <%= wordLimits.article %> words</option><option value="poll">Poll · <%= wordLimits.poll %> words</option></select>
 					<select name="community" data-community-select aria-label="Choose a community"><option value="">Open Crowdwide</option><% composerCommunities.forEach((community) => { %><option value="<%= community._id %>" <%= String(community._id) === String(locals.selectedCommunityId || '') ? 'selected' : '' %>><%= community.name %></option><% }) %></select>
 					<input type="hidden" name="widewave" value="" data-ww-input data-preset="<%= locals.selectedWideWave || '' %>">
-					<button class="button button-ghost button-small ww-pick-button" type="button" data-ww-open aria-haspopup="dialog" title="Post to an open topic space"><%- icon('waves', { size: 14 }) %> <span data-ww-label>WideWave</span></button>
+					<button class="button button-ghost button-small ww-pick-button" type="button" data-ww-open aria-haspopup="dialog" title="Post to an open topic space"><%- icon('widewave', { size: 14 }) %> <span data-ww-label>WideWave</span></button>
 					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
 					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
 					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>

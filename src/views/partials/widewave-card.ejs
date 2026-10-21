@@ -1,6 +1,7 @@
 <%# One WideWave in a list. locals: wave, rank (optional), stat (optional text) %>
 <a class="ww-card" href="/ww/<%= wave.name %>">
 	<% if (locals.rank) { %><span class="ww-rank">#<%= rank %></span><% } %>
+	<span class="ww-card-pic"><% if (wave.picture) { %><img src="<%= wave.picture %>" alt="" loading="lazy"><% } else { %><%- icon('widewave', { size: 28 }) %><% } %></span>
 	<span class="ww-card-main">
 		<strong class="ww-name">ww/<%= wave.name %></strong>
 		<span class="ww-desc"><%= wave.description %></span>

@@ -499,13 +499,21 @@ document.querySelectorAll('[data-drawer-open]').forEach((toggle) => {
   });
 });
 
+// The home sidebar starts collapsed (an icon rail). If someone opens it, remember that choice.
 document.querySelectorAll('[data-sidebar-toggle]').forEach((toggle) => {
   const layout = toggle.closest('.app-layout, .settings-layout');
   if (!layout) return;
-  toggle.addEventListener('click', () => {
-    const collapsed = layout.classList.toggle('sidebar-collapsed');
+  const sync = () => {
+    const collapsed = layout.classList.contains('sidebar-collapsed');
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-label', collapsed ? 'Open sidebar' : 'Close sidebar');
+  };
+  try { if (localStorage.getItem('cw-sidebar') === 'open') layout.classList.remove('sidebar-collapsed'); } catch (error) { /* storage blocked: stay collapsed */ }
+  sync();
+  toggle.addEventListener('click', () => {
+    layout.classList.toggle('sidebar-collapsed');
+    sync();
+    try { localStorage.setItem('cw-sidebar', layout.classList.contains('sidebar-collapsed') ? 'closed' : 'open'); } catch (error) { /* ignore */ }
   });
 });
 

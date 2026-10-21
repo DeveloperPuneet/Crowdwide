@@ -57,8 +57,10 @@
 			<% if (isCreator) { %>
 			<section class="discover-panel ww-owner">
 				<div class="panel-heading"><h2>Your WideWave</h2></div>
-				<form method="post" action="/ww/<%= wave.name %>/edit" class="ww-form">
+				<form method="post" action="/ww/<%= wave.name %>/edit" class="ww-form" enctype="multipart/form-data">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<label>Picture<input type="file" name="picture" accept="image/*"><small>Square, under 1.5MB.</small></label>
+					<% if (wave.picture) { %><label class="privacy-check"><input type="checkbox" name="removePicture"> Remove current picture</label><% } %>
 					<label>Description<textarea name="description" rows="3" maxlength="200" required><%= wave.description %></textarea></label>
 					<label>Hashtags<input name="hashtags" maxlength="200" value="<%= (wave.hashtags || []).join(', ') %>" required><small>Comma separated, up to 8.</small></label>
 					<button class="button button-primary button-small" type="submit">Save changes</button>
@@ -67,7 +69,7 @@
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 					<button class="button button-danger button-small" type="submit">Delete WideWave</button>
 				</form>
-				<p class="ww-empty">You can change the description and hashtags, or delete the WideWave. The name cannot change.</p>
+				<p class="ww-empty">You can change the picture, description and hashtags, or delete the WideWave. The name cannot change.</p>
 			</section>
 			<% } %>
 		</aside>
