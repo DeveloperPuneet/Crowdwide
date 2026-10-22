@@ -13,6 +13,8 @@ const { getViralPosts, getPopularPeople, getCommonInterestPeople, getMutualNetwo
 const { getInterestProfile, topInterestTags, refreshPersonalization } = require('../services/feedService');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
+const { attachReplyPostCounts } = require('../services/replyPostCounts');
+const { reconcileCommunityMembers } = require('../services/communityMembership');
 const { isAdFree } = require('../services/adFree');
 const { getCommunityCampaigns } = require('../services/advertising');
 const { getCommunityPromotionOffer, getActiveCommunityPromotions, promoteCommunity } = require('../services/communityPromotion');
@@ -296,6 +298,7 @@ exports.mine = async (req, res) => {
 exports.detail = async (req, res) => {
   const community = await Community.findOne({ slug: req.params.slug }).populate('owner', 'name profilePicture').lean();
   if (!community) return res.status(404).render('pages/not-found', { title: 'Community not found' });
+  const members = await reconcileCommunityMembers(community);
   const joined = community.members.some((id) => String(id) === String(req.session.user.id));
   const requested = community.joinRequests?.some((request) => String(request.user) === String(req.session.user.id));
   const moderatorIds = (community.moderators || []).map(String);
@@ -306,17 +309,16 @@ exports.detail = async (req, res) => {
     return res.render('pages/community-request', { title: `Request to join ${community.name}`, pagePath: `/communities/${community.slug}`, noIndex: true, community, requested });
   }
   const pinnedIds = (community.pinnedPosts || []).map(String);
-  const [recentPosts, pinnedPosts, members, quests] = await Promise.all([
+  const [recentPosts, pinnedPosts, quests] = await Promise.all([
     Post.find({ community: community._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').populate('coAuthors', 'name profilePicture').populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name' } }).populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name' } }).lean(),
     pinnedIds.length ? Post.find({ _id: { $in: pinnedIds }, community: community._id, status: 'published' }).populate('author', 'name profilePicture').populate('coAuthors', 'name profilePicture').populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name' } }).populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name' } }).lean() : Promise.resolve([]),
-    User.find({ _id: { $in: community.members } }).select('name profilePicture').limit(60).lean(),
     Quest.find({ community: community._id }).sort({ createdAt: -1 }).populate('creator', 'name profilePicture').populate('participants', 'name profilePicture').populate('completedBy', 'name profilePicture').populate('winner', 'name profilePicture').lean()
   ]);
   const pinnedById = new Map(pinnedPosts.map((post) => [String(post._id), post]));
-  const posts = [
+  const posts = await attachReplyPostCounts([
     ...pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean),
     ...recentPosts.filter((post) => !pinnedById.has(String(post._id)))
-  ];
+  ]);
   const viewerDoc = await User.findById(req.session.user.id).select('adFreeUntil').lean();
   const viewerAdFree = isAdFree(viewerDoc);
   // Full post cards need the viewer's like state, as in the main feed.

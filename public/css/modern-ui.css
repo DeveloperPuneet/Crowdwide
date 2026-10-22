@@ -604,6 +604,10 @@ body[data-theme="light"], body[data-theme="pink"] {
 .quest-post-label { display: inline-block; padding: 5px 12px; margin-bottom: 12px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--ac-gold); background: color-mix(in srgb, var(--ac-gold) 14%, transparent); border: 1px solid color-mix(in srgb, var(--ac-gold) 35%, transparent); }
 .post-view-counts { gap: 8px; padding: 18px 0 16px; border-top: 0; margin-top: 8px; }
 .post-view-counts span { padding: 7px 14px; border-radius: 999px; background: var(--sf-1); border: 1px solid var(--line); font-size: 13px; }
+.post-reposts-action { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; margin: 0 0 16px; padding: 9px 16px; border: 1px solid color-mix(in srgb, var(--blue) 38%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--blue) 10%, var(--sf-1)); color: var(--tx-hi); font-size: 13px; font-weight: 700; text-decoration: none; transition: border-color .15s, color .15s, background .15s, transform .15s; }
+.post-reposts-action:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 17%, var(--sf-1)); transform: translateY(-1px); }
+.post-reposts-action .icon { color: var(--ac-blue); }
+.post-reposts-action strong { display: inline-grid; min-width: 25px; height: 25px; place-items: center; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--blue) 16%, var(--sf-1)); color: var(--ac-blue); font-variant-numeric: tabular-nums; }
 .post-view-counts strong { color: var(--tx-hi); font-variant-numeric: tabular-nums; }
 .post-view-actions { gap: 6px; padding: 6px; border: 1px solid var(--line); border-radius: 20px; background: var(--sf-1); }
 .post-view-actions button, .post-view-actions .action-link { border-radius: 14px; font-weight: 600; font-size: 14px; transition: background .15s, color .15s, transform .15s; }
@@ -633,6 +637,17 @@ body[data-theme="light"], body[data-theme="pink"] {
 .public-comments-join p { margin: 0; color: var(--tx-lo); font-size: 13.5px; }
 .no-comments { text-align: center; padding: 28px 12px; border: 1.5px dashed var(--bd-1); border-radius: 18px; }
 .post-detail-thread { max-height: none; overflow: visible; padding-right: 0; margin-top: 16px; }
+.post-replies-heading { position: relative; padding: clamp(20px, 4vw, 34px); border: 1px solid var(--line); border-radius: 24px; background: radial-gradient(60% 60% at 100% 0%, color-mix(in srgb, var(--blue) 12%, transparent), transparent 72%), var(--panel); box-shadow: var(--mu-shadow); }
+.post-replies-heading .back-link { margin-bottom: 20px; }
+.post-replies-heading h1 { margin: 4px 0 8px; font-size: clamp(25px, 4vw, 34px); letter-spacing: -.8px; }
+.post-replies-heading .muted { margin: 0; }
+.post-replies-compose { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; }
+.post-replies-source { padding: 16px 20px; border-left: 3px solid var(--blue); }
+.post-replies-source > span { color: var(--ac-blue); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.post-replies-source > p { margin: 8px 0 0; color: var(--tx-mid); line-height: 1.6; }
+.post-replies-page .public-post-feed { gap: 16px; }
+.post-replies-page .public-post-empty { padding: 34px 22px; border: 1px dashed var(--bd-2); border-radius: 22px; background: var(--panel); text-align: center; }
+.post-replies-page .public-post-pagination { padding-top: 18px; }
 
 /* ---------- Batch 2 responsive ---------- */
 @media (max-width: 1100px) {

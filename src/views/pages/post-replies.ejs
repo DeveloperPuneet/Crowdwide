@@ -3,13 +3,14 @@
 <header class="site-nav container public-posts-nav"><a class="brand" href="/"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a><div><a class="button button-small button-ghost" href="/auth/login">Sign in</a></div></header>
 <% } %>
 <main class="post-compose-page compose-modern post-replies-page">
-  <header class="post-compose-heading">
+  <header class="post-compose-heading post-replies-heading">
     <a class="back-link" href="/posts/<%= source._id %>"><%- icon('arrow-left', { size: 15 }) %> Back to post</a>
-    <p class="eyebrow">Conversation</p>
+    <p class="eyebrow">Post conversation</p>
     <h1>Replies with a post</h1>
-    <p class="muted"><%= total %> <%= total === 1 ? 'post replies' : 'posts reply' %> to <strong><%= source.author?.name || 'a Crowdwide member' %></strong>'s post.</p>
+    <p class="muted"><%= total %> <%= total === 1 ? 'post reply' : 'posts replying' %> to <strong><%= source.author?.name || 'a Crowdwide member' %></strong>'s post.</p>
+    <% if (locals.currentUser) { %><a class="button button-primary post-replies-compose" href="/posts/<%= source._id %>/reply"><%- icon('reply-post', { size: 16 }) %> Reply with a post</a><% } %>
   </header>
-  <article class="post-compose-source"><p><%= preview(source.body, 280) %></p></article>
+  <article class="post-compose-source post-replies-source"><span>Original post</span><p><%= preview(source.body, 280) || 'This post has no text.' %></p></article>
   <section class="public-post-feed" aria-label="Replies with a post">
     <% if (posts.length) { %><% posts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken: locals.csrfToken }) %><% }) %>
     <% } else { %><div class="public-post-empty"><h2>No replies with a post yet</h2><p>Be the first to answer this with a post of your own.</p><% if (locals.currentUser) { %><a class="button button-primary" href="/posts/<%= source._id %>/reply">Reply with a post</a><% } %></div><% } %>

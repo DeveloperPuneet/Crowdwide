@@ -479,6 +479,7 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
     post: { ...post(1), body: 'Hi,\nhow are you?\nwassup', liked: true, bookmarked: false, poll: null, quotedPost: null, replyTo: null, questTitle: 'Weekly sketch sprint' },
     commentTree: [{ _id: 'c1', author: { _id: 'a2', name: 'B' }, body: 'hi', gif: { url: 'https://media.giphy.com/c.gif' }, createdAt: new Date(), likes: [], children: [] }]
   });
+
   assert.match(html, /data-share-open/);
   assert.doesNotMatch(html, /\/share"/, 'the old count-on-click share form is gone');
   assert.doesNotMatch(html, /\/quote/);
@@ -491,6 +492,33 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
   assert.match(html, /Quest post · Weekly sketch sprint/);
   assert.match(html, /action="\/comments\/c1\/report"/);
   assert.match(html, /Choose a reason/);
+});
+
+test('post detail links directly to the replies-with-a-post list and shows its count', async () => {
+  const html = await render('pages/post-detail.ejs', {
+    title: 'p', pagePath: '/posts/p1', comments: [],
+    post: { ...post(1), replyPostsCount: 3, liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null },
+    commentTree: []
+  });
+  assert.match(html, /class="post-reposts-action" href="\/posts\/p1\/replies-with-posts" aria-label="See 3 replies with a post"/);
+  assert.match(html, /See replies with a post/);
+  assert.match(html, />3<\/strong> replies with a post/);
+});
+
+test('replies-with-a-post page has a clear source preview and reply action', async () => {
+  const html = await render('pages/post-replies.ejs', {
+    title: 'Replies with a post',
+    pagePath: '/posts/p1/replies-with-posts',
+    source: { _id: 'p1', body: 'The original post', author: { name: 'Author' } },
+    posts: [],
+    total: 0,
+    page: 1,
+    hasMore: false
+  });
+  assert.match(html, /post-replies-heading/);
+  assert.match(html, /Original post/);
+  assert.match(html, /href="\/posts\/p1\/reply"/);
+  assert.match(html, /No replies with a post yet/);
 });
 
 test('post owners can buy a clearly labeled Waves promotion', async () => {

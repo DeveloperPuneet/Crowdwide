@@ -53,9 +53,13 @@
 		<div class="post-view-counts" aria-label="Post statistics">
 			<span><strong data-like-total><%= post.likes?.length || 0 %></strong> likes</span>
 			<span><strong data-comment-total><%= post.commentsCount || 0 %></strong> comments</span>
+			<span><strong><%= post.replyPostsCount || 0 %></strong> replies with a post</span>
 			<span><strong data-share-count-for="<%= post._id %>"><%= post.sharesCount || 0 %></strong> shares</span>
 			<span><strong><%= post.viewsCount || 0 %></strong> views</span>
 		</div>
+		<a class="post-reposts-action" href="/posts/<%= post._id %>/replies-with-posts" aria-label="See <%= post.replyPostsCount || 0 %> replies with a post">
+			<%- icon('reply-post', { size: 18 }) %><span>See replies with a post</span><strong><%= post.replyPostsCount || 0 %></strong>
+		</a>
 
 		<% if (currentUser) { %>
 		<div class="post-view-actions" aria-label="Post activity">

@@ -38,6 +38,7 @@ const { recordContribution, effectiveStreak, zoneOf } = require('../services/str
 const { BADGES } = require('../utils/badges');
 const surveyService = require('../services/surveys');
 const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_SECTION } = require('../utils/partnershipPages');
+const { attachReplyPostCounts } = require('../services/replyPostCounts');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -116,7 +117,7 @@ exports.publicPosts = async (req, res) => {
 			Post.countDocuments(filter)
 		]);
 		const hasMore = results.length > pageSize;
-		const posts = results.slice(0, pageSize);
+		const posts = await attachReplyPostCounts(results.slice(0, pageSize));
 		const viewerId = req.session?.user?.id;
 		if (viewerId) {
 			posts.forEach((post) => {
@@ -654,11 +655,12 @@ exports.profile = async (req, res) => {
 	const populatedPosts = (await Post.populate(posts, { path: 'author', select: 'name profilePicture' }));
 	const populatedLikes = (await Post.populate(likedPosts, { path: 'author', select: 'name profilePicture' }));
 	const bookmarked = (viewer?.bookmarks || []).map(String);
-	const posts_ = populatedPosts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) }));
+	const posts_ = await attachReplyPostCounts(populatedPosts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) })));
 	let savedPosts = [];
 	if (isSelf && bookmarked.length) {
 		savedPosts = await Post.find({ _id: { $in: bookmarked }, status: 'published' }).sort({ createdAt: -1 }).populate('community', 'name slug').lean();
 		savedPosts = await Post.populate(savedPosts, { path: 'author', select: 'name profilePicture' });
+		savedPosts = await attachReplyPostCounts(savedPosts);
 	}
 
 	let activity = [];

@@ -27,6 +27,7 @@ const { notificationPreferenceAllows } = require('../utils/notificationPreferenc
 const { rewardWavesForAction } = require('../services/waves');
 const { recordContribution } = require('../services/streaks');
 const { handleReplyReceived } = require('../services/lifecycle');
+const { attachReplyPostCounts } = require('../services/replyPostCounts');
 
 const MAX_REPLY_POST_WORDS = 50;
 
@@ -385,7 +386,8 @@ exports.replyPost = async (req, res) => {
     media.push(item);
   }
   const reply = await Post.create({ author: req.session.user.id, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', media, type: 'post', community: source.community, replyTo: source._id, hashtags: extractHashtags(body), status: 'published' });
-  Post.updateOne({ _id: source._id }, { $inc: { replyPostsCount: 1 } }).catch((error) => logger.error('Reply-post count failed', error));
+  Post.updateOne({ _id: source._id }, { $inc: { replyPostsCount: 1 } })
+    .catch((error) => logger.error('Reply-post count failed', error));
   refreshPersonalization(req.session.user.id);
   await notifyMentionedUsers(body, req.session.user.id, reply._id, reply.community);
   // The original author is told straight away, and the notification opens the reply itself.
@@ -412,19 +414,21 @@ exports.replyPostsPage = async (req, res) => {
   let blockedIds = [];
   if (viewerId) blockedIds = (await User.findById(viewerId).select('blockedUsers').lean())?.blockedUsers || [];
   const filter = { replyTo: source._id, status: 'published', author: { $nin: blockedIds } };
-  const [rows, total] = await Promise.all([
+  const [rows, total, allReplyPostsTotal] = await Promise.all([
     Post.find(filter).sort({ createdAt: -1 }).skip((page - 1) * perPage).limit(perPage + 1)
       .populate('author', 'name profilePicture').populate('community', 'name slug')
       .populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }).lean(),
-    Post.countDocuments(filter)
+    Post.countDocuments(filter),
+    Post.countDocuments({ replyTo: source._id, status: 'published' })
   ]);
   const hasMore = rows.length > perPage;
-  const posts = rows.slice(0, perPage);
+  const posts = await attachReplyPostCounts(rows.slice(0, perPage));
   if (viewerId) {
     posts.forEach((post) => { post.liked = (post.likes || []).some((id) => String(id) === String(viewerId)); });
   }
   // Self-heal the counter shown on post cards when it has drifted (or never existed on old posts).
-  Post.updateOne({ _id: source._id, replyPostsCount: { $ne: total } }, { $set: { replyPostsCount: total } }).catch(() => {});
+  Post.updateOne({ _id: source._id, replyPostsCount: { $ne: allReplyPostsTotal } }, { $set: { replyPostsCount: allReplyPostsTotal } })
+    .catch((error) => logger.error('Reply-post count repair failed', error));
   return res.render('pages/post-replies', { title: 'Replies with a post', source, posts, total, page, hasMore, pagePath: `/posts/${source._id}/replies-with-posts`, noIndex: true });
 };
 
@@ -477,6 +481,7 @@ exports.postDetail = async (req, res) => {
     .populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } })
     .lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
+  post.replyPostsCount = await Post.countDocuments({ replyTo: post._id, status: 'published' });
   let blockedIds = [];
   let postModerationRole = null;
   if (viewerId) {

@@ -7,6 +7,7 @@ const SiteSetting = require('../models/SiteSetting');
 const logger = require('../services/logger');
 const { validateWideWaveName } = require('../utils/widewaveName');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
+const { attachReplyPostCounts } = require('../services/replyPostCounts');
 
 async function storePicture(req, name) {
   const file = req.file;
@@ -88,7 +89,8 @@ async function decorate(posts, viewer) {
   ]);
   const uid = viewer ? String(viewer._id) : null;
   const saved = new Set((viewer?.bookmarks || []).map(String));
-  return populated.map((post) => ({ ...post, liked: uid ? (post.likes || []).some((id) => String(id) === uid) : false, bookmarked: saved.has(String(post._id)), feedSource: post.widewave?.name ? `ww/${post.widewave.name}` : undefined }));
+  const withReplyCounts = await attachReplyPostCounts(populated);
+  return withReplyCounts.map((post) => ({ ...post, liked: uid ? (post.likes || []).some((id) => String(id) === uid) : false, bookmarked: saved.has(String(post._id)), feedSource: post.widewave?.name ? `ww/${post.widewave.name}` : undefined }));
 }
 
 exports.show = async (req, res) => {

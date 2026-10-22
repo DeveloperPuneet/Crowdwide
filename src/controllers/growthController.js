@@ -6,6 +6,7 @@ const { verifyToken, KINDS } = require('../utils/unsubscribeToken');
 const { questionOfTheDay, startOfDay, QUESTION_TAG } = require('../utils/questions');
 const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const { getWeeklyTop } = require('../services/weeklyTop');
+const { attachReplyPostCounts } = require('../services/replyPostCounts');
 const logger = require('../services/logger');
 
 const OBJECT_ID = /^[a-f0-9]{24}$/;
@@ -45,7 +46,8 @@ exports.questionPage = async (req, res) => {
       Post.countDocuments(filter)
     ]);
     const viewerId = req.session?.user?.id;
-    if (viewerId) answers.forEach((post) => { post.liked = (post.likes || []).some((like) => String(like) === String(viewerId)); });
+    const answersWithReplyCounts = await attachReplyPostCounts(answers);
+    if (viewerId) answersWithReplyCounts.forEach((post) => { post.liked = (post.likes || []).some((like) => String(like) === String(viewerId)); });
     const appUrl = String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
     res.render('pages/question', {
       title: 'Question of the Day',
@@ -53,7 +55,7 @@ exports.questionPage = async (req, res) => {
       pagePath: '/question',
       canonicalUrl: `${appUrl}/question`,
       question,
-      answers,
+      answers: answersWithReplyCounts,
       total
     });
   } catch (error) {
@@ -69,6 +71,11 @@ exports.weeklyTopPage = async (req, res) => {
     const data = await getWeeklyTop();
     const viewerId = req.session?.user?.id;
     const mark = (post) => ({ ...post, liked: viewerId ? (post.likes || []).some((like) => String(like) === String(viewerId)) : false });
+    const [topPosts, articles, discussed] = await Promise.all([
+      attachReplyPostCounts(data.top),
+      attachReplyPostCounts(data.articles),
+      attachReplyPostCounts(data.discussed)
+    ]);
     const appUrl = String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
     const lead = data.top[0];
     const leadText = lead ? String(lead.type === 'poll' && lead.poll?.question ? lead.poll.question : lead.body || '').replace(/\s+/g, ' ').slice(0, 110) : '';
@@ -84,9 +91,9 @@ exports.weeklyTopPage = async (req, res) => {
       shareUrl: `${appUrl}/top`,
       shareText: 'The best conversations on Crowdwide this week',
       range,
-      top: data.top.map(mark),
-      articles: data.articles.map(mark),
-      discussed: data.discussed.map(mark),
+      top: topPosts.map(mark),
+      articles: articles.map(mark),
+      discussed: discussed.map(mark),
       creators: data.creators,
       communities: data.communities,
       totals: data.totals,

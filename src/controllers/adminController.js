@@ -26,6 +26,7 @@ const { getMongoStorage, formatStorage } = require('../services/mongoStorage');
 const { adjustWaves, getReciprocalRewardSignals, creditCommunityAdShare } = require('../services/waves');
 const { reviewAdvertiserAsModerator, reviewCampaignAsModerator, updateAdvertiserStatus, updateCampaignStatus } = require('../services/advertising');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
+const { removeUserFromCommunities } = require('../services/communityMembership');
 const logger = require('../services/logger');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
@@ -576,7 +577,11 @@ exports.deleteUser = async (req, res) => {
   const user = await User.findById(req.params.id);
   if (user?.role === 'admin') return res.redirect('/admin#users');
   if (user) {
-    await Promise.all([User.deleteOne({ _id: user._id }), Post.deleteMany({ author: user._id })]);
+    await Promise.all([
+      User.deleteOne({ _id: user._id }),
+      Post.deleteMany({ author: user._id }),
+      removeUserFromCommunities(user._id)
+    ]);
     await audit(req, 'delete-user', 'user', user._id, { email: user.email });
   }
   flash(req, 'success', 'User removed.');
