@@ -143,6 +143,7 @@ test('app footer navigation links stay vertically grouped on phones', () => {
   assert.match(responsive, /\.app-footer \.footer-col\s*\{\s*display:\s*grid/);
   assert.match(responsive, /\.app-footer \.footer-col a\s*\{[\s\S]*?display:\s*flex/);
   assert.match(responsive, /@media\s*\(max-width:\s*420px\)\s*\{[\s\S]*?\.app-footer \.footer-top\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(responsive, /@media\s*\(max-width:\s*560px\)\s*\{[\s\S]*?\.footer-legal\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 });
 
 test('mobile headers span the viewport and keep public account actions in the menu', () => {
