@@ -517,6 +517,25 @@ document.querySelectorAll('[data-sidebar-toggle]').forEach((toggle) => {
   });
 });
 
+// Site-wide sidebar rail (every signed-in page except the home page, which has its own copy).
+document.querySelectorAll('[data-rail-toggle]').forEach((toggle) => {
+  const rail = toggle.closest('.app-rail');
+  if (!rail) return;
+  const apply = (open) => {
+    rail.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Close sidebar' : 'Open sidebar');
+  };
+  let stored = false;
+  try { stored = localStorage.getItem('cw-sidebar') === 'open'; } catch (error) { /* storage blocked: stay collapsed */ }
+  apply(stored);
+  toggle.addEventListener('click', () => {
+    const open = !rail.classList.contains('is-open');
+    apply(open);
+    try { localStorage.setItem('cw-sidebar', open ? 'open' : 'closed'); } catch (error) { /* ignore */ }
+  });
+});
+
 document.querySelectorAll('.settings-nav').forEach((sidebar) => {
   const layout = sidebar.closest('.settings-layout');
   if (!layout) return;

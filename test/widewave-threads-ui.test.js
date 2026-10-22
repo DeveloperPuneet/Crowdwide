@@ -80,20 +80,45 @@ test('WideWave has its own logo, different from the Waves coin', () => {
 });
 
 test('home top bar drops the links the sidebar already has, and the sidebar starts collapsed', async () => {
-  const withSide = await render('partials/app-nav.ejs', { active: 'home', sideNav: true });
   const header = (html) => html.slice(0, html.indexOf('</header>'));
+  const withSide = await render('partials/app-nav.ejs', { active: 'home' });
   assert.doesNotMatch(header(withSide), /href="\/explore"/);
   assert.doesNotMatch(header(withSide), /href="\/communities"/);
-  assert.match(withSide, /class="mode-switch"/);
-  assert.match(withSide, /app-nav-more/);
-  const without = await render('partials/app-nav.ejs', { active: 'explore' });
-  assert.match(header(without), /href="\/explore"/);
+  assert.match(header(withSide), /class="mode-switch"/);
+  assert.match(header(withSide), /app-nav-more/);
+  const guest = await render('partials/app-nav.ejs', { active: 'explore', currentUser: undefined });
+  assert.match(header(guest), /href="\/explore"/);
   const dash = fs.readFileSync(path.join(views, 'pages/dashboard.ejs'), 'utf8');
   assert.match(dash, /app-layout dashboard-modern sidebar-collapsed/);
   assert.match(dash, /data-sidebar-toggle aria-expanded="false"/);
-  assert.match(dash, /sideNav: true/);
   const js = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
   assert.match(js, /cw-sidebar/);
+});
+
+test('every other signed-in page gets the same sidebar rail, and "More" exists only on the home page', async () => {
+  const header = (html) => html.slice(0, html.indexOf('</header>'));
+  for (const active of ['explore', 'communities', 'messages', 'settings', 'widewaves', '']) {
+    const html = await render('partials/app-nav.ejs', { active });
+    assert.match(html, /class="app-rail"/, active);
+    assert.match(html, /data-rail-toggle aria-expanded="false"/, active);
+    assert.doesNotMatch(header(html), /app-nav-more/, active);
+    assert.doesNotMatch(header(html), /href="\/explore"/, active);
+    assert.doesNotMatch(html, /<details class="nav-drawer-more"/, active);
+    assert.match(html, /href="\/advertising"/, active);
+    assert.match(html, /href="\/wallet"/, active);
+  }
+  const home = await render('partials/app-nav.ejs', { active: 'home' });
+  assert.doesNotMatch(home, /class="app-rail"/);
+  assert.match(home, /<details class="nav-drawer-more"/);
+  const wide = await render('partials/app-nav.ejs', { active: 'widewaves' });
+  assert.match(wide, /Top threads/);
+  assert.match(wide, /Back to Crowdwide/);
+  assert.match(wide, /href="\/widewaves\/leaderboard"/);
+  assert.match(wide, /class="bottom-nav"[\s\S]*?Boards/);
+  const mod = await render('partials/app-nav.ejs', { active: 'explore', currentUser: { ...user, role: 'admin' } });
+  assert.match(mod, /app-rail[\s\S]*?href="\/admin\/blocked-ips"/);
+  const css = fs.readFileSync(path.join(__dirname, '../public/css/style.css'), 'utf8');
+  assert.match(css, /body:has\(\.app-rail\)/);
 });
 
 test('feed has single Posts and Articles tabs with New | Viral underneath', () => {

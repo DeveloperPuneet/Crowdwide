@@ -26,7 +26,7 @@
 				<% trending.forEach((wave, index) => { %><%- include('../partials/widewave-story', { wave, hot: index < 3 }) %><% }) %>
 				<% recommended.filter((wave) => !trending.some((t) => t.name === wave.name)).forEach((wave) => { %><%- include('../partials/widewave-story', { wave }) %><% }) %>
 			</div>
-			<form class="ww-search" method="get" action="/widewaves" role="search">
+			<form class="ww-search" id="ww-search" method="get" action="/widewaves" role="search">
 				<%- icon('search', { size: 16 }) %>
 				<input type="search" name="q" value="<%= query %>" maxlength="60" placeholder="Search WideWaves: art, poetry, gaming" aria-label="Find a WideWave">
 			</form>

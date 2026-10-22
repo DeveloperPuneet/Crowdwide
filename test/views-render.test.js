@@ -1146,8 +1146,8 @@ test('personal recap renders activity totals and a monthly timeline', async () =
   assert.match(html, /<strong>3<\/strong>/);
 });
 
-test('signed-in navigation puts advertiser tools under More on desktop and mobile', async () => {
-  const html = await render('partials/app-nav.ejs');
+test('signed-in navigation puts advertiser tools under More on desktop and mobile (home page only)', async () => {
+  const html = await render('partials/app-nav.ejs', { active: 'home' });
   assert.match(html, /<details class="app-nav-more[\s\S]*?<a href="\/advertising">[\s\S]*?Advertiser dashboard/);
   assert.match(html, /<details class="nav-drawer-more">[\s\S]*?<a class="nav-drawer-advertising" href="\/advertising">/);
   assert.doesNotMatch(html, /<a class="advertiser-nav-link/);

@@ -3560,3 +3560,42 @@ body[data-theme="light"] .ww-badge, body[data-theme="pink"] .ww-badge { color: h
 .ww-card-stat { white-space: nowrap; }
 .ww-side .ww-card .ww-desc { -webkit-line-clamp: 1; }
 .ww-side .ww-card-pic { width: 36px; height: 36px; }
+
+/* ==========================================================================
+   Site-wide sidebar rail: the same icon rail the home page has, on every
+   other signed-in page. Collapsed by default; "cw-sidebar" remembers it.
+   ========================================================================== */
+body:has(.app-rail) { --rail-w: 64px; padding-left: var(--rail-w); transition: padding-left .2s ease; }
+body:has(.app-rail.is-open) { --rail-w: 236px; }
+body:has(.app-rail) .app-nav { margin-left: calc(-1 * var(--rail-w)); transition: margin-left .2s ease; }
+.app-rail { position: fixed; left: 0; top: var(--header-h); bottom: 0; z-index: 25; width: 64px; border-right: 1px solid var(--bd-1); background: var(--sf-0); transition: width .2s ease, box-shadow .2s; }
+.app-rail.is-open { width: 236px; }
+.app-rail .rail-scroll { height: 100%; overflow-y: auto; overflow-x: hidden; padding: 16px 9px 24px; scrollbar-width: thin; }
+.app-rail .rail-toggle { position: absolute; right: -13px; top: 20px; width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 1px solid var(--bd-2); border-radius: 50%; background: var(--sf-2); color: var(--tx-hi); cursor: pointer; z-index: 2; }
+.app-rail:not(.is-open) .rail-toggle svg { transform: rotate(180deg); }
+.app-rail .sidebar-profile { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 2px 0 14px; padding: 0 3px; }
+.app-rail .sidebar-profile > .avatar-link, .app-rail .sidebar-profile > .avatar { flex: none; }
+.app-rail .sidebar-profile > div { min-width: 0; }
+.app-rail .sidebar-profile strong, .app-rail .sidebar-profile span { display: block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-rail .sidebar-profile strong { font-size: 13px; color: var(--tx-hi); }
+.app-rail .sidebar-profile div span { margin-top: 2px; font-size: 11px; color: var(--tx-faint); }
+.app-rail .side-links { display: grid; gap: 4px; }
+.app-rail .side-links a { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 11px 12px; border-radius: 10px; color: var(--tx-lo); font-size: 13px; text-decoration: none; }
+.app-rail .side-links a > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-rail .side-links a:hover, .app-rail .side-links a.side-active { background: var(--sf-2); color: var(--tx-hi); }
+.app-rail .side-links a.side-active svg { color: var(--ac-blue, currentColor); }
+.app-rail .rail-hr { width: 100%; margin: 8px 0; border: 0; border-top: 1px solid var(--bd-1); }
+.app-rail:not(.is-open) .sidebar-profile { justify-content: center; padding: 0; }
+.app-rail:not(.is-open) .sidebar-profile > div, .app-rail:not(.is-open) .side-links a > span { display: none; }
+.app-rail:not(.is-open) .side-links a { justify-content: center; padding: 11px 0; }
+@media (max-width: 1180px) {
+  body:has(.app-rail.is-open) { --rail-w: 64px; }
+  .app-rail.is-open { box-shadow: 8px 0 30px rgba(0, 0, 0, .35); }
+}
+@media (max-width: 900px) {
+  .app-rail { display: none; }
+  body:has(.app-rail) { --rail-w: 0px; padding-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .app-rail, body:has(.app-rail), body:has(.app-rail) .app-nav { transition: none; } }
+.app-nav .mode-switch-item.is-on { background: linear-gradient(135deg, #4a56d8, #7a54e6); }
+.app-nav .mode-switch-ww.is-on { background: linear-gradient(135deg, #2f6bff, #14b8c9 60%, #2fbf86); }
