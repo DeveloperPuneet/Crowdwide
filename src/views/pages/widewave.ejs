@@ -63,7 +63,7 @@
 					<% if (wave.picture) { %><label class="privacy-check"><input type="checkbox" name="removePicture"> Remove current picture</label><% } %>
 					<label>Description<textarea name="description" rows="3" maxlength="200" required><%= wave.description %></textarea></label>
 					<label>Hashtags<input name="hashtags" maxlength="200" value="<%= (wave.hashtags || []).join(', ') %>" required><small>Comma separated, up to 8.</small></label>
-					<button class="button button-primary button-small" type="submit">Save changes</button>
+					<button class="button button-primary button-small" type="submit" style="margin-bottom: 1rem;">Save changes</button>
 				</form>
 				<form method="post" action="/ww/<%= wave.name %>/delete" data-confirm="Delete ww/<%= wave.name %>? Its posts stay on Crowdwide as normal posts.">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
