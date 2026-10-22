@@ -454,17 +454,17 @@ test('community ad delivery only returns live funded campaigns for eligible publ
   };
   t.mock.method(Community, 'findById', () => ({ lean: async () => community }));
   t.mock.method(Campaign, 'find', (filter) => {
-    assert.equal(filter.status, 'active');
+    assert.deepEqual(filter.status, { $in: ['active', 'approved'] });
     assert.equal(filter.fundingStatus, 'funded');
     // targeted campaigns for this community, or smart-placement ones
-    assert.deepEqual(filter.$or, [{ targetCommunities: community._id }, { smartPlacement: true, targetCommunities: { $size: 0 } }]);
+    assert.deepEqual(filter.$or, [{ targetCommunities: community._id }, { sitewideFallback: true, targetCommunities: { $size: 0 } }, { smartPlacement: true, targetCommunities: { $size: 0 } }]);
     return query;
   });
 
   assert.deepEqual(await getCommunityCampaigns(community._id), [campaign]);
 });
 
-test('sitewide fallback campaigns are available only when no community is monetized', async (t) => {
+test('sitewide fallback campaigns keep serving in the feed even when a community is monetized', async (t) => {
   let hasMonetizedCommunity = false;
   t.mock.method(Community, 'exists', async (filter) => {
     assert.equal(filter.monetizationStatus, 'approved');
@@ -487,8 +487,8 @@ test('sitewide fallback campaigns are available only when no community is moneti
   assert.deepEqual(await getSitewideFeedCampaigns(), [campaign]);
 
   hasMonetizedCommunity = true;
-  assert.deepEqual(await getSitewideFeedCampaigns(), []);
-  assert.equal(find.mock.callCount(), 1, 'do not query fallback campaigns once monetization is active');
+  assert.deepEqual(await getSitewideFeedCampaigns(), [campaign]);
+  assert.equal(find.mock.callCount(), 2);
 });
 
 test('campaign analytics aggregate delivery by community and date', async (t) => {
@@ -714,7 +714,7 @@ test('sitewide campaign events are charged and tracked only during the no-moneti
   assert.equal(update.mock.callCount(), 1);
 });
 
-test('clicks on already-rendered sitewide ads still reach their destination after monetization starts', async (t) => {
+test('sitewide ads keep working after a community becomes monetized', async (t) => {
   const campaign = {
     _id: 'campaign-global', status: 'active', fundingStatus: 'funded', remainingBudget: 20,
     impressionCostWaves: 0.5, clickCostWaves: 2, dailyBudget: 10,
@@ -742,13 +742,6 @@ test('clicks on already-rendered sitewide ads still reach their destination afte
 
   assert.equal(result.destinationUrl, 'https://example.test/store');
   assert.equal(result.wavesCharged, 2);
-  await assert.rejects(() => recordCampaignEvent({
-    campaignId: campaign._id,
-    deliveryContext: 'sitewide',
-    viewerId: 'another-viewer',
-    eventType: 'impression',
-    eventToken: '11111111-2222-4333-8444-666666666666'
-  }), /Crowdwide-feed advertisements are unavailable/i);
 });
 
 test('already-rendered ads still open when remaining Waves cannot cover the click', async (t) => {

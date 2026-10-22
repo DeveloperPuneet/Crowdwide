@@ -190,7 +190,7 @@ test('advertiser dashboard renders application form and campaign metrics', async
   assert.match(html, /campaign-status-approved/);
   assert.match(html, /Campaign review history/);
   assert.match(html, /Performance by community and date/);
-  assert.match(html, /Show this ad in the normal Crowdwide feed while no public community is monetized/);
+  assert.match(html, /Show this ad in the normal Crowdwide feed/);
   assert.match(html, /What are you advertising/);
   assert.match(html, /Campaign budgets and all Crowdwide platform charges use Waves/);
   assert.match(html, /this platform does not process that payment/);

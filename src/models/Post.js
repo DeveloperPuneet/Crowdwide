@@ -68,6 +68,7 @@ const postSchema = new mongoose.Schema({
   },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   commentsCount: { type: Number, default: 0 },
+  replyPostsCount: { type: Number, default: 0 },
   viewsCount: { type: Number, default: 0 },
   sharesCount: { type: Number, default: 0 },
   moderationScore: { type: Number, default: 0, index: true },

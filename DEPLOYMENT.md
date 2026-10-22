@@ -382,3 +382,9 @@ extra configuration.
 **Bot guard** (`src/middleware/botGuard.js`). An IP is blocked for 24 hours (`BOT_BLOCK_HOURS`) when it floods requests, hits scanner paths such as `/.env` or `/wp-login.php` twice, uses a known scanner User-Agent, keeps going after rate-limit replies, floods 404s, or floods unsigned-in form posts. Signed-in users and search crawlers get higher limits. Private/loopback addresses, `/health` and `/media/` are never counted, and `BOT_GUARD_ALLOWLIST` (comma separated) exempts addresses. Blocks are stored in the `blockedips` collection and expire on their own, so a restart does not free a bot. Admins can review and unblock at `/admin/blocked-ips`. Set `BOT_GUARD=off` to disable.
 
 Make sure `TRUST_PROXY_HOPS` matches your host (1 on Render). If it is wrong, every visitor looks like the proxy address; the guard never blocks private proxy addresses, but it cannot tell your visitors apart either.
+
+
+## Ads, view bots and replies-with-a-post (final6)
+- Approved ads now serve right away (`approved` is treated as live). Feed ads keep showing even when a community is monetized, and monetized communities also carry feed/smart ads. Targeted ads still need a monetized community with ads switched on. The advertiser dashboard has a "Where it shows" note per campaign. People with an Ad-Free plan never see ads.
+- Post and profile views count once per viewer per 30 minutes, whatever ?query is added. The bot guard also blocks an address for 24 hours when it opens the same post/profile on a fixed rhythm (`fixed-rhythm`) or with 10+ different ?query links (`url-variants`). See /admin/blocked-ips.
+- Post cards have a "Replies with a post" button (`/posts/:id/replies-with-posts`).

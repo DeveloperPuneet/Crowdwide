@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const guard = require('../src/middleware/botGuard');
 const BlockedIp = require('../src/models/BlockedIp');
 
-const fakeReq = (ip, over = {}) => ({ ip, path: over.path || '/posts', originalUrl: over.path || '/posts', method: over.method || 'GET', session: over.session || {}, get: (h) => ({ 'user-agent': over.ua || 'Mozilla/5.0', accept: over.accept || 'text/html' })[h.toLowerCase()] || '', xhr: false });
+const fakeReq = (ip, over = {}) => ({ ip, path: over.path || '/posts', originalUrl: over.url || over.path || '/posts', method: over.method || 'GET', session: over.session || {}, get: (h) => ({ 'user-agent': over.ua || 'Mozilla/5.0', accept: over.accept || 'text/html' })[h.toLowerCase()] || '', xhr: false });
 const fakeRes = () => { const res = { code: 200, headers: {}, body: null, listeners: {} }; res.set = (k, v) => { res.headers[k] = v; return res; }; res.status = (c) => { res.code = c; res.statusCode = c; return res; }; res.type = () => res; res.send = (b) => { res.body = b; return res; }; res.json = (b) => { res.body = b; return res; }; res.on = (e, fn) => { res.listeners[e] = fn; }; res.statusCode = 200; return res; };
 const run = (mw, req, res = fakeRes()) => { let passed = false; mw(req, res, () => { passed = true; }); return { passed, res }; };
 const setup = (t) => {
@@ -89,4 +89,21 @@ test('an admin can unblock an address', async (t) => {
   assert.equal(guard.isBlocked('203.0.113.90'), null);
   assert.equal(run(guard.gate, fakeReq('203.0.113.90')).passed, true);
   assert.equal(BlockedIp.deleteOne.mock.callCount(), 1);
+});
+
+test('the same post opened with many different ?query links is treated as a view bot', (t) => {
+  setup(t);
+  let last;
+  for (let i = 0; i < guard.LIMITS.variants; i += 1) last = run(guard.track, fakeReq('203.0.113.50', { path: '/posts/abc', url: `/posts/abc?ref=${i}` }));
+  assert.equal(last.passed, false);
+  assert.equal(guard.isBlocked('203.0.113.50').reason, 'url-variants');
+});
+
+test('opening the same page on a fixed rhythm is treated as a view bot, normal browsing is not', (t) => {
+  setup(t);
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  for (let i = 0; i < 12; i += 1) { run(guard.track, fakeReq('203.0.113.51', { path: '/u/42' })); t.mock.timers.tick(5000); }
+  assert.equal(guard.isBlocked('203.0.113.51').reason, 'fixed-rhythm');
+  const gaps = [3000, 41000, 7000, 90000, 2500, 30000, 12000, 66000, 4000, 20000, 9000];
+  for (const gap of gaps) { assert.equal(run(guard.track, fakeReq('203.0.113.52', { path: '/u/42' })).passed, true); t.mock.timers.tick(gap); }
 });

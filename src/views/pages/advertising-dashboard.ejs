@@ -134,7 +134,7 @@
       </fieldset>
       <% } else { %><p class="full-width">There are currently no public monetized communities accepting advertisements.</p><% } %>
       <% if (locals.sitewideFallbackAvailable) { %>
-      <label class="checkbox-field full-width"><input type="checkbox" name="sitewideFallback" checked> Show this ad in the normal Crowdwide feed while no public community is monetized</label>
+      <label class="checkbox-field full-width"><input type="checkbox" name="sitewideFallback" checked> Show this ad in the normal Crowdwide feed (and in monetized communities that accept ads)</label>
       <% } %>
       <label class="consent-check full-width"><input type="checkbox" name="confirmAdvertisingRights" required><span>I own or am authorized to advertise this product, service, content, or event and have permission to use the submitted images and destination.</span></label>
       <label class="consent-check full-width"><input type="checkbox" name="acceptAdvertisingTerms" required><span>I agree to the <a href="/advertising/terms" target="_blank" rel="noopener">Advertising Terms</a>.</span></label>
@@ -168,13 +168,21 @@
       <% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p class="campaign-dashboard-description">Advertiser-listed price: <%= campaign.productPrice %></p><% } %>
       <p class="campaign-dashboard-description"><%= campaign.description || 'No ad details provided.' %></p>
       <% if (campaign.bannerUrl) { %><img class="campaign-dashboard-banner" src="<%= campaign.bannerUrl %>" alt="Campaign banner for <%= campaign.productName || campaign.title %>" loading="lazy"><% } %>
+      <% const delivery = (locals.deliveryByCampaign || {})[String(campaign._id)]; %>
+      <% if (delivery && (delivery.problems.length || delivery.notes.length)) { %>
+      <div class="campaign-delivery">
+        <strong>Where it shows</strong>
+        <% if (delivery.problems.length) { %><ul class="campaign-delivery-problems"><% delivery.problems.forEach((line) => { %><li><%= line %></li><% }) %></ul><% } %>
+        <% if (delivery.notes.length) { %><ul><% delivery.notes.forEach((line) => { %><li><%= line %></li><% }) %></ul><% } %>
+      </div>
+      <% } %>
       <dl class="campaign-dashboard-details">
         <div><dt>Funding</dt><dd><%= campaign.fundingStatus %> · <%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining</dd></div>
         <div><dt>Performance</dt><dd><%= Number(campaign.impressions || 0).toLocaleString() %> impressions · <%= Number(campaign.clicks || 0).toLocaleString() %> clicks · <%= Number(campaign.ctr || 0) %>% CTR</dd></div>
         <div><dt>Spend</dt><dd><%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves</dd></div>
         <div><dt>Rates</dt><dd><%= Number(campaign.impressionCostWaves ?? 0.1) %> Waves/impression · <%= Number(campaign.clickCostWaves ?? 1) %> Waves/click</dd></div>
         <% if (campaign.smartPlacement) { %><div><dt>Placement</dt><dd>Smart placement in relevant public communities<%= (campaign.keywords || []).length ? ' · ' + campaign.keywords.join(', ') : '' %></dd></div><% } %>
-        <% if (campaign.sitewideFallback) { %><div><dt>Placement</dt><dd>Normal Crowdwide feed, only while no public community is monetized</dd></div><% } %>
+        <% if (campaign.sitewideFallback) { %><div><dt>Placement</dt><dd>Normal Crowdwide feed and monetized communities that accept ads</dd></div><% } %>
         <% if (!campaign.sitewideFallback && (campaign.targetCommunities || []).length) { %><div><dt>Placement</dt><dd>Sponsored in <%- include('../partials/campaign-targets', { campaign }) %> only. It is never shown anywhere else.</dd></div><% } %>
         <% if (campaign.destinationUrl) { %><div class="campaign-dashboard-destination"><dt>Destination</dt><dd><a href="<%= campaign.destinationUrl %>" target="_blank" rel="noopener noreferrer nofollow"><%= campaign.destinationUrl %></a></dd></div><% } %>
       </dl>

@@ -24,7 +24,6 @@
 			<a href="/recap"><%- icon('trending-up') %> <span>Your recap</span></a>
 			<a href="/notifications"><%- icon('bell') %> <span>Notifications</span></a>
 			<a href="/settings/account"><%- icon('settings') %> <span>Account settings</span></a>
-			<a href="/communities/mine"><%- icon('users') %> <span>Your communities</span></a>
 			<a href="/people"><%- icon('plus') %> <span>People to follow</span></a>
 			<a href="/surveys" class="side-survey-link"><%- icon('message-square') %> <span>Help in surveys</span><% if ((locals.openSurveys || []).length) { %><b class="side-badge" aria-label="<%= openSurveys.length %> open surveys"><%= openSurveys.length %></b><% } %></a>
 		</nav>

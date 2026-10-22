@@ -10,6 +10,8 @@
 //   scanner-ua  a known scanner / exploit tool in the User-Agent
 //   rate-abuse  keeps hammering after the rate limiter already said "slow down"
 //   404-flood   dozens of missing pages in two minutes (directory guessing)
+//   fixed-rhythm  the same page opened again and again at a steady interval (view-count bots)
+//   url-variants  one page requested with many different ?query strings (the "different link" trick)
 //   post-flood  many form posts without being signed in (sign-up / login spam)
 //
 // Safety rails: private and loopback addresses are never blocked (a wrong
@@ -20,8 +22,12 @@ const logger = require('../services/logger');
 
 const HOUR = 60 * 60 * 1000;
 const WINDOW = { burst: 10 * 1000, sustained: 5 * 60 * 1000, probe: 30 * 60 * 1000, limited: 10 * 60 * 1000, missing: 2 * 60 * 1000, posts: 60 * 1000 };
-const LIMITS = { burst: 100, sustained: 500, probe: 2, limited: 20, missing: 40, posts: 25 };
+const LIMITS = { burst: 100, sustained: 500, probe: 2, limited: 20, missing: 40, posts: 25, variants: 10, rhythm: 8 };
 const MAX_TRACKED = 50000;
+// View-inflation bots: they hit the same post/profile over and over, often with a different
+// ?query each time so every link looks new. People do not reload one page on a metronome.
+const VIEW_PATH = /^\/(?:posts|u|c|communities|widewaves?)\/[^/]+\/?$/i;
+const VIEW = { window: 15 * 60 * 1000, variants: 10, rhythm: 8 };
 
 const PROBE_PATHS = /^\/(?:\.(?:env|git|svn|aws|ssh|ds_store|htaccess|htpasswd)\b|wp-(?:login|admin|content|includes|config)|wordpress\b|xmlrpc\.php|phpmyadmin|pma\b|myadmin|adminer|administrator\b|cgi-bin|vendor\/phpunit|actuator|server-status|config\.(?:php|json|yml|yaml)|backup\.(?:sql|zip|tar)|id_rsa|boaform|solr|jenkins|console\b|manager\/html|shell\b|eval-stdin\.php)/i;
 const SCANNER_UA = /\b(?:sqlmap|nikto|nmap|masscan|zgrab|acunetix|nessus|openvas|dirbuster|gobuster|wpscan|nuclei|havij|w3af|burpcollaborator|jaeles|feroxbuster|fuzz faster)\b/i;
@@ -74,11 +80,35 @@ function stateFor(ip, now) {
   let state = seen.get(ip);
   if (!state) {
     if (seen.size >= MAX_TRACKED) seen.delete(seen.keys().next().value);
-    state = { burst: [], sustained: [], probes: [], limited: [], missing: [], posts: [], last: now };
+    state = { burst: [], sustained: [], probes: [], limited: [], missing: [], posts: [], views: new Map(), last: now };
     seen.set(ip, state);
   }
   state.last = now;
   return state;
+}
+
+
+// Records a page view and reports 'url-variants' / 'fixed-rhythm' when it looks automated.
+function viewSignal(state, req, now) {
+  if (req.method !== 'GET' || !VIEW_PATH.test(req.path) || req.xhr) return '';
+  const key = req.path.toLowerCase().replace(/\/$/, '');
+  if (state.views.size > 200) state.views.delete(state.views.keys().next().value);
+  let entry = state.views.get(key);
+  if (!entry) { entry = { times: [], queries: new Set() }; state.views.set(key, entry); }
+  entry.times.push(now); trim(entry.times, now, VIEW.window);
+  if (!entry.times.length || entry.times.length === 1) entry.queries.clear();
+  const query = String(req.originalUrl || '').split('?')[1] || '';
+  if (query) entry.queries.add(query.slice(0, 200));
+  if (entry.queries.size >= LIMITS.variants) return 'url-variants';
+  const times = entry.times;
+  if (times.length > LIMITS.rhythm + 1) {
+    const gaps = [];
+    for (let i = times.length - LIMITS.rhythm; i < times.length; i += 1) gaps.push(times[i] - times[i - 1]);
+    const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    const dev = Math.sqrt(gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / gaps.length);
+    if (mean >= 1500 && mean <= 5 * 60 * 1000 && dev / mean < 0.08) return 'fixed-rhythm';
+  }
+  return '';
 }
 
 function getBlockModel() {
@@ -159,6 +189,8 @@ function track(req, res, next) {
     state.posts.push(now); trim(state.posts, now, WINDOW.posts);
     if (state.posts.length > LIMITS.posts) reason = 'post-flood';
   }
+
+  if (!reason && !GOOD_CRAWLER.test(agent)) reason = viewSignal(state, req, now);
 
   if (reason) {
     block(ip, reason, req, now);

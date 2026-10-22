@@ -115,6 +115,7 @@ router.post('/posts/:id/share/send', requireAuth, requireVerified, interactionLi
 router.get('/posts', controller.publicPosts);
 router.get('/posts/:id/edit', requireAuth, requireVerified, interactionController.editPostPage);
 router.get('/posts/:id/reply', requireAuth, requireVerified, interactionController.replyPostPage);
+router.get('/posts/:id/replies-with-posts', interactionController.replyPostsPage);
 router.get('/posts/:id', interactionController.postDetail);
 router.post('/posts/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editPost);
 router.post('/posts/:id/promote', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, interactionController.promotePost);

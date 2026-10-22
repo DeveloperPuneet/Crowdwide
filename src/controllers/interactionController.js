@@ -385,6 +385,7 @@ exports.replyPost = async (req, res) => {
     media.push(item);
   }
   const reply = await Post.create({ author: req.session.user.id, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', media, type: 'post', community: source.community, replyTo: source._id, hashtags: extractHashtags(body), status: 'published' });
+  Post.updateOne({ _id: source._id }, { $inc: { replyPostsCount: 1 } }).catch((error) => logger.error('Reply-post count failed', error));
   refreshPersonalization(req.session.user.id);
   await notifyMentionedUsers(body, req.session.user.id, reply._id, reply.community);
   // The original author is told straight away, and the notification opens the reply itself.
@@ -397,6 +398,34 @@ exports.replyPost = async (req, res) => {
   handleReplyReceived({ postId: source._id, postAuthorId: source.author, replierId: req.session.user.id, replierName: req.session.user.name, replyText: body });
   if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, reply: { id: reply._id, body: reply.body } });
   return res.redirect(`/posts/${source._id}`);
+};
+
+// Every post written as a reply to this post (the "replies with a post" list).
+exports.replyPostsPage = async (req, res) => {
+  const viewerId = req.session.user?.id;
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).render('pages/not-found', { title: 'Post not found' });
+  const source = await Post.findOne({ _id: req.params.id, $or: [{ status: 'published' }, { author: viewerId || null }] })
+    .select('body author status community type').populate('author', 'name profilePicture').lean();
+  if (!(await canAccessPost(source, viewerId))) return res.status(404).render('pages/not-found', { title: 'Post not found' });
+  const page = Math.max(1, Math.min(200, Number.parseInt(req.query.page, 10) || 1));
+  const perPage = 20;
+  let blockedIds = [];
+  if (viewerId) blockedIds = (await User.findById(viewerId).select('blockedUsers').lean())?.blockedUsers || [];
+  const filter = { replyTo: source._id, status: 'published', author: { $nin: blockedIds } };
+  const [rows, total] = await Promise.all([
+    Post.find(filter).sort({ createdAt: -1 }).skip((page - 1) * perPage).limit(perPage + 1)
+      .populate('author', 'name profilePicture').populate('community', 'name slug')
+      .populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }).lean(),
+    Post.countDocuments(filter)
+  ]);
+  const hasMore = rows.length > perPage;
+  const posts = rows.slice(0, perPage);
+  if (viewerId) {
+    posts.forEach((post) => { post.liked = (post.likes || []).some((id) => String(id) === String(viewerId)); });
+  }
+  // Self-heal the counter shown on post cards when it has drifted (or never existed on old posts).
+  Post.updateOne({ _id: source._id, replyPostsCount: { $ne: total } }, { $set: { replyPostsCount: total } }).catch(() => {});
+  return res.render('pages/post-replies', { title: 'Replies with a post', source, posts, total, page, hasMore, pagePath: `/posts/${source._id}/replies-with-posts`, noIndex: true });
 };
 
 exports.replyPostPage = async (req, res) => {
@@ -433,11 +462,14 @@ function buildCommentTree(comments) {
   return roots;
 }
 
+const { shouldCount: shouldCountView } = require('../utils/viewDedupe');
+
 exports.postDetail = async (req, res) => {
   const viewerId = req.session.user?.id;
   const existing = await Post.findOne({ _id: req.params.id, $or: [{ status: 'published' }, { author: viewerId || null }] }).select('author status community').lean();
   if (!(await canAccessPost(existing, viewerId))) return res.status(404).render('pages/not-found', { title: 'Post not found' });
-  const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } }, { new: true })
+  const countView = shouldCountView('post', String(req.params.id), req) && String(existing.author) !== String(viewerId || '');
+  const post = await Post.findByIdAndUpdate(req.params.id, countView ? { $inc: { viewsCount: 1 } } : {}, { new: true })
     .populate('author', 'name profilePicture')
     .populate('coAuthors', 'name profilePicture')
     .populate('community', 'name slug')

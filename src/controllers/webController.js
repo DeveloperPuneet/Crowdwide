@@ -622,7 +622,7 @@ exports.profile = async (req, res) => {
 	let tab = ['posts', 'activity', 'likes', 'comments', 'saved', 'stats'].includes(req.query.tab) ? req.query.tab : 'posts';
 	if (!isSelf && (tab === 'saved' || tab === 'stats')) tab = 'posts';
 	if (locked) tab = 'posts';
-	if (!isSelf) {
+	if (!isSelf && require('../utils/viewDedupe').shouldCount('profile', String(profileUser._id), req)) {
 		const updatedProfile = await User.findByIdAndUpdate(profileUser._id, { $inc: { profileViews: 1 } }, { new: true }).select('profileViews').lean();
 		if (updatedProfile) profileUser.profileViews = updatedProfile.profileViews;
 	}

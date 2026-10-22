@@ -796,7 +796,7 @@ html { scrollbar-gutter: stable; }
 .quest-manage-card select { width: 100%; background: var(--sf-2); color: #dfe5ff; border: 1px solid var(--bd-2); border-radius: 8px; padding: 8px 10px; }
 @media (max-width: 480px) { .link-preview-card img { width: 84px; height: 84px; } }
 
-.post-actions { border-top: 1px solid var(--line); padding-top: 12px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; align-items: center; position: relative; z-index: 1; }
+.post-actions { border-top: 1px solid var(--line); padding-top: 12px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; align-items: center; position: relative; z-index: 1; }
 .post-actions > form { display: flex; min-width: 0; }
 .post-actions button, .post-actions span { background: transparent; border: 0; color: var(--tx-faint); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 999px; }
 .post-actions button { min-height: 36px; white-space: nowrap; }
@@ -2926,7 +2926,7 @@ body[data-theme="light"] .button-primary *, body[data-theme="pink"] .button-prim
   background: rgba(126, 141, 255, .08);
 }
 .post-actions {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   padding-top: 13px;
 }
@@ -3599,3 +3599,6 @@ body:has(.app-rail) .app-nav { margin-left: calc(-1 * var(--rail-w)); transition
 @media (prefers-reduced-motion: reduce) { .app-rail, body:has(.app-rail), body:has(.app-rail) .app-nav { transition: none; } }
 .app-nav .mode-switch-item.is-on { background: linear-gradient(135deg, #4a56d8, #7a54e6); }
 .app-nav .mode-switch-ww.is-on { background: linear-gradient(135deg, #2f6bff, #14b8c9 60%, #2fbf86); }
+.campaign-delivery { margin: 10px 0; padding: 10px 14px; border: 1px solid var(--bd-1); border-radius: 12px; background: var(--sf-2); font-size: 13px; color: var(--tx-mid); }
+.campaign-delivery ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.55; }
+.campaign-delivery-problems { color: var(--ac-orange, #f59e4b); }

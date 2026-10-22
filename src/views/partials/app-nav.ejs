@@ -41,7 +41,6 @@
     <% } %>
     <a class="icon-button" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
     <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden>0</b></a>
-    <% if (locals.currentUser) { %><span class="welcome">Hey, <%= currentUser.name.split(' ')[0] %></span><% } %>
     <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false"><%- icon('menu', { size: 20 }) %></button>
   </div>
 </header>

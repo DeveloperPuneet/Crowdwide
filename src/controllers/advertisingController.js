@@ -26,6 +26,8 @@ async function getOwnedAdvertiser(userId) {
   return Advertiser.findOne({ user: userId });
 }
 
+const { describeDelivery } = require('../utils/adDelivery');
+
 exports.dashboard = async (req, res) => {
   const advertiser = await Advertiser.findOne({ user: req.session.user.id })
     .populate('moderationHistory.actor', 'name role');
@@ -35,7 +37,7 @@ exports.dashboard = async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(100)
         .populate('moderationHistory.actor', 'name role')
-        .populate('targetCommunities', 'name slug')
+        .populate('targetCommunities', 'name slug isPrivate isMonetized monetizationStatus monetizationSettings')
         .lean()
       : [],
     Community.find(COMMUNITY_AD_ELIGIBLE_FILTER)
@@ -47,9 +49,10 @@ exports.dashboard = async (req, res) => {
       ? Appeal.findOne({ user: req.session.user.id, advertiser: advertiser._id, actionType: 'advertiser', status: 'pending' }).lean()
       : null,
     SiteSetting.getSingleton(),
-    hasMonetizedPublicCommunity().then((hasMonetizedCommunity) => !hasMonetizedCommunity)
+    Promise.resolve(true)
   ]);
   const campaignAnalytics = await getCampaignAnalytics(campaigns.map((campaign) => campaign._id));
+  const deliveryByCampaign = Object.fromEntries(campaigns.map((campaign) => [String(campaign._id), describeDelivery(campaign, { advertiserStatus: advertiser?.status })]));
   const totals = campaigns.reduce((summary, campaign) => {
     summary.impressions += Number(campaign.impressions || 0);
     summary.clicks += Number(campaign.clicks || 0);
@@ -76,6 +79,7 @@ exports.dashboard = async (req, res) => {
     sitewideFallbackAvailable,
     advertisingMinimumCampaignBudget: Number(siteSettings.advertisingMinimumCampaignBudget ?? 25),
     campaignAnalytics,
+    deliveryByCampaign,
     totals,
     advertisingTermsVersion: ADVERTISING_TERMS_VERSION,
     adRetentionDays: AD_RETENTION_DAYS,
@@ -148,8 +152,8 @@ exports.submitAd = async (req, res) => {
       flash(req, 'error', 'Choose only public communities that currently accept approved ads.');
       return res.redirect('/advertising');
     }
-    if (sitewideFallback && (hasMonetizedCommunity || targetCommunities.length)) {
-      flash(req, 'error', 'Crowdwide-feed campaigns are available only when no public community is monetized.');
+    if (sitewideFallback && targetCommunities.length) {
+      flash(req, 'error', 'The Crowdwide-feed option cannot be combined with chosen communities.');
       return res.redirect('/advertising');
     }
     if (smartPlacement && (targetCommunities.length || sitewideFallback)) {
@@ -360,10 +364,9 @@ exports.reportCampaign = async (req, res) => {
   const reason = String(req.body.reason || '').trim().slice(0, 500);
   const communityId = String(req.body.communityId || '');
   const deliveryContext = String(req.body.deliveryContext || 'community');
-  const campaign = await Campaign.findById(req.params.id).select('title targetCommunities sitewideFallback').lean();
+  const campaign = await Campaign.findById(req.params.id).select('title targetCommunities sitewideFallback smartPlacement').lean();
   if (deliveryContext === 'sitewide') {
-    if (!campaign || !campaign.sitewideFallback || (campaign.targetCommunities || []).length
-      || await hasMonetizedPublicCommunity() || !reason) {
+    if (!campaign || !campaign.sitewideFallback || (campaign.targetCommunities || []).length || !reason) {
       flash(req, 'error', 'That advertisement could not be reported.');
       return res.redirect('/dashboard');
     }
@@ -375,7 +378,8 @@ exports.reportCampaign = async (req, res) => {
     ? await Community.findById(communityId).select('slug').lean()
     : null;
   if (!campaign || !reason || (deliveryContext === 'community'
-    && (!community || !(campaign.targetCommunities || []).some((id) => String(id) === communityId)))) {
+    && (!community || !((campaign.targetCommunities || []).some((id) => String(id) === communityId)
+      || (!(campaign.targetCommunities || []).length && (campaign.smartPlacement || campaign.sitewideFallback)))))) {
     flash(req, 'error', 'That advertisement could not be reported.');
     return res.redirect(community ? `/communities/${community.slug}` : '/dashboard');
   }

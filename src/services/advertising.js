@@ -794,17 +794,25 @@ async function recordCampaignPerformance({ campaignId, impressions = 0, clicks =
 //  - Monetized communities with ads switched on: campaigns that target them, plus smart ones.
 //  - Other public communities: smart-placement campaigns only (no revenue share).
 // Private communities and communities that opted out never show ads.
+// An approved, funded ad serves even if it was never flipped to "active" (older approvals).
+const SERVING_STATUSES = ['active', 'approved'];
+
 async function getCommunityCampaigns(communityId, now = new Date(), { seen = new Map(), limit = 3, rng } = {}) {
   if (!communityId) return [];
   const community = await Community.findById(communityId).lean();
   if (!community || community.isPrivate) return [];
   const monetized = community.isMonetized && community.monetizationStatus === 'approved';
   if (monetized && (!community.monetizationSettings?.adsEnabled || community.monetizationSettings?.adPlacement === 'none')) return [];
+  // Targeted ads need a monetized community. "Open" ads (smart placement, or the Crowdwide-feed option)
+  // have no chosen communities; smart ads fit any public community and feed ads also fill monetized ones.
   const campaigns = await Campaign.find({
-    status: 'active',
+    status: { $in: SERVING_STATUSES },
     fundingStatus: 'funded',
     remainingBudget: { $gt: 0 },
-    $or: [...(monetized ? [{ targetCommunities: communityId }] : []), { smartPlacement: true, targetCommunities: { $size: 0 } }],
+    $or: [
+      ...(monetized ? [{ targetCommunities: communityId }, { sitewideFallback: true, targetCommunities: { $size: 0 } }] : []),
+      { smartPlacement: true, targetCommunities: { $size: 0 } }
+    ],
     $and: [
       { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
       { $or: [{ endDate: null }, { endDate: { $gte: now } }] }
@@ -825,9 +833,8 @@ async function hasMonetizedPublicCommunity() {
 }
 
 async function getSitewideFeedCampaigns(now = new Date()) {
-  if (await hasMonetizedPublicCommunity()) return [];
   const campaigns = await Campaign.find({
-    status: 'active',
+    status: { $in: SERVING_STATUSES },
     fundingStatus: 'funded',
     remainingBudget: { $gt: 0 },
     sitewideFallback: true,
@@ -854,21 +861,24 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
     deliveryContext === 'community' ? Community.findById(communityId).lean() : Promise.resolve(null),
     Campaign.findById(campaignId).populate('advertiser', 'businessName website status user').lean()
   ]);
-  const isSmartCampaign = Boolean(campaign?.smartPlacement) && !(campaign.targetCommunities || []).length;
+  const hasNoTargets = !(campaign?.targetCommunities || []).length;
+  const isSmartCampaign = Boolean(campaign?.smartPlacement) && hasNoTargets;
+  const isFeedCampaign = Boolean(campaign?.sitewideFallback) && hasNoTargets;
   const communityMonetized = Boolean(community?.isMonetized && community.monetizationStatus === 'approved');
+  // Where may this campaign show in this community? Monetized (ads on): chosen, smart or feed ads.
+  // Other public communities: smart ads only.
+  const fitsCommunity = (candidate, communityDoc, communityKey) => {
+    const open = !(candidate?.targetCommunities || []).length;
+    const monetized = Boolean(communityDoc?.isMonetized && communityDoc.monetizationStatus === 'approved');
+    if ((candidate?.targetCommunities || []).some((id) => String(id) === String(communityKey))) return true;
+    if (!open) return false;
+    return monetized ? Boolean(candidate.smartPlacement || candidate.sitewideFallback) : Boolean(candidate.smartPlacement);
+  };
   if (deliveryContext === 'community') {
-    // Monetized communities need ads switched on; other public communities only carry smart-placement ads.
-    const allowed = community && !community.isPrivate && (communityMonetized
-      ? community.monetizationSettings?.adsEnabled && community.monetizationSettings?.adPlacement !== 'none'
-      : isSmartCampaign);
-    if (!allowed) throw unavailableAdvertisement('Advertisements are not enabled for this community.');
+    const adsOn = !communityMonetized || (community.monetizationSettings?.adsEnabled && community.monetizationSettings?.adPlacement !== 'none');
+    if (!community || community.isPrivate || !adsOn) throw unavailableAdvertisement('Advertisements are not enabled for this community.');
   }
-  // A feed card may already be open when community monetization begins; let
-  // its click finish, but never record a new sitewide impression afterward.
-  if (deliveryContext === 'sitewide'
-    && ((eventType === 'impression' && await hasMonetizedPublicCommunity())
-      || !campaign?.sitewideFallback
-      || (campaign.targetCommunities || []).length)) {
+  if (deliveryContext === 'sitewide' && !isFeedCampaign) {
     throw unavailableAdvertisement('Crowdwide-feed advertisements are unavailable.');
   }
   const now = new Date();
@@ -881,15 +891,14 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
   const isEligibleRenderedClick = (candidate) => eventType === 'click'
     && candidate
     && candidate.fundingStatus === 'funded'
-    && (candidate.status === 'active'
+    && (SERVING_STATUSES.includes(candidate.status)
       || (candidate.status === 'completed' && Number(candidate.remainingBudget || 0) <= 0))
     && candidate.advertiser?.status === 'approved'
     && (!candidate.startDate || candidate.startDate <= now)
     && (!candidate.endDate || candidate.endDate >= now)
     && (deliveryContext === 'sitewide'
       ? candidate.sitewideFallback && !(candidate.targetCommunities || []).length
-      : ((candidate.targetCommunities || []).some((id) => String(id) === String(communityId))
-        || (candidate.smartPlacement && !(candidate.targetCommunities || []).length)));
+      : fitsCommunity(candidate, community, communityId));
   const canCompleteRenderedClick = (candidate) => isEligibleRenderedClick(candidate)
     && (candidate.status === 'completed' || Number(candidate.remainingBudget || 0) < spend);
   const resolveDestinationUrl = (candidate) => {
@@ -902,9 +911,9 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
     }
   };
   const completeRenderedClickWithoutCharge = canCompleteRenderedClick(campaign);
-  if (!campaign || campaign.status !== 'active' || campaign.fundingStatus !== 'funded'
+  if (!campaign || !SERVING_STATUSES.includes(campaign.status) || campaign.fundingStatus !== 'funded'
     || (Number(campaign.remainingBudget || 0) <= 0 && !completeRenderedClickWithoutCharge)
-    || (deliveryContext === 'community' && !isSmartCampaign && !(campaign.targetCommunities || []).some((id) => String(id) === String(communityId)))
+    || (deliveryContext === 'community' && !fitsCommunity(campaign, community, communityId))
     || campaign.advertiser?.status !== 'approved'
     || (campaign.startDate && campaign.startDate > now)
     || (campaign.endDate && campaign.endDate < now)) {
@@ -1019,11 +1028,11 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
     updated = await Campaign.findOneAndUpdate(
       {
         _id: campaign._id,
-        status: 'active',
+        status: { $in: SERVING_STATUSES },
         fundingStatus: 'funded',
         remainingBudget: { $gte: spend },
         ...(deliveryContext === 'community'
-          ? { targetCommunities: community._id }
+          ? { $or: [{ targetCommunities: community._id }, { targetCommunities: { $size: 0 }, smartPlacement: true }, ...(communityMonetized ? [{ targetCommunities: { $size: 0 }, sitewideFallback: true }] : [])] }
           : { sitewideFallback: true, targetCommunities: { $size: 0 } }),
         $expr: dailyBudgetAllowsSpend
       },
@@ -1044,7 +1053,7 @@ async function recordCampaignEvent({ campaignId, communityId, deliveryContext = 
               0
             ]
           },
-          status: { $cond: [{ $lte: ['$remainingBudget', 0] }, 'completed', '$status'] },
+          status: { $cond: [{ $lte: ['$remainingBudget', 0] }, 'completed', { $cond: [{ $eq: ['$status', 'approved'] }, 'active', '$status'] }] },
           finishedAt: { $cond: [{ $lte: ['$remainingBudget', 0] }, '$$NOW', { $ifNull: ['$finishedAt', null] }] }
         } }
       ],
