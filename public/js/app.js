@@ -521,19 +521,52 @@ document.querySelectorAll('[data-sidebar-toggle]').forEach((toggle) => {
 document.querySelectorAll('[data-rail-toggle]').forEach((toggle) => {
   const rail = toggle.closest('.app-rail');
   if (!rail) return;
+  const scrim = document.querySelector('[data-rail-scrim]');
+  const narrow = window.matchMedia('(max-width: 1180px)');
   const apply = (open) => {
     rail.classList.toggle('is-open', open);
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Close sidebar' : 'Open sidebar');
+    // On narrower screens the open rail floats over the page, so it gets a backdrop that closes it.
+    if (scrim) scrim.hidden = !(open && narrow.matches);
   };
+  const save = (open) => { try { localStorage.setItem('cw-sidebar', open ? 'open' : 'closed'); } catch (error) { /* ignore */ } };
   let stored = false;
   try { stored = localStorage.getItem('cw-sidebar') === 'open'; } catch (error) { /* storage blocked: stay collapsed */ }
-  apply(stored);
+  // A floating rail never starts open on a narrow screen: it would cover the page on every visit.
+  apply(stored && !narrow.matches);
   toggle.addEventListener('click', () => {
     const open = !rail.classList.contains('is-open');
     apply(open);
-    try { localStorage.setItem('cw-sidebar', open ? 'open' : 'closed'); } catch (error) { /* ignore */ }
+    save(open);
   });
+  scrim?.addEventListener('click', () => { apply(false); save(false); });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && rail.classList.contains('is-open') && narrow.matches) { apply(false); save(false); toggle.focus(); }
+  });
+  const onResize = () => { if (scrim) scrim.hidden = !(rail.classList.contains('is-open') && narrow.matches); };
+  if (narrow.addEventListener) narrow.addEventListener('change', onResize); else if (narrow.addListener) narrow.addListener(onResize);
+
+  // Name tooltips while the rail is collapsed (icons alone are hard to tell apart).
+  const tip = document.createElement('div');
+  tip.className = 'rail-tip';
+  tip.setAttribute('role', 'presentation');
+  document.body.appendChild(tip);
+  const showTip = (target) => {
+    if (rail.classList.contains('is-open')) return;
+    const rect = target.getBoundingClientRect();
+    tip.textContent = target.getAttribute('data-tip') || '';
+    tip.style.left = `${rect.right + 12}px`;
+    tip.style.top = `${rect.top + rect.height / 2 - 14}px`;
+    tip.classList.add('is-on');
+  };
+  const hideTip = () => tip.classList.remove('is-on');
+  rail.addEventListener('mouseover', (event) => { const t = event.target.closest('[data-tip]'); if (t) showTip(t); });
+  rail.addEventListener('mouseout', (event) => { if (event.target.closest('[data-tip]')) hideTip(); });
+  rail.addEventListener('focusin', (event) => { const t = event.target.closest('[data-tip]'); if (t) showTip(t); });
+  rail.addEventListener('focusout', hideTip);
+  rail.querySelector('.rail-scroll')?.addEventListener('scroll', hideTip, { passive: true });
+  toggle.addEventListener('click', hideTip);
 });
 
 document.querySelectorAll('.settings-nav').forEach((sidebar) => {

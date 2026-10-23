@@ -143,3 +143,19 @@ test('WideWaves accept a picture on create and edit and show it', async () => {
   assert.match(form, /enctype="multipart\/form-data"/);
   assert.match(form, /name="picture"/);
 });
+
+test('sidebar rail: grouped, labelled for collapsed mode, closes on Esc/backdrop, and the home sidebar scrolls instead of clipping', async () => {
+  const html = await render('partials/app-nav.ejs', { active: 'explore' });
+  assert.match(html, /data-rail-scrim/);
+  assert.match(html, /class="rail-group"[^>]*>\s*<span>Discover<\/span>/);
+  assert.match(html, /data-tip="Explore" aria-label="Explore"/);
+  // the profile block is one link: no link nested inside another
+  assert.doesNotMatch(html, /<a class="sidebar-profile"[^>]*>\s*<a /);
+  const js = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
+  assert.match(js, /key === 'Escape'[\s\S]{0,120}is-open/);
+  assert.match(js, /data-rail-scrim/);
+  const css = fs.readFileSync(path.join(__dirname, '../public/css/style.css'), 'utf8');
+  assert.match(css, /\.app-sidebar #dashboard-sidebar \{[^}]*overflow-y: auto/);
+  const dash = fs.readFileSync(path.join(views, 'pages/dashboard.ejs'), 'utf8');
+  assert.doesNotMatch(dash, /side-survey-link" style=/);
+});

@@ -351,7 +351,7 @@ code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monosp
 html { scrollbar-gutter: stable; }
 
 .dashboard-page {
-  background: radial-gradient(circle at 80% 0%, #1c2250, transparent 28%), var(--ink);
+  background: var(--ink);
   color: var(--tx-hi); min-height: 100vh; display: flex; flex-direction: column;
 }
 .dashboard-page .brand { color: var(--tx-hi); }
@@ -3570,35 +3570,57 @@ body:has(.app-rail.is-open) { --rail-w: 236px; }
 body:has(.app-rail) .app-nav { margin-left: calc(-1 * var(--rail-w)); transition: margin-left .2s ease; }
 .app-rail { position: fixed; left: 0; top: var(--header-h); bottom: 0; z-index: 25; width: 64px; border-right: 1px solid var(--bd-1); background: var(--sf-0); transition: width .2s ease, box-shadow .2s; }
 .app-rail.is-open { width: 236px; }
-.app-rail .rail-scroll { height: 100%; overflow-y: auto; overflow-x: hidden; padding: 16px 9px 24px; scrollbar-width: thin; }
-.app-rail .rail-toggle { position: absolute; right: -13px; top: 20px; width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 1px solid var(--bd-2); border-radius: 50%; background: var(--sf-2); color: var(--tx-hi); cursor: pointer; z-index: 2; }
+.app-rail .rail-scroll { height: 100%; overflow-y: auto; overflow-x: hidden; padding: 16px 9px 28px; scrollbar-width: thin; overscroll-behavior: contain; -webkit-mask-image: linear-gradient(#000 calc(100% - 24px), transparent); mask-image: linear-gradient(#000 calc(100% - 24px), transparent); }
+.app-rail .rail-toggle { position: absolute; right: -13px; top: 74px; width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 1px solid var(--bd-2); border-radius: 50%; background: var(--sf-2); color: var(--tx-hi); cursor: pointer; z-index: 3; transition: background .15s, transform .15s; }
+.app-rail .rail-toggle:hover { background: var(--sf-3, var(--sf-2)); transform: scale(1.08); }
+.app-rail .rail-toggle svg { transition: transform .2s ease; }
 .app-rail:not(.is-open) .rail-toggle svg { transform: rotate(180deg); }
-.app-rail .sidebar-profile { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 2px 0 14px; padding: 0 3px; }
+.app-rail .sidebar-profile { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0 0 12px; padding: 8px; border: 1px solid var(--bd-1); border-radius: 14px; background: var(--sf-1); color: inherit; text-decoration: none; transition: border-color .15s, background .15s; }
+.app-rail .sidebar-profile:hover { border-color: var(--bd-2); background: var(--sf-2); }
 .app-rail .sidebar-profile > .avatar-link, .app-rail .sidebar-profile > .avatar { flex: none; }
 .app-rail .sidebar-profile > div { min-width: 0; }
 .app-rail .sidebar-profile strong, .app-rail .sidebar-profile span { display: block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-rail .sidebar-profile strong { font-size: 13px; color: var(--tx-hi); }
 .app-rail .sidebar-profile div span { margin-top: 2px; font-size: 11px; color: var(--tx-faint); }
-.app-rail .side-links { display: grid; gap: 4px; }
-.app-rail .side-links a { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 11px 12px; border-radius: 10px; color: var(--tx-lo); font-size: 13px; text-decoration: none; }
+.app-rail .side-links { display: grid; gap: 3px; }
+.app-rail .side-links a { position: relative; display: flex; align-items: center; gap: 13px; min-width: 0; padding: 10px 12px; border-radius: 12px; color: var(--tx-lo); font-size: 13.5px; text-decoration: none; transition: background .15s, color .15s; }
+.app-rail .side-links a > svg, .app-rail .side-links a > .icon { flex: none; }
 .app-rail .side-links a > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-rail .side-links a:hover, .app-rail .side-links a.side-active { background: var(--sf-2); color: var(--tx-hi); }
+.app-rail .side-links a:hover { background: var(--ov-1, var(--sf-2)); color: var(--tx-hi); }
+.app-rail .side-links a.side-active { background: color-mix(in srgb, var(--blue, #4f6bff) 15%, var(--sf-2)); color: var(--tx-hi); font-weight: 600; }
+.app-rail .side-links a.side-active::before { content: ""; position: absolute; left: -9px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--ac-blue, var(--blue, #4f6bff)); }
 .app-rail .side-links a.side-active svg { color: var(--ac-blue, currentColor); }
-.app-rail .rail-hr { width: 100%; margin: 8px 0; border: 0; border-top: 1px solid var(--bd-1); }
-.app-rail:not(.is-open) .sidebar-profile { justify-content: center; padding: 0; }
+.app-rail .side-links a:focus-visible, .app-rail .sidebar-profile:focus-visible, .app-rail .rail-toggle:focus-visible { outline: 2px solid var(--ac-blue, #6c8cff); outline-offset: 2px; }
+.app-rail .rail-group { margin: 12px 0 4px; padding: 0 12px; font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--tx-faint); white-space: nowrap; overflow: hidden; }
+.app-rail .side-links > .rail-group:first-child { margin-top: 6px; }
+.app-rail .rail-hr { width: 100%; margin: 8px 0 4px; border: 0; border-top: 1px solid var(--bd-1); }
+.app-rail:not(.is-open) .rail-group { display: none; }
+.app-rail:not(.is-open) .sidebar-profile { justify-content: center; padding: 6px 0; border-color: transparent; background: transparent; }
 .app-rail:not(.is-open) .sidebar-profile > div, .app-rail:not(.is-open) .side-links a > span { display: none; }
-.app-rail:not(.is-open) .side-links a { justify-content: center; padding: 11px 0; }
+.app-rail:not(.is-open) .side-links a { justify-content: center; width: 44px; margin: 0 auto; padding: 11px 0; }
+.app-rail:not(.is-open) .side-links a.side-active::before { left: -9px; }
+/* Hover/focus labels while the rail is collapsed. They sit outside the scroll box's clip via position: fixed set in JS. */
+.rail-tip { position: fixed; z-index: 60; padding: 6px 10px; border: 1px solid var(--bd-2); border-radius: 8px; background: var(--sf-2); color: var(--tx-hi); font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); opacity: 0; transform: translateX(-4px); transition: opacity .12s, transform .12s; }
+.rail-tip.is-on { opacity: 1; transform: none; }
+.app-rail-scrim { position: fixed; inset: var(--header-h) 0 0 0; z-index: 24; background: rgba(0, 0, 0, .45); backdrop-filter: blur(2px); }
+.app-rail-scrim[hidden] { display: none; }
 @media (max-width: 1180px) {
   body:has(.app-rail.is-open) { --rail-w: 64px; }
   .app-rail.is-open { box-shadow: 8px 0 30px rgba(0, 0, 0, .35); }
 }
+@media (min-width: 1181px) { .app-rail-scrim { display: none !important; } }
 @media (max-width: 900px) {
-  .app-rail { display: none; }
+  .app-rail, .app-rail-scrim { display: none !important; }
   body:has(.app-rail) { --rail-w: 0px; padding-left: 0; }
 }
-@media (prefers-reduced-motion: reduce) { .app-rail, body:has(.app-rail), body:has(.app-rail) .app-nav { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .app-rail, .app-rail .rail-toggle svg, .rail-tip, body:has(.app-rail), body:has(.app-rail) .app-nav { transition: none; } }
 .app-nav .mode-switch-item.is-on { background: linear-gradient(135deg, #4a56d8, #7a54e6); }
 .app-nav .mode-switch-ww.is-on { background: linear-gradient(135deg, #2f6bff, #14b8c9 60%, #2fbf86); }
 .campaign-delivery { margin: 10px 0; padding: 10px 14px; border: 1px solid var(--bd-1); border-radius: 12px; background: var(--sf-2); font-size: 13px; color: var(--tx-mid); }
 .campaign-delivery ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.55; }
 .campaign-delivery-problems { color: var(--ac-orange, #f59e4b); }
+
+/* Home-page sidebar polish: scrolls on short screens instead of clipping, toggle clear of the avatar, consistent link sizing. */
+.app-sidebar #dashboard-sidebar { max-height: 100%; overflow-y: auto; overflow-x: hidden; padding-bottom: 24px; scrollbar-width: thin; overscroll-behavior: contain; }
+.app-sidebar .sidebar-toggle { top: 74px; }
+.app-sidebar .side-links a.side-survey-link { padding: 11px 14px; }

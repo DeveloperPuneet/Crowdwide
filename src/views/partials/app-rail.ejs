@@ -3,17 +3,20 @@
 <%
   const here = locals.active || '';
   const wide = here === 'widewaves';
-  const item = (href, glyph, label, key, extra = '') => `<a class="${here === key ? 'side-active' : ''}" href="${href}" title="${label}"${here === key ? ' aria-current="page"' : ''}${extra}>${icon(glyph, { size: 19 })}<span>${label}</span></a>`;
+  const item = (href, glyph, label, key, extra = '') => `<a class="${here === key ? 'side-active' : ''}" href="${href}" data-tip="${label}" aria-label="${label}"${here === key ? ' aria-current="page"' : ''}${extra}>${icon(glyph, { size: 19 })}<span>${label}</span></a>`;
+  const group = (label) => `<p class="rail-group" aria-hidden="true"><span>${label}</span></p>`;
 %>
+<div class="app-rail-scrim" data-rail-scrim hidden></div>
 <aside class="app-rail" id="app-rail" aria-label="Sidebar navigation">
 	<button class="sidebar-toggle rail-toggle" type="button" data-rail-toggle aria-expanded="false" aria-controls="app-rail-links" aria-label="Open sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
 	<div class="rail-scroll" id="app-rail-links">
-		<div class="sidebar-profile">
-			<%- include('avatar', { person: currentUser, size: 'small' }) %>
+		<a class="sidebar-profile" href="/u/<%= currentUser.id %>" data-tip="<%= currentUser.name %>" aria-label="Your profile: <%= currentUser.name %>">
+			<%- include('avatar', { person: currentUser, size: 'small', link: false }) %>
 			<div><strong><%= currentUser.name %></strong><span>@<%= currentUser.username || String(currentUser.email || '').split('@')[0] || currentUser.id %></span></div>
-		</div>
+		</a>
 		<nav class="side-links" aria-label="<%= wide ? 'WideWave' : 'Crowdwide' %>">
 			<% if (wide) { %>
+			<%- group('WideWave') %>
 			<%- item('/widewaves', 'widewave', 'WideWave feed', 'widewaves') %>
 			<%- item('/widewaves?tab=trending', 'flame', 'Top threads', 'ww-top') %>
 			<%- item('/widewaves?tab=new', 'clock', 'Newest threads', 'ww-new') %>
@@ -23,6 +26,7 @@
 			<hr class="rail-hr">
 			<%- item('/dashboard', 'home', 'Back to Crowdwide', 'home') %>
 			<% } else { %>
+			<%- group('Discover') %>
 			<%- item('/dashboard', 'home', 'Home feed', 'home') %>
 			<%- item('/explore', 'compass', 'Explore', 'explore') %>
 			<%- item('/posts', 'file-text', 'Public posts', 'posts') %>
@@ -34,6 +38,7 @@
 			<%- item('/surveys', 'message-square', 'Help in surveys', 'surveys') %>
 			<% } %>
 			<hr class="rail-hr">
+			<%- group('You') %>
 			<%- item('/notifications', 'bell', 'Notifications', 'notifications') %>
 			<%- item('/u/' + currentUser.id, 'user', 'Your profile', 'profile') %>
 			<%- item('/wallet', 'waves', 'Waves wallet', 'wallet') %>
