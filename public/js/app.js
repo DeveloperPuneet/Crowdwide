@@ -499,21 +499,25 @@ document.querySelectorAll('[data-drawer-open]').forEach((toggle) => {
   });
 });
 
-// The home sidebar starts collapsed (an icon rail). If someone opens it, remember that choice.
+// Sidebar behaviour (home page copy and site-wide rail): both start collapsed and, when opened, float OVER the
+// page behind a dimmed backdrop. The page layout never changes, so the feed is never shifted or squeezed.
+// Clicking the backdrop or pressing Escape closes it, and it always starts closed on the next page load.
 document.querySelectorAll('[data-sidebar-toggle]').forEach((toggle) => {
   const layout = toggle.closest('.app-layout, .settings-layout');
   if (!layout) return;
-  const sync = () => {
-    const collapsed = layout.classList.contains('sidebar-collapsed');
-    toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute('aria-label', collapsed ? 'Open sidebar' : 'Close sidebar');
+  const scrim = document.querySelector('[data-sidebar-scrim]');
+  const apply = (open) => {
+    layout.classList.toggle('sidebar-collapsed', !open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Close sidebar' : 'Open sidebar');
+    // Only the home sidebar floats over the page (it has a backdrop); settings keeps its in-grid collapse.
+    if (scrim) scrim.hidden = !open;
   };
-  try { if (localStorage.getItem('cw-sidebar') === 'open') layout.classList.remove('sidebar-collapsed'); } catch (error) { /* storage blocked: stay collapsed */ }
-  sync();
-  toggle.addEventListener('click', () => {
-    layout.classList.toggle('sidebar-collapsed');
-    sync();
-    try { localStorage.setItem('cw-sidebar', layout.classList.contains('sidebar-collapsed') ? 'closed' : 'open'); } catch (error) { /* ignore */ }
+  apply(!layout.classList.contains('sidebar-collapsed'));
+  toggle.addEventListener('click', () => apply(layout.classList.contains('sidebar-collapsed')));
+  scrim?.addEventListener('click', () => apply(false));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && scrim && !layout.classList.contains('sidebar-collapsed')) { apply(false); toggle.focus(); }
   });
 });
 
@@ -522,30 +526,19 @@ document.querySelectorAll('[data-rail-toggle]').forEach((toggle) => {
   const rail = toggle.closest('.app-rail');
   if (!rail) return;
   const scrim = document.querySelector('[data-rail-scrim]');
-  const narrow = window.matchMedia('(max-width: 1180px)');
   const apply = (open) => {
     rail.classList.toggle('is-open', open);
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Close sidebar' : 'Open sidebar');
-    // On narrower screens the open rail floats over the page, so it gets a backdrop that closes it.
-    if (scrim) scrim.hidden = !(open && narrow.matches);
+    // The open rail always floats over the page, so it always gets a backdrop that closes it.
+    if (scrim) scrim.hidden = !open;
   };
-  const save = (open) => { try { localStorage.setItem('cw-sidebar', open ? 'open' : 'closed'); } catch (error) { /* ignore */ } };
-  let stored = false;
-  try { stored = localStorage.getItem('cw-sidebar') === 'open'; } catch (error) { /* storage blocked: stay collapsed */ }
-  // A floating rail never starts open on a narrow screen: it would cover the page on every visit.
-  apply(stored && !narrow.matches);
-  toggle.addEventListener('click', () => {
-    const open = !rail.classList.contains('is-open');
-    apply(open);
-    save(open);
-  });
-  scrim?.addEventListener('click', () => { apply(false); save(false); });
+  apply(false);
+  toggle.addEventListener('click', () => apply(!rail.classList.contains('is-open')));
+  scrim?.addEventListener('click', () => apply(false));
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && rail.classList.contains('is-open') && narrow.matches) { apply(false); save(false); toggle.focus(); }
+    if (event.key === 'Escape' && rail.classList.contains('is-open')) { apply(false); toggle.focus(); }
   });
-  const onResize = () => { if (scrim) scrim.hidden = !(rail.classList.contains('is-open') && narrow.matches); };
-  if (narrow.addEventListener) narrow.addEventListener('change', onResize); else if (narrow.addListener) narrow.addListener(onResize);
 
   // Name tooltips while the rail is collapsed (icons alone are hard to tell apart).
   const tip = document.createElement('div');
@@ -596,14 +589,8 @@ if (window.axios) {
 }
 
 const asyncInteractionSelector = '.post-actions form, .post-view-actions form, .follow-form, .block-form, .mute-form, [data-async-interaction]';
-const showInteractionMessage = (form, text, error = false) => {
-  form.parentElement.querySelector('.interaction-message')?.remove();
-  const message = document.createElement('span');
-  message.className = `interaction-message${error ? ' interaction-error' : ''}`;
-  message.textContent = text;
-  form.after(message);
-  if (!error) window.setTimeout(() => message.remove(), 2200);
-};
+// Status line under a control ("Vote recorded.", or why a change was undone). Shared with optimistic.js.
+const showInteractionMessage = (form, text, error = false) => window.cwOptimistic.notice(form, text, error);
 
 // Drops a freshly posted comment (server-rendered HTML) into the thread.
 const insertComment = (form, data) => {
@@ -626,71 +613,199 @@ const insertComment = (form, data) => {
   if (data.commentsCount !== undefined) document.querySelectorAll('[data-comment-total]').forEach((el) => { el.textContent = data.commentsCount; });
 };
 
+// ---- Optimistic controls ---------------------------------------------------------------------------------------
+// Each spec describes one kind of control: how to read its state from the page, what the state becomes after a
+// tap, how to paint a state, and how to read the server's reply. cwOptimistic.run (public/js/optimistic.js)
+// does the rest: instant update, in-order background requests, reconcile with the server, undo on failure.
+const countOf = (el) => { const n = parseInt(String(el?.textContent || '').replace(/[^\d]/g, ''), 10); return Number.isFinite(n) ? n : 0; };
+const submitButtonOf = (form) => form.querySelector('button[type="submit"]');
+
+const optimisticSpecs = [
+  { // like a post or a comment
+    match: (form) => Boolean(form.querySelector('.action-like')),
+    scope: (form) => form,
+    read: (form) => { const button = form.querySelector('.action-like'); return { liked: button.classList.contains('is-liked'), likes: countOf(button.querySelector('.count')) }; },
+    next: (state) => ({ liked: !state.liked, likes: Math.max(0, state.likes + (state.liked ? -1 : 1)) }),
+    fromServer: (data, state) => (data.liked === undefined ? null : { liked: Boolean(data.liked), likes: Number.isFinite(Number(data.likes)) ? Number(data.likes) : state.likes }),
+    write: (form, state, info) => {
+      const button = form.querySelector('.action-like');
+      // The heart is an SVG that CSS fills when .is-liked is set.
+      button.classList.toggle('is-liked', state.liked);
+      button.setAttribute('aria-pressed', String(state.liked));
+      const likeCount = button.querySelector('.count');
+      if (likeCount) likeCount.textContent = state.likes;
+      if (info.optimistic && state.liked) { button.classList.remove('just-liked'); void button.offsetWidth; button.classList.add('just-liked'); }
+      if (!form.classList.contains('comment-like-form')) document.querySelectorAll('[data-like-total]').forEach((el) => { el.textContent = state.likes; });
+    }
+  },
+  { // save / unsave a post
+    match: (form) => Boolean(form.querySelector('.action-save')),
+    scope: (form) => form,
+    read: (form) => ({ saved: form.querySelector('.action-save').classList.contains('is-saved') }),
+    next: (state) => ({ saved: !state.saved }),
+    fromServer: (data) => (data.bookmarked === undefined ? null : { saved: Boolean(data.bookmarked) }),
+    write: (form, state) => {
+      const button = form.querySelector('.action-save');
+      button.classList.toggle('is-saved', state.saved);
+      button.setAttribute('aria-pressed', String(state.saved));
+      const label = button.querySelector('.label');
+      if (label) label.textContent = state.saved ? 'Saved' : 'Save';
+    }
+  },
+  { // follow / unfollow / cancel a follow request
+    match: (form) => form.classList.contains('follow-form'),
+    scope: (form) => form,
+    read: (form) => {
+      const button = submitButtonOf(form);
+      const following = button.classList.contains('is-following');
+      const requested = !following && button.textContent.trim() === 'Requested';
+      // Remember what the idle label was ("Follow" or "Follow back") so unfollowing restores it exactly.
+      if (!following && !requested) button.dataset.idleLabel = button.textContent.trim();
+      const counter = document.querySelector(`.follower-count[data-user="${form.dataset.user}"]`);
+      return { following, requested, followers: counter ? countOf(counter) : null };
+    },
+    next: (state, form) => {
+      if (state.following || state.requested) return { following: false, requested: false, followers: state.followers === null ? null : Math.max(0, state.followers - (state.following ? 1 : 0)) };
+      // A private profile turns a follow into a request; the server reply corrects it if we guessed wrong.
+      if (form.dataset.private === 'true') return { following: false, requested: true, followers: state.followers };
+      return { following: true, requested: false, followers: state.followers === null ? null : state.followers + 1 };
+    },
+    fromServer: (data, state) => (data.following === undefined ? null : { following: Boolean(data.following), requested: Boolean(data.requested), followers: data.followersCount ?? state.followers }),
+    write: (form, state) => {
+      const button = submitButtonOf(form);
+      button.classList.toggle('is-following', state.following);
+      button.textContent = state.following ? 'Following' : state.requested ? 'Requested' : (button.dataset.idleLabel || 'Follow');
+      if (state.followers !== null) document.querySelectorAll(`.follower-count[data-user="${form.dataset.user}"]`).forEach((el) => { el.textContent = state.followers; });
+    }
+  },
+  { // block / unblock
+    match: (form) => form.classList.contains('block-form'),
+    scope: (form) => form,
+    read: (form) => ({ blocked: submitButtonOf(form).classList.contains('is-blocked') }),
+    next: (state) => ({ blocked: !state.blocked }),
+    fromServer: (data) => (data.blocked === undefined ? null : { blocked: Boolean(data.blocked) }),
+    write: (form, state) => { const button = submitButtonOf(form); button.classList.toggle('is-blocked', state.blocked); button.textContent = state.blocked ? 'Blocked' : 'Block'; }
+  },
+  { // mute / unmute
+    match: (form) => form.classList.contains('mute-form'),
+    scope: (form) => form,
+    read: (form) => ({ muted: submitButtonOf(form).classList.contains('is-muted') }),
+    next: (state) => ({ muted: !state.muted }),
+    fromServer: (data) => (data.muted === undefined ? null : { muted: Boolean(data.muted) }),
+    write: (form, state) => { const button = submitButtonOf(form); button.classList.toggle('is-muted', state.muted); button.textContent = state.muted ? 'Unmute' : 'Mute'; }
+  },
+  { // the post author's "heart" on a comment
+    match: (form) => form.classList.contains('comment-author-heart-form'),
+    scope: (form) => form,
+    read: (form) => ({ hearted: submitButtonOf(form).classList.contains('is-selected') }),
+    next: (state) => ({ hearted: !state.hearted }),
+    fromServer: (data) => (data.hearted === undefined ? null : { hearted: Boolean(data.hearted) }),
+    write: (form, state) => {
+      const button = submitButtonOf(form);
+      button.classList.toggle('is-selected', state.hearted);
+      button.setAttribute('aria-pressed', String(state.hearted));
+      button.title = state.hearted ? 'Remove your heart' : 'Heart this comment as the post author';
+      form.closest('.thread-comment')?.classList.toggle('is-hearted', state.hearted);
+      const head = form.closest('article.thread-comment')?.querySelector(':scope > .thread-comment-head');
+      let badge = head?.querySelector('.author-heart-badge');
+      if (state.hearted && !badge && head) {
+        badge = document.createElement('span');
+        badge.className = 'author-heart-badge';
+        badge.title = 'Hearted by the post author';
+        badge.innerHTML = button.querySelector('svg')?.outerHTML || '';
+        head.append(badge);
+      } else if (!state.hearted && badge) badge.remove();
+    }
+  },
+  { // Celebrate / Insightful / Support / Funny on a post: one choice at a time, tap again to remove
+    match: (form) => Boolean(form.querySelector('[data-reaction]')) && Boolean(form.closest('.reaction-strip, .reaction-bar')),
+    scope: (form) => form.closest('.reaction-strip, .reaction-bar'),
+    read: (strip) => {
+      const counts = {};
+      let selected = null;
+      strip.querySelectorAll('[data-reaction]').forEach((button) => {
+        counts[button.dataset.reaction] = countOf(button.querySelector('.count'));
+        if (button.classList.contains('is-selected')) selected = button.dataset.reaction;
+      });
+      return { selected, counts };
+    },
+    next: (state, form) => {
+      const type = form.querySelector('[data-reaction]').dataset.reaction;
+      const counts = { ...state.counts };
+      if (state.selected === type) { counts[type] = Math.max(0, (counts[type] || 0) - 1); return { selected: null, counts }; }
+      if (state.selected) counts[state.selected] = Math.max(0, (counts[state.selected] || 0) - 1);
+      counts[type] = (counts[type] || 0) + 1;
+      return { selected: type, counts };
+    },
+    fromServer: (data, state) => (data.reaction === undefined ? null : { selected: data.reaction || null, counts: data.counts || state.counts }),
+    write: (strip, state) => {
+      strip.querySelectorAll('[data-reaction]').forEach((button) => {
+        const on = button.dataset.reaction === state.selected;
+        button.classList.toggle('is-selected', on);
+        button.setAttribute('aria-pressed', String(on));
+        const count = button.querySelector('.count');
+        if (count && state.counts[button.dataset.reaction] !== undefined) count.textContent = state.counts[button.dataset.reaction];
+      });
+    }
+  },
+  { // vote in a poll: one vote, no changing it afterwards
+    match: (form) => Boolean(form.closest('.post-poll')) && form.querySelector('input[name="optionIndex"]'),
+    scope: (form) => form.closest('.post-poll'),
+    read: (poll) => {
+      const buttons = [...poll.querySelectorAll('form button')];
+      return { voted: buttons.some((button) => button.disabled || button.classList.contains('is-selected')), choice: buttons.findIndex((button) => button.classList.contains('is-selected')), counts: buttons.map((button) => countOf(button.querySelector('span'))) };
+    },
+    next: (state, form) => {
+      if (state.voted) return null; // already voted: nothing to change, nothing to send
+      const choice = Number(form.querySelector('input[name="optionIndex"]').value);
+      const counts = state.counts.slice();
+      counts[choice] = (counts[choice] || 0) + 1;
+      return { voted: true, choice, counts };
+    },
+    fromServer: (data, state) => (data.voted === undefined ? null : (data.voted ? state : { voted: true, choice: -1, counts: state.counts.map((n, i) => (i === state.choice ? Math.max(0, n - 1) : n)) })),
+    write: (poll, state) => {
+      [...poll.querySelectorAll('form button')].forEach((button, index) => {
+        button.disabled = state.voted;
+        button.classList.toggle('is-selected', state.voted && index === state.choice);
+        const span = button.querySelector('span');
+        if (span && state.counts[index] !== undefined) span.textContent = state.counts[index];
+      });
+    }
+  }
+];
+
+const csrfHeaders = () => ({ 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content, 'X-Requested-With': 'XMLHttpRequest' });
+
 document.addEventListener('submit', async (event) => {
   const form = event.target.closest('form');
   if (!form || !form.matches(asyncInteractionSelector) || !window.axios) return;
   event.preventDefault();
+
+  const spec = optimisticSpecs.find((candidate) => candidate.match(form));
+  if (spec) {
+    // Build the request body now: it must describe THIS tap even if the form changes before it is sent.
+    const body = new URLSearchParams(new FormData(form));
+    window.cwOptimistic.run(spec.scope(form), {
+      read: spec.read,
+      next: (state) => spec.next(state, form),
+      write: spec.write,
+      fromServer: spec.fromServer,
+      anchor: form,
+      request: async () => (await window.axios.post(form.action, body, { headers: csrfHeaders() })).data
+    });
+    return;
+  }
+
+  // Everything else (posting a comment, a reply post) creates something new, so it waits for the server's
+  // copy of it and shows a disabled button meanwhile.
   if (form.dataset.pending === 'true') return;
   form.dataset.pending = 'true';
-  const button = form.querySelector('button[type="submit"]');
+  const button = submitButtonOf(form);
   if (button) button.disabled = true;
   try {
-    const response = await window.axios.post(form.action, new URLSearchParams(new FormData(form)), { headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content, 'X-Requested-With': 'XMLHttpRequest' } });
+    const response = await window.axios.post(form.action, new URLSearchParams(new FormData(form)), { headers: csrfHeaders() });
     const data = response.data;
     if (data.ok === false) return showInteractionMessage(form, data.error || 'Could not update right now.', true);
-    if (data.liked !== undefined) {
-      // The heart is an SVG that CSS fills when .is-liked is set.
-      button.classList.toggle('is-liked', Boolean(data.liked));
-      button.setAttribute('aria-pressed', String(Boolean(data.liked)));
-      const likeCount = button.querySelector('.count');
-      if (likeCount) likeCount.textContent = data.likes;
-      if (data.liked) { button.classList.remove('just-liked'); void button.offsetWidth; button.classList.add('just-liked'); }
-      if (!form.classList.contains('comment-like-form')) document.querySelectorAll('[data-like-total]').forEach((el) => { el.textContent = data.likes; });
-    }
-    if (data.bookmarked !== undefined) {
-      button.classList.toggle('is-saved', Boolean(data.bookmarked));
-      button.setAttribute('aria-pressed', String(Boolean(data.bookmarked)));
-      const saveLabel = button.querySelector('.label');
-      if (saveLabel) saveLabel.textContent = data.bookmarked ? 'Saved' : 'Save';
-    }
-    if (data.following !== undefined) {
-      button.classList.toggle('is-following', data.following);
-      button.textContent = data.following ? 'Following' : data.requested ? 'Requested' : 'Follow';
-      document.querySelectorAll(`.follower-count[data-user="${form.dataset.user}"]`).forEach((el) => { el.textContent = data.followersCount; });
-    }
-    if (data.blocked !== undefined) {
-      button.classList.toggle('is-blocked', data.blocked);
-      button.textContent = data.blocked ? 'Blocked' : 'Block';
-    }
-    if (data.muted !== undefined) {
-      button.classList.toggle('is-muted', data.muted);
-      button.textContent = data.muted ? 'Unmute' : 'Mute';
-    }
-    if (data.voted !== undefined) {
-      form.closest('.post-poll')?.querySelectorAll('button').forEach((option) => { option.disabled = true; });
-      button.classList.add('is-selected');
-      showInteractionMessage(form, data.voted ? 'Vote recorded.' : 'You already voted.');
-    }
-    if (data.reaction !== undefined) {
-      const reactionBar = form.closest('.reaction-bar');
-      reactionBar?.querySelectorAll('button').forEach((reactionButton) => reactionButton.classList.remove('is-selected'));
-      if (data.reaction) button.classList.add('is-selected');
-      if (data.counts) reactionBar?.querySelectorAll('[data-reaction]').forEach((reactionButton) => {
-        const count = reactionButton.querySelector('.count');
-        if (count) count.textContent = data.counts[reactionButton.dataset.reaction] ?? count.textContent;
-      });
-    }
-    if (data.hearted !== undefined) {
-      button.classList.toggle('is-selected', Boolean(data.hearted));
-      button.setAttribute('aria-pressed', String(Boolean(data.hearted)));
-      button.title = data.hearted ? 'Remove your heart' : 'Heart this comment as the post author';
-      form.closest('.thread-comment')?.classList.toggle('is-hearted', Boolean(data.hearted));
-      let badge = form.closest('.thread-comment-head')?.querySelector('.author-heart-badge');
-      if (data.hearted && !badge) {
-        const head = form.closest('article.thread-comment')?.querySelector(':scope > .thread-comment-head');
-        if (head) { badge = document.createElement('span'); badge.className = 'author-heart-badge'; badge.title = 'Hearted by the post author'; badge.innerHTML = button.querySelector('svg')?.outerHTML || ''; head.append(badge); }
-      } else if (!data.hearted && badge) badge.remove();
-    }
     if (data.html) {
       insertComment(form, data);
       form.reset();
@@ -701,7 +816,7 @@ document.addEventListener('submit', async (event) => {
       showInteractionMessage(form, 'Reply published.');
     }
   } catch (error) {
-    showInteractionMessage(form, 'Could not update right now.', true);
+    showInteractionMessage(form, window.cwOptimistic.describeError(error, 'Could not send that right now. Please try again.'), true);
   } finally {
     form.dataset.pending = 'false';
     if (button) button.disabled = false;

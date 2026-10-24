@@ -308,7 +308,7 @@
 .cw-audio-icon {
   width: 40px; height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--pink), var(--orange));
+  background: linear-gradient(135deg, var(--fill-pink), var(--fill-orange));
   display: flex;
   align-items: center;
   justify-content: center;

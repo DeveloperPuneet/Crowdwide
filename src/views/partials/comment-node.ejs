@@ -21,7 +21,7 @@
 		<% if (currentUser) { %>
 		<form class="comment-like-form" data-async-interaction method="post" action="/comments/<%= node._id %>/like">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
-			<button type="submit" class="action-like" aria-label="Like comment" aria-pressed="false"><%- icon('heart', { size: 15 }) %><span class="count"><%= node.likes?.length || 0 %></span></button>
+			<% const likedByMe = (node.likes || []).some((id) => String(id) === String(currentUser.id)); %><button type="submit" class="action-like<%= likedByMe ? ' is-liked' : '' %>" aria-label="Like comment" aria-pressed="<%= likedByMe ? 'true' : 'false' %>"><%- icon('heart', { size: 15 }) %><span class="count"><%= node.likes?.length || 0 %></span></button>
 		</form>
 		<% } else { %>
 		<a class="comment-guest-like" href="/auth/register" aria-label="Create an account to like this comment"><%- icon('heart', { size: 15 }) %><span><%= node.likes?.length || 0 %></span></a>

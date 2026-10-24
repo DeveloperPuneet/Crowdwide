@@ -8,7 +8,7 @@
 // must always come from the network. Only the offline fallback page is
 // stored for navigations.
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `crowdwide-static-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_URLS = [

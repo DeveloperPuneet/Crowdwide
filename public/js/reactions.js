@@ -28,10 +28,39 @@
     return button;
   }
 
+  // Brings the pills in line with a list of { emoji, count, reacted }. Existing pills are updated in place (so the
+  // one you just tapped keeps keyboard focus), new emoji are added before the "+" picker, and empty ones are removed.
   function syncRow(row, reactions) {
-    row.querySelectorAll('.reaction-pill').forEach((pill) => pill.remove());
     const addEl = row.querySelector('.reaction-add');
-    (reactions || []).forEach((r) => addEl.before(renderPill(r.emoji, r.count, r.reacted)));
+    const wanted = new Map((reactions || []).filter((r) => r.count > 0).map((r) => [r.emoji, r]));
+    row.querySelectorAll('.reaction-pill').forEach((pill) => {
+      const entry = wanted.get(pill.dataset.emoji);
+      if (!entry) { pill.remove(); return; }
+      pill.classList.toggle('is-selected', Boolean(entry.reacted));
+      pill.setAttribute('aria-pressed', String(Boolean(entry.reacted)));
+      const count = pill.querySelector('.count');
+      if (count) count.textContent = entry.count;
+      wanted.delete(pill.dataset.emoji);
+    });
+    wanted.forEach((entry) => addEl.before(renderPill(entry.emoji, entry.count, entry.reacted)));
+  }
+
+  function readRow(row) {
+    return Array.from(row.querySelectorAll('.reaction-pill')).map((pill) => ({
+      emoji: pill.dataset.emoji,
+      count: parseInt(pill.querySelector('.count')?.textContent, 10) || 0,
+      reacted: pill.classList.contains('is-selected')
+    }));
+  }
+
+  // Every emoji toggles on its own (like Slack): tap once to add yours, again to take it back.
+  function toggleEmoji(state, emoji) {
+    const list = state.map((entry) => ({ ...entry }));
+    const found = list.find((entry) => entry.emoji === emoji);
+    if (!found) return [...list, { emoji, count: 1, reacted: true }];
+    found.count = Math.max(0, found.count + (found.reacted ? -1 : 1));
+    found.reacted = !found.reacted;
+    return list.filter((entry) => entry.count > 0);
   }
 
   function closePicker(picker) {
@@ -62,12 +91,17 @@
     if (!url) return;
     const picker = row.querySelector('.reaction-picker');
     if (picker) closePicker(picker);
-    try {
-      const { data } = await window.axios.post(url, new URLSearchParams({ emoji: option.dataset.emoji, _csrf: csrf() }), { headers: headers() });
-      if (data.ok === false) return;
-      syncRow(row, data.reactions);
-    } catch (error) {
-      // Leave the row as-is; a failed reaction just doesn't visibly change.
-    }
+    // Update the pills straight away and sync with the server in the background (see optimistic.js).
+    const emoji = option.dataset.emoji;
+    const body = new URLSearchParams({ emoji, _csrf: csrf() });
+    window.cwOptimistic.run(row, {
+      read: readRow,
+      next: (state) => toggleEmoji(state, emoji),
+      write: syncRow,
+      fromServer: (data) => (Array.isArray(data.reactions) ? data.reactions : null),
+      anchor: row,
+      failMessage: "Couldn't save that reaction. It was removed again.",
+      request: async () => (await window.axios.post(url, body, { headers: headers() })).data
+    });
   });
 })();

@@ -47,7 +47,7 @@
 				<% if (isSelf) { %>
 				<a class="button button-ghost button-small" href="/settings/profile">Edit profile</a>
 				<% } else { %>
-				<form class="follow-form" data-user="<%= profileUser._id %>" method="post" action="/users/<%= profileUser._id %>/follow">
+				<form class="follow-form" data-user="<%= profileUser._id %>"<% if (profileUser.privacy === 'followers') { %> data-private="true"<% } %> method="post" action="/users/<%= profileUser._id %>/follow">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 					<button class="follow-button <%= isFollowing ? 'is-following' : '' %>" type="submit"><%= isFollowing ? 'Following' : isRequested ? 'Requested' : isFollowingBack ? 'Follow back' : 'Follow' %></button>
 				</form>

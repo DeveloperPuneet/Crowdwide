@@ -92,7 +92,9 @@ test('home top bar drops the links the sidebar already has, and the sidebar star
   assert.match(dash, /app-layout dashboard-modern sidebar-collapsed/);
   assert.match(dash, /data-sidebar-toggle aria-expanded="false"/);
   const js = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
-  assert.match(js, /cw-sidebar/);
+  // the sidebar floats over the page and always starts closed: nothing restores an open state
+  assert.doesNotMatch(js, /cw-sidebar/);
+  assert.match(dash, /data-sidebar-scrim/);
 });
 
 test('every other signed-in page gets the same sidebar rail, and "More" exists only on the home page', async () => {
@@ -158,4 +160,38 @@ test('sidebar rail: grouped, labelled for collapsed mode, closes on Esc/backdrop
   assert.match(css, /\.app-sidebar #dashboard-sidebar \{[^}]*overflow-y: auto/);
   const dash = fs.readFileSync(path.join(views, 'pages/dashboard.ejs'), 'utf8');
   assert.doesNotMatch(dash, /side-survey-link" style=/);
+});
+
+test('opening a sidebar overlays the page instead of resizing it, behind a dimmed backdrop', () => {
+  const style = fs.readFileSync(path.join(__dirname, '../public/css/style.css'), 'utf8');
+  const modern = fs.readFileSync(path.join(__dirname, '../public/css/modern-ui.css'), 'utf8');
+  assert.doesNotMatch(style, /body:has\(\.app-rail\.is-open\)\s*\{[^}]*--rail-w/);
+  assert.match(style, /\.app-rail-scrim, \.sidebar-scrim \{[^}]*backdrop-filter: blur/);
+  assert.match(modern, /dashboard-modern:not\(\.sidebar-collapsed\) #dashboard-sidebar \{[^}]*position: absolute/);
+  assert.match(modern, /\.app-layout\.dashboard-modern:not\(\.sidebar-collapsed\) \{ grid-template-columns: 72px/);
+});
+
+test('WideWave feed column fills the space beside the side panel', () => {
+  const style = fs.readFileSync(path.join(__dirname, '../public/css/style.css'), 'utf8');
+  assert.match(style, /\.ww-threads \.ww-shell \{[^}]*grid-template-columns: minmax\(0, 1fr\) 340px/);
+  assert.doesNotMatch(style, /minmax\(0, 640px\) 300px/);
+});
+
+test('likes, saves, follows, reactions and votes update optimistically and undo on failure', () => {
+  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+  const core = read('public/js/optimistic.js');
+  assert.match(core, /control\.epoch \+= 1/);
+  assert.match(core, /Your change was undone/);
+  assert.match(read('src/views/partials/foot.ejs'), /optimistic\.js[\s\S]*app\.js/);
+  const app = read('public/js/app.js');
+  assert.match(app, /window\.cwOptimistic\.run\(spec\.scope\(form\)/);
+  for (const k of ['action-like', 'action-save', 'follow-form', 'block-form', 'mute-form', 'comment-author-heart-form', 'reaction-strip', 'post-poll']) assert.ok(app.includes(k), k);
+  assert.match(read('public/js/reactions.js'), /window\.cwOptimistic\.run\(row/);
+});
+
+test('white-text fills use dark fill tokens and clipped headings use the text gradient', () => {
+  const modern = fs.readFileSync(path.join(__dirname, '../public/css/modern-ui.css'), 'utf8');
+  assert.match(modern, /--mu-grad: linear-gradient\(115deg, var\(--fill-blue\)/);
+  assert.match(modern, /--mu-grad-text:/);
+  assert.doesNotMatch(modern, /background: var\(--mu-grad\); -webkit-background-clip: text/);
 });

@@ -5,6 +5,7 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'home', currentUser, sideNav: true }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<div class="sidebar-scrim" data-sidebar-scrim hidden></div>
 <main class="app-layout dashboard-modern sidebar-collapsed">
 	<aside class="app-sidebar">
 		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="false" aria-controls="dashboard-sidebar" aria-label="Open sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
