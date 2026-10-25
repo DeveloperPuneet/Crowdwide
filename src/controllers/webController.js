@@ -13,7 +13,7 @@ const Comment = require('../models/Comment');
 const PostShare = require('../models/PostShare');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
 const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
-const { getFeedPage, refreshPersonalization, getInterestProfile } = require('../services/feedService');
+const { getFeedPage, refreshPersonalization, getInterestProfile, loadPagePosts } = require('../services/feedService');
 const { getRecommendedCommunities } = require('../services/communityRecommendations');
 const { isFeedTab } = require('../utils/feedRanker');
 const { getPopularSearches, recordSearch } = require('../services/popularSearches');
@@ -401,13 +401,74 @@ exports.activityRecap = async (req, res) => {
 	}
 };
 
+// Attempts currently being processed, per member. Stops a second copy of the same composer attempt from
+// running at the same time as the first (the unique index on the post is the backstop across servers).
+const postsInFlight = new Set();
+
+const POST_STATUS_MESSAGES = {
+	draft: 'Draft saved. It is visible only to you.',
+	pending: 'Posted - this community reviews posts before they appear, so a moderator needs to approve it first.',
+	scheduled: 'Your post is scheduled.'
+};
+
+// What the in-page composer needs after a post exists: its id, what happened to it, and (when it is visible
+// in the feed) the finished card, so the temporary "Posting..." card can be swapped for the real one.
+async function createdPostPayload(post, userId, res, extra = {}) {
+	const payload = { ok: true, id: String(post._id), status: post.status, url: `/posts/${post._id}`, ...extra };
+	if (POST_STATUS_MESSAGES[post.status]) payload.message = POST_STATUS_MESSAGES[post.status];
+	if (post.status === 'scheduled' && post.scheduledAt) payload.scheduledAt = new Date(post.scheduledAt).toISOString();
+	if (post.status === 'published') {
+		try {
+			const user = await User.findById(userId).select('bookmarks').lean();
+			const [card] = await loadPagePosts([{ id: String(post._id) }], user || { _id: userId, bookmarks: [] });
+			if (card) {
+				payload.html = await new Promise((resolve, reject) => res.render('partials/post-cards-fragment', { posts: [card], csrfToken: res.locals.csrfToken }, (error, html) => (error ? reject(error) : resolve(html))));
+			}
+		} catch (error) {
+			logger.warn('Could not render the new post card; the composer will link to the post instead', error);
+		}
+	}
+	return payload;
+}
+
 exports.createPost = async (req, res) => {
 	// Quick composers on WideWave pages send people back to where they were.
 	const backTo = /^\/(widewaves|ww\/[a-z0-9_]{1,40})$/.test(String(req.body?.returnTo || '')) ? req.body.returnTo : '/dashboard';
+	const wantsJson = req.get('X-Requested-With') === 'XMLHttpRequest';
+	// A rejected post never leaves a half-made record behind: plain forms get a flash message on the way back,
+	// the in-page composer gets a JSON error and keeps the person's text so they can fix it and try again.
+	const fail = (message) => {
+		if (wantsJson) return res.status(422).json({ ok: false, error: message });
+		req.session.flash = { type: 'error', message };
+		return res.redirect(backTo);
+	};
+	// A retry of the same composer attempt (double tap, timeout, flaky connection) must not create a second post.
+	const rawRequestId = typeof req.body?.clientRequestId === 'string' ? req.body.clientRequestId.trim() : '';
+	const clientRequestId = /^[A-Za-z0-9_-]{8,64}$/.test(rawRequestId) ? rawRequestId : '';
+	const requestKey = clientRequestId ? `${req.session.user.id}:${clientRequestId}` : '';
+	const replyForExisting = async (existing) => {
+		if (!wantsJson) return res.redirect(backTo);
+		return res.json(await createdPostPayload(existing, req.session.user.id, res, { duplicate: true }));
+	};
+	if (clientRequestId) {
+		const existing = await Post.findOne({ author: req.session.user.id, clientRequestId }).lean();
+		if (existing) return replyForExisting(existing);
+		if (postsInFlight.has(requestKey)) {
+			if (wantsJson) return res.status(409).json({ ok: false, inProgress: true, error: 'Your post is still being sent. Give it a moment, then try again.' });
+			return res.redirect(backTo);
+		}
+		postsInFlight.add(requestKey);
+	}
+	try {
+		return await createPostOnce();
+	} finally {
+		if (requestKey) postsInFlight.delete(requestKey);
+	}
+
+	async function createPostOnce() {
 	const restriction = await checkPostingRestriction(req.session.user.id);
 	if (restriction) {
-		req.session.flash = { type: 'error', message: restriction };
-		return res.redirect(backTo);
+		return fail(restriction);
 	}
 	const body = req.body.body?.trim();
 	const type = ['article', 'poll'].includes(req.body.type) ? req.body.type : 'post';
@@ -415,19 +476,16 @@ exports.createPost = async (req, res) => {
 	const wordLimit = type === 'article' ? wordLimits.article : wordLimits.post;
 	const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
 	if (!body || wordCount > wordLimit) {
-		req.session.flash = { type: 'error', message: `${type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.` };
-		return res.redirect(backTo);
+		return fail(`${type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.`);
 	}
 	if (req.body.saveAsDraft !== 'on' && await isRepeatPost(Post, req.session.user.id, body)) {
-		req.session.flash = { type: 'error', message: "You've already posted this recently. Try adding something new." };
-		return res.redirect(backTo);
+		return fail("You've already posted this recently. Try adding something new.");
 	}
 	const pollQuestion = req.body.pollQuestion?.trim();
 	const pollOptions = (Array.isArray(req.body.pollOptions) ? req.body.pollOptions : [req.body.pollOptions])
 		.map((option) => option?.trim()).filter(Boolean).filter((option, index, options) => options.indexOf(option) === index).slice(0, 4);
 	if (type === 'poll' && (!pollQuestion || pollOptions.length < 2)) {
-		req.session.flash = { type: 'error', message: 'Polls are available on posts and need at least two options.' };
-		return res.redirect(backTo);
+		return fail('Polls are available on posts and need at least two options.');
 	}
 	let status = 'published';
 	let scheduledAt;
@@ -435,30 +493,25 @@ exports.createPost = async (req, res) => {
 	let communityId = req.body.community || '';
 	if (req.body.quest) {
 		if (typeof req.body.quest !== 'string' || !/^[a-f\d]{24}$/i.test(req.body.quest)) {
-			req.session.flash = { type: 'error', message: 'Choose a valid active quest.' };
-			return res.redirect(backTo);
+			return fail('Choose a valid active quest.');
 		}
 		quest = await Quest.findOne({ _id: req.body.quest, status: { $nin: ['ended', 'archived'] } }).select('title community participants');
 		if (!quest || (communityId && String(communityId) !== String(quest.community))) {
-			req.session.flash = { type: 'error', message: 'Choose an active quest from the selected community.' };
-			return res.redirect(backTo);
+			return fail('Choose an active quest from the selected community.');
 		}
 		if (!quest.participants.some((id) => String(id) === String(req.session.user.id))) {
-			req.session.flash = { type: 'error', message: 'Join the quest before posting for it.' };
-			return res.redirect(backTo);
+			return fail('Join the quest before posting for it.');
 		}
 		communityId = String(quest.community);
 	}
 	if (communityId) {
 		const community = await Community.findById(communityId).select('members bannedWords owner moderators requireApproval');
 		if (!community || (String(community.owner) !== String(req.session.user.id) && !community.members.some((id) => String(id) === String(req.session.user.id)))) {
-			req.session.flash = { type: 'error', message: 'Join that community before posting there.' };
-			return res.redirect(backTo);
+			return fail('Join that community before posting there.');
 		}
 		const bodyLower = body.toLowerCase();
 		if ((community.bannedWords || []).some((word) => word && bodyLower.includes(word))) {
-			req.session.flash = { type: 'error', message: 'That post contains a word this community has blocked.' };
-			return res.redirect(backTo);
+			return fail('That post contains a word this community has blocked.');
 		}
 		const isStaff = String(community.owner) === String(req.session.user.id) || community.moderators.some((id) => String(id) === String(req.session.user.id));
 		if (community.requireApproval && !isStaff) status = 'pending';
@@ -467,26 +520,22 @@ exports.createPost = async (req, res) => {
 	let waveTarget = null;
 	if (req.body.widewave) {
 		if (communityId) {
-			req.session.flash = { type: 'error', message: 'A post goes either to a community or to a WideWave. Clear one of them.' };
-			return res.redirect(backTo);
+			return fail('A post goes either to a community or to a WideWave. Clear one of them.');
 		}
 		try {
 			waveTarget = await widewaveService.resolveTargetForPost(req.body.widewave);
 		} catch (error) {
 			if (!(error instanceof widewaveService.WideWaveError)) throw error;
-			req.session.flash = { type: 'error', message: error.message };
-			return res.redirect(backTo);
+			return fail(error.message);
 		}
 	}
 	if (req.body.scheduledAt && req.body.saveAsDraft !== 'on') {
 		scheduledAt = new Date(req.body.scheduledAt);
 		if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
-			req.session.flash = { type: 'error', message: 'Choose a future time to schedule this post.' };
-			return res.redirect(backTo);
+			return fail('Choose a future time to schedule this post.');
 		}
 		if (status === 'pending') {
-			req.session.flash = { type: 'error', message: 'Scheduled posts cannot wait for community approval. Publish it after approval instead.' };
-			return res.redirect(backTo);
+			return fail('Scheduled posts cannot wait for community approval. Publish it after approval instead.');
 		}
 		status = 'scheduled';
 	}
@@ -508,7 +557,18 @@ exports.createPost = async (req, res) => {
 	const coAuthorDocs = validCoAuthors.length ? await User.find({ _id: { $in: validCoAuthors } }).select('_id').lean() : [];
 	const coAuthorList = coAuthorDocs.map((userDoc) => userDoc._id);
 	const isDraft = req.body.saveAsDraft === 'on';
-	const createdPost = await Post.create({ author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, widewave: waveTarget?._id || null, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+	let createdPost;
+	try {
+		createdPost = await Post.create({ clientRequestId: clientRequestId || undefined, author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, widewave: waveTarget?._id || null, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+	} catch (error) {
+		// Two copies of the same attempt reached the database at once (another server, a very fast double tap):
+		// the unique (author, clientRequestId) index let only one through, so hand back that one.
+		if (error?.code === 11000 && clientRequestId) {
+			const existing = await Post.findOne({ author: req.session.user.id, clientRequestId }).lean();
+			if (existing) return replyForExisting(existing);
+		}
+		throw error;
+	}
 	if (!isDraft && status === 'published') {
 		rewardWavesForAction({ userId: req.session.user.id, action: 'post', referenceType: 'post', referenceId: createdPost._id })
 			.catch((error) => logger.error('Could not award Waves for published post', error));
@@ -527,6 +587,7 @@ exports.createPost = async (req, res) => {
 				.catch((error) => logger.error('Link preview update failed', error));
 		}
 	}
+	if (wantsJson) return res.json(await createdPostPayload(createdPost.toObject(), req.session.user.id, res));
 	if (isDraft) {
 		req.session.flash = { type: 'success', message: 'Draft saved. It is visible only to you.' };
 	} else if (status === 'scheduled') {
@@ -534,7 +595,8 @@ exports.createPost = async (req, res) => {
 	} else if (status === 'pending') {
 		req.session.flash = { type: 'success', message: 'Posted - this community reviews posts before they appear, so a moderator needs to approve it first.' };
 	}
-	res.redirect(backTo);
+	return res.redirect(backTo);
+	}
 };
 
 exports.signedUpload = async (req, res) => {

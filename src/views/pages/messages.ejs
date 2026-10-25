@@ -9,7 +9,7 @@
 	</header>
 	<a class="request-inbox-link" href="/messages/requests">
 		<%- icon('user-plus', { size: 16 }) %>
-		<span>Message requests<% if (requestCount) { %> <span class="unread-badge"><%= requestCount %></span><% } %></span>
+		<span>Message requests<% if (requestCount) { %> <span class="unread-badge"><%= requestCount %><span class="visually-hidden"> waiting</span></span><% } %></span>
 	</a>
 	<% if (conversations.length) { %>
 	<div class="conversations-search"><%- icon('search', { size: 15 }) %><input type="search" data-filter-input placeholder="Search conversations" aria-label="Search conversations"></div>
@@ -27,7 +27,7 @@
 				<p><%= conversation.preview %></p>
 				<small><%= new Date(conversation.latest.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %></small>
 			</div>
-			<% if (conversation.unread) { %><span class="unread-badge"><%= conversation.unread %></span><% } %>
+			<% if (conversation.unread) { %><span class="unread-badge"><%= conversation.unread %><span class="visually-hidden"> unread</span></span><% } %>
 		</a>
 		<% }) %>
 		<p class="filter-empty" data-filter-empty hidden>No conversations match that search.</p>

@@ -11,7 +11,7 @@
 		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="false" aria-controls="dashboard-sidebar" aria-label="Open sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
 		<div id="dashboard-sidebar">
 		<div class="sidebar-profile">
-			<%- include('../partials/avatar', { person: locals.profileUser || currentUser }) %>
+			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, standalone: true }) %>
 			<div><strong><%= currentUser.name %></strong><span>@<%= currentUser.username || currentUser.email.split('@')[0] %></span></div>
 		</div>
 		<nav class="side-links">
@@ -26,7 +26,7 @@
 			<a href="/notifications"><%- icon('bell') %> <span>Notifications</span></a>
 			<a href="/settings/account"><%- icon('settings') %> <span>Account settings</span></a>
 			<a href="/people"><%- icon('user-plus') %> <span>People to follow</span></a>
-			<a href="/surveys" class="side-survey-link"><%- icon('message-square') %> <span>Help in surveys</span><% if ((locals.openSurveys || []).length) { %><b class="side-badge" aria-label="<%= openSurveys.length %> open surveys"><%= openSurveys.length %></b><% } %></a>
+			<a href="/surveys" class="side-survey-link"><%- icon('message-square') %> <span>Help in surveys</span><% if ((locals.openSurveys || []).length) { %><b class="side-badge"><%= openSurveys.length %><span class="visually-hidden"> open surveys</span></b><% } %></a>
 		</nav>
 		</div>
 	</aside>

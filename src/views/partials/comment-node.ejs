@@ -13,7 +13,7 @@
 		<%- include('avatar', { person: node.author || {}, size: 'tiny', link: true }) %>
 		<strong><a class="name-link" href="/u/<%= node.author?._id %>"><%= node.author?.name || 'Member' %></a></strong>
 		<time datetime="<%= new Date(node.createdAt).toISOString() %>"><%= new Date(node.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time>
-		<% if (node.heartedByAuthor) { %><span class="author-heart-badge" title="Hearted by the post author"><%- icon('heart', { size: 12 }) %></span><% } %>
+		<% if (node.heartedByAuthor) { %><span class="author-heart-badge" title="Hearted by the post author"><%- icon('heart', { size: 12 }) %><span class="visually-hidden">Hearted by the post author</span></span><% } %>
 	</div>
 	<% if (node.body) { %><p class="thread-comment-text" data-translatable data-original="<%= node.body %>"><%- renderInlineText(node.body) %></p><% } %>
 	<% if (node.gif?.url) { %><img class="comment-gif" src="<%= node.gif.url %>" alt="<%= node.gif.title || 'GIF' %>" loading="lazy"<% if (node.gif.width && node.gif.height) { %> width="<%= node.gif.width %>" height="<%= node.gif.height %>"<% } %>><% } %>
@@ -64,7 +64,7 @@
 		</details>
 		<% } %>
 	</div>
-	<% if (currentUser) { %><%- include('emoji-reaction-bar', { reactions, targetType: 'comment', targetId: node._id }) %><% } else if (reactions.length) { %><div class="comment-reactions" aria-label="Comment reactions"><% reactions.forEach((reaction) => { %><span><%= reaction.emoji %> <%= reaction.count %></span><% }) %></div><% } %>
+	<% if (currentUser) { %><%- include('emoji-reaction-bar', { reactions, targetType: 'comment', targetId: node._id }) %><% } else if (reactions.length) { %><div class="comment-reactions" role="group" aria-label="Comment reactions"><% reactions.forEach((reaction) => { %><span><%= reaction.emoji %> <%= reaction.count %></span><% }) %></div><% } %>
 	<% (node.children || []).forEach((child) => { %>
 		<%- include('comment-node', { node: child, depth: depth + 1, postId, postAuthorId, csrfToken: csrf, canReply }) %>
 	<% }) %>

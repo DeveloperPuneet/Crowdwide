@@ -17,7 +17,7 @@
 		<% if (post.contentWarning) { %><button class="content-warning-toggle" type="button" data-warning-toggle>Show content: <%= post.contentWarning %></button><% } %>
 		<% const coAuthorNames = (post.coAuthors || []).map((person) => person && typeof person === 'object' ? person.name : '').filter(Boolean); %>
 		<header class="post-view-head">
-			<%- include('../partials/avatar', { person: post.author, size: 'medium', link: !!currentUser }) %>
+			<%- include('../partials/avatar', { person: post.author, size: 'medium', link: !!currentUser, standalone: true }) %>
 			<div class="post-view-author">
 				<strong><%= post.author?.name || 'Crowdwide member' %></strong>
 				<% if (coAuthorNames.length) { %><span class="co-author-line">with <%= coAuthorNames.slice(0, 2).join(', ') %><% if (coAuthorNames.length > 2) { %> +<%= coAuthorNames.length - 2 %><% } %></span><% } %>
@@ -50,26 +50,26 @@
 		<% } %>
 		<%- include('../partials/post-media', { post }) %>
 
-		<div class="post-view-counts" aria-label="Post statistics">
+		<div class="post-view-counts">
 			<span><strong data-like-total><%= post.likes?.length || 0 %></strong> likes</span>
 			<span><strong data-comment-total><%= post.commentsCount || 0 %></strong> comments</span>
 			<span><strong><%= post.replyPostsCount || 0 %></strong> replies with a post</span>
 			<span><strong data-share-count-for="<%= post._id %>"><%= post.sharesCount || 0 %></strong> shares</span>
 			<span><strong><%= post.viewsCount || 0 %></strong> views</span>
 		</div>
-		<a class="post-reposts-action" href="/posts/<%= post._id %>/replies-with-posts" aria-label="See <%= post.replyPostsCount || 0 %> replies with a post">
+		<a class="post-reposts-action" href="/posts/<%= post._id %>/replies-with-posts">
 			<%- icon('reply-post', { size: 18 }) %><span>See replies with a post</span><strong><%= post.replyPostsCount || 0 %></strong>
 		</a>
 
 		<% if (currentUser) { %>
-		<div class="post-view-actions" aria-label="Post activity">
-			<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-label="Like" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 24 }) %><span class="label">Like</span></button></form>
-			<a class="action-link" href="#comment-body" data-focus-comment aria-label="Comment"><%- icon('message-circle', { size: 24 }) %><span class="label">Comment</span></a>
-			<button type="button" class="action-link action-translate" data-translate-trigger aria-label="Translate"><%- icon('globe', { size: 24 }) %><span class="label">Translate</span></button>
-			<button type="button" class="action-share" data-share-open data-post-id="<%= post._id %>" data-post-url="/posts/<%= post._id %>" aria-label="Share"><%- icon('send', { size: 24 }) %><span class="label">Share</span></button>
-			<form class="post-view-save" method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>" aria-label="Save" aria-pressed="<%= post.bookmarked ? 'true' : 'false' %>"><%- icon('bookmark', { size: 24 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
+		<div class="post-view-actions" role="group" aria-label="Post activity">
+			<form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 24 }) %><span class="label">Like</span></button></form>
+			<a class="action-link" href="#comment-body" data-focus-comment><%- icon('message-circle', { size: 24 }) %><span class="label">Comment</span></a>
+			<button type="button" class="action-link action-translate" data-translate-trigger><%- icon('globe', { size: 24 }) %><span class="label">Translate</span></button>
+			<button type="button" class="action-share" data-share-open data-post-id="<%= post._id %>" data-post-url="/posts/<%= post._id %>"><%- icon('send', { size: 24 }) %><span class="label">Share</span></button>
+			<form class="post-view-save" method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>" aria-pressed="<%= post.bookmarked ? 'true' : 'false' %>"><%- icon('bookmark', { size: 24 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
 		</div>
-		<div class="reaction-strip" aria-label="React to this post">
+		<div class="reaction-strip" role="group" aria-label="React to this post">
 			<% [['celebrate', 'award', 'Celebrate'], ['insightful', 'lightbulb', 'Insightful'], ['support', 'thumbs-up', 'Support'], ['funny', 'smile', 'Funny']].forEach(([reaction, glyph, label]) => { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/reaction"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="reaction" value="<%= reaction %>"><button type="submit" title="<%= label %>" aria-label="<%= label %>" data-reaction="<%= reaction %>"><%- icon(glyph, { size: 16 }) %><span class="label"><%= label %></span><span class="count"><%= post.reactions?.[reaction]?.length || 0 %></span></button></form><% }) %>
 		</div>
 

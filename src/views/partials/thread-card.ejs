@@ -38,12 +38,12 @@
 		</a>
 		<% } %>
 		<%- include('post-media', { post }) %>
-		<div class="post-actions th-actions" aria-label="Post activity">
-			<% if (locals.currentUser) { %><form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-label="Like" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 19 }) %><span class="count"><%= post.likes?.length || 0 %></span></button></form><% } else { %><a class="post-stat guest-like-link" href="/auth/register" aria-label="Create an account to like this post"><%- icon('heart', { size: 19 }) %><span><%= post.likes?.length || 0 %></span></a><% } %>
-			<a class="post-stat" href="/posts/<%= post._id %>#replies" aria-label="Replies"><%- icon('message-circle', { size: 19 }) %><span><%= replies %></span></a>
-			<a class="post-stat post-stat-replyposts" href="/posts/<%= post._id %>/replies-with-posts" aria-label="Replies with a post" title="Replies with a post"><%- icon('reply-post', { size: 19 }) %><span><%= post.replyPostsCount || 0 %></span></a>
-			<% if (locals.currentUser) { %><button type="button" class="action-share" data-share-open data-post-id="<%= post._id %>" data-post-url="/posts/<%= post._id %>" aria-label="Share"><%- icon('send', { size: 19 }) %><span data-share-count-for="<%= post._id %>"><%= post.sharesCount || 0 %></span></button><% } else { %><a class="post-stat" href="/auth/register" aria-label="Create an account to share this post"><%- icon('send', { size: 19 }) %><span><%= post.sharesCount || 0 %></span></a><% } %>
-			<span class="post-stat post-views" aria-label="Views"><%- icon('eye', { size: 16 }) %><span><%= post.viewsCount || 0 %></span></span>
+		<div class="post-actions th-actions" role="group" aria-label="Post activity">
+			<% if (locals.currentUser) { %><form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 19 }) %><span class="visually-hidden">Like </span><span class="count"><%= post.likes?.length || 0 %></span></button></form><% } else { %><a class="post-stat guest-like-link" href="/auth/register" aria-label="Create an account to like this post (<%= post.likes?.length || 0 %> likes)"><%- icon('heart', { size: 19 }) %><span><%= post.likes?.length || 0 %></span></a><% } %>
+			<a class="post-stat" href="/posts/<%= post._id %>#replies"><%- icon('message-circle', { size: 19 }) %><span class="visually-hidden">Replies </span><span><%= replies %></span></a>
+			<a class="post-stat post-stat-replyposts" href="/posts/<%= post._id %>/replies-with-posts" title="Replies with a post"><%- icon('reply-post', { size: 19 }) %><span class="visually-hidden">Replies with a post </span><span><%= post.replyPostsCount || 0 %></span></a>
+			<% if (locals.currentUser) { %><button type="button" class="action-share" data-share-open data-post-id="<%= post._id %>" data-post-url="/posts/<%= post._id %>"><%- icon('send', { size: 19 }) %><span class="visually-hidden">Share </span><span data-share-count-for="<%= post._id %>"><%= post.sharesCount || 0 %></span></button><% } else { %><a class="post-stat" href="/auth/register" aria-label="Create an account to share this post (<%= post.sharesCount || 0 %> shares)"><%- icon('send', { size: 19 }) %><span><%= post.sharesCount || 0 %></span></a><% } %>
+			<span class="post-stat post-views"><%- icon('eye', { size: 16 }) %><span class="visually-hidden">Views </span><span><%= post.viewsCount || 0 %></span></span>
 		</div>
 	</div>
 </article>

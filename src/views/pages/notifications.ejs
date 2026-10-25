@@ -14,7 +14,7 @@
 		%>
 		<a class="notification-item <%= notification.readAt ? '' : 'notification-unread' %>" href="<%= target || '#' %>" style="<%= target ? '' : 'pointer-events:none;' %>text-decoration:none;color:inherit;">
 			<%- include('../partials/avatar', { person: notification.actor || {}, size: 'tiny', link: false }) %>
-			<span class="notification-dot" aria-hidden="true"></span><div><strong><%= notification.actor?.name || 'Crowdwide' %><% if (notification.count > 1) { %> + <%= notification.count - 1 %> more<% } %></strong><span><%= notification.message %></span><small><%= new Date(notification.createdAt).toLocaleString() %></small></div>
+			<span class="notification-dot" aria-hidden="true"></span><div><% if (!notification.readAt) { %><span class="visually-hidden">Unread. </span><% } %><strong><%= notification.actor?.name || 'Crowdwide' %><% if (notification.count > 1) { %> + <%= notification.count - 1 %> more<% } %></strong><span><%= notification.message %></span><small><%= new Date(notification.createdAt).toLocaleString() %></small></div>
 		</a>
 		<% }) %>
 	</section>

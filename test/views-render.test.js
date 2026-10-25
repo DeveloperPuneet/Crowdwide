@@ -500,7 +500,7 @@ test('post detail links directly to the replies-with-a-post list and shows its c
     post: { ...post(1), replyPostsCount: 3, liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null },
     commentTree: []
   });
-  assert.match(html, /class="post-reposts-action" href="\/posts\/p1\/replies-with-posts" aria-label="See 3 replies with a post"/);
+  assert.match(html, /class="post-reposts-action" href="\/posts\/p1\/replies-with-posts">[\s\S]*See replies with a post[\s\S]*<strong>3<\/strong>/);
   assert.match(html, /See replies with a post/);
   assert.match(html, />3<\/strong> replies with a post/);
 });
@@ -624,7 +624,7 @@ test('dashboard still renders with the share button and share sheet in the foote
   assert.match(html, /<details class="app-nav-more[\s\S]*?<a href="\/advertising">[\s\S]*?Advertiser dashboard/);
   assert.doesNotMatch(html, /class="advertising-side-link"/);
   assert.match(html, /data-sponsored-post/);
-  assert.match(html, /class="sponsored-post-notice" aria-label="Sponsored post"><strong>Sponsored<\/strong><span>Promoted with Waves<\/span>/);
+  assert.match(html, /class="sponsored-post-notice"><strong>Sponsored<\/strong><span>Promoted with Waves<\/span>/);
   assert.match(html, /class="post-card[^"]*is-sponsored-post/);
   assert.match(html, /feed-sentinel/);
   assert.doesNotMatch(html, /Ranked for you:/);
@@ -871,7 +871,9 @@ test('post edit and reply render as separate full-page composition flows', async
     title: 'Edit post', pagePath: '/posts/p1/edit', editorMode: 'edit', post: sourcePost, sourcePost, wordLimit: 60
   });
   assert.match(edit, /action="\/posts\/p1\/edit"/);
-  assert.match(edit, /<form class="post-compose-form" method="post" action="\/posts\/p1\/edit"/);
+  assert.match(edit, /<form class="post-compose-form" method="post" data-edit-post data-post-url="\/posts\/p1" action="\/posts\/p1\/edit"/);
+  // The revision the page was rendered from travels with the save, so a stale save can be refused.
+  assert.match(edit, /<input type="hidden" name="revision" value="0">/);
   assert.match(edit, /<textarea[^>]*>Original post text<\/textarea>/);
   assert.match(edit, /data-word-limit="60"/);
   assert.match(edit, /data-word-count-remaining/);

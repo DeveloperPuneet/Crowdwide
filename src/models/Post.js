@@ -82,7 +82,13 @@ const postSchema = new mongoose.Schema({
   // feed - lets a moderator's queue skip what they've personally already
   // reviewed, and lets everyone's queue skip a post once enough distinct
   // moderators have weighed in (see SiteSetting.postReviewThreshold).
-  moderatorReviews: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+  moderatorReviews: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // Bumped by every successful edit. An edit that was written against an older revision is refused instead
+  // of overwriting newer text, so a slow request that arrives last can never undo a newer save.
+  revision: { type: Number, default: 0, min: 0 },
+  // Sent by the composer so a retry (after a timeout, a double tap, a flaky connection) returns the post
+  // that was already created instead of creating a second one.
+  clientRequestId: { type: String, trim: true, maxlength: 64 }
 }, { timestamps: true });
 
 postSchema.index({ status: 1, createdAt: -1 });
@@ -93,6 +99,8 @@ postSchema.index({ author: 1, status: 1, createdAt: -1 });
 // Feed ranking: interest lookups by hashtag and "posts this person liked".
 postSchema.index({ hashtags: 1, status: 1, createdAt: -1 });
 postSchema.index({ likes: 1, createdAt: -1 });
+// One post per (author, composer attempt). Posts without a request id are not part of the index.
+postSchema.index({ author: 1, clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } });
 
 postSchema.post('save', (post) => queuePostIndex(post));
 postSchema.post('findOneAndDelete', (post) => {

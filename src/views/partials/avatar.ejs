@@ -3,4 +3,8 @@
   const sizeClass = locals.size ? ' ' + locals.size : '';
   const initial = (person.name || '?').trim().charAt(0).toUpperCase() || '?';
   const targetId = locals.link === false ? null : (person._id || person.id || null);
-%><% if (targetId) { %><a class="avatar-link" href="/u/<%= targetId %>" aria-label="<%= person.name || 'View profile' %>"><% } %><span class="avatar<%= sizeClass %><%= person.profilePicture ? ' has-image' : '' %>"><span class="avatar-initial" aria-hidden="true"><%= initial %></span><% if (person.profilePicture) { %><img class="avatar-image" src="<%= person.profilePicture %>" alt="" aria-hidden="true"><% } %></span><% if (targetId) { %></a><% } %>
+  // A linked avatar normally sits right beside the person's name, which is already a link to the same profile.
+  // Announcing and tabbing through both is noise, so by default the avatar link is mouse/touch only (out of the
+  // tab order, hidden from screen readers). Pass standalone: true when the avatar is the ONLY link to the profile.
+  const standalone = locals.standalone === true;
+%><% if (targetId) { %><a class="avatar-link" href="/u/<%= targetId %>"<% if (standalone) { %> aria-label="<%= person.name || 'View profile' %>"<% } else { %> tabindex="-1" aria-hidden="true"<% } %>><% } %><span class="avatar<%= sizeClass %><%= person.profilePicture ? ' has-image' : '' %>"><span class="avatar-initial" aria-hidden="true"><%= initial %></span><% if (person.profilePicture) { %><img class="avatar-image" src="<%= person.profilePicture %>" alt="" aria-hidden="true"><% } %></span><% if (targetId) { %></a><% } %>

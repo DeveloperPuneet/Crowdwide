@@ -487,4 +487,4 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   };
 }
 
-module.exports = { getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, addActiveSponsoredPosts, interleaveEntriesWithAds, POOL_LIMIT, NOTES };
+module.exports = { loadPagePosts, getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, addActiveSponsoredPosts, interleaveEntriesWithAds, POOL_LIMIT, NOTES };

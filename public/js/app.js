@@ -831,6 +831,8 @@ if (window.axios && notificationBadge) {
       notificationBadge.textContent = '';
       notificationBadge.classList.toggle('notification-dot-visible', Boolean(data.unread));
       notificationBadge.hidden = !data.unread;
+      // The dot is only visual, so say it in words on the link itself (only the label changes: no announcement on every poll).
+      notificationBadge.closest('a')?.setAttribute('aria-label', data.unread ? 'Notifications, you have new activity' : 'Notifications');
     } catch (error) {
       notificationBadge.hidden = true;
     }

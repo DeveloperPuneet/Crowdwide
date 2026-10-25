@@ -39,7 +39,7 @@
 			<div class="profile-identity">
 				<div class="profile-avatar-slot<%= profileUser.bannerImage ? ' has-banner' : '' %>"><%- include('../partials/avatar', { person: profileUser, size: 'large', link: false }) %></div>
 				<div>
-					<h1><%= profileUser.name %><% if (profileUser.isVerified) { %><span class="verified-tick" title="Verified" aria-label="Verified"><%- icon('check', { size: 11 }) %></span><% } %></h1>
+					<h1><%= profileUser.name %><% if (profileUser.isVerified) { %><span class="verified-tick" title="Verified account"><%- icon('check', { size: 11 }) %><span class="visually-hidden">Verified account</span></span><% } %></h1>
 					<p class="profile-handle">@<%= profileUser.username || profileUser.email.split('@')[0] %></p>
 				</div>
 			</div>
@@ -61,7 +61,7 @@
 			</div>
 		</div>
 		<% if (!locked && locals.streakInfo && (streakInfo.current > 0 || (locals.badgeList || []).some((badge) => badge.earned))) { %>
-		<div class="profile-badges" aria-label="Streak and badges">
+		<div class="profile-badges" role="group" aria-label="Streak and badges">
 			<% if (streakInfo.current > 0) { %><span class="streak-chip" title="Consecutive days with a post or comment"><%- icon('flame', { size: 14 }) %> <%= streakInfo.current %>-day streak</span><% } %>
 			<% (locals.badgeList || []).filter((badge) => badge.earned).forEach((badge) => { %><span class="badge-chip" title="<%= badge.description %>"><%- icon(badge.icon, { size: 13 }) %> <%= badge.name %></span><% }) %>
 		</div>

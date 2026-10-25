@@ -99,6 +99,8 @@
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !picker.hidden) close(); });
   search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => load(search.value.trim()), 220); });
   communitySelect?.addEventListener('change', () => { if (communitySelect.value) setChoice(''); });
+  // The in-page composer clears the topic choice after a post goes out.
+  input.addEventListener('ww:reset', () => setChoice(''));
 
   const preset = input.dataset.preset || '';
   if (preset) {

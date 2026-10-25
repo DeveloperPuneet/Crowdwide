@@ -17,7 +17,12 @@ test('the feed card shows content plus likes/comments/shares/views only; reply, 
   for (const forbidden of ['/reply', '/quote', '/report', '/edit', '/bookmark', '/comments"', 'reaction-bar']) {
     assert.ok(!card.includes(forbidden), `post-card.ejs should not contain ${forbidden}`);
   }
-  for (const label of ['Like', 'Comments', 'Share', 'Views']) assert.ok(card.includes(`aria-label="${label}"`));
+  // Names come from visible-to-screen-reader text next to the count, not from an aria-label: an aria-label on a
+  // button replaces its contents, which silently hid the like/comment/share/view numbers from screen readers.
+  for (const label of ['Like', 'Comments', 'Share', 'Views']) {
+    assert.ok(card.includes(`<span class="visually-hidden">${label} </span>`), `${label} needs a screen-reader name`);
+    assert.ok(!card.includes(`aria-label="${label}"`), `${label} must not use an aria-label that hides its count`);
+  }
   const detail = read('src', 'views', 'pages', 'post-detail.ejs');
   for (const needed of ['/reply', '/report', '/edit', '/bookmark']) assert.ok(detail.includes(needed), `post-detail.ejs should contain ${needed}`);
   assert.match(detail, /class="post-tool-link" href="\/posts\/<%= post\._id %>\/edit"/);
@@ -74,7 +79,7 @@ test('avatar initials are geometrically centered and verified profiles use a mod
   const profile = read('src', 'views', 'pages', 'profile.ejs');
   assert.match(css, /\.avatar-initial\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s);
   assert.match(css, /\.verified-tick\s*\{[^}]*display:\s*inline-grid;[^}]*border-radius:\s*50%/s);
-  assert.match(profile, /class="verified-tick"[^>]*aria-label="Verified"[^>]*><%- icon\('check'/);
+  assert.match(profile, /class="verified-tick"[^>]*><%- icon\('check'[^%]*%><span class="visually-hidden">Verified account<\/span>/);
 });
 
 test('settings, post composer, and comment controls share refreshed responsive surfaces', () => {

@@ -15,11 +15,11 @@
 		<div class="recap-stat"><span>Communities now</span><strong><%= recap.totals.communities.toLocaleString() %></strong></div>
 	</section>
 	<section class="recap-panel">
-		<div class="recap-section-heading"><div><p class="eyebrow">Your activity</p><h2>Month by month</h2></div><div class="recap-legend" aria-label="Chart legend"><span><i class="recap-key-posts"></i>Posts</span><span><i class="recap-key-comments"></i>Comments</span><span><i class="recap-key-shares"></i>Shares</span></div></div>
+		<div class="recap-section-heading"><div><p class="eyebrow">Your activity</p><h2>Month by month</h2></div><div class="recap-legend"><span><i class="recap-key-posts"></i>Posts</span><span><i class="recap-key-comments"></i>Comments</span><span><i class="recap-key-shares"></i>Shares</span></div></div>
 		<% if (recap.totals.posts || recap.totals.comments || recap.totals.shares) { %>
 		<div class="recap-chart" role="img" aria-label="Monthly totals for posts, comments, and in-app shares">
 			<% recap.months.forEach((month) => { %>
-			<div class="recap-month" aria-label="<%= month.fullLabel %>: <%= month.posts %> posts, <%= month.comments %> comments, <%= month.shares %> in-app shares">
+			<div class="recap-month">
 				<div class="recap-bar-track"><div class="recap-bar">
 					<span class="recap-bar-posts" style="height:<%= month.postsHeight %>%"></span>
 					<span class="recap-bar-comments" style="height:<%= month.commentsHeight %>%"></span>

@@ -1,0 +1,52 @@
+/* Spacing scale
+   ------------------------------------------------------------------
+   Every gap, margin and padding in shared components comes from these four steps, so new screens line up
+   with old ones without anyone tuning pixel values:
+
+     --space-1   4px   tight: icon next to its label, chips, stacked captions
+     --space-2   8px   related items: label + field, avatar + name, buttons in a row
+     --space-3  16px   a block's own padding, the gap between separate blocks
+     --space-4  24px   between sections, generous card padding on wide screens
+
+   Fix a spacing problem by choosing a step (or fixing the component that owns it), not by adding a one-off
+   value to a page. This file loads last, so the components below follow the scale on every page that uses
+   them (feed, profile, community, search, public pages, saved posts). */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+}
+
+/* ---- Post card: one rhythm for the card and everything inside it ---- */
+.post-card { padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+.post-card .post-meta { gap: var(--space-2); }
+.post-card .post-meta span { margin-top: var(--space-1); }
+.post-card .post-body { margin: var(--space-3) 0 var(--space-2); }
+.post-card .quest-post-label { margin-top: var(--space-2); }
+.post-card .sponsored-post-notice { margin-bottom: var(--space-2); }
+.post-card .action-translate-inline { margin: 0 0 var(--space-2); }
+.post-card .hashtag-row { gap: var(--space-2); margin-top: var(--space-2) !important; }
+.post-card .post-actions { margin-top: var(--space-3); padding-top: var(--space-2); gap: var(--space-1); }
+.post-card .public-interaction-prompt { margin-top: var(--space-2); padding: var(--space-2) var(--space-3); }
+@media (max-width: 600px) {
+  .post-card { padding: var(--space-3); }
+}
+
+/* ---- Post that is still being sent (or failed to send): shown at the top of the feed ---- */
+.post-card-pending { border-style: dashed; }
+.post-card-pending .post-pending-state { margin: 0; font-size: 13px; font-weight: 600; color: var(--tx-mid); }
+.post-card-pending.is-failed { border-color: var(--ac-red, #e5484d); }
+.post-card-pending.is-failed .post-pending-state { color: var(--tx-hi); }
+.post-card-pending .post-pending-body { margin: var(--space-2) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; opacity: .85; }
+.post-card-pending[aria-busy="true"] .post-pending-body { opacity: .6; }
+.post-pending-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.post-pending-actions:empty { display: none; }
+
+/* ---- Status lines next to the composer and the edit form ---- */
+.composer-status, .post-compose-status { margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--mu-radius-sm, 12px); border: 1px solid var(--bd-1); background: var(--sf-1); color: var(--tx-hi); font-size: 13.5px; }
+.composer-status[hidden], .post-compose-status[hidden] { display: none; }
+.composer-status a { font-weight: 600; }
+.post-compose-status { margin: var(--space-3) 0 0; }
+.post-compose-status.is-error { border-color: var(--ac-red, #e5484d); }
+.post-compose-form button.is-saving { opacity: .7; cursor: progress; }

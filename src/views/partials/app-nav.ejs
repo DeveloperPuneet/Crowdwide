@@ -1,6 +1,6 @@
 <% const active = locals.active || ''; const inWide = active === 'widewaves'; const sideNav = locals.sideNav === true || Boolean(locals.currentUser); const isDash = active === 'home'; %>
 <header class="app-nav">
-  <a class="brand" href="/dashboard"><img src="/images/Crowdwide_logo_192.png" alt="Crowdwide logo"><span>Crowdwide</span></a>
+  <a class="brand" href="/dashboard"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
   <div class="mode-switch" role="navigation" aria-label="Switch space">
     <a class="mode-switch-item<%= inWide ? '' : ' is-on' %>" href="/dashboard"<%- inWide ? '' : ' aria-current="page"' %>><%- icon('camera', { size: 15 }) %><span>Crowdwide</span></a>
     <a class="mode-switch-item mode-switch-ww<%= inWide ? ' is-on' : '' %>" href="/widewaves"<%- inWide ? ' aria-current="page"' : '' %>><%- icon('widewave', { size: 17 }) %><span>WideWave</span></a>
@@ -40,7 +40,7 @@
     <a class="button button-small button-ghost" href="/wallet" aria-label="Waves balance: <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves"><%- icon('waves', { size: 16 }) %> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
     <% } %>
     <a class="icon-button" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
-    <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden>0</b></a>
+    <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden aria-hidden="true">0</b></a>
     <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false"><%- icon('menu', { size: 20 }) %></button>
   </div>
 </header>

@@ -147,7 +147,14 @@ exports.reportComment = async (req, res) => {
   return res.redirect(`/posts/${comment.post._id}#comment-${comment._id}`);
 };
 
+const parseRevision = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : null;
+};
+
 exports.editPost = async (req, res) => {
+  const wantsJson = req.get('X-Requested-With') === 'XMLHttpRequest';
   const body = req.body.body?.trim();
   const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id });
   if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
@@ -160,9 +167,31 @@ exports.editPost = async (req, res) => {
     req.session.flash = { type: 'error', message: error };
     return redirectBack(req, res, { ok: false, error });
   }
-  post.body = body;
-  await post.save();
-  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, edited: true });
+  // Compare-and-set on the revision: the text is only written if nobody saved in between.
+  const currentRevision = post.revision || 0;
+  const submittedRevision = parseRevision(req.body.revision);
+  const conflict = async () => {
+    // If the text already stored is exactly what was sent, an earlier try of this same save got through (the
+    // reply was lost, or the person retried after a timeout): that is a success, not a conflict.
+    const latest = await Post.findById(post._id).select('body revision').lean();
+    const latestRevision = latest ? (latest.revision || 0) : currentRevision;
+    if (latest && latest.body === body) {
+      if (wantsJson) return res.json({ ok: true, edited: true, revision: latestRevision, alreadySaved: true });
+      return res.redirect(`/posts/${post._id}`);
+    }
+    const error = 'This post was changed somewhere else, so your save was not applied. Reload to see the latest text.';
+    if (wantsJson) return res.status(409).json({ ok: false, conflict: true, revision: latestRevision, error });
+    req.session.flash = { type: 'error', message: error };
+    return res.redirect(`/posts/${post._id}/edit`);
+  };
+  if (submittedRevision !== null && submittedRevision !== currentRevision) return conflict();
+  const updated = await Post.findOneAndUpdate(
+    { _id: post._id, author: req.session.user.id, revision: currentRevision === 0 ? { $in: [0, null] } : currentRevision },
+    { $set: { body }, $inc: { revision: 1 } },
+    { new: true }
+  ).select('revision');
+  if (!updated) return conflict();
+  if (wantsJson) return res.json({ ok: true, edited: true, revision: updated.revision });
   return res.redirect(`/posts/${post._id}`);
 };
 
