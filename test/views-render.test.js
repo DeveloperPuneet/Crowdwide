@@ -621,7 +621,8 @@ test('dashboard still renders with the share button and share sheet in the foote
   });
   assert.match(html, /data-share-open/);
   assert.match(html, /data-share-sheet/);
-  assert.match(html, /<details class="app-nav-more[\s\S]*?<a href="\/advertising">[\s\S]*?Advertiser dashboard/);
+  assert.doesNotMatch(html, /<details class="app-nav-more/, 'the top bar no longer repeats the sidebar More menu');
+  assert.match(html, /<details class="side-more"[\s\S]*?href="\/advertising"[\s\S]*?Advertising/);
   assert.doesNotMatch(html, /class="advertising-side-link"/);
   assert.match(html, /data-sponsored-post/);
   assert.match(html, /class="sponsored-post-notice"><strong>Sponsored<\/strong><span>Promoted with Waves<\/span>/);
@@ -629,7 +630,7 @@ test('dashboard still renders with the share button and share sheet in the foote
   assert.match(html, /feed-sentinel/);
   assert.doesNotMatch(html, /Ranked for you:/);
   assert.match(html, /composer-options/);
-  assert.match(html, /Share with your community/);
+  assert.match(html, /composer-prompt[\s\S]*?Share something/);
   assert.doesNotMatch(html, /Account settings →/);
   assert.match(html, /name="quest"/);
   assert.match(html, /Crowdwide feed/);
@@ -1176,9 +1177,11 @@ test('personal recap renders activity totals and a monthly timeline', async () =
   assert.match(html, /<strong>3<\/strong>/);
 });
 
-test('signed-in navigation puts advertiser tools under More on desktop and mobile (home page only)', async () => {
+test('signed-in navigation keeps advertiser tools under one More fold in the sidebar and the phone menu', async () => {
   const html = await render('partials/app-nav.ejs', { active: 'home' });
-  assert.match(html, /<details class="app-nav-more[\s\S]*?<a href="\/advertising">[\s\S]*?Advertiser dashboard/);
+  assert.doesNotMatch(html, /<details class="app-nav-more/, 'the top bar no longer repeats the sidebar More menu');
+  const sidebar = await render('partials/side-links.ejs', { active: 'home' });
+  assert.match(sidebar, /<details class="side-more"[\s\S]*?href="\/advertising"[\s\S]*?Advertising/);
   assert.match(html, /<details class="nav-drawer-more">[\s\S]*?<a class="nav-drawer-advertising" href="\/advertising">/);
   assert.doesNotMatch(html, /<a class="advertiser-nav-link/);
   assert.doesNotMatch(html, /<a class="advertising-side-link"/);
@@ -1252,7 +1255,7 @@ test('guests can read comment threads but only see account-gated comment actions
   assert.doesNotMatch(html, /<form[^>]+action="\/(?:posts\/p102\/(?:like|poll\/vote|comments)|comments\/c1\/like)"/);
 });
 
-test('dashboard shows the Help in surveys link and panel for normal users', async () => {
+test('dashboard keeps surveys one tap away (under More) without a panel of its own', async () => {
   const data = {
     title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true,
     feed: { posts: [], visiblePosts: [], hasMore: false, activeTab: 'for-you' }, sitewideFeedAds: [],
@@ -1261,12 +1264,10 @@ test('dashboard shows the Help in surveys link and panel for normal users', asyn
     profileUser: currentUser, showEarnTip: false
   };
   const withSurveys = await render('pages/dashboard.ejs', { ...data, openSurveys: [{ _id: 's1', title: 'Feed feedback', questionCount: 4 }] });
-  assert.match(withSurveys, /Help in surveys/);
-  assert.match(withSurveys, /href="\/surveys\/s1"/);
-  assert.match(withSurveys, /4 questions/);
+  assert.match(withSurveys, /href="\/surveys"/);
   assert.match(withSurveys, /side-badge/);
+  assert.doesNotMatch(withSurveys, /survey-help-panel/);
   const none = await render('pages/dashboard.ejs', { ...data, openSurveys: [] });
-  assert.match(none, /Help in surveys/);
-  assert.match(none, /all caught up - no new surveys/);
+  assert.match(none, /href="\/surveys"/);
   assert.doesNotMatch(none, /side-badge/);
 });

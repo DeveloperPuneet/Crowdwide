@@ -28,8 +28,6 @@ const { searchPublishedPosts } = require('../services/postSearch');
 const logger = require('../services/logger');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
-const widewaveService = require('../services/widewaves');
-const WideWave = require('../models/WideWave');
 const { getSitewideFeedCampaigns } = require('../services/advertising');
 const Survey = require('../models/Survey');
 const { questionOfTheDay, answerPrefill, startOfDay, QUESTION_TAG } = require('../utils/questions');
@@ -237,13 +235,6 @@ exports.dashboard = async (req, res) => {
 		const availableQuests = joinedCommunityDocIds.length
 			? await Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
 			: [];
-		// Topic bubbles for the WideWave strip above the feed. Never allowed to break the page.
-		let widewaveStrip = [];
-		try {
-			widewaveStrip = (await widewaveService.trendingWideWaves({ limit: 12 })) || [];
-		} catch (error) {
-			logger.error('WideWave strip could not be loaded', error);
-		}
 		const composerCommunities = joinedCommunityDocs;
 		const selectedQuest = availableQuests.find((quest) => String(quest._id) === String(req.query.quest || ''));
 		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
@@ -260,8 +251,6 @@ exports.dashboard = async (req, res) => {
 			qotd,
 			qotdAnswers,
 			composerPrefill: req.query.ask === 'qotd' ? answerPrefill(qotd) : '',
-			widewaveStrip,
-			selectedWideWave: (await widewaveService.findActiveByName(req.query.widewave || ''))?.name || '',
 			communities,
 			composerCommunities,
 			availableQuests,
@@ -432,8 +421,7 @@ async function createdPostPayload(post, userId, res, extra = {}) {
 }
 
 exports.createPost = async (req, res) => {
-	// Quick composers on WideWave pages send people back to where they were.
-	const backTo = /^\/(widewaves|ww\/[a-z0-9_]{1,40})$/.test(String(req.body?.returnTo || '')) ? req.body.returnTo : '/dashboard';
+	const backTo = '/dashboard';
 	const wantsJson = req.get('X-Requested-With') === 'XMLHttpRequest';
 	// A rejected post never leaves a half-made record behind: plain forms get a flash message on the way back,
 	// the in-page composer gets a JSON error and keeps the person's text so they can fix it and try again.
@@ -516,19 +504,6 @@ exports.createPost = async (req, res) => {
 		const isStaff = String(community.owner) === String(req.session.user.id) || community.moderators.some((id) => String(id) === String(req.session.user.id));
 		if (community.requireApproval && !isStaff) status = 'pending';
 	}
-	// A WideWave is an open topic space, so it is an alternative to a community, not an addition.
-	let waveTarget = null;
-	if (req.body.widewave) {
-		if (communityId) {
-			return fail('A post goes either to a community or to a WideWave. Clear one of them.');
-		}
-		try {
-			waveTarget = await widewaveService.resolveTargetForPost(req.body.widewave);
-		} catch (error) {
-			if (!(error instanceof widewaveService.WideWaveError)) throw error;
-			return fail(error.message);
-		}
-	}
 	if (req.body.scheduledAt && req.body.saveAsDraft !== 'on') {
 		scheduledAt = new Date(req.body.scheduledAt);
 		if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
@@ -559,7 +534,7 @@ exports.createPost = async (req, res) => {
 	const isDraft = req.body.saveAsDraft === 'on';
 	let createdPost;
 	try {
-		createdPost = await Post.create({ clientRequestId: clientRequestId || undefined, author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, widewave: waveTarget?._id || null, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+		createdPost = await Post.create({ clientRequestId: clientRequestId || undefined, author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	} catch (error) {
 		// Two copies of the same attempt reached the database at once (another server, a very fast double tap):
 		// the unique (author, clientRequestId) index let only one through, so hand back that one.
@@ -573,7 +548,6 @@ exports.createPost = async (req, res) => {
 		rewardWavesForAction({ userId: req.session.user.id, action: 'post', referenceType: 'post', referenceId: createdPost._id })
 			.catch((error) => logger.error('Could not award Waves for published post', error));
 	}
-	if (waveTarget && !isDraft && status === 'published') widewaveService.recountWideWave(waveTarget._id).catch((error) => logger.error('WideWave recount failed', error));
 	if (!isDraft && status === 'published') recordContribution(req.session.user.id, { kind: 'post', hashtags: createdPost.hashtags });
 	refreshPersonalization(req.session.user.id); // so the new post shows up, and shapes "for you", on the very next feed load
 	if (!isDraft) await notifyMentionedUsers(body, req.session.user.id, createdPost._id, createdPost.community);
@@ -1214,11 +1188,9 @@ exports.sitemap = async (req, res) => {
 			community: { $nin: restrictedCommunityIds },
 			author: { $nin: await getHiddenAuthorIds(null) }
 		}).sort({ updatedAt: -1 }).limit(1000).select('_id updatedAt').lean();
-		const pages = ['/', '/top', '/question', '/widewaves', '/widewaves/leaderboard', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships', '/partnerships/apply', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
-		const waves = await WideWave.find({ status: 'active' }).sort({ postsCount: -1 }).limit(500).select('name').lean();
+		const pages = ['/', '/top', '/question', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships', '/partnerships/apply', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
 		const urls = [
 			...pages.map((page) => `<url><loc>${escapeXml(`${baseUrl}${page}`)}</loc></url>`),
-			...waves.map((wave) => `<url><loc>${escapeXml(`${baseUrl}/ww/${wave.name}`)}</loc></url>`),
 			...posts.map((post) => `<url><loc>${escapeXml(`${baseUrl}/posts/${post._id}`)}</loc><lastmod>${new Date(post.updatedAt).toISOString()}</lastmod></url>`)
 		];
 		res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`);

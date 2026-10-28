@@ -9,7 +9,6 @@
     <button type="button" class="admin-tab" id="admin-tab-content" role="tab" aria-controls="admin-panel-content" data-tab="content">Content review<% if (contentCounts.post + contentCounts.article + contentCounts.poll) { %> (<%= contentCounts.post + contentCounts.article + contentCounts.poll %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (reports.length) { %> (<%= reports.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
-    <button type="button" class="admin-tab" id="admin-tab-widewaves" role="tab" aria-controls="admin-panel-widewaves" data-tab="widewaves">WideWaves</button>
     <button type="button" class="admin-tab" id="admin-tab-communities" role="tab" aria-controls="admin-panel-communities" data-tab="communities">Community changes</button>
     <button type="button" class="admin-tab" id="admin-tab-monetization" role="tab" aria-controls="admin-panel-monetization" data-tab="monetization">Monetization<% if (monetizationApplications.length) { %> (<%= monetizationApplications.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-advertisers" role="tab" aria-controls="admin-panel-advertisers" data-tab="advertisers">Advertisers<% if (pendingAdvertisers.length) { %> (<%= pendingAdvertisers.length %>)<% } %></button>
@@ -122,19 +121,6 @@
     </form>
   </div>
   <% }) %></section>
-  </section>
-
-  <section class="admin-panel" id="admin-panel-widewaves" role="tabpanel" aria-labelledby="admin-tab-widewaves" data-panel="widewaves">
-  <section class="settings-block admin-wide" data-live-list><h2>WideWaves</h2><p>WideWaves are moderated only by official Crowdwide moderators. Removing one turns its posts into normal posts, and the name stays blocked. To move a single post out of a WideWave, open the WideWave and use "Move out".</p>
-    <p class="recap-empty" data-live-empty <%= (locals.widewaves || []).length ? 'hidden' : '' %>>No WideWaves yet.</p>
-    <% (locals.widewaves || []).forEach((wave) => { %>
-    <div class="device-row" data-live-item style="flex-direction:column;align-items:stretch;">
-      <div><strong><a href="/ww/<%= wave.name %>" target="_blank" rel="noopener">ww/<%= wave.name %></a></strong><span> · <%= wave.postsCount || 0 %> posts · by <%= wave.creator?.name || 'member' %></span></div>
-      <p><%= wave.description %></p>
-      <form method="post" action="/moderator/widewaves/<%= wave._id %>/remove" style="display:flex;gap:8px;flex-wrap:wrap;"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="reason" placeholder="Why remove this WideWave?" maxlength="300" required style="flex:1 1 220px;"><button class="button button-small button-danger" type="submit">Remove WideWave</button></form>
-    </div>
-    <% }) %>
-  </section>
   </section>
 
   <section class="admin-panel" id="admin-panel-communities" role="tabpanel" aria-labelledby="admin-tab-communities" data-panel="communities">

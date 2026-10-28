@@ -2,7 +2,7 @@
 // the card leaves the queue at once, and community queues sync with other moderators.
 (() => {
   if (!window.axios) return;
-  const SELECTOR = 'form[action="/moderator/actions"], form[action^="/communities/"][action$="/review"], form[action^="/communities/"][action$="/pin"], form[action^="/moderator/widewaves/"]';
+  const SELECTOR = 'form[action="/moderator/actions"], form[action^="/communities/"][action$="/review"], form[action^="/communities/"][action$="/pin"]';
   const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content;
 
   let toast;

@@ -1,55 +1,9 @@
 <%# Site-wide sidebar (icon rail by default, opens to show labels). The dashboard has its own copy of the same
     design inside its grid; every other signed-in page gets this one. locals: active, currentUser %>
-<%
-  const here = locals.active || '';
-  const wide = here === 'widewaves';
-  const item = (href, glyph, label, key, extra = '') => `<a class="${here === key ? 'side-active' : ''}" href="${href}" data-tip="${label}" aria-label="${label}"${here === key ? ' aria-current="page"' : ''}${extra}>${icon(glyph, { size: 19 })}<span>${label}</span></a>`;
-  const group = (label) => `<p class="rail-group" aria-hidden="true"><span>${label}</span></p>`;
-%>
 <div class="app-rail-scrim" data-rail-scrim hidden></div>
 <aside class="app-rail" id="app-rail" aria-label="Sidebar navigation">
 	<button class="sidebar-toggle rail-toggle" type="button" data-rail-toggle aria-expanded="false" aria-controls="app-rail-links" aria-label="Open sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
 	<div class="rail-scroll" id="app-rail-links">
-		<a class="sidebar-profile" href="/u/<%= currentUser.id %>" data-tip="<%= currentUser.name %>" aria-label="Your profile: <%= currentUser.name %>">
-			<%- include('avatar', { person: currentUser, size: 'small', link: false }) %>
-			<div><strong><%= currentUser.name %></strong><span>@<%= currentUser.username || String(currentUser.email || '').split('@')[0] || currentUser.id %></span></div>
-		</a>
-		<nav class="side-links" aria-label="<%= wide ? 'WideWave' : 'Crowdwide' %>">
-			<% if (wide) { %>
-			<%- group('WideWave') %>
-			<%- item('/widewaves', 'widewave', 'WideWave feed', 'widewaves') %>
-			<%- item('/widewaves?tab=trending', 'flame', 'Top threads', 'ww-top') %>
-			<%- item('/widewaves?tab=new', 'clock', 'Newest threads', 'ww-new') %>
-			<%- item('/widewaves#ww-search', 'search', 'Find a WideWave', 'ww-find') %>
-			<%- item('/widewaves/leaderboard', 'trending-up', 'Leaderboard', 'ww-board') %>
-			<%- item('/widewaves/new', 'plus', 'Create a WideWave', 'ww-new-wave') %>
-			<hr class="rail-hr">
-			<%- item('/dashboard', 'home', 'Back to Crowdwide', 'home') %>
-			<% } else { %>
-			<%- group('Discover') %>
-			<%- item('/dashboard', 'home', 'Home feed', 'home') %>
-			<%- item('/explore', 'compass', 'Explore', 'explore') %>
-			<%- item('/posts', 'file-text', 'Public posts', 'posts') %>
-			<%- item('/communities', 'users', 'Communities', 'communities') %>
-			<%- item('/widewaves', 'widewave', 'WideWave', 'widewaves') %>
-			<%- item('/messages', 'mail', 'Messages', 'messages') %>
-			<%- item('/groups', 'message-circle', 'Groups', 'groups') %>
-			<%- item('/people', 'user-plus', 'People to follow', 'people') %>
-			<%- item('/surveys', 'message-square', 'Help in surveys', 'surveys') %>
-			<% } %>
-			<hr class="rail-hr">
-			<%- group('You') %>
-			<%- item('/notifications', 'bell', 'Notifications', 'notifications') %>
-			<%- item('/u/' + currentUser.id, 'user', 'Your profile', 'profile') %>
-			<%- item('/wallet', 'waves', 'Waves wallet', 'wallet') %>
-			<% if (!wide) { %>
-			<%- item('/recap', 'trending-up', 'Your recap', 'recap') %>
-			<%- item('/welcome', 'sparkles', 'Personalize your feed', 'welcome') %>
-			<%- item('/advertising', 'megaphone', 'Advertiser dashboard', 'advertising') %>
-			<% } %>
-			<%- item('/settings/account', 'settings', 'Account settings', 'settings') %>
-			<% if (currentUser.role === 'admin') { %><%- item('/admin', 'shield', 'Admin console', 'admin') %><%- item('/admin/blocked-ips', 'lock', 'Blocked addresses', 'blocked') %><% } %>
-			<% if (['admin', 'moderator'].includes(currentUser.role)) { %><%- item('/moderator', 'shield', 'Moderator console', 'moderator') %><% } %>
-		</nav>
+		<%- include('side-links', { active: locals.active || '', currentUser }) %>
 	</div>
 </aside>

@@ -76,7 +76,6 @@ const PATHS = {
 // copy sits inside a hidden element (e.g. the closed mobile menu).
 const COLOR_ICONS = {
   waves: '<circle cx="12" cy="12" r="11" fill="#1fb6ee"/><circle cx="12" cy="12" r="8.7" fill="none" stroke="#ffffff" stroke-opacity=".38" stroke-width="1"/><path d="M5.6 10.1c1.6-2 3.2-2 4.8 0s3.2 2 4.8 0 2.3-1.5 3.2-.8" fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round"/><path d="M5.6 14.6c1.6-2 3.2-2 4.8 0s3.2 2 4.8 0 2.3-1.5 3.2-.8" fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" stroke-opacity=".8"/>',
-  widewave: '<defs><linearGradient id="wwg" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5b6cff"/><stop offset=".55" stop-color="#14b8c9"/><stop offset="1" stop-color="#36d399"/></linearGradient></defs><rect x="1" y="1" width="22" height="22" rx="7.2" fill="url(#wwg)"/><path d="M4.6 6.6c1.1 3.7 2.2 8 3.8 8s2.5-4.9 3.6-7.1c1.1 2.2 2 7.1 3.6 7.1s2.7-4.3 3.8-8" fill="none" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19.2c1.4-1.2 2.7-1.2 4 0s2.6 1.2 3.9 0 2.7-1.2 4 0 1.9.9 2.4.4" fill="none" stroke="#ffffff" stroke-opacity=".55" stroke-width="1.5" stroke-linecap="round"/>'
 };
 
 // Icons that read better as solid shapes when "on" (liked, saved).

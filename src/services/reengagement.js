@@ -13,7 +13,6 @@
 // switch, the member's local daytime hours, and a daily send cap.
 const cron = require('node-cron');
 const User = require('../models/User');
-const { weeklyDigest } = require('./widewaves');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const LoginSession = require('../models/LoginSession');
@@ -391,7 +390,6 @@ async function sendReengagementReminders({ now = new Date(), limit = PER_TICK_LI
       }, { $set: { 'reengagement.sent': [...spellSent, stage.id], 'reengagement.lastSentAt': now } });
       if (!claim.modifiedCount) continue;
 
-      reminder.widewaves = await weeklyDigest({ limit: 3 });
       const emailed = await sendReengagementEmail(user, reminder);
       if (!emailed) {
         await User.updateOne({ _id: user._id, 'reengagement.lastSentAt': now }, previous.lastSentAt

@@ -9,7 +9,6 @@
 // unsubscribe, and only go out during the member's local daytime (the series).
 const cron = require('node-cron');
 const User = require('../models/User');
-const { weeklyDigest } = require('./widewaves');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const ReengagementLog = require('../models/ReengagementLog');
@@ -257,7 +256,6 @@ async function sendWelcomeEmails({ now = new Date(), limit = PER_TICK_LIMIT, dry
         $or: [{ 'welcome.lastSentAt': null }, { 'welcome.lastSentAt': { $lte: gapCutoff } }]
       }, { $addToSet: { 'welcome.sent': stage.id }, $set: { 'welcome.lastSentAt': now } });
       if (!claim.modifiedCount) continue;
-      content.widewaves = content.widewaves || await weeklyDigest({ limit: 2 });
       const delivered = await sendLifecycleEmail(user, content);
       if (!delivered) {
         await User.updateOne({ _id: user._id, 'welcome.lastSentAt': now }, {

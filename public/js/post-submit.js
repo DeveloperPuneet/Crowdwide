@@ -188,7 +188,6 @@
       composer.querySelectorAll('[data-hashtag-suggestions]').forEach((node) => node.replaceChildren());
       textarea?.dispatchEvent(new Event('input', { bubbles: true }));
       composer.querySelector('select[name="type"]')?.dispatchEvent(new Event('change', { bubbles: true }));
-      composer.querySelector('[data-ww-input]')?.dispatchEvent(new Event('ww:reset', { bubbles: true }));
     };
 
     async function attempt(card) {

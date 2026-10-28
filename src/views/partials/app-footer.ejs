@@ -1,6 +1,8 @@
 <footer class="site-footer app-footer">
   <div class="container">
     <%- include('partners-strip', { variant: 'footer' }) %>
+    <details class="footer-fold">
+    <summary>All links</summary>
     <div class="footer-top">
       <div class="footer-brand">
         <a class="brand" href="/dashboard"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
@@ -37,14 +39,19 @@
         <a href="/community-monetization/terms">Community Monetization Terms</a>
         <a href="/partnerships">Partnerships</a>
         <a href="/partnerships/terms">Partnership Terms</a>
+        <a href="/accessibility">Accessibility</a>
+        <a href="/about/developer">Developer</a>
       </div>
     </div>
+    </details>
     <div class="footer-bottom">
       <span>© <%= new Date().getFullYear() %> Crowdwide. Made for curious people.</span>
       <div class="footer-legal">
-        <a href="/accessibility">Accessibility</a>
+        <a href="/about">About</a>
+        <a href="/help">Help</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
         <a href="/contact">Contact</a>
-        <a href="/about/developer">Developer</a>
         <% if (currentUser?.role === 'admin') { %><a href="/admin">Admin panel</a><% } %>
         <% if (['admin', 'moderator'].includes(currentUser?.role)) { %><a href="/moderator">Moderator panel</a><% } %>
       </div>

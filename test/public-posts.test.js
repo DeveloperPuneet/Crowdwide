@@ -5,7 +5,6 @@ const controller = require('../src/controllers/webController');
 const Community = require('../src/models/Community');
 const Post = require('../src/models/Post');
 const User = require('../src/models/User');
-const WideWave = require('../src/models/WideWave');
 const { requireAuth } = require('../src/middleware/auth');
 
 test('public post listing is unauthenticated and registered before post detail', () => {
@@ -83,7 +82,6 @@ test('sitemap includes public post URLs but excludes private community posts at 
   let communityFilter;
   let postFilter;
   t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
-  t.mock.method(WideWave, 'find', () => ({ sort() { return this; }, limit() { return this; }, select() { return this; }, lean: async () => [{ name: 'poetry' }] }));
   t.mock.method(Community, 'find', (filter) => {
     communityFilter = filter;
     return { distinct: () => Promise.resolve(['private-community']) };
@@ -104,7 +102,6 @@ test('sitemap includes public post URLs but excludes private community posts at 
   await controller.sitemap({}, response);
 
   assert.deepEqual(communityFilter, { isPrivate: true });
-  assert.match(response.body, /\/ww\/poetry/);
   assert.deepEqual(postFilter.community, { $nin: ['private-community'] });
   assert.equal(postFilter.status, 'published');
   assert.match(response.body, /https:\/\/crowdwide\.example\/posts\/public-1/);

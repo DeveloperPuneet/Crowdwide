@@ -1,10 +1,6 @@
-<% const active = locals.active || ''; const inWide = active === 'widewaves'; const sideNav = locals.sideNav === true || Boolean(locals.currentUser); const isDash = active === 'home'; %>
+<% const active = locals.active || ''; const sideNav = locals.sideNav === true || Boolean(locals.currentUser); const isDash = active === 'home'; %>
 <header class="app-nav">
   <a class="brand" href="/dashboard"><img src="/images/Crowdwide_logo_192.png" alt=""><span>Crowdwide</span></a>
-  <div class="mode-switch" role="navigation" aria-label="Switch space">
-    <a class="mode-switch-item<%= inWide ? '' : ' is-on' %>" href="/dashboard"<%- inWide ? '' : ' aria-current="page"' %>><%- icon('camera', { size: 15 }) %><span>Crowdwide</span></a>
-    <a class="mode-switch-item mode-switch-ww<%= inWide ? ' is-on' : '' %>" href="/widewaves"<%- inWide ? ' aria-current="page"' : '' %>><%- icon('widewave', { size: 17 }) %><span>WideWave</span></a>
-  </div>
   <nav>
     <% if (!sideNav) { %>
     <a class="<%= active === 'home' ? 'app-nav-active' : '' %>" href="/dashboard"><%- icon('home', { size: 16 }) %><span>Home</span></a>
@@ -14,32 +10,13 @@
     <a class="<%= active === 'messages' ? 'app-nav-active' : '' %>" href="/messages"><%- icon('mail', { size: 16 }) %><span>Messages</span></a>
     <a class="<%= active === 'groups' ? 'app-nav-active' : '' %>" href="/groups"><%- icon('message-circle', { size: 16 }) %><span>Groups</span></a>
     <% } %>
-    <% if (locals.currentUser && isDash) { %>
-    <details class="app-nav-more <%= active === 'advertising' ? 'app-nav-more-active' : '' %>">
-      <summary aria-label="More navigation options">More <%- icon('chevron-down', { size: 14 }) %></summary>
-      <div class="app-nav-more-menu">
-        <a href="/advertising"><%- icon('megaphone', { size: 16 }) %><span>Advertiser dashboard</span></a>
-        <a href="/wallet"><%- icon('waves', { size: 16 }) %><span>Waves wallet</span></a>
-        <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 16 }) %><span>Your profile</span></a>
-        <a href="/recap"><%- icon('trending-up', { size: 16 }) %><span>Your recap</span></a>
-        <a href="/welcome"><%- icon('sparkles', { size: 16 }) %><span>Personalize your feed</span></a>
-        <a href="/settings/account"><%- icon('settings', { size: 16 }) %><span>Account settings</span></a>
-        <a href="/communities/mine"><%- icon('users', { size: 16 }) %><span>Your communities</span></a>
-        <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 16 }) %><span>Admin console</span></a><a href="/admin/blocked-ips"><%- icon('lock', { size: 16 }) %><span>Blocked addresses</span></a><% } %>
-        <% if (['admin', 'moderator'].includes(currentUser.role)) { %><a href="/moderator"><%- icon('shield', { size: 16 }) %><span>Moderator console</span></a><% } %>
-      </div>
-    </details>
-    <% } %>
   </nav>
   <form class="nav-search" method="get" action="/search">
     <span class="nav-search-icon"><%- icon('search', { size: 15 }) %></span>
     <input type="search" name="q" placeholder="Search Crowdwide" aria-label="Search Crowdwide" value="<%= locals.searchQuery || '' %>">
   </form>
   <div class="app-nav-actions">
-    <% if (locals.currentUser) { %>
-    <a class="button button-small button-ghost" href="/wallet" aria-label="Waves balance: <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves"><%- icon('waves', { size: 16 }) %> <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
-    <% } %>
-    <a class="icon-button" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
+    <a class="icon-button nav-search-link" href="/search" aria-label="Search"><%- icon('search', { size: 19 }) %></a>
     <a class="notification-button" href="/notifications" aria-label="Notifications"><%- icon('bell', { size: 18 }) %><b class="notification-badge" hidden aria-hidden="true">0</b></a>
     <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false"><%- icon('menu', { size: 20 }) %></button>
   </div>
@@ -53,38 +30,31 @@
     <form class="nav-drawer-search" method="get" action="/search">
       <input type="search" name="q" placeholder="Search Crowdwide" aria-label="Search Crowdwide">
     </form>
-    <% if (inWide) { %>
-    <a href="/widewaves"><%- icon('widewave', { size: 18 }) %> WideWave feed</a>
-    <a href="/widewaves?tab=trending"><%- icon('flame', { size: 18 }) %> Top threads</a>
-    <a href="/widewaves?tab=new"><%- icon('clock', { size: 18 }) %> Newest threads</a>
-    <a href="/widewaves/leaderboard"><%- icon('trending-up', { size: 18 }) %> Leaderboard</a>
-    <a href="/widewaves/new"><%- icon('plus', { size: 18 }) %> Create a WideWave</a>
-    <hr class="nav-drawer-hr">
-    <% } %>
-    <a href="/dashboard"><%- icon('home', { size: 18 }) %> <%= inWide ? 'Back to Crowdwide' : 'Home feed' %></a>
+    <a href="/dashboard"><%- icon('home', { size: 18 }) %> Home</a>
     <a href="/explore"><%- icon('compass', { size: 18 }) %> Explore</a>
-    <a href="/posts"><%- icon('file-text', { size: 18 }) %> Public posts</a>
     <a href="/communities"><%- icon('users', { size: 18 }) %> Communities</a>
-    <a href="/widewaves"><%- icon('widewave', { size: 18 }) %> WideWave</a>
-    <a href="/people"><%- icon('user-plus', { size: 18 }) %> People to follow</a>
-    <a href="/surveys"><%- icon('message-square', { size: 18 }) %> Help in surveys</a>
     <a href="/messages"><%- icon('mail', { size: 18 }) %> Messages</a>
-    <a href="/groups"><%- icon('message-circle', { size: 18 }) %> Groups</a>
     <a href="/notifications"><%- icon('bell', { size: 18 }) %> Notifications</a>
-    <button class="nav-drawer-install" type="button" data-pwa-install hidden><%- icon('plus', { size: 18 }) %> Install Crowdwide app</button>
     <% if (locals.currentUser) { %>
-    <a href="/wallet"><%- icon('waves', { size: 16 }) %> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %> Waves</a>
-    <%- isDash ? '<details class="nav-drawer-more"><summary>More ' + icon('chevron-down', { size: 16 }) + '</summary>' : '<hr class="nav-drawer-hr">' %>
-      <a class="nav-drawer-advertising" href="/advertising"><%- icon('megaphone', { size: 18 }) %> Advertiser dashboard</a>
-      <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Your profile</a>
+    <a href="/u/<%= currentUser.id %>"><%- icon('user', { size: 18 }) %> Profile</a>
+    <% } %>
+    <details class="nav-drawer-more">
+      <summary>More <%- icon('chevron-down', { size: 16 }) %></summary>
+      <a href="/groups"><%- icon('message-circle', { size: 18 }) %> Groups</a>
+      <a href="/posts"><%- icon('file-text', { size: 18 }) %> Public posts</a>
+      <% if (locals.currentUser) { %>
+      <a href="/people"><%- icon('user-plus', { size: 18 }) %> People to follow</a>
+      <a href="/surveys"><%- icon('message-square', { size: 18 }) %> Surveys</a>
+      <a href="/wallet"><%- icon('waves', { size: 18 }) %> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %></a>
       <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>
-      <a href="/welcome"><%- icon('sparkles', { size: 18 }) %> Personalize your feed</a>
-      <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Account settings</a>
-      <a href="/communities/mine"><%- icon('users', { size: 18 }) %> Your communities</a>
+      <a href="/welcome"><%- icon('sparkles', { size: 18 }) %> Personalize feed</a>
+      <a class="nav-drawer-advertising" href="/advertising"><%- icon('megaphone', { size: 18 }) %> Advertising</a>
+      <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Settings</a>
       <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } %>
       <% if (['admin', 'moderator'].includes(currentUser.role)) { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>
-    <%- isDash ? '</details>' : '' %>
-    <% } %>
+      <% } %>
+    </details>
+    <button class="nav-drawer-install" type="button" data-pwa-install hidden><%- icon('plus', { size: 18 }) %> Install Crowdwide app</button>
     <hr class="nav-drawer-hr">
     <% if (locals.currentUser) { %>
     <form method="post" action="/auth/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%- icon('log-out', { size: 18 }) %> Sign out</button></form>
@@ -96,18 +66,10 @@
 </div>
 <% if (locals.currentUser && !locals.hideBottomNav) { %>
 <nav class="bottom-nav" aria-label="Quick navigation">
-  <% if (inWide) { %>
-  <a class="is-active" href="/widewaves" aria-current="page"><%- icon('widewave', { size: 21 }) %><span>Feed</span></a>
-  <a href="/widewaves?tab=trending"><%- icon('flame', { size: 21 }) %><span>Top</span></a>
-  <a class="bottom-nav-post" href="/widewaves#ww-composer" data-bottom-compose aria-label="Start a thread"><%- icon('plus', { size: 22 }) %></a>
-  <a href="/widewaves/leaderboard"><%- icon('trending-up', { size: 21 }) %><span>Boards</span></a>
-  <a href="/dashboard"><%- icon('home', { size: 21 }) %><span>Crowdwide</span></a>
-  <% } else { %>
   <a class="<%= active === 'home' ? 'is-active' : '' %>" href="/dashboard"<%- active === 'home' ? ' aria-current="page"' : '' %>><%- icon('home', { size: 21 }) %><span>Home</span></a>
   <a class="<%= active === 'explore' ? 'is-active' : '' %>" href="/explore"<%- active === 'explore' ? ' aria-current="page"' : '' %>><%- icon('compass', { size: 21 }) %><span>Explore</span></a>
-  <a class="bottom-nav-post" href="<%= inWide ? '/widewaves#ww-composer' : '/dashboard#composer' %>" data-bottom-compose aria-label="Create a post"><%- icon('plus', { size: 22 }) %></a>
-  <a class="<%= active === 'widewaves' ? 'is-active' : '' %>" href="/widewaves"<%- active === 'widewaves' ? ' aria-current="page"' : '' %>><%- icon('widewave', { size: 21 }) %><span>WideWave</span></a>
+  <a class="bottom-nav-post" href="/dashboard#composer" data-bottom-compose aria-label="Create a post"><%- icon('plus', { size: 22 }) %></a>
+  <a class="<%= active === 'communities' ? 'is-active' : '' %>" href="/communities"<%- active === 'communities' ? ' aria-current="page"' : '' %>><%- icon('users', { size: 21 }) %><span>Communities</span></a>
   <a class="<%= active === 'messages' ? 'is-active' : '' %>" href="/messages"<%- active === 'messages' ? ' aria-current="page"' : '' %>><%- icon('mail', { size: 21 }) %><span>Messages</span></a>
-  <% } %>
 </nav>
 <% } %>

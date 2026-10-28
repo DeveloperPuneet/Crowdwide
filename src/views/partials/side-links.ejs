@@ -1,0 +1,33 @@
+<%# The one navigation list used by both sidebars (home and every other signed-in page).
+    Six everyday destinations are always visible; everything else sits under a single "More" fold.
+    locals: active, currentUser, openSurveys (optional) %>
+<%
+  const here = locals.active || '';
+  const surveyCount = (locals.openSurveys || []).length;
+  const item = (href, glyph, label, key, extra = '') => `<a class="${here === key ? 'side-active' : ''}" href="${href}" data-tip="${label}" aria-label="${label}"${here === key ? ' aria-current="page"' : ''}>${icon(glyph, { size: 19 })}<span>${label}</span>${extra}</a>`;
+  const moreKeys = ['groups', 'posts', 'people', 'surveys', 'wallet', 'recap', 'welcome', 'advertising', 'settings', 'admin', 'blocked', 'moderator'];
+  const moreOpen = moreKeys.includes(here);
+  const isStaff = ['admin', 'moderator'].includes(currentUser.role);
+%>
+<nav class="side-links" aria-label="Crowdwide">
+	<%- item('/dashboard', 'home', 'Home', 'home') %>
+	<%- item('/explore', 'compass', 'Explore', 'explore') %>
+	<%- item('/communities', 'users', 'Communities', 'communities') %>
+	<%- item('/messages', 'mail', 'Messages', 'messages') %>
+	<%- item('/notifications', 'bell', 'Notifications', 'notifications') %>
+	<%- item('/u/' + currentUser.id, 'user', 'Profile', 'profile') %>
+	<details class="side-more"<%= moreOpen ? ' open' : '' %>>
+		<summary data-tip="More" aria-label="More"><%- icon('more-horizontal', { size: 19 }) %><span>More</span></summary>
+		<%- item('/groups', 'message-circle', 'Groups', 'groups') %>
+		<%- item('/posts', 'file-text', 'Public posts', 'posts') %>
+		<%- item('/people', 'user-plus', 'People to follow', 'people') %>
+		<%- item('/surveys', 'message-square', 'Surveys', 'surveys', surveyCount ? `<b class="side-badge">${surveyCount}<span class="visually-hidden"> open surveys</span></b>` : '') %>
+		<%- item('/wallet', 'waves', 'Waves wallet', 'wallet') %>
+		<%- item('/recap', 'trending-up', 'Your recap', 'recap') %>
+		<%- item('/welcome', 'sparkles', 'Personalize feed', 'welcome') %>
+		<%- item('/advertising', 'megaphone', 'Advertising', 'advertising') %>
+		<%- item('/settings/account', 'settings', 'Settings', 'settings') %>
+		<% if (currentUser.role === 'admin') { %><%- item('/admin', 'shield', 'Admin console', 'admin') %><%- item('/admin/blocked-ips', 'lock', 'Blocked addresses', 'blocked') %><% } %>
+		<% if (isStaff) { %><%- item('/moderator', 'shield', 'Moderator console', 'moderator') %><% } %>
+	</details>
+</nav>

@@ -10,31 +10,14 @@
 	<aside class="app-sidebar">
 		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="false" aria-controls="dashboard-sidebar" aria-label="Open sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
 		<div id="dashboard-sidebar">
-		<div class="sidebar-profile">
-			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, standalone: true }) %>
-			<div><strong><%= currentUser.name %></strong><span>@<%= currentUser.username || currentUser.email.split('@')[0] %></span></div>
-		</div>
-		<nav class="side-links">
-			<a class="side-active" href="/dashboard"><%- icon('home') %> <span>Home feed</span></a>
-			<a href="/explore"><%- icon('compass') %> <span>Explore</span></a>
-			<a href="/posts"><%- icon('file-text') %> <span>Public posts</span></a>
-			<a href="/communities"><%- icon('users') %> <span>Communities</span></a>
-			<a href="/messages"><%- icon('mail') %> <span>Messages</span></a>
-			<a href="/groups"><%- icon('message-circle') %> <span>Groups</span></a>
-			<a href="/u/<%= currentUser.id %>"><%- icon('user') %> <span>Your profile</span></a>
-			<a href="/recap"><%- icon('trending-up') %> <span>Your recap</span></a>
-			<a href="/notifications"><%- icon('bell') %> <span>Notifications</span></a>
-			<a href="/settings/account"><%- icon('settings') %> <span>Account settings</span></a>
-			<a href="/people"><%- icon('user-plus') %> <span>People to follow</span></a>
-			<a href="/surveys" class="side-survey-link"><%- icon('message-square') %> <span>Help in surveys</span><% if ((locals.openSurveys || []).length) { %><b class="side-badge"><%= openSurveys.length %><span class="visually-hidden"> open surveys</span></b><% } %></a>
-		</nav>
+		<%- include('../partials/side-links', { active: 'home', currentUser, openSurveys: locals.openSurveys || [] }) %>
 		</div>
 	</aside>
 	<section class="feed-column">
-		<div class="feed-heading">
-			<div><p class="eyebrow">Your corner of Crowdwide</p><h1>Good to see you, <em><%= currentUser.name.split(' ')[0] %>.</em></h1></div>
-			<button class="button button-primary" type="button" data-composer-open aria-expanded="false" aria-controls="composer">Share something <span><%- icon('plus', { size: 16 }) %></span></button>
-		</div>
+		<button class="composer-prompt" type="button" data-composer-open aria-expanded="false" aria-controls="composer">
+			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, size: 'small', link: false }) %>
+			<span class="composer-prompt-text">Share something…</span><span class="composer-prompt-plus"><%- icon('plus', { size: 16 }) %></span>
+		</button>
 		<%
 	const feedTabs = [
 		['for-you', '/dashboard?view=for-you', 'For you', 'sparkles', ['for-you']],
@@ -44,24 +27,14 @@
 	];
 	const subSorts = feed.activeTab.startsWith('posts-') ? ['posts', 'Posts'] : feed.activeTab.startsWith('articles-') ? ['articles', 'Articles'] : null;
 %>
-		<% if ((locals.widewaveStrip || []).length) { %>
-		<section class="ww-home-strip" aria-label="WideWave topics">
-			<div class="ww-home-strip-head"><strong><%- icon('widewave', { size: 18 }) %> Trending in WideWave</strong><a href="/widewaves">Open WideWave <%- icon('arrow-right', { size: 13 }) %></a></div>
-			<div class="ww-stories">
-				<a class="ww-story ww-story-new" href="/widewaves#ww-composer"><span class="ww-ring"><span class="ww-badge"><%- icon('plus', { size: 22 }) %></span></span><small>Start a thread</small></a>
-				<% widewaveStrip.forEach((wave, index) => { %><%- include('../partials/widewave-story', { wave, hot: index < 3 }) %><% }) %>
-			</div>
-		</section>
-		<% } %>
 		<nav class="feed-tabs" aria-label="Feed views">
-			<% feedTabs.forEach(([id, href, label, glyph, views]) => { const on = views.includes(feed.activeTab); %><a class="<%= on ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- on ? 'aria-current="page"' : '' %>><%- icon(glyph, { size: 15 }) %><span><%= label %></span></a>
+			<% feedTabs.forEach(([id, href, label, glyph, views]) => { const on = views.includes(feed.activeTab); %><a class="<%= on ? 'feed-tab-active' : '' %>" href="<%= href %>" <%- on ? 'aria-current="page"' : '' %>><span><%= label %></span></a>
 			<% }) %>
 		</nav>
 		<% if (subSorts) { %>
 		<nav class="feed-subtabs" aria-label="Sort <%= subSorts[1].toLowerCase() %>">
-			<span>Sort by</span>
-			<a class="<%= feed.activeTab.endsWith('-new') ? 'is-on' : '' %>" href="/dashboard?view=<%= subSorts[0] %>-new"><%- icon('clock', { size: 13 }) %> New</a>
-			<a class="<%= feed.activeTab.endsWith('-viral') ? 'is-on' : '' %>" href="/dashboard?view=<%= subSorts[0] %>-viral"><%- icon('flame', { size: 13 }) %> Viral</a>
+			<a class="<%= feed.activeTab.endsWith('-new') ? 'is-on' : '' %>" href="/dashboard?view=<%= subSorts[0] %>-new">New</a>
+			<a class="<%= feed.activeTab.endsWith('-viral') ? 'is-on' : '' %>" href="/dashboard?view=<%= subSorts[0] %>-viral">Viral</a>
 		</nav>
 		<% } %>
 		<% if (locals.awayInfo) { %>
@@ -84,34 +57,23 @@
 			<a class="button button-small button-primary" href="/dashboard?ask=qotd" data-qotd-answer data-prefill="<%= qotd.text %>&#10;&#10;#<%= qotd.tag %>">Answer</a>
 		</aside>
 		<% } %>
-		<% if (locals.showEarnTip) { %>
-		<aside class="earn-tip" data-earn-tip hidden>
-			<span class="earn-tip-icon"><%- icon('waves', { size: 26 }) %></span>
-			<div><strong>Earn Waves as you take part</strong><p>Post, comment, join communities and complete quests to earn Waves. Spend them on Ad-Free, boosts, or send them to friends.</p></div>
-			<a class="button button-small button-primary" href="/wallet#earn">See how</a>
-			<button class="earn-tip-close" type="button" data-earn-tip-close aria-label="Dismiss"><%- icon('x', { size: 15 }) %></button>
-		</aside>
-		<% } %>
 		<form class="composer composer-hidden" id="composer" method="post" action="/posts" enctype="multipart/form-data" data-prefill="<%= locals.composerPrefill || '' %>" data-word-limits='{"post":<%= wordLimits.post %>,"article":<%= wordLimits.article %>,"poll":<%= wordLimits.poll %>}'>
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, size: 'small', link: false }) %>
 			<div class="composer-body">
-				<div class="composer-intro"><strong>Share with your community</strong><span>A thought, a story, or a question to get things started. For highlighted, copyable code, wrap it in triple backticks (```js … ```).</span></div>
 				<textarea data-mention-input name="body" placeholder="What are you curious about today?" maxlength="4000" required></textarea>
 				<div class="composer-meta"><div class="word-limit-status"><span data-word-count>0 / <%= wordLimits.post %> words</span><div class="word-limit-meter" role="progressbar" aria-label="Word limit" aria-valuemin="0" aria-valuemax="<%= wordLimits.post %>" aria-valuenow="0"><span data-word-progress></span></div></div><div class="hashtag-suggestions" data-hashtag-suggestions></div></div>
 				<fieldset class="poll-composer" hidden><legend>Poll choices</legend><input name="pollQuestion" maxlength="200" placeholder="Ask a question" style="margin-bottom:1rem;"><div class="poll-option-grid"><input name="pollOptions" maxlength="80" placeholder="Option 1"><input name="pollOptions" maxlength="80" placeholder="Option 2"><input name="pollOptions" maxlength="80" placeholder="Option 3"><input name="pollOptions" maxlength="80" placeholder="Option 4"></div></fieldset>
 				<div class="composer-actions" style="margin-bottom: 10px;">
 					<select name="type" aria-label="Post type"><option value="post">Post · <%= wordLimits.post %> words</option><option value="article">Article · <%= wordLimits.article %> words</option><option value="poll">Poll · <%= wordLimits.poll %> words</option></select>
-					<select name="community" data-community-select aria-label="Choose a community"><option value="">Open Crowdwide</option><% composerCommunities.forEach((community) => { %><option value="<%= community._id %>" <%= String(community._id) === String(locals.selectedCommunityId || '') ? 'selected' : '' %>><%= community.name %></option><% }) %></select>
-					<input type="hidden" name="widewave" value="" data-ww-input data-preset="<%= locals.selectedWideWave || '' %>">
-					<button class="button button-ghost button-small ww-pick-button" type="button" data-ww-open aria-haspopup="dialog" title="Post to an open topic space"><%- icon('widewave', { size: 14 }) %> <span data-ww-label>WideWave</span></button>
+					<select name="community" data-community-select<%- composerCommunities.length || locals.selectedCommunityId ? "" : " hidden" %> aria-label="Choose a community"><option value="">Open Crowdwide</option><% composerCommunities.forEach((community) => { %><option value="<%= community._id %>" <%= String(community._id) === String(locals.selectedCommunityId || '') ? 'selected' : '' %>><%= community.name %></option><% }) %></select>
 					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
-					<button class="button button-ghost button-small" type="submit" name="saveAsDraft" value="on">Save draft</button>
 					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 				</div>
 				<details class="composer-options">
-					<summary>More options</summary>
+					<summary>Media, schedule &amp; more</summary>
 					<div class="composer-option-grid">
+					<button class="button button-ghost button-small composer-draft" type="submit" name="saveAsDraft" value="on">Save as draft</button>
 					<label class="quest-post-picker"><span>Post for quest (optional)</span><select name="quest" data-quest-picker aria-label="Link this post to a quest" aria-describedby="quest-post-help"><option value="">No quest</option><% availableQuests.forEach((quest) => { %><option value="<%= quest._id %>" data-community="<%= quest.community?._id %>" <%= String(quest._id) === String(locals.selectedQuestId || '') ? 'selected' : '' %>><%= quest.title %> · <%= quest.community?.name || 'Community' %></option><% }) %></select></label>
 					<label class="schedule-picker">Schedule<input type="datetime-local" name="scheduledAt" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
 					<label class="schedule-picker">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
@@ -134,19 +96,19 @@
 					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*" multiple></label>
 					<small class="quest-picker-hint" id="quest-post-help" data-quest-hint><%= availableQuests.length ? 'Choose one of the active quests you have joined; its community will be selected for you.' : 'Join an active community quest to link a post to it.' %></small>
 					</div>
+					<details class="composer-media-details">
+						<summary>Media details (alt text, caption, transcript)</summary>
+						<% [1, 2].forEach((n) => { %>
+						<fieldset class="composer-media-meta" data-media-meta="<%= n %>">
+							<legend>File <%= n %><%= n === 2 ? ' (if you attach a second file)' : '' %></legend>
+							<label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe this file"></label>
+							<label>Caption (shown under it)<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
+							<label>Transcript (for audio/video)<textarea name="mediaTranscript" maxlength="4000" placeholder="Optional transcript"></textarea></label>
+						</fieldset>
+						<% }) %>
+					</details>
+					<small class="upload-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files. Use **bold**, *italic*, "# heading" and "- list" lines for formatting, and triple backticks for code.</small>
 				</details>
-				<details class="composer-media-details">
-					<summary>Media details · alt text, caption, transcript (per file)</summary>
-					<% [1, 2].forEach((n) => { %>
-					<fieldset class="composer-media-meta" data-media-meta="<%= n %>">
-						<legend>File <%= n %><%= n === 2 ? ' (if you attach a second file)' : '' %></legend>
-						<label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe this file"></label>
-						<label>Caption (shown under it)<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
-						<label>Transcript (for audio/video)<textarea name="mediaTranscript" maxlength="4000" placeholder="Optional transcript"></textarea></label>
-					</fieldset>
-					<% }) %>
-				</details>
-				<small class="upload-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files · use **bold**, *italic*, "# heading", and "- list" lines for richer formatting</small>
 			</div>
 		</form>
 		<%
@@ -188,21 +150,7 @@
 				<% } else { %><span class="joined-mark">Joined</span><% } %>
 			</div>
 			<% }) %>
-			<form class="create-community" method="post" action="/communities"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="name" placeholder="Create a community" required><input name="description" placeholder="What is it about?" required><select name="category" aria-label="Community category"><% communityCategories.forEach((category) => { %><option value="<%= category.value %>"><%= category.label %></option><% }) %></select><label class="privacy-check"><input type="checkbox" name="isPrivate"> Private community</label><button class="button button-dark button-small" type="submit">Create <span><%- icon('plus', { size: 14 }) %></span></button></form>
-		</section>
-		<section class="discover-panel survey-help-panel" id="survey-help">
-			<div class="panel-heading"><h2>Help in surveys</h2><a href="/surveys">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
-			<p class="survey-help-note">Quick, anonymous questions that help shape Crowdwide. No name or email is collected.</p>
-			<% const surveysToShow = (locals.openSurveys || []).slice(0, 3); %>
-			<% if (!surveysToShow.length) { %>
-			<p class="survey-help-empty">You're all caught up - no new surveys right now.</p>
-			<% } %>
-			<% surveysToShow.forEach((survey) => { %>
-			<a class="discover-row survey-help-row" href="/surveys/<%= survey._id %>">
-				<div><strong><%= survey.title %></strong><span><%= survey.questionCount %> question<%= survey.questionCount === 1 ? '' : 's' %> · about <%= Math.max(1, Math.ceil(survey.questionCount / 3)) %> min</span></div>
-				<span class="joined-mark">Answer</span>
-			</a>
-			<% }) %>
+			<a class="panel-link" href="/communities/mine">Start a community</a>
 		</section>
 		<section class="discover-panel" id="people">
 			<div class="panel-heading"><h2>People to follow</h2><a href="/people">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
@@ -245,5 +193,4 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <%- include('../partials/app-footer') %>
-<%- include('../partials/widewave-picker') %>
 <%- include('../partials/foot') %>

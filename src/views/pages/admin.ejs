@@ -624,7 +624,6 @@
         <label>Ad-Free 1 month price (Waves)<input type="number" name="adFreePrice1Month" min="1" max="1000000" step="1" value="<%= siteSettings.adFreePrice1Month ?? 100 %>"></label>
         <label>Ad-Free 4 months price (Waves)<input type="number" name="adFreePrice4Months" min="1" max="1000000" step="1" value="<%= siteSettings.adFreePrice4Months ?? 360 %>"></label>
         <label>Ad-Free 12 months price (Waves)<input type="number" name="adFreePrice12Months" min="1" max="1000000" step="1" value="<%= siteSettings.adFreePrice12Months ?? 1000 %>"></label>
-        <label class="checkbox-field"><input type="checkbox" name="widewavesEnabled" <%= siteSettings.widewavesEnabled !== false ? 'checked' : '' %>> Enable WideWaves (open topic spaces at ww/name)</label>
         <label class="checkbox-field"><input type="checkbox" name="postPromotionEnabled" <%= siteSettings.postPromotionEnabled !== false ? 'checked' : '' %>> Allow post promotions paid with Waves</label>
         <label>Post promotion price (Waves)<input type="number" name="postPromotionWavesCost" min="1" max="10000" step="1" value="<%= siteSettings.postPromotionWavesCost ?? 25 %>"></label>
         <label>Post promotion duration (hours)<input type="number" name="postPromotionDurationHours" min="1" max="168" step="1" value="<%= siteSettings.postPromotionDurationHours ?? 24 %>"></label>

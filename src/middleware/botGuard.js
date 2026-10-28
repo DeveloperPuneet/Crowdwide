@@ -26,7 +26,7 @@ const LIMITS = { burst: 100, sustained: 500, probe: 2, limited: 20, missing: 40,
 const MAX_TRACKED = 50000;
 // View-inflation bots: they hit the same post/profile over and over, often with a different
 // ?query each time so every link looks new. People do not reload one page on a metronome.
-const VIEW_PATH = /^\/(?:posts|u|c|communities|widewaves?)\/[^/]+\/?$/i;
+const VIEW_PATH = /^\/(?:posts|u|c|communities)\/[^/]+\/?$/i;
 const VIEW = { window: 15 * 60 * 1000, variants: 10, rhythm: 8 };
 
 const PROBE_PATHS = /^\/(?:\.(?:env|git|svn|aws|ssh|ds_store|htaccess|htpasswd)\b|wp-(?:login|admin|content|includes|config)|wordpress\b|xmlrpc\.php|phpmyadmin|pma\b|myadmin|adminer|administrator\b|cgi-bin|vendor\/phpunit|actuator|server-status|config\.(?:php|json|yml|yaml)|backup\.(?:sql|zip|tar)|id_rsa|boaform|solr|jenkins|console\b|manager\/html|shell\b|eval-stdin\.php)/i;

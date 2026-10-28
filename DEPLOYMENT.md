@@ -279,7 +279,7 @@ nothing worth saying.
 - Check without sending: the welcome series runs from the same 30-minute worker
   as the streak savers; there is no new environment variable to set.
 
-## Advertising, private profiles, live moderation and WideWaves
+## Advertising, private profiles and live moderation
 
 **Advertiser dashboard.** Every ad now has its own *brand name* and *logo*, so a new ad no longer
 shows the previous ad's name. Approved advertisers can edit their business profile (website,
@@ -322,28 +322,6 @@ communities never show ads.
 like, comment and share. Avatars in infinite-scroll feed pages, comments and chat now load. "Reply
 with a post" notifies the original author (type `post_reply`) and opens the reply.
 
-### WideWaves
-
-Open topic spaces written `ww/name`. Anyone can read them, post to them and engage like with normal
-posts, no joining or following.
-
-- **Names** are unique, lowercase, 3-30 letters/numbers/underscores. Reserved words are blocked.
-- **Posting:** the composer has a *WideWave* button (popup with trending WideWaves and search). A post
-  goes to a community *or* a WideWave. Pages: `/widewaves` (For you, Top posts, Newest, search),
-  `/ww/:name`, `/widewaves/leaderboard` (week, month, year, all time), `/widewaves/new`.
-- **Creators** may only edit the description and hashtags, or delete the WideWave. Deleting keeps all
-  posts as normal posts. Limits: 3 creations a day, 15 active per member.
-- **Moderation** is only by official moderators/admins (moderator console -> WideWaves tab): remove a
-  WideWave (posts become normal posts, the name stays blocked) or move a single post out of one.
-- **Recommendations** use the member's interest profile plus the WideWaves they post in or like.
-  Trending = posts in the last 7 days (weighted with likes and comments).
-- **Emails:** the weekly newsletter (personalised), come-back reminders and welcome emails include a
-  short "WideWaves worth a look" block.
-- **Admin switch:** Admin -> Settings -> "Enable WideWaves".
-
-Scheduled or draft posts attached to a WideWave are counted once published; `postsCount` is a cache
-used for ordering search results, while trending and leaderboards are computed live.
-
 ## Render commands
 
 For the Crowdwide app service, select the Node runtime and use:
@@ -375,9 +353,7 @@ stdout (`info`) or stderr (`warn`/`error`), which most log aggregators
 (CloudWatch, Render's own log viewer, Datadog, etc.) can parse without
 extra configuration.
 
-## Crowdwide | WideWave layout and the bot guard
-
-**Two spaces.** The top bar has a Crowdwide | WideWave switch, and phones get a WideWave tab in the bottom bar (Communities moved into the menu there). WideWave pages (`/widewaves`, `/ww/name`) use a Threads-style single column with a quick composer; the Crowdwide home shows a "Trending in WideWave" strip of topic bubbles. Posting from a WideWave page sends people back to that page.
+## Bot guard
 
 **Bot guard** (`src/middleware/botGuard.js`). An IP is blocked for 24 hours (`BOT_BLOCK_HOURS`) when it floods requests, hits scanner paths such as `/.env` or `/wp-login.php` twice, uses a known scanner User-Agent, keeps going after rate-limit replies, floods 404s, or floods unsigned-in form posts. Signed-in users and search crawlers get higher limits. Private/loopback addresses, `/health` and `/media/` are never counted, and `BOT_GUARD_ALLOWLIST` (comma separated) exempts addresses. Blocks are stored in the `blockedips` collection and expire on their own, so a restart does not free a bot. Admins can review and unblock at `/admin/blocked-ips`. Set `BOT_GUARD=off` to disable.
 
@@ -388,3 +364,9 @@ Make sure `TRUST_PROXY_HOPS` matches your host (1 on Render). If it is wrong, ev
 - Approved ads now serve right away (`approved` is treated as live). Feed ads keep showing even when a community is monetized, and monetized communities also carry feed/smart ads. Targeted ads still need a monetized community with ads switched on. The advertiser dashboard has a "Where it shows" note per campaign. People with an Ad-Free plan never see ads.
 - Post and profile views count once per viewer per 30 minutes, whatever ?query is added. The bot guard also blocks an address for 24 hours when it opens the same post/profile on a fixed rhythm (`fixed-rhythm`) or with 10+ different ?query links (`url-variants`). See /admin/blocked-ips.
 - Post cards have a "Replies with a post" button (`/posts/:id/replies-with-posts`).
+
+## WideWave removed
+The WideWave feature (open topic spaces at `ww/name`) has been removed completely: pages, routes, emails,
+admin switch and moderator tab. On the next start `src/services/legacyCleanup.js` runs once (and is safe to
+run again): every post that belonged to a WideWave becomes a normal post, and the `widewaves` collection and
+its index are dropped. No manual step is needed.

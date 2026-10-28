@@ -1,0 +1,105 @@
+/* ==========================================================================
+   Minimal UI
+   Members said the app felt like it had too many options. The rule here is: show the few things people
+   use every day, fold everything else under "More", keep surfaces flat and quiet.
+   This file loads last, on purpose, and only uses the shared theme tokens so every theme follows it.
+   ========================================================================== */
+
+/* ---- Navigation: six everyday links, the rest under "More" ---- */
+.side-links .side-more { display: grid; gap: 3px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--bd-1); }
+.side-links .side-more > summary { display: flex; align-items: center; gap: 13px; padding: 10px 12px; border-radius: 12px; color: var(--tx-lo); font-size: 13px; cursor: pointer; list-style: none; }
+.side-links .side-more > summary::-webkit-details-marker { display: none; }
+.side-links .side-more > summary:hover { background: var(--ov-1, var(--sf-2)); color: var(--tx-hi); }
+.side-links .side-more > summary:focus-visible { outline: 2px solid var(--ac-blue, #6c8cff); outline-offset: 2px; }
+.side-links .side-more > summary .icon { flex: none; }
+.side-links .side-more > a { font-size: 12.5px; }
+.app-rail:not(.is-open) .side-more > summary { justify-content: center; width: 44px; margin: 0 auto; padding: 11px 0; }
+.app-rail:not(.is-open) .side-more > summary > span { display: none; }
+.dashboard-modern.sidebar-collapsed .side-more > summary { justify-content: center; padding: 12px 0; }
+.dashboard-modern.sidebar-collapsed .side-more > summary > span { display: none; }
+.side-links .side-badge { margin-left: auto; }
+
+/* Top bar and phone menu: same "More" fold as the sidebar */
+.nav-drawer-more { margin-top: 2px; }
+.nav-drawer-more > summary { justify-content: space-between; }
+
+/* ---- Home: one quiet prompt instead of a headline and a big button ---- */
+.composer-prompt { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--bd-1); border-radius: 14px; background: var(--sf-1); color: var(--tx-lo); font: inherit; font-size: 15px; text-align: left; cursor: pointer; box-shadow: none; transition: border-color .15s ease, background .15s ease; }
+.composer-prompt:hover, .composer-prompt:focus-visible { border-color: var(--bd-2); background: var(--sf-2); color: var(--tx-mid); }
+.composer-prompt-text { flex: 1; min-width: 0; }
+.composer-prompt-plus { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--fill-blue, var(--blue, #4f6bff)); color: #fff; flex: none; }
+.composer-prompt[aria-expanded="true"] { display: none; }
+
+/* Feed tabs: plain text with an underline, no pills, no gradients */
+.dashboard-modern .feed-tabs, .feed-tabs { display: flex; gap: 4px; padding: 0; margin: 0 0 12px; border-bottom: 1px solid var(--bd-1); overflow-x: auto; scrollbar-width: none; }
+.dashboard-modern .feed-tabs::-webkit-scrollbar, .feed-tabs::-webkit-scrollbar { display: none; }
+.dashboard-modern .feed-tabs a, .feed-tabs a { display: inline-flex; align-items: center; padding: 11px 14px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; color: var(--tx-lo); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.dashboard-modern .feed-tabs a:hover, .feed-tabs a:hover { color: var(--tx-hi); background: transparent; border-color: transparent; border-bottom-color: var(--bd-2); }
+.dashboard-modern .feed-tabs a.feed-tab-active, .feed-tabs a.feed-tab-active { background: transparent; color: var(--tx-hi); border-bottom-color: var(--ac-blue, var(--blue, #4f6bff)); }
+.dashboard-modern .feed-tabs a.feed-tab-active :is(span, svg), .feed-tabs a.feed-tab-active :is(span, svg) { color: inherit; }
+.feed-subtabs { gap: 14px; margin: 0 0 14px; }
+.feed-subtabs a { padding: 2px 0; border: 0; border-radius: 0; background: transparent; font-size: 13px; color: var(--tx-lo); }
+.feed-subtabs a:hover { color: var(--tx-hi); border: 0; }
+.feed-subtabs a.is-on { background: transparent; color: var(--tx-hi); font-weight: 700; text-decoration: underline; text-underline-offset: 6px; text-decoration-color: var(--ac-blue, var(--blue, #4f6bff)); }
+
+/* ---- Composer: text, type, community, Publish. Everything else is one fold ---- */
+.dashboard-modern .composer { box-shadow: none; border-radius: 14px; }
+.composer .composer-actions { margin-top: 8px; margin-bottom: 4px !important; }
+.composer .composer-actions .button-primary { margin-left: 0; }
+.composer .composer-options > summary { cursor: pointer; color: var(--tx-lo); font-size: 12.5px; padding: 6px 0; }
+.composer .composer-options > summary:hover { color: var(--tx-hi); }
+.composer .composer-options[open] > summary { margin-bottom: 8px; }
+.composer .composer-draft { justify-self: start; }
+.composer .composer-media-details { margin-top: 10px; }
+.composer .upload-help { display: block; margin-top: 8px; color: var(--tx-faint); font-size: 11.5px; line-height: 1.5; }
+
+/* ---- Right column: two short lists, no extra forms ---- */
+.dashboard-modern .discover-panel, .discover-panel { box-shadow: none; border-radius: 14px; padding: 16px; }
+.discover-panel .panel-link { display: inline-block; margin-top: 10px; font-size: 12.5px; color: var(--ac-blue, var(--blue, #4f6bff)); }
+.discover-panel .panel-link:hover { text-decoration: underline; }
+.dashboard-modern .discover-panel .panel-heading a { padding: 0; background: transparent; color: var(--tx-lo); font-size: 12px; }
+.dashboard-modern .discover-panel .panel-heading a:hover { color: var(--tx-hi); }
+
+/* ---- Cards: flat, no shadows, quieter text under each post ---- */
+body .post-card { box-shadow: none; border-radius: 14px; }
+.post-card .post-source { opacity: .7; }
+@media (hover: hover) {
+  .post-card .action-translate-inline { opacity: 0; transition: opacity .15s ease; }
+  .post-card:hover .action-translate-inline, .post-card:focus-within .action-translate-inline { opacity: 1; }
+}
+.welcome-back-card, .qotd-card { box-shadow: none; border-radius: 14px; }
+.qotd-card .eyebrow { display: none; }
+
+/* ---- Footer: a single quiet row, the long link lists live in one fold ---- */
+.app-footer .footer-fold { padding: 14px 0 4px; }
+.app-footer .footer-fold > summary { display: inline-block; cursor: pointer; color: var(--tx-lo); font-size: 13px; list-style: none; }
+.app-footer .footer-fold > summary::-webkit-details-marker { display: none; }
+.app-footer .footer-fold > summary::after { content: " \25BE"; }
+.app-footer .footer-fold[open] > summary::after { content: " \25B4"; }
+.app-footer .footer-fold > summary:hover { color: var(--tx-hi); }
+.app-footer .footer-fold .footer-top { padding-top: 16px; }
+
+/* ---- Blocked addresses (admin) ---- */
+.blocked-page { max-width: 720px; margin: 0 auto; padding: 32px var(--gutter, 18px) 90px; }
+.blocked-hero h1 { margin: 4px 0 8px; font-size: clamp(26px, 5vw, 36px); }
+.blocked-hero p { margin: 0; color: var(--tx-mid); line-height: 1.55; }
+.blocked-list { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 8px; }
+.blocked-row { padding: 14px; border: 1px solid var(--bd-1); border-radius: 14px; background: var(--sf-1); }
+.blocked-note { margin: 4px 0; color: var(--tx-lo); font-size: 13px; line-height: 1.5; }
+
+/* ---- Second pass: flatter cards, quieter labels ---- */
+.composer-prompt .avatar, .composer-prompt .avatar-link, .composer-prompt > :first-child:not(span) { flex: none; width: 36px; height: 36px; max-width: 36px; }
+.composer-prompt .avatar { border-radius: 50%; font-size: 14px; }
+.dashboard-modern .composer .composer-options, .composer .composer-options { border: 0; background: transparent; padding: 0; box-shadow: none; border-top: 0; }
+.composer .composer-options > summary { padding: 6px 0; }
+body .post-card .post-source, body .post-card .post-meta .post-source { background: transparent; padding: 0; color: var(--tx-faint) !important; font-weight: 500; font-size: 11px !important; }
+body .post-card .post-actions :is(button, a.post-stat, .post-stat, span) { background: transparent; box-shadow: none; }
+body .post-card .post-actions :is(button, a.post-stat):hover { background: var(--ov-1, var(--sf-2)); }
+body .post-card .post-actions { border-top-color: var(--bd-1); gap: 0; }
+body .qotd-card .button, body .welcome-back-card .button { box-shadow: none; background-image: none; }
+body .qotd-card .button-primary { background: var(--fill-blue, var(--blue, #4f6bff)); }
+body .dashboard-modern .composer .button-primary, body .composer .button-primary { box-shadow: none; background-image: none; background-color: var(--fill-blue, var(--blue, #4f6bff)); }
+body .feed-subtabs a { color: var(--tx-lo); }
+body .feed-subtabs a:hover, body .feed-subtabs a.is-on { color: var(--tx-hi); }
+body .post-card .post-actions .action-like { background: transparent; }
+body .post-card .post-actions .action-like:hover { background: var(--ov-1, var(--sf-2)); }

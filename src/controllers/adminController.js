@@ -4,7 +4,6 @@ const { hashPassword } = require('../utils/passwords');
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
-const WideWave = require('../models/WideWave');
 const Report = require('../models/Report');
 const AuditLog = require('../models/AuditLog');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
@@ -952,7 +951,6 @@ exports.updateSiteSettings = async (req, res) => {
   }
   const wavesWelcomeBonus = Number(req.body.wavesWelcomeBonus);
   if (Number.isFinite(wavesWelcomeBonus) && wavesWelcomeBonus >= 0) settings.wavesWelcomeBonus = Math.min(10000, Math.round(wavesWelcomeBonus * 100) / 100);
-  settings.widewavesEnabled = req.body.widewavesEnabled === 'on';
   settings.postPromotionEnabled = req.body.postPromotionEnabled === 'on';
   const postPromotionWavesCost = Number(req.body.postPromotionWavesCost);
   if (Number.isFinite(postPromotionWavesCost) && postPromotionWavesCost >= 1) settings.postPromotionWavesCost = Math.min(10000, postPromotionWavesCost);
@@ -1137,8 +1135,7 @@ exports.moderator = async (req, res) => {
   const contentCounts = { post: 0, article: 0, poll: 0 };
   typeCountRows.forEach((row) => { if (row._id in contentCounts) contentCounts[row._id] = row.n; });
   const myOpenReportRecommendations = new Set(actions.filter((a) => a.action === 'resolve-report' && a.status === 'pending').map((a) => String(a.target)));
-  const widewaves = await WideWave.find({ status: 'active' }).sort({ createdAt: -1 }).limit(40).populate('creator', 'name').lean();
-  res.render('pages/moderator', { widewaves, contentType, contentCounts, recentAuto: actions.filter((a) => a.autoApplied).slice(0, 8), title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization });
+  res.render('pages/moderator', { contentType, contentCounts, recentAuto: actions.filter((a) => a.autoApplied).slice(0, 8), title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization });
 };
 
 // Moderation forms are submitted in the background (no page reload). The same handlers
