@@ -350,12 +350,6 @@ exports.activityRecap = async (req, res) => {
 				topics: topicsByMonth.get(key) || []
 			});
 		}
-		const maxActivity = Math.max(1, ...months.map((month) => month.posts + month.comments + month.shares));
-		months.forEach((month) => {
-			month.postsHeight = Math.round((month.posts / maxActivity) * 100);
-			month.commentsHeight = Math.round((month.comments / maxActivity) * 100);
-			month.sharesHeight = Math.round((month.shares / maxActivity) * 100);
-		});
 		const periodFormat = new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 		const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 		const totals = {

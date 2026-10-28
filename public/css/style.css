@@ -1130,16 +1130,23 @@ html { scrollbar-gutter: stable; }
 .recap-section-heading h2, .recap-highlight h2 { margin: 0; font-size: 19px; }
 .recap-legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--tx-lo); font-size: 11px; }
 .recap-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.recap-legend i { width: 8px; height: 8px; border-radius: 2px; }
-.recap-key-posts, .recap-bar-posts { background: #ff9850; }
-.recap-key-comments, .recap-bar-comments { background: #63c6ba; }
-.recap-key-shares, .recap-bar-shares { background: #aab4ff; }
-.recap-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; height: 190px; padding-top: 4px; border-bottom: 1px solid var(--line); }
-.recap-month { min-width: 0; display: grid; grid-template-rows: minmax(0, 1fr) 24px; gap: 7px; text-align: center; }
-.recap-bar-track { min-height: 0; display: flex; align-items: end; border-radius: 4px 4px 0 0; background: var(--ov-1); }
-.recap-bar { width: 100%; height: 100%; display: flex; flex-direction: column-reverse; overflow: hidden; border-radius: 4px 4px 0 0; }
-.recap-bar span { display: block; flex: 0 0 auto; width: 100%; min-height: 0; }
-.recap-month-label { color: var(--tx-lo); font-size: 10px; white-space: nowrap; }
+.recap-legend i { width: 16px; height: 0; border-top: 2px solid; }
+.recap-key-posts { border-color: #ff9850; }
+.recap-key-comments { border-color: #63c6ba; }
+.recap-key-shares { border-color: #aab4ff; }
+.recap-chart { display: block; width: 100%; height: auto; overflow: visible; }
+.recap-chart-grid { stroke: var(--line); stroke-width: 1; }
+.recap-chart-axis-line { stroke: var(--bd-2); stroke-width: 1; }
+.recap-chart-axis, .recap-chart-month { fill: var(--tx-faint); font: 10px 'DM Sans', sans-serif; }
+.recap-chart-month { font-size: 9px; }
+.recap-chart-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.recap-chart-line-posts { stroke: #ff9850; }
+.recap-chart-line-comments { stroke: #63c6ba; }
+.recap-chart-line-shares { stroke: #aab4ff; }
+.recap-chart-dot { stroke: var(--sf-1); stroke-width: 2; }
+.recap-chart-dot-posts { fill: #ff9850; }
+.recap-chart-dot-comments { fill: #63c6ba; }
+.recap-chart-dot-shares { fill: #aab4ff; }
 .recap-empty { margin: 24px 0 10px; color: var(--tx-lo); font-size: 13px; }
 .recap-highlight { display: grid; gap: 14px; }
 .recap-highlight blockquote { margin: 0; color: var(--tx-hi); font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
@@ -1386,7 +1393,6 @@ html { scrollbar-gutter: stable; }
   .recap-heading h1 { font-size: 30px; }
   .recap-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .recap-section-heading { align-items: flex-start; flex-direction: column; }
-  .recap-chart { gap: 4px; height: 155px; }
   .recap-panel { padding: 16px 12px; }
   .feed-heading h1 { font-size: 27px; max-width: 100%; overflow-wrap: anywhere; }
   .feed-heading .button { width: 100%; justify-content: center; }

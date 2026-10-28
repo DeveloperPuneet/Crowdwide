@@ -1158,7 +1158,10 @@ test('personal recap renders activity totals and a monthly timeline', async () =
     recap: {
       periodLabel: 'Oct 2025 – Sep 2026',
       totals: { posts: 8, comments: 12, shares: 3, communities: 2 },
-      months: [{ label: 'Sep', fullLabel: 'September 2026', posts: 2, comments: 1, shares: 0, postsHeight: 100, commentsHeight: 50, sharesHeight: 0, topics: [{ tag: 'sketching', posts: 2 }] }],
+      months: [
+        { label: 'Sep', fullLabel: 'September 2026', posts: 2, comments: 1, shares: 0, topics: [{ tag: 'sketching', posts: 2 }] },
+        { label: 'Oct', fullLabel: 'October 2026', posts: 1, comments: 3, shares: 1, topics: [] }
+      ],
       topPost: { body: 'A favorite post', type: 'post', createdAt: new Date('2026-09-10T00:00:00Z'), engagement: 7 },
       topComment: { body: 'A thoughtful reply', createdAt: new Date('2026-09-11T00:00:00Z'), interactions: 5, post: { _id: 'p1', body: 'A conversation prompt' } },
       topTopics: [{ tag: 'sketching', posts: 2 }, { tag: 'design', posts: 1 }]
@@ -1175,6 +1178,12 @@ test('personal recap renders activity totals and a monthly timeline', async () =
   assert.match(html, /September/);
   assert.match(html, /In-app shares/);
   assert.match(html, /<strong>3<\/strong>/);
+  assert.match(html, /aria-label="Line chart of monthly totals for posts, comments, and in-app shares"/);
+  assert.equal((html.match(/class="recap-chart-line recap-chart-line-/g) || []).length, 3);
+  assert.match(html, /class="recap-chart-line recap-chart-line-posts"/);
+  assert.match(html, /class="recap-chart-line recap-chart-line-comments"/);
+  assert.match(html, /class="recap-chart-line recap-chart-line-shares"/);
+  assert.doesNotMatch(html, /recap-bar/);
 });
 
 test('signed-in navigation keeps advertiser tools under one More fold in the sidebar and the phone menu', async () => {

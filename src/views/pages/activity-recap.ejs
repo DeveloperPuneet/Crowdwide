@@ -17,18 +17,32 @@
 	<section class="recap-panel">
 		<div class="recap-section-heading"><div><p class="eyebrow">Your activity</p><h2>Month by month</h2></div><div class="recap-legend"><span><i class="recap-key-posts"></i>Posts</span><span><i class="recap-key-comments"></i>Comments</span><span><i class="recap-key-shares"></i>Shares</span></div></div>
 		<% if (recap.totals.posts || recap.totals.comments || recap.totals.shares) { %>
-		<div class="recap-chart" role="img" aria-label="Monthly totals for posts, comments, and in-app shares">
-			<% recap.months.forEach((month) => { %>
-			<div class="recap-month">
-				<div class="recap-bar-track"><div class="recap-bar">
-					<span class="recap-bar-posts" style="height:<%= month.postsHeight %>%"></span>
-					<span class="recap-bar-comments" style="height:<%= month.commentsHeight %>%"></span>
-					<span class="recap-bar-shares" style="height:<%= month.sharesHeight %>%"></span>
-				</div></div>
-				<span class="recap-month-label"><%= month.label %></span>
-			</div>
+		<%
+			const chartWidth = 720, chartHeight = 250, chartLeft = 38, chartRight = 12, chartTop = 18, chartBottom = 36;
+			const chartPlotHeight = chartHeight - chartTop - chartBottom;
+			const chartMax = Math.max(4, Math.ceil(Math.max(0, ...recap.months.flatMap((month) => [month.posts, month.comments, month.shares])) / 4) * 4);
+			const chartX = (index) => chartLeft + ((chartWidth - chartLeft - chartRight) * index) / Math.max(1, recap.months.length - 1);
+			const chartY = (value) => chartTop + chartPlotHeight * (1 - value / chartMax);
+			const chartSeries = [
+				{ key: 'posts', name: 'Posts', color: '#ff9850', value: (month) => month.posts },
+				{ key: 'comments', name: 'Comments', color: '#63c6ba', value: (month) => month.comments },
+				{ key: 'shares', name: 'Shares', color: '#aab4ff', value: (month) => month.shares }
+			];
+		%>
+		<svg class="recap-chart" viewBox="0 0 <%= chartWidth %> <%= chartHeight %>" role="img" aria-label="Line chart of monthly totals for posts, comments, and in-app shares">
+			<% [0, 0.25, 0.5, 0.75, 1].forEach((fraction) => { const y = chartY(chartMax * fraction); %>
+			<line class="recap-chart-grid" x1="<%= chartLeft %>" y1="<%= y %>" x2="<%= chartWidth - chartRight %>" y2="<%= y %>"/>
+			<text class="recap-chart-axis" x="<%= chartLeft - 7 %>" y="<%= y + 4 %>" text-anchor="end"><%= Math.round(chartMax * fraction) %></text>
 			<% }) %>
-		</div>
+			<line class="recap-chart-axis-line" x1="<%= chartLeft %>" y1="<%= chartHeight - chartBottom %>" x2="<%= chartWidth - chartRight %>" y2="<%= chartHeight - chartBottom %>"/>
+			<% chartSeries.forEach((series) => { const points = recap.months.map((month, index) => `${chartX(index)},${chartY(series.value(month))}`).join(' '); %>
+			<polyline class="recap-chart-line recap-chart-line-<%= series.key %>" points="<%= points %>"/>
+			<% recap.months.forEach((month, index) => { %>
+			<circle class="recap-chart-dot recap-chart-dot-<%= series.key %>" cx="<%= chartX(index) %>" cy="<%= chartY(series.value(month)) %>" r="3.5"><title><%= series.name %> · <%= month.fullLabel %>: <%= series.value(month) %></title></circle>
+			<% }) %>
+			<% }) %>
+			<% recap.months.forEach((month, index) => { %><text class="recap-chart-month" x="<%= chartX(index) %>" y="<%= chartHeight - 10 %>" text-anchor="middle"><%= month.label %></text><% }) %>
+		</svg>
 		<ul class="visually-hidden" aria-label="Activity by month">
 			<% recap.months.forEach((month) => { %><li><%= month.fullLabel %>: <%= month.posts %> posts, <%= month.comments %> comments, <%= month.shares %> in-app shares</li><% }) %>
 		</ul>

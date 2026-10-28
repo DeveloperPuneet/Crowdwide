@@ -1401,8 +1401,8 @@ html:has(.home-page), .home-page { overflow-x: clip; }
    ===================================================================== */
 /* The sidebar is an OVERLAY: the grid keeps the same narrow icon column whether it is open or closed, so
    opening it never shifts or squeezes the feed. The open panel floats over the page behind a dimmed backdrop. */
-.app-layout.dashboard-modern.sidebar-collapsed, .app-layout.dashboard-modern:not(.sidebar-collapsed) { grid-template-columns: 72px minmax(0, 1fr) minmax(240px, 330px); }
-@media (max-width: 1500px) { .app-layout.dashboard-modern.sidebar-collapsed, .app-layout.dashboard-modern:not(.sidebar-collapsed) { grid-template-columns: 72px minmax(0, 1fr) minmax(240px, 290px); } }
+.app-layout.dashboard-modern.sidebar-collapsed, .app-layout.dashboard-modern:not(.sidebar-collapsed) { max-width: none; margin-left: 0; padding-left: 0; grid-template-columns: 72px minmax(0, 880px) minmax(240px, 330px); justify-content: start; }
+@media (max-width: 1500px) { .app-layout.dashboard-modern.sidebar-collapsed, .app-layout.dashboard-modern:not(.sidebar-collapsed) { grid-template-columns: 72px minmax(0, 880px) minmax(240px, 290px); } }
 @media (max-width: 1180px) { .app-layout.dashboard-modern.sidebar-collapsed, .app-layout.dashboard-modern:not(.sidebar-collapsed) { grid-template-columns: 72px minmax(0, 1fr); } }
 
 .dashboard-modern .app-sidebar { min-width: 0; padding-right: 22px; }
@@ -1459,9 +1459,6 @@ html:has(.home-page), .home-page { overflow-x: clip; }
 .recap-modern .recap-section-heading { flex-wrap: wrap; align-items: flex-end; }
 .recap-modern .recap-section-heading h2, .recap-modern .recap-highlight h2 { font-size: clamp(18px, 2.6vw, 22px); letter-spacing: -.5px; }
 .recap-modern .recap-legend { padding: 6px 12px; border-radius: 999px; background: var(--sf-1); border: 1px solid var(--line); }
-.recap-modern .recap-chart { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: clamp(6px, 1.4vw, 16px); height: clamp(170px, 28vw, 240px); }
-.recap-modern .recap-bar-track { border-radius: 10px; }
-.recap-modern .recap-bar { border-radius: 10px; overflow: hidden; }
 .recap-modern .recap-topic-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
 .recap-modern .recap-topic { border-radius: 16px; background: var(--sf-1); }
 .recap-modern .recap-month-topics > div { flex-wrap: wrap; gap: 4px 14px; }

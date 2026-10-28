@@ -168,7 +168,7 @@ test('opening a sidebar overlays the page instead of resizing it, behind a dimme
   assert.doesNotMatch(style, /body:has\(\.app-rail\.is-open\)\s*\{[^}]*--rail-w/);
   assert.match(style, /\.app-rail-scrim, \.sidebar-scrim \{[^}]*backdrop-filter: blur/);
   assert.match(modern, /dashboard-modern:not\(\.sidebar-collapsed\) #dashboard-sidebar \{[^}]*position: absolute/);
-  assert.match(modern, /\.app-layout\.dashboard-modern:not\(\.sidebar-collapsed\) \{ grid-template-columns: 72px/);
+  assert.match(modern, /\.app-layout\.dashboard-modern\.sidebar-collapsed, \.app-layout\.dashboard-modern:not\(\.sidebar-collapsed\) \{ max-width: none; margin-left: 0; padding-left: 0; grid-template-columns: 72px minmax\(0, 880px\)/);
 });
 
 test('WideWave feed column fills the space beside the side panel', () => {
