@@ -15,7 +15,6 @@
 	<%- item('/communities', 'users', 'Communities', 'communities') %>
 	<%- item('/messages', 'mail', 'Messages', 'messages') %>
 	<%- item('/notifications', 'bell', 'Notifications', 'notifications') %>
-	<%- item('/u/' + currentUser.id, 'user', 'Profile', 'profile') %>
 	<details class="side-more"<%= moreOpen ? ' open' : '' %>>
 		<summary data-tip="More" aria-label="More"><%- icon('more-horizontal', { size: 19 }) %><span>More</span></summary>
 		<%- item('/groups', 'message-circle', 'Groups', 'groups') %>
@@ -30,4 +29,5 @@
 		<% if (currentUser.role === 'admin') { %><%- item('/admin', 'shield', 'Admin console', 'admin') %><%- item('/admin/blocked-ips', 'lock', 'Blocked addresses', 'blocked') %><% } %>
 		<% if (isStaff) { %><%- item('/moderator', 'shield', 'Moderator console', 'moderator') %><% } %>
 	</details>
+	<div class="side-profile-slot"><%- item('/u/' + currentUser.id, 'user', 'Profile', 'profile') %></div>
 </nav>

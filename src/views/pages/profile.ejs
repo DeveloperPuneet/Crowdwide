@@ -156,14 +156,23 @@
 	<% const maxMonthCount = Math.max(1, ...statsDetail.months.map((m) => m.count)); %>
 	<section class="community-posts profile-posts stats-tab-section">
 		<div class="panel-heading"><h2>Posts over the last 6 months</h2><span><%= statsDetail.months.reduce((sum, m) => sum + m.count, 0) %> posts</span></div>
-		<div class="stats-bars">
-			<% statsDetail.months.forEach((m) => { %>
-			<div class="stats-bar-col">
-				<div class="stats-bar-track"><div class="stats-bar-fill" style="height:<%= Math.round((m.count / maxMonthCount) * 100) %>%"><span><%= m.count %></span></div></div>
-				<label><%= m.label %></label>
-			</div>
+		<%
+			const months = statsDetail.months; const W = 600, H = 220, padX = 36, top = 28, bottom = 36;
+			const stepX = months.length > 1 ? (W - padX * 2) / (months.length - 1) : 0;
+			const pts = months.map((m, i) => [Math.round(padX + i * stepX), Math.round(top + (H - top - bottom) * (1 - m.count / maxMonthCount)), m]);
+			const line = pts.map((p) => p[0] + ',' + p[1]).join(' ');
+			const baseY = H - bottom;
+		%>
+		<svg class="stats-line" viewBox="0 0 <%= W %> <%= H %>" role="img" aria-label="Posts per month, last 6 months: <%= months.map((m) => m.label + ' ' + m.count).join(', ') %>">
+			<line class="stats-line-axis" x1="<%= padX %>" y1="<%= baseY %>" x2="<%= W - padX %>" y2="<%= baseY %>"/>
+			<% if (pts.length > 1) { %><polygon class="stats-line-area" points="<%= pts[0][0] %>,<%= baseY %> <%= line %> <%= pts[pts.length - 1][0] %>,<%= baseY %>"/><% } %>
+			<polyline class="stats-line-path" points="<%= line %>"/>
+			<% pts.forEach(([x, y, m]) => { %>
+			<circle class="stats-line-dot" cx="<%= x %>" cy="<%= y %>" r="5"/>
+			<text class="stats-line-value" x="<%= x %>" y="<%= y - 12 %>" text-anchor="middle"><%= m.count %></text>
+			<text class="stats-line-label" x="<%= x %>" y="<%= H - 12 %>" text-anchor="middle"><%= m.label %></text>
 			<% }) %>
-		</div>
+		</svg>
 	</section>
 	<section class="community-posts profile-posts stats-tab-section">
 		<div class="panel-heading"><h2>Post mix &amp; averages</h2></div>

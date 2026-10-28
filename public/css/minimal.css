@@ -103,3 +103,27 @@ body .feed-subtabs a { color: var(--tx-lo); }
 body .feed-subtabs a:hover, body .feed-subtabs a.is-on { color: var(--tx-hi); }
 body .post-card .post-actions .action-like { background: transparent; }
 body .post-card .post-actions .action-like:hover { background: var(--ov-1, var(--sf-2)); }
+
+/* Profile sits at the very bottom of the sidebar */
+.side-links { min-height: 100%; }
+.app-rail .rail-scroll { display: flex; flex-direction: column; }
+.app-rail .rail-scroll > .side-links { flex: 1; align-content: start; }
+.side-links .side-profile-slot { margin-top: auto; padding-top: 10px; position: sticky; bottom: 0; background: var(--sf-0, transparent); }
+.app-rail:not(.is-open) .side-profile-slot a { justify-content: center; width: 44px; margin: 0 auto; padding: 11px 0; }
+.app-rail:not(.is-open) .side-profile-slot a > span { display: none; }
+
+/* Posts-per-month line chart */
+.stats-line { display: block; width: 100%; height: auto; max-height: 260px; margin-top: 8px; }
+.stats-line-axis { stroke: var(--bd-1); stroke-width: 1; }
+.stats-line-path { fill: none; stroke: var(--ac-blue, #6c8cff); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.stats-line-area { fill: var(--ac-blue, #6c8cff); opacity: .12; }
+.stats-line-dot { fill: var(--sf-0, #0b0d14); stroke: var(--ac-blue, #6c8cff); stroke-width: 3; }
+.stats-line-value { fill: var(--tx-hi); font: 700 13px 'Space Grotesk', sans-serif; }
+.stats-line-label { fill: var(--tx-faint); font: 600 11px sans-serif; text-transform: uppercase; letter-spacing: .06em; }
+.app-sidebar #dashboard-sidebar { display: flex; flex-direction: column; height: 100%; }
+.app-sidebar #dashboard-sidebar > .side-links { flex: 1; align-content: start; min-height: 0; }
+.dashboard-modern:not(.sidebar-collapsed) #dashboard-sidebar { height: auto; }
+.side-links { display: flex !important; flex-direction: column; gap: 3px; }
+.side-links > a, .side-links > details { flex: none; }
+.side-links .side-profile-slot { background: transparent; position: static; margin-top: auto; border-top: 1px solid var(--bd-1); }
+.side-links .side-profile-slot a { display: flex; }
