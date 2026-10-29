@@ -231,4 +231,12 @@
     dialog.querySelectorAll('[data-dialog-close]').forEach((close) => close.addEventListener('click', () => { if (dialog.close) dialog.close(); else dialog.removeAttribute('open'); }));
     dialog.addEventListener('click', (event) => { if (event.target === dialog && dialog.close) dialog.close(); });
   });
+
+  // A collapsed section opens when the page is reached through its #anchor (e.g. /communities/x/manage#promotion).
+  const openHash = () => {
+    const target = location.hash.length > 1 ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
+    if (target && target.tagName === 'DETAILS') target.open = true;
+  };
+  openHash();
+  window.addEventListener('hashchange', openHash);
 })();

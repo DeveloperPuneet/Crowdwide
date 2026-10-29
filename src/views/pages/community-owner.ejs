@@ -14,7 +14,8 @@
 		<span class="owner-stat"><strong><%= community.membersCount %></strong> members</span>
 		<a href="/communities/<%= community.slug %>" class="settings-link" style="display:inline-block;margin-left:16px;">View public page →</a>
 	</section>
-	<section class="settings-block" id="promotion">
+	<details class="settings-block settings-more" id="promotion">
+		<summary><strong>More options</strong><span>Promotion</span></summary>
 		<h2>Community promotion</h2>
 		<% const promotionActive = community.promotionStatus === 'active' && community.promotionUntil && new Date(community.promotionUntil) > new Date(); %>
 		<% if (promotionActive) { %>
@@ -35,7 +36,7 @@
 		<p>Community promotions are currently unavailable.</p>
 		<% } %>
 		<p><a href="/waves/terms">Waves Terms</a></p>
-	</section>
+	</details>
 	<section class="owner-grid">
 		<form class="settings-block community-owner-details" method="post" action="/communities/<%= community._id %>/manage" enctype="multipart/form-data">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
