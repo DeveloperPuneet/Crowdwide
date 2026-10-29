@@ -165,3 +165,29 @@ input:disabled, textarea:disabled, select:disabled { opacity: .6; cursor: not-al
 .settings-more[open] > summary { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--bd-1); }
 .settings-more[open] > summary::after { transform: rotate(-135deg); }
 .settings-more > summary span { margin-left: auto; }
+
+/* ---- Mobile edge gutter -------------------------------------------------
+   `.app-layout.dashboard-modern.sidebar-collapsed` (modern-ui.css) sets
+   `padding-left: 0` so the desktop rail sits flush with the page edge. That
+   rule is more specific than the phone gutter in responsive-layout.css, so on
+   phones and small tablets (where the rail is hidden) the feed cards, the
+   "Share something" bar, tabs and the Question of the Day card all touched the
+   left screen edge while keeping a gutter on the right. Restore a symmetric
+   gutter whenever the in-page sidebar is not shown. */
+@media (max-width: 1024px) {
+  /* The in-page sidebar is hidden at this width (the menu drawer replaces it),
+     but modern-ui.css still reserved a 72px rail column, which squeezed the
+     whole feed into it between 901px and 1024px. One column instead. */
+  .app-layout.dashboard-modern,
+  .app-layout.dashboard-modern.sidebar-collapsed,
+  .app-layout.dashboard-modern:not(.sidebar-collapsed) {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: max(var(--responsive-gutter, 16px), env(safe-area-inset-left));
+    padding-right: max(var(--responsive-gutter, 16px), env(safe-area-inset-right));
+  }
+  /* Tabs bleed to the screen edge so they can scroll; bleed by the same amount as the page gutter. */
+  .dashboard-modern .feed-tabs {
+    margin-inline: calc(var(--responsive-gutter, 16px) * -1);
+    padding-inline: var(--responsive-gutter, 16px);
+  }
+}

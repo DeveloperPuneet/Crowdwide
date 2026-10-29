@@ -1,4 +1,4 @@
-<%# WideWave "thread" row: text-first, one slim column, avatar rail with a thread line, quiet icon actions.
+<%# Thread row: text-first, one slim column, avatar rail with a thread line, quiet icon actions.
     Keeps the .post-card hooks (card click, like/share handlers, translate) so every behaviour works as before. %>
 <%
   const ago = (value) => {
@@ -20,7 +20,6 @@
 	<div class="th-main">
 		<div class="th-head">
 			<a class="th-name name-link" href="/u/<%= post.author?._id %>"><%= post.author?.name || 'Crowdwide member' %></a>
-			<% if (!locals.hideSource && post.widewave && post.widewave.name) { %><a class="th-ww" href="/ww/<%= post.widewave.name %>">ww/<%= post.widewave.name %></a><% } %>
 			<a class="th-time" href="/posts/<%= post._id %>" title="<%= new Date(post.createdAt).toLocaleString() %>"><%= ago(post.createdAt) %></a>
 		</div>
 		<% if (post.contentWarning) { %><button class="content-warning-toggle" type="button" data-warning-toggle>Show content: <%= post.contentWarning %></button><% } %>
