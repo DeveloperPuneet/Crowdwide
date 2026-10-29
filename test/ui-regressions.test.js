@@ -25,8 +25,8 @@ test('the feed card shows content plus likes/comments/shares/views only; reply, 
   }
   const detail = read('src', 'views', 'pages', 'post-detail.ejs');
   for (const needed of ['/reply', '/report', '/edit', '/bookmark']) assert.ok(detail.includes(needed), `post-detail.ejs should contain ${needed}`);
-  assert.match(detail, /class="post-tool-link" href="\/posts\/<%= post\._id %>\/edit"/);
-  assert.match(detail, /class="post-tool-link" href="\/posts\/<%= post\._id %>\/reply"/);
+  assert.match(detail, /class="post-menu-item" role="menuitem" href="\/posts\/<%= post\._id %>\/edit"/);
+  assert.match(detail, /class="post-menu-item" role="menuitem" href="\/posts\/<%= post\._id %>\/reply"/);
   assert.doesNotMatch(detail, /class="post-reply-form"|action="\/posts\/<%= post\._id %>\/edit"/);
   assert.ok(!detail.includes('/quote'), 'Quote was removed: it duplicated "Reply with a post"');
 });
@@ -236,4 +236,21 @@ test('community workspace uses a responsive form and owned-community list', () =
   assert.match(page, /community-workspace-form/);
   assert.match(page, /community-owned-list/);
   assert.match(read('public', 'css', 'style.css'), /\.community-workspace-layout\s*\{\s*display:\s*grid/);
+});
+
+test('composer: attachments show outside the "More options" fold, co-authors use a searchable picker', () => {
+  const dash = read('src', 'views', 'pages', 'dashboard.ejs');
+  assert.ok(dash.indexOf('data-attachments') < dash.indexOf('data-composer-options'), 'the attachment strip sits above the fold so pasted files are visible');
+  assert.match(dash, /data-coauthor-picker/);
+  assert.doesNotMatch(dash, /class="coauthor-chip"/, 'the unbounded checkbox list is gone');
+});
+
+test('post page: one fixed-size menu, report opens in a dialog, native dropdowns follow the theme', () => {
+  const detail = read('src', 'views', 'pages', 'post-detail.ejs');
+  assert.match(detail, /data-post-menu/);
+  assert.match(detail, /<dialog class="report-dialog"/);
+  assert.doesNotMatch(detail, /post-owner-tools/, 'no in-place expanding sections inside the menu');
+  const css = read('public', 'css', 'polish.css');
+  assert.match(css, /select option[^{]*\{[^}]*background-color: var\(--sf-1\)/);
+  assert.match(css, /data-theme="light"\], body\[data-theme="pink"\] \{ color-scheme: light/);
 });

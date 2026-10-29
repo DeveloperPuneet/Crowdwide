@@ -522,7 +522,7 @@ exports.createPost = async (req, res) => {
 		media.push(item);
 	}
 	const coAuthorIds = Array.isArray(req.body.coAuthors) ? req.body.coAuthors : [req.body.coAuthors].filter(Boolean);
-	const validCoAuthors = [...new Set(coAuthorIds.map((value) => String(value)).filter((value) => value && value !== String(req.session.user.id)))];
+	const validCoAuthors = [...new Set(coAuthorIds.map((value) => String(value)).filter((value) => /^[a-f0-9]{24}$/i.test(value) && value !== String(req.session.user.id)))].slice(0, 5);
 	const coAuthorDocs = validCoAuthors.length ? await User.find({ _id: { $in: validCoAuthors } }).select('_id').lean() : [];
 	const coAuthorList = coAuthorDocs.map((userDoc) => userDoc._id);
 	const isDraft = req.body.saveAsDraft === 'on';

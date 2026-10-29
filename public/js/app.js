@@ -322,7 +322,12 @@ document.querySelectorAll('.media-picker input[type="file"]').forEach((input) =>
   input.multiple = true;
   const label = input.closest('.media-picker');
   if (!label) return;
+  const form = input.closest('form');
 
+  // The button inside "More options" only picks files. What is attached (thumbnails, remove buttons,
+  // status) lives in a strip right under the text box when the form has one, so it is visible even while
+  // the options panel is closed - that is how a pasted image gets confirmed.
+  const host = form?.querySelector('[data-attachments]') || label;
   label.classList.add('upload-dropzone');
   label.innerHTML = '';
   const icon = document.createElement('span');
@@ -330,83 +335,130 @@ document.querySelectorAll('.media-picker input[type="file"]').forEach((input) =>
   icon.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
   const copy = document.createElement('span');
   copy.className = 'upload-dropzone-copy';
-  copy.innerHTML = '<strong>Drop media here</strong><small>or click to browse · paste with Ctrl+V</small>';
+  copy.innerHTML = '<strong>Add photo, video or audio</strong><small>Click to browse or drop files here</small>';
   const status = document.createElement('span');
   status.className = 'upload-status';
+  status.setAttribute('role', 'status');
   const preview = document.createElement('div');
   preview.className = 'upload-preview';
-  label.append(icon, copy, status, preview, input);
+  label.append(icon, copy, input);
+  if (host === label) label.append(status, preview);
+  else host.append(preview, status);
 
   const limits = { image: 1.5 * 1024 * 1024, video: 4 * 1024 * 1024, audio: 2 * 1024 * 1024 };
+  const maxFiles = 2;
   const getKind = (file) => file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : null;
   const formatSize = (bytes) => bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)}KB` : `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  const displayName = (file) => /^image\.(png|jpe?g|gif|webp)$/i.test(file.name) ? 'Pasted image' : file.name;
+  let current = [];
+  let urls = [];
+  let statusTimer;
   const setStatus = (message, error = false) => {
     status.textContent = message;
     status.classList.toggle('upload-status-error', error);
+    status.hidden = !message;
+    clearTimeout(statusTimer);
+    if (message && error) statusTimer = setTimeout(() => { status.textContent = ''; status.hidden = true; }, 6000);
   };
-  const syncFiles = (files) => {
-    const selected = Array.from(files);
-    if (selected.length > 2) return setStatus('Choose up to 2 files.', true);
-    const valid = [];
-    for (const file of selected) {
-      const kind = getKind(file);
-      if (!kind) return setStatus(`${file.name} is not a supported image, video, or audio file.`, true);
-      if (file.size >= limits[kind]) return setStatus(`${file.name} is too large (${formatSize(file.size)}).`, true);
-      valid.push(file);
-    }
+  const render = () => {
+    urls.forEach((url) => URL.revokeObjectURL(url));
+    urls = [];
     const transfer = new DataTransfer();
-    valid.forEach((file) => transfer.items.add(file));
+    current.forEach((file) => transfer.items.add(file));
     input.files = transfer.files;
     preview.replaceChildren();
-    valid.forEach((file, index) => {
+    current.forEach((file, index) => {
       const kind = getKind(file);
       const item = document.createElement('div');
-      item.className = 'upload-preview-item';
-      const media = kind === 'image' ? document.createElement('img') : kind === 'video' ? document.createElement('video') : document.createElement('audio');
-      media.src = URL.createObjectURL(file);
-      media.setAttribute('aria-label', file.name);
-      if (kind !== 'image') media.controls = true;
-      if (kind === 'video') media.preload = 'metadata';
+      item.className = `upload-preview-item upload-kind-${kind}`;
+      const frame = document.createElement('div');
+      frame.className = 'upload-thumb';
+      const url = URL.createObjectURL(file);
+      urls.push(url);
+      let media;
+      if (kind === 'image') { media = document.createElement('img'); media.alt = displayName(file); }
+      else if (kind === 'video') { media = document.createElement('video'); media.preload = 'metadata'; media.muted = true; media.playsInline = true; }
+      else { media = document.createElement('audio'); media.controls = true; }
+      media.src = url;
+      media.setAttribute('aria-label', displayName(file));
+      frame.append(media);
       const details = document.createElement('span');
-      details.textContent = `${file.name} · ${formatSize(file.size)}`;
+      details.className = 'upload-name';
+      details.textContent = `${displayName(file)} · ${formatSize(file.size)}`;
+      details.title = file.name;
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'upload-remove';
-      remove.setAttribute('aria-label', `Remove ${file.name}`);
+      remove.setAttribute('aria-label', `Remove ${displayName(file)}`);
       remove.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       remove.addEventListener('click', (event) => {
         event.preventDefault();
-        syncFiles(valid.filter((_, fileIndex) => fileIndex !== index));
+        current = current.filter((_, fileIndex) => fileIndex !== index);
+        render();
+        setStatus(current.length ? `${current.length} file${current.length === 1 ? '' : 's'} attached.` : '');
       });
-      item.append(media, details, remove);
+      item.append(frame, details, remove);
       preview.append(item);
     });
-    setStatus(valid.length ? `${valid.length} file${valid.length === 1 ? '' : 's'} ready to upload.` : 'No media selected.');
-    // Per-file details: only offer a second set of fields when a second file is attached.
-    const secondDetails = input.closest('form')?.querySelector('[data-media-meta="2"]');
-    if (secondDetails) secondDetails.hidden = valid.length < 2;
+    host.classList.toggle('has-files', current.length > 0);
+    // Alt text / caption fields only make sense once something is attached; the second set only for a second file.
+    form?.querySelectorAll('[data-media-details]').forEach((node) => { node.hidden = current.length === 0; });
+    const second = form?.querySelector('[data-media-meta="2"]');
+    if (second) second.hidden = current.length < 2;
+    form?.dispatchEvent(new CustomEvent('composer:attachments', { detail: { count: current.length } }));
+  };
+  // Adds to what is already attached (a second pasted image does not throw the first away).
+  const addFiles = (files) => {
+    const incoming = Array.from(files || []);
+    if (!incoming.length) return;
+    const next = [...current];
+    for (const file of incoming) {
+      const kind = getKind(file);
+      if (!kind) return setStatus(`${file.name} is not a supported image, video, or audio file.`, true);
+      if (file.size >= limits[kind]) return setStatus(`${displayName(file)} is too large (${formatSize(file.size)}). The limit for ${kind}s is ${formatSize(limits[kind])}.`, true);
+      if (next.some((existing) => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified)) continue;
+      if (next.length >= maxFiles) return setStatus(`You can attach up to ${maxFiles} files. Remove one to add another.`, true);
+      next.push(file);
+    }
+    current = next;
+    render();
+    setStatus(`${current.length} file${current.length === 1 ? '' : 's'} attached.`);
+    host.classList.remove('just-added');
+    void host.offsetWidth;
+    host.classList.add('just-added');
   };
 
-  const initialSecond = input.closest('form')?.querySelector('[data-media-meta="2"]');
-  if (initialSecond) initialSecond.hidden = true;
-  input.addEventListener('change', () => syncFiles(input.files));
-  ['dragenter', 'dragover'].forEach((eventName) => label.addEventListener(eventName, (event) => {
+  render();
+  input.addEventListener('change', () => { addFiles(input.files); });
+  const dropTarget = form || label;
+  ['dragenter', 'dragover'].forEach((eventName) => dropTarget.addEventListener(eventName, (event) => {
+    if (!Array.from(event.dataTransfer?.types || []).includes('Files')) return;
     event.preventDefault();
+    dropTarget.classList.add('upload-dropzone-active');
     label.classList.add('upload-dropzone-active');
   }));
-  ['dragleave', 'drop'].forEach((eventName) => label.addEventListener(eventName, (event) => {
-    event.preventDefault();
+  ['dragleave', 'drop'].forEach((eventName) => dropTarget.addEventListener(eventName, (event) => {
+    if (eventName === 'dragleave' && dropTarget.contains(event.relatedTarget)) return;
+    dropTarget.classList.remove('upload-dropzone-active');
     label.classList.remove('upload-dropzone-active');
   }));
-  label.addEventListener('drop', (event) => syncFiles(event.dataTransfer.files));
+  dropTarget.addEventListener('drop', (event) => {
+    if (!event.dataTransfer?.files?.length) return;
+    event.preventDefault();
+    addFiles(event.dataTransfer.files);
+  });
   const flashMessage = document.querySelector('.flash-error');
   if (flashMessage) setStatus(flashMessage.textContent.trim(), true);
+  // Ctrl+V anywhere in the form (not just the text box) attaches a copied image.
   document.addEventListener('paste', (event) => {
-    if (document.activeElement?.closest('#composer') && Array.from(event.clipboardData?.files || []).length) {
-      event.preventDefault();
-      syncFiles(event.clipboardData.files);
-    }
+    if (!form || !form.contains(document.activeElement)) return;
+    const files = Array.from(event.clipboardData?.files || []);
+    if (!files.length) return;
+    event.preventDefault();
+    addFiles(files);
   });
+  // The page resets the form after a successful post: clear what we are showing too.
+  form?.addEventListener('reset', () => setTimeout(() => { current = []; render(); setStatus(''); }, 0));
 });
 
 document.querySelectorAll('.post-card img').forEach((image) => {

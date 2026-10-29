@@ -70,44 +70,51 @@
 					<button class="button button-ghost button-small" type="button" data-composer-close>Cancel</button>
 					<button class="button button-primary button-small" type="submit">Publish <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
 				</div>
-				<details class="composer-options">
-					<summary>Media, schedule &amp; more</summary>
-					<div class="composer-option-grid">
-					<button class="button button-ghost button-small composer-draft" type="submit" name="saveAsDraft" value="on">Save as draft</button>
-					<label class="quest-post-picker"><span>Post for quest (optional)</span><select name="quest" data-quest-picker aria-label="Link this post to a quest" aria-describedby="quest-post-help"><option value="">No quest</option><% availableQuests.forEach((quest) => { %><option value="<%= quest._id %>" data-community="<%= quest.community?._id %>" <%= String(quest._id) === String(locals.selectedQuestId || '') ? 'selected' : '' %>><%= quest.title %> · <%= quest.community?.name || 'Community' %></option><% }) %></select></label>
-					<label class="schedule-picker">Schedule<input type="datetime-local" name="scheduledAt" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
-					<label class="schedule-picker">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
-					<div class="coauthor-picker">
-						<div class="coauthor-picker-head"><span>Co-authors</span><small>Optional</small></div>
-						<% if (!coAuthorSuggestions.length) { %>
-						<p class="coauthor-empty">Follow someone or invite a follower to collaborate.</p>
-						<% } else { %>
-						<div class="coauthor-chip-list">
-							<% coAuthorSuggestions.forEach((person) => { %>
-							<label class="coauthor-chip">
-								<input type="checkbox" name="coAuthors" value="<%= person._id %>">
-								<span class="coauthor-avatar"><%= (person.name || 'C').charAt(0).toUpperCase() %></span>
-								<span><%= person.name %></span>
-							</label>
-							<% }) %>
+				<div class="composer-attachments" data-attachments aria-live="polite"></div>
+				<details class="composer-options" data-composer-options>
+					<summary><span class="composer-options-label"><%- icon('plus', { size: 14 }) %> More options</span><span class="composer-options-badge" data-options-badge hidden></span></summary>
+					<div class="composer-panel">
+						<section class="cp-section">
+							<h4 class="cp-title">Media</h4>
+							<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*" multiple></label>
+							<p class="cp-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files. You can also paste an image with Ctrl+V.</p>
+							<details class="composer-media-details" data-media-details hidden>
+								<summary>Alt text, caption &amp; transcript</summary>
+								<% [1, 2].forEach((n) => { %>
+								<fieldset class="composer-media-meta" data-media-meta="<%= n %>">
+									<legend>File <%= n %></legend>
+									<label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe this file"></label>
+									<label>Caption (shown under it)<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
+									<label>Transcript (for audio/video)<textarea name="mediaTranscript" maxlength="4000" placeholder="Optional transcript"></textarea></label>
+								</fieldset>
+								<% }) %>
+							</details>
+						</section>
+						<section class="cp-section">
+							<h4 class="cp-title">Co-authors <small>Optional · up to 5</small></h4>
+							<div class="coauthor-picker" data-coauthor-picker data-max="5" data-people="<%= JSON.stringify(coAuthorSuggestions.map((person) => ({ id: String(person._id), name: person.name || 'Member', picture: person.profilePicture || '' }))) %>">
+								<div class="ca-selected" data-ca-selected></div>
+								<div class="ca-search">
+									<%- icon('search', { size: 15 }) %>
+									<input type="search" data-ca-input placeholder="Search people to credit…" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="ca-results" aria-label="Search people to add as co-authors">
+								</div>
+								<ul class="ca-results" id="ca-results" data-ca-results role="listbox" hidden></ul>
+							</div>
+						</section>
+						<section class="cp-section">
+							<h4 class="cp-title">Publishing</h4>
+							<div class="cp-grid">
+								<label class="cp-field">Schedule<input type="datetime-local" name="scheduledAt" min="<%= new Date(Date.now() + 60000).toISOString().slice(0, 16) %>"></label>
+								<label class="cp-field">Content warning<input name="contentWarning" maxlength="120" placeholder="Optional label"></label>
+								<label class="cp-field cp-field-wide quest-post-picker">Post for a quest<select name="quest" data-quest-picker aria-label="Link this post to a quest" aria-describedby="quest-post-help"><option value="">No quest</option><% availableQuests.forEach((quest) => { %><option value="<%= quest._id %>" data-community="<%= quest.community?._id %>" <%= String(quest._id) === String(locals.selectedQuestId || '') ? 'selected' : '' %>><%= quest.title %> · <%= quest.community?.name || 'Community' %></option><% }) %></select></label>
+							</div>
+							<p class="cp-help" id="quest-post-help" data-quest-hint><%= availableQuests.length ? 'Choose one of the active quests you have joined; its community will be selected for you.' : 'Join an active community quest to link a post to it.' %></p>
+						</section>
+						<div class="cp-footer">
+							<p class="cp-help">Formatting: **bold**, *italic*, "# heading", "- list" and triple backticks for code.</p>
+							<button class="button button-ghost button-small composer-draft" type="submit" name="saveAsDraft" value="on">Save as draft</button>
 						</div>
-						<% } %>
 					</div>
-					<label class="media-picker">Add media<input type="file" name="media" accept="image/*,video/*,audio/*" multiple></label>
-					<small class="quest-picker-hint" id="quest-post-help" data-quest-hint><%= availableQuests.length ? 'Choose one of the active quests you have joined; its community will be selected for you.' : 'Join an active community quest to link a post to it.' %></small>
-					</div>
-					<details class="composer-media-details">
-						<summary>Media details (alt text, caption, transcript)</summary>
-						<% [1, 2].forEach((n) => { %>
-						<fieldset class="composer-media-meta" data-media-meta="<%= n %>">
-							<legend>File <%= n %><%= n === 2 ? ' (if you attach a second file)' : '' %></legend>
-							<label>Alt text (for screen readers)<input name="mediaAlt" maxlength="280" placeholder="Describe this file"></label>
-							<label>Caption (shown under it)<input name="mediaCaption" maxlength="280" placeholder="Optional caption"></label>
-							<label>Transcript (for audio/video)<textarea name="mediaTranscript" maxlength="4000" placeholder="Optional transcript"></textarea></label>
-						</fieldset>
-						<% }) %>
-					</details>
-					<small class="upload-help">Image &lt; 1.5MB · Video &lt; 4MB · Audio &lt; 2MB · up to 2 files. Use **bold**, *italic*, "# heading" and "- list" lines for formatting, and triple backticks for code.</small>
 				</details>
 			</div>
 		</form>

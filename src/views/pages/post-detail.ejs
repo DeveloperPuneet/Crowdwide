@@ -23,6 +23,23 @@
 				<% if (coAuthorNames.length) { %><span class="co-author-line">with <%= coAuthorNames.slice(0, 2).join(', ') %><% if (coAuthorNames.length > 2) { %> +<%= coAuthorNames.length - 2 %><% } %></span><% } %>
 				<span><%= post.community?.name || 'Open Crowdwide' %> · <time datetime="<%= new Date(post.createdAt).toISOString() %>"><%= new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time></span>
 			</div>
+			<% if (currentUser) { %>
+			<details class="post-menu" data-post-menu>
+				<summary class="post-menu-button" aria-label="Post options" aria-haspopup="menu"><%- icon('more-horizontal', { size: 20 }) %></summary>
+				<div class="post-menu-list" role="menu" aria-label="Post options">
+					<a class="post-menu-item" role="menuitem" href="/posts/<%= post._id %>/reply"><%- icon('reply', { size: 16 }) %><span>Reply with a post</span></a>
+					<% if (String(post.author?._id) === String(currentUser.id)) { %>
+					<a class="post-menu-item" role="menuitem" href="/posts/<%= post._id %>/edit"><%- icon('edit', { size: 16 }) %><span>Edit post</span></a>
+					<form method="post" action="/posts/<%= post._id %>/delete" data-confirm="Delete this post? This cannot be undone.">
+						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+						<button class="post-menu-item is-danger" role="menuitem" type="submit"><%- icon('trash', { size: 16 }) %><span>Delete post</span></button>
+					</form>
+					<% } else { %>
+					<button class="post-menu-item is-danger" role="menuitem" type="button" data-report-open="report-dialog"><%- icon('flag', { size: 16 }) %><span>Report post</span></button>
+					<% } %>
+				</div>
+			</details>
+			<% } %>
 		</header>
 		<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
 		<% if (post.boostStatus === 'active' && post.boostUntil && new Date(post.boostUntil) > new Date()) { %>
@@ -73,32 +90,18 @@
 			<% [['celebrate', 'award', 'Celebrate'], ['insightful', 'lightbulb', 'Insightful'], ['support', 'thumbs-up', 'Support'], ['funny', 'smile', 'Funny']].forEach(([reaction, glyph, label]) => { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/reaction"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="reaction" value="<%= reaction %>"><button type="submit" title="<%= label %>" aria-label="<%= label %>" data-reaction="<%= reaction %>"><%- icon(glyph, { size: 16 }) %><span class="label"><%= label %></span><span class="count"><%= post.reactions?.[reaction]?.length || 0 %></span></button></form><% }) %>
 		</div>
 
-		<details class="post-more">
-			<summary><%- icon('more-horizontal', { size: 18 }) %> More options</summary>
-			<div class="post-secondary-actions">
-				<a class="post-tool-link" href="/posts/<%= post._id %>/reply"><%- icon('reply', { size: 14 }) %> Reply with a post</a>
-				<% if (String(post.author?._id) === String(currentUser.id)) { %>
-				<a class="post-tool-link" href="/posts/<%= post._id %>/edit"><%- icon('edit', { size: 14 }) %> Edit post</a>
-				<details class="post-owner-tools">
-					<summary><%- icon('trash', { size: 14 }) %> Delete post</summary>
-					<form method="post" action="/posts/<%= post._id %>/delete" data-confirm="Delete this post? This cannot be undone.">
-						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-						<button type="submit">Delete post</button>
-					</form>
-				</details>
-				<% } else { %>
-				<details class="post-owner-tools">
-					<summary><%- icon('flag', { size: 14 }) %> Report</summary>
-					<form class="report-options post-report-form" method="post" action="/posts/<%= post._id %>/report" enctype="multipart/form-data">
-						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-						<%- include('../partials/report-reason-field') %>
-						<label class="report-evidence-label">Evidence (optional)<input type="file" name="evidence" accept="image/*"></label>
-						<button type="submit">Send report</button>
-					</form>
-				</details>
-				<% } %>
-			</div>
-		</details>
+		<% if (currentUser && String(post.author?._id) !== String(currentUser.id)) { %>
+		<dialog class="report-dialog" id="report-dialog" aria-labelledby="report-dialog-title">
+			<form class="report-dialog-form" method="post" action="/posts/<%= post._id %>/report" enctype="multipart/form-data">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<div class="report-dialog-head"><h2 id="report-dialog-title">Report this post</h2><button class="report-dialog-x" type="button" data-dialog-close aria-label="Close"><%- icon('x', { size: 18 }) %></button></div>
+				<p class="report-dialog-help">Reports go to our moderators. The author is not told who reported.</p>
+				<%- include('../partials/report-reason-field') %>
+				<label class="report-evidence-label">Evidence (optional)<input type="file" name="evidence" accept="image/*"></label>
+				<div class="report-dialog-actions"><button class="button button-ghost button-small" type="button" data-dialog-close>Cancel</button><button class="button button-danger button-small" type="submit">Send report</button></div>
+			</form>
+		</dialog>
+		<% } %>
 		<% if (locals.postModerationRole) { %>
 		<section class="post-moderation-tools" aria-labelledby="post-moderation-heading">
 			<div class="post-moderation-heading"><%- icon('shield', { size: 16 }) %><strong id="post-moderation-heading">Moderation options</strong></div>
