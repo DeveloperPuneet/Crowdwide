@@ -971,6 +971,49 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
 }
 
 
+// Profile "Show more posts": the first 20 are rendered with the page; the rest load in pages of 20
+// (also automatically as the button scrolls into view).
+document.querySelectorAll('[data-profile-more]').forEach((box) => {
+  const button = box.querySelector('[data-profile-more-button]');
+  const note = box.querySelector('.profile-more-note');
+  const list = box.closest('.profile-posts');
+  if (!button || !list || !window.axios) return;
+  let loading = false;
+  let done = false;
+  const load = () => {
+    if (loading || done) return;
+    loading = true;
+    button.disabled = true;
+    button.textContent = 'Loading…';
+    const nextPage = (Number(box.dataset.page) || 1) + 1;
+    window.axios.get(`${box.dataset.url}?tab=${encodeURIComponent(box.dataset.tab)}&page=${nextPage}`)
+      .then(({ data }) => {
+        if (data.html) {
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = data.html;
+          const existing = new Set(Array.from(list.querySelectorAll('.post-card')).map((card) => card.id));
+          const cards = Array.from(wrapper.children).filter((card) => !existing.has(card.id));
+          cards.forEach((card) => box.before(card));
+          initAvatars(list);
+          enhanceCards(list);
+        }
+        box.dataset.page = String(data.page || nextPage);
+        if (data.done || !data.html) {
+          done = true;
+          box.querySelector('[data-profile-more-button]')?.remove();
+          if (note) { note.hidden = false; note.textContent = 'That is every post.'; }
+          if (observer) observer.disconnect();
+        }
+      })
+      .catch(() => { if (note) { note.hidden = false; note.textContent = 'Could not load more posts. Try again.'; } })
+      .finally(() => { loading = false; button.disabled = false; button.textContent = 'Show more posts'; });
+  };
+  button.addEventListener('click', load);
+  const observer = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => { if (entries[0].isIntersecting) load(); }, { rootMargin: '300px' }) : null;
+  if (observer) observer.observe(button);
+});
+
+
 // "Copy" buttons next to a read-only field, e.g. the group invite link.
 document.addEventListener('click', async (event) => {
   const shareButton = event.target.closest('[data-share-invite]');

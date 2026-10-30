@@ -1,5 +1,5 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
-<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<%- include('../partials/app-nav', { active: 'wallet', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="recap-layout wallet-page">
   <a class="back-link" href="/dashboard">← Back to your feed</a>

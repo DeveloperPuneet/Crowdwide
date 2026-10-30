@@ -1,5 +1,5 @@
 <%- include('../partials/head', { title, pagePath: '/admin/blocked-ips', noIndex: true }) %>
-<%- include('../partials/app-nav', { active: 'admin', currentUser }) %>
+<%- include('../partials/app-nav', { active: 'blocked', currentUser }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="blocked-page">
 	<a class="back-link" href="/admin">← Admin console</a>

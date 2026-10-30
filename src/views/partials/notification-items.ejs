@@ -1,0 +1,6 @@
+<%# A run of notification rows with day headings. locals: notifications, lastLabel (heading already shown above), csrfToken %>
+<% let shownLabel = locals.lastLabel || ''; %>
+<% notifications.forEach((notification) => { %>
+	<% if (notification.dayLabel !== shownLabel) { shownLabel = notification.dayLabel; %><h2 class="notification-day" data-day-label="<%= shownLabel %>"><%= shownLabel %></h2><% } %>
+	<%- include('notification-item', { notification }) %>
+<% }) %>

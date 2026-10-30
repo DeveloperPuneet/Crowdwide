@@ -89,12 +89,13 @@ test('home top bar drops the links the sidebar already has, and the sidebar star
   const guest = await render('partials/app-nav.ejs', { active: 'explore', currentUser: undefined });
   assert.match(header(guest), /href="\/explore"/);
   const dash = fs.readFileSync(path.join(views, 'pages/dashboard.ejs'), 'utf8');
-  assert.match(dash, /app-layout dashboard-modern sidebar-collapsed/);
-  assert.match(dash, /data-sidebar-toggle aria-expanded="false"/);
+  // home uses the same shared rail as every other page: no sidebar of its own inside the page grid
+  assert.match(dash, /app-layout dashboard-modern"/);
+  assert.doesNotMatch(dash, /app-sidebar|data-sidebar-toggle/);
   const js = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
   // the sidebar floats over the page and always starts closed: nothing restores an open state
   assert.doesNotMatch(js, /cw-sidebar/);
-  assert.match(dash, /data-sidebar-scrim/);
+  assert.doesNotMatch(dash, /data-sidebar-scrim/);
 });
 
 test('every other signed-in page gets the same sidebar rail, and "More" exists only on the home page', async () => {
@@ -157,7 +158,6 @@ test('sidebar rail: grouped, labelled for collapsed mode, closes on Esc/backdrop
   assert.match(js, /key === 'Escape'[\s\S]{0,120}is-open/);
   assert.match(js, /data-rail-scrim/);
   const css = fs.readFileSync(path.join(__dirname, '../public/css/style.css'), 'utf8');
-  assert.match(css, /\.app-sidebar #dashboard-sidebar \{[^}]*overflow-y: auto/);
   const dash = fs.readFileSync(path.join(views, 'pages/dashboard.ejs'), 'utf8');
   assert.doesNotMatch(dash, /side-survey-link" style=/);
 });
@@ -167,8 +167,7 @@ test('opening a sidebar overlays the page instead of resizing it, behind a dimme
   const modern = fs.readFileSync(path.join(__dirname, '../public/css/modern-ui.css'), 'utf8');
   assert.doesNotMatch(style, /body:has\(\.app-rail\.is-open\)\s*\{[^}]*--rail-w/);
   assert.match(style, /\.app-rail-scrim, \.sidebar-scrim \{[^}]*backdrop-filter: blur/);
-  assert.match(modern, /dashboard-modern:not\(\.sidebar-collapsed\) #dashboard-sidebar \{[^}]*position: absolute/);
-  assert.match(modern, /\.app-layout\.dashboard-modern\.sidebar-collapsed, \.app-layout\.dashboard-modern:not\(\.sidebar-collapsed\) \{ max-width: none; margin-left: 0; padding-left: 0; grid-template-columns: 72px minmax\(0, 880px\)/);
+  assert.match(modern, /body \.app-layout\.dashboard-modern \{[^}]*grid-template-columns: minmax\(0, 820px\) minmax\(240px, 330px\)/);
 });
 
 test('WideWave feed column fills the space beside the side panel', () => {

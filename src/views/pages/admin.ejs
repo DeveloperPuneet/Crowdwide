@@ -1,5 +1,5 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
-<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<%- include('../partials/app-nav', { active: 'admin', currentUser }) %>
 <% const pendingMonetizationList = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
 <% const pendingAdvertiserList = Array.isArray(locals.pendingAdvertisers) ? locals.pendingAdvertisers : []; %>
 <% const pendingCampaignList = Array.isArray(locals.pendingCampaigns) ? locals.pendingCampaigns : []; %>

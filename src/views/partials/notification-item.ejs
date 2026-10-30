@@ -1,0 +1,23 @@
+<%
+	const n = notification;
+	const target = n.url || (n.post ? `/posts/${n.post}` : n.actor ? `/u/${n.actor._id}` : null);
+	const actors = n.actors && n.actors.length ? n.actors : (n.actor ? [n.actor] : []);
+	const others = n.type === 'like' ? Math.max(0, actors.length - 2) : 0;
+	let who = 'Crowdwide';
+	if (actors.length === 1) who = actors[0].name;
+	else if (actors.length === 2 || (actors.length > 2 && !others)) who = actors.slice(0, 2).map((actor) => actor.name).join(' and ');
+	else if (actors.length > 2) who = `${actors.slice(0, 2).map((actor) => actor.name).join(', ')} and ${others} other${others === 1 ? '' : 's'}`;
+	const unread = !n.readAt;
+	const unreadCount = (n.unreadIds || []).length || (unread ? 1 : 0);
+%>
+<article class="notification-item <%= unread ? 'notification-unread' : '' %>" data-notification data-ids="<%= (n.ids || [String(n._id)]).join(',') %>" data-weight="<%= (n.ids || [1]).length %>" data-unread="<%= unread ? 1 : 0 %>" data-unread-count="<%= unreadCount %>">
+	<a class="notification-link" href="<%= target || '#' %>"<%- target ? '' : ' tabindex="-1" aria-disabled="true"' %>>
+		<span class="notification-avatars<%= actors.length > 1 ? ' is-stack' : '' %>"><% (actors.length ? actors.slice(0, 2) : [{}]).forEach((person) => { %><%- include('avatar', { person, size: 'tiny', link: false }) %><% }) %></span>
+		<span class="notification-body">
+			<strong><%= who %><% if (n.type !== 'like' && n.count > 1) { %> <em>×<%= n.count %></em><% } %></strong>
+			<span class="notification-message"><%= n.message %></span>
+			<small><time datetime="<%= new Date(n.createdAt).toISOString() %>"><%= n.ago || new Date(n.createdAt).toLocaleDateString() %></time></small>
+		</span>
+	</a>
+	<button class="notification-toggle" type="button" data-notification-toggle aria-pressed="<%= unread ? 'false' : 'true' %>" aria-label="<%= unread ? 'Mark as read' : 'Mark as unread' %>" title="<%= unread ? 'Mark as read' : 'Mark as unread' %>"><span class="notification-dot" aria-hidden="true"></span></button>
+</article>

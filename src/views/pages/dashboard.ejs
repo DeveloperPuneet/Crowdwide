@@ -5,14 +5,7 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'home', currentUser, sideNav: true }) %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
-<div class="sidebar-scrim" data-sidebar-scrim hidden></div>
-<main class="app-layout dashboard-modern sidebar-collapsed">
-	<aside class="app-sidebar">
-		<button class="sidebar-toggle" type="button" data-sidebar-toggle aria-expanded="false" aria-controls="dashboard-sidebar" aria-label="Open sidebar"><%- icon('chevron-left', { size: 15 }) %></button>
-		<div id="dashboard-sidebar">
-		<%- include('../partials/side-links', { active: 'home', currentUser, openSurveys: locals.openSurveys || [] }) %>
-		</div>
-	</aside>
+<main class="app-layout dashboard-modern">
 	<section class="feed-column">
 		<button class="composer-prompt" type="button" data-composer-open aria-expanded="false" aria-controls="composer">
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, size: 'small', link: false }) %>

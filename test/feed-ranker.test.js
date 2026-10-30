@@ -178,3 +178,42 @@ test('sortWithinPages only reorders inside a page', () => {
   const items = [3, 9, 5, 1].map((score) => ({ score }));
   assert.deepEqual(r.sortWithinPages(items, 2).map((item) => item.score), [9, 3, 5, 1]);
 });
+
+test('first look fades as a post is opened without reactions (it has had its fair look)', () => {
+  const quiet = r.firstLook({ counts: { views: 0 } }, 1, true);
+  const opened = r.firstLook({ counts: { views: 60 } }, 1, true);
+  assert.ok(quiet > opened * 2, 'untouched post keeps far more of the boost');
+  assert.ok(opened > 0, 'still a little left');
+  assert.equal(r.firstLook({ counts: { views: 0, likes: 5 } }, 1, true), 0);
+});
+
+test('seen by many and liked by nobody is mildly demoted; liked posts never are', () => {
+  assert.ok(r.ignoredPenalty({ views: 80 }) > 0);
+  assert.equal(r.ignoredPenalty({ views: 80, likes: 1 }), 0);
+  assert.equal(r.ignoredPenalty({ views: 10 }), 0);
+});
+
+test('For you reserves a slot in the discovery lane for topics outside the viewer\'s interests, without changing the 35-40% share', () => {
+  const following = new Set(Array.from({ length: 40 }, (_, i) => `f${i}`));
+  const interests = new Map([['music', 1]]);
+  const candidates = [
+    ...Array.from({ length: 40 }, (_, i) => cand({ author: `f${i}`, hashtags: ['music'] })),
+    ...Array.from({ length: 24 }, (_, i) => cand({ author: `m${i}`, hashtags: ['music'], counts: { likes: 6 } })),
+    ...Array.from({ length: 24 }, (_, i) => cand({ author: `x${i}`, hashtags: ['gardening'], counts: { likes: 1 } }))
+  ];
+  const feed = r.rankFeed(candidates, ctx({ following, interests }), 'for-you', { limit: 64 });
+  for (let page = 0; page < 4; page += 1) {
+    const slice = feed.slice(page * 16, page * 16 + 16);
+    assert.equal(slice.filter((item) => item.lane === 'discovery').length, 6, `page ${page + 1} keeps 6 discovery posts`);
+  }
+  const explored = feed.filter((item) => item.explore);
+  assert.ok(explored.length >= 3, 'exploration slots are used');
+  explored.forEach((item) => {
+    assert.equal(item.lane, 'discovery');
+    assert.equal(item.parts.interest, 0);
+    assert.equal(item.source, 'Something different');
+  });
+  // no learned interests (brand-new account) -> nothing is reserved
+  const cold = r.rankFeed(candidates, ctx({ following }), 'for-you', { limit: 64 });
+  assert.equal(cold.filter((item) => item.explore).length, 0);
+});

@@ -21,7 +21,7 @@
     <button class="nav-menu-toggle" type="button" data-drawer-open aria-label="Open menu" aria-expanded="false"><%- icon('menu', { size: 20 }) %></button>
   </div>
 </header>
-<% if (locals.currentUser && !isDash) { %><%- include('app-rail', { active, currentUser }) %><% } %>
+<% if (locals.currentUser && !locals.noRail) { %><%- include('app-rail', { active, currentUser }) %><% } %>
 
 <div class="nav-drawer" id="app-nav-drawer" aria-hidden="true" inert>
   <div class="nav-drawer-backdrop" data-drawer-close></div>

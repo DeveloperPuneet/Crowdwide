@@ -643,6 +643,8 @@ exports.createCommunity = async (req, res) => {
 	res.redirect('/dashboard');
 };
 
+const PROFILE_PAGE_SIZE = 20;
+
 exports.profile = async (req, res) => {
 	const profileUser = await User.findById(req.params.id).select('name email bio hashtags links username profilePicture bannerImage privacy followRequests createdAt isVerified following profileViews wavesBalance streak badges timezone').lean();
 	if (!profileUser) return res.status(404).render('pages/not-found', { title: 'Profile not found' });
@@ -661,19 +663,21 @@ exports.profile = async (req, res) => {
 	const postFilter = isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
 	const publishedFilter = { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } };
 	const none = Promise.resolve([]);
-	const [posts, followersCount, viewer, postCount, likedPosts, comments, engagementAgg, memberCommunities, wonQuests] = await Promise.all([
-		locked ? none : Post.find(postFilter).sort({ createdAt: -1 }).limit(30).populate('community', 'name slug').lean(),
+	const [posts, followersCount, viewer, postCount, likedPosts, comments, engagementAgg, memberCommunities, wonQuests, listPostsTotal, listLikesTotal] = await Promise.all([
+		locked ? none : Post.find(postFilter).sort({ createdAt: -1, _id: -1 }).limit(PROFILE_PAGE_SIZE).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
 		User.findById(viewerId).select('following bookmarks blockedUsers mutedUsers').lean(),
 		Post.countDocuments(publishedFilter),
-		locked ? none : Post.find({ likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ updatedAt: -1 }).limit(30).populate('community', 'name slug').lean(),
+		locked ? none : Post.find({ likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ updatedAt: -1, _id: -1 }).limit(PROFILE_PAGE_SIZE).populate('community', 'name slug').lean(),
 		locked ? none : Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt community', populate: { path: 'author', select: 'name' } }).lean(),
 		locked ? none : Post.aggregate([
 			{ $match: publishedFilter },
 			{ $group: { _id: null, totalLikes: { $sum: { $size: { $ifNull: ['$likes', []] } } }, totalComments: { $sum: '$commentsCount' }, totalViews: { $sum: '$viewsCount' }, totalShares: { $sum: '$sharesCount' } } }
 		]),
 		locked ? none : Community.find({ _id: { $nin: restrictedCommunityIds }, $or: [{ members: profileUser._id }, { owner: profileUser._id }] }).select('name slug owner').sort({ name: 1 }).limit(60).lean(),
-		locked ? none : Quest.find({ winner: profileUser._id, status: 'ended' }).sort({ endedAt: -1, updatedAt: -1 }).limit(20).populate('community', 'name slug').lean()
+		locked ? none : Quest.find({ winner: profileUser._id, status: 'ended' }).sort({ endedAt: -1, updatedAt: -1 }).limit(20).populate('community', 'name slug').lean(),
+		locked ? 0 : Post.countDocuments(postFilter),
+		locked ? 0 : Post.countDocuments({ likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } })
 	]);
 	const questAchievements = wonQuests.filter((quest) => quest.community && !restrictedCommunityIds.some((id) => String(id) === String(quest.community._id)));
 	const profileStats = engagementAgg[0] || { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 };
@@ -762,6 +766,7 @@ exports.profile = async (req, res) => {
 		savedPosts,
 		statsDetail,
 		postCount,
+		listTotals: { posts: listPostsTotal, likes: listLikesTotal, pageSize: PROFILE_PAGE_SIZE },
 		followersCount,
 		followingCount: (profileUser.following || []).length,
 		profileStats,
@@ -778,6 +783,38 @@ exports.profile = async (req, res) => {
 		activity,
 		suggestions
 	});
+};
+
+// "Load more" for the profile's Posts and Likes lists (the first page is rendered by `profile`).
+exports.profileMorePosts = async (req, res) => {
+	try {
+		const profileUser = await User.findById(req.params.id).select('privacy followRequests following').lean();
+		if (!profileUser) return res.status(404).json({ error: 'Profile not found.' });
+		const viewerId = req.session.user.id;
+		const isSelf = String(profileUser._id) === String(viewerId);
+		const viewerAccess = isSelf ? null : await User.findById(viewerId).select('following role').lean();
+		if (!canSeeProfileDetails({ profileUser, viewerId, viewerFollowing: viewerAccess?.following || [], viewerRole: viewerAccess?.role })) return res.json({ html: '', done: true });
+		const tab = req.query.tab === 'likes' ? 'likes' : 'posts';
+		const page = Math.min(Math.max(Number.parseInt(req.query.page, 10) || 2, 2), 500);
+		const restrictedCommunityIds = await getRestrictedCommunityIds(viewerId);
+		const filter = tab === 'likes'
+			? { likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }
+			: (isSelf ? { author: profileUser._id } : { author: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } });
+		const [rows, total, viewer] = await Promise.all([
+			Post.find(filter).sort(tab === 'likes' ? { updatedAt: -1, _id: -1 } : { createdAt: -1, _id: -1 }).skip((page - 1) * PROFILE_PAGE_SIZE).limit(PROFILE_PAGE_SIZE).populate('community', 'name slug').populate('author', 'name profilePicture').lean(),
+			Post.countDocuments(filter),
+			User.findById(viewerId).select('bookmarks').lean()
+		]);
+		const bookmarked = (viewer?.bookmarks || []).map(String);
+		const posts = await attachReplyPostCounts(rows.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) })));
+		res.render('partials/post-cards-fragment', { posts, csrfToken: res.locals.csrfToken, hideSource: true }, (error, html) => {
+			if (error) return res.status(500).json({ error: 'Could not load more posts.' });
+			return res.json({ html, page, total, done: page * PROFILE_PAGE_SIZE >= total || !posts.length });
+		});
+	} catch (error) {
+		logger.error('Unable to load more profile posts', error);
+		res.status(500).json({ error: 'Could not load more posts.' });
+	}
 };
 
 exports.search = async (req, res) => {

@@ -200,7 +200,7 @@ test('dashboard keeps a left and right gutter on phones and small tablets', () =
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'polish.css'), 'utf8');
   const block = css.slice(css.indexOf('/* ---- Mobile edge gutter'));
   assert.match(block, /max-width: 1024px/);
-  assert.match(block, /\.app-layout\.dashboard-modern\.sidebar-collapsed/);
+  assert.match(block, /\.app-layout\.dashboard-modern/);
   assert.match(block, /padding-left: max\(var\(--responsive-gutter/);
   assert.match(block, /grid-template-columns: minmax\(0, 1fr\)/);
 });

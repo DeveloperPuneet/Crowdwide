@@ -1280,3 +1280,22 @@ test('dashboard keeps surveys one tap away (under More) without a panel of its o
   assert.match(none, /href="\/surveys"/);
   assert.doesNotMatch(none, /side-badge/);
 });
+
+test('home and Explore share the same sidebar rail (one navigation, no second copy inside the page)', async () => {
+  const feedPost = post(1);
+  const home = await render('pages/dashboard.ejs', { title: 't', pagePath: '/dashboard', noIndex: true, feed: { posts: [feedPost], visiblePosts: [feedPost], hasMore: false, activeTab: 'for-you', note: 'n' }, communities: [], people: [], suggestions: [], quests: [], availableQuests: [] });
+  assert.equal((home.match(/class="app-rail"/g) || []).length, 1);
+  assert.match(home, /<a class="side-active" href="\/dashboard"/);
+  assert.doesNotMatch(home, /class="app-sidebar"|data-sidebar-toggle/);
+  const recap = await render('partials/app-nav.ejs', { active: 'home' });
+  assert.match(recap, /class="app-rail"/);
+});
+
+test('profile lists show the true post total and a load-more control past the first page', async () => {
+  const data = { title: 'Asha', pagePath: '/u/u1', noIndex: true, profileUser: { _id: 'u1', id: 'u1', name: 'Puneet K', email: 'p@x.com', isVerified: true, createdAt: new Date('2025-01-01'), bio: '', hashtags: [], links: [], profilePicture: '', bannerImage: '', profileViews: 0, wavesBalance: 0 }, isSelf: true, profileTab: 'posts', posts: Array.from({ length: 20 }, (_, i) => post(i + 1)), profileLikes: [], savedPosts: [], profileComments: [], activity: [], suggestions: [], followersCount: 0, followingCount: 0, postCount: 45, listTotals: { posts: 45, likes: 0, pageSize: 20 }, profileStats: { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 }, memberCommunities: [], questAchievements: [] };
+  const html = await render('pages/profile.ejs', data);
+  assert.match(html, /<h2>Your posts<\/h2><span>45<\/span>/);
+  assert.match(html, /data-profile-more data-url="\/u\/u1\/posts\/more" data-tab="posts" data-page="1"/);
+  const all = await render('pages/profile.ejs', { ...data, posts: Array.from({ length: 45 }, (_, i) => post(i + 1)) });
+  assert.doesNotMatch(all, /data-profile-more /);
+});

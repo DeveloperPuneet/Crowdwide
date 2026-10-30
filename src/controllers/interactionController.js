@@ -605,32 +605,126 @@ exports.commentThread = async (req, res) => {
   res.json({ comments });
 };
 
-exports.notifications = async (req, res) => {
-  const viewer = await User.findById(req.session.user.id).select('blockedUsers mutedUsers').lean();
-  const [notificationsRaw, unread] = await Promise.all([
-    Notification.find({ recipient: req.session.user.id }).sort({ createdAt: -1 }).limit(50).populate('actor', 'name profilePicture').lean(),
-    Notification.countDocuments({ recipient: req.session.user.id, readAt: null })
-  ]);
-  const hiddenIds = [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])].map(String);
-  const visibleNotifications = notificationsRaw.filter((notification) => !notification.actor || !hiddenIds.includes(String(notification.actor._id)));
+const NOTIFICATION_PAGE_SIZE = 40;
+
+// Likes and reactions on the same post collapse into one row ("Asha, Ben and 3 others"); every other kind of
+// notification collapses only when it is the same event from the same person.
+function notificationGroupKey(notification) {
+  const base = [notification.type, notification.post || '', notification.community || ''];
+  if (notification.type === 'like') return base.join(':');
+  return [...base, notification.actor?._id || '', notification.url || ''].join(':');
+}
+
+function groupNotifications(rows) {
   const grouped = new Map();
-  visibleNotifications.forEach((notification) => {
-    const key = [notification.type, notification.post || '', notification.community || '', notification.actor?._id || '', notification.url || ''].join(':');
+  rows.forEach((notification) => {
+    const key = notificationGroupKey(notification);
     const existing = grouped.get(key);
     if (existing) {
-      existing.count += 1;
-      existing.readAt = existing.readAt && notification.readAt ? existing.readAt : null;
+      existing.ids.push(String(notification._id));
+      if (!notification.readAt) existing.unreadIds.push(String(notification._id));
+      if (notification.actor && !existing.actors.some((actor) => String(actor._id) === String(notification.actor._id))) existing.actors.push(notification.actor);
     } else {
-      grouped.set(key, { ...notification, count: 1 });
+      grouped.set(key, {
+        ...notification,
+        ids: [String(notification._id)],
+        unreadIds: notification.readAt ? [] : [String(notification._id)],
+        actors: notification.actor ? [notification.actor] : []
+      });
     }
   });
-  const notifications = Array.from(grouped.values());
-  res.render('pages/notifications', { title: 'Notifications', pagePath: '/notifications', noIndex: true, notifications, unread });
+  return Array.from(grouped.values()).map((group) => ({ ...group, count: group.ids.length, readAt: group.unreadIds.length ? null : group.readAt }));
+}
+
+function dayKey(date, timeZone) {
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: timeZone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date); }
+  catch (error) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date); }
+}
+
+// "Today", "Yesterday", "Earlier this week" or "Earlier", in the reader's own time zone.
+function notificationDayLabel(date, timeZone, now = new Date()) {
+  const day = dayKey(date, timeZone);
+  if (day === dayKey(now, timeZone)) return 'Today';
+  if (day === dayKey(new Date(now.getTime() - 24 * 3600 * 1000), timeZone)) return 'Yesterday';
+  return now.getTime() - date.getTime() < 7 * 24 * 3600 * 1000 ? 'Earlier this week' : 'Earlier';
+}
+
+function notificationAgo(date, now = new Date()) {
+  const seconds = Math.max(0, Math.round((now.getTime() - date.getTime()) / 1000));
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 7 * 86400) return `${Math.floor(seconds / 86400)}d ago`;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+}
+
+async function loadNotificationPage(req, { before, unreadOnly }) {
+  const recipient = req.session.user.id;
+  const viewer = await User.findById(recipient).select('blockedUsers mutedUsers timezone').lean();
+  const filter = { recipient, ...(unreadOnly ? { readAt: null } : {}), ...(before ? { createdAt: { $lt: before } } : {}) };
+  const raw = await Notification.find(filter).sort({ createdAt: -1 }).limit(NOTIFICATION_PAGE_SIZE + 1).populate('actor', 'name profilePicture').lean();
+  const hasMore = raw.length > NOTIFICATION_PAGE_SIZE;
+  const rows = raw.slice(0, NOTIFICATION_PAGE_SIZE);
+  const hiddenIds = [...(viewer?.blockedUsers || []), ...(viewer?.mutedUsers || [])].map(String);
+  const visible = rows.filter((notification) => !notification.actor || !hiddenIds.includes(String(notification.actor._id)));
+  const now = new Date();
+  const timeZone = viewer?.timezone || '';
+  const notifications = groupNotifications(visible).map((group) => ({
+    ...group,
+    dayLabel: notificationDayLabel(new Date(group.createdAt), timeZone, now),
+    ago: notificationAgo(new Date(group.createdAt), now)
+  }));
+  return { notifications, hasMore, nextBefore: rows.length ? rows[rows.length - 1].createdAt.toISOString() : null };
+}
+
+exports.notifications = async (req, res) => {
+  const unreadOnly = req.query?.filter === 'unread';
+  const [page, unread] = await Promise.all([
+    loadNotificationPage(req, { unreadOnly }),
+    Notification.countDocuments({ recipient: req.session.user.id, readAt: null })
+  ]);
+  res.render('pages/notifications', { title: 'Notifications', pagePath: '/notifications', noIndex: true, unread, unreadOnly, ...page });
+};
+
+// "Show earlier" - JSON with ready-to-insert HTML for the next page of notifications.
+exports.groupNotifications = groupNotifications;
+exports.notificationDayLabel = notificationDayLabel;
+exports.notificationAgo = notificationAgo;
+exports.moreNotifications = async (req, res) => {
+  try {
+    const before = req.query.before ? new Date(req.query.before) : null;
+    if (before && Number.isNaN(before.getTime())) return res.status(400).json({ error: 'Bad cursor.' });
+    const page = await loadNotificationPage(req, { before, unreadOnly: req.query.filter === 'unread' });
+    const lastLabel = String(req.query.lastLabel || '').slice(0, 40);
+    res.render('partials/notification-items', { notifications: page.notifications, lastLabel, csrfToken: res.locals.csrfToken }, (error, html) => {
+      if (error) return res.status(500).json({ error: 'Could not load notifications.' });
+      return res.json({ html, hasMore: page.hasMore, nextBefore: page.nextBefore, unreadInPage: page.notifications.reduce((sum, group) => sum + group.unreadIds.length, 0) });
+    });
+  } catch (error) {
+    logger.error('Unable to load more notifications', error);
+    res.status(500).json({ error: 'Could not load notifications.' });
+  }
 };
 
 exports.unreadCount = async (req, res) => {
   const unread = await Notification.countDocuments({ recipient: req.session.user.id, readAt: null });
   res.json({ unread });
+};
+
+const wantsJson = (req) => req.xhr || String(req.get('accept') || '').includes('application/json') || req.get('x-requested-with') === 'XMLHttpRequest';
+
+// Marks specific notifications read or unread (the ids of a grouped row travel together). Only the signed-in
+// person's own notifications can be touched.
+exports.markNotifications = async (req, res) => {
+  const mongoose = require('mongoose');
+  const raw = Array.isArray(req.body.ids) ? req.body.ids : String(req.body.ids || '').split(',');
+  const ids = raw.map((id) => String(id).trim()).filter((id) => mongoose.isValidObjectId(id)).slice(0, 200);
+  if (!ids.length) return res.status(400).json({ ok: false, error: 'No notifications selected.' });
+  const read = !(req.body.read === false || req.body.read === 'false' || req.body.read === '0');
+  await Notification.updateMany({ _id: { $in: ids }, recipient: req.session.user.id }, read ? { readAt: new Date() } : { $unset: { readAt: 1 } });
+  const unread = await Notification.countDocuments({ recipient: req.session.user.id, readAt: null });
+  if (!unread) await User.updateOne({ _id: req.session.user.id }, { $unset: { unreadSummarySentAt: 1 } });
+  res.json({ ok: true, unread });
 };
 
 exports.messages = async (req, res) => {
@@ -700,6 +794,8 @@ exports.messageRequests = async (req, res) => {
 exports.readNotifications = async (req, res) => {
   await Notification.updateMany({ recipient: req.session.user.id, readAt: null }, { readAt: new Date() });
   await User.updateOne({ _id: req.session.user.id }, { $unset: { unreadSummarySentAt: 1 } });
+  // The page calls this in the background (no reload); a plain form post still redirects.
+  if (wantsJson(req)) return res.json({ ok: true, unread: 0 });
   res.redirect('/notifications');
 };
 

@@ -1,7 +1,8 @@
 <% const locked = locals.locked === true; const isRequested = locals.isRequested === true; %>
 <%- include('../partials/head', { title, description: profileUser.bio, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
-<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<%- include('../partials/app-nav', { active: (locals.isSelf ? 'profile' : ''), currentUser }) %>
 <% const displayedPosts = profileTab === 'likes' ? profileLikes : profileTab === 'saved' ? savedPosts : posts; %>
+<% const totals = locals.listTotals || {}; const listTotal = Math.max(displayedPosts.length, Number((profileTab === 'likes' ? totals.likes : profileTab === 'saved' ? savedPosts.length : totals.posts) || 0)); const hasMoreList = profileTab !== 'saved' && listTotal > displayedPosts.length; %>
 <% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
 <main class="<%= isSelf ? 'profile-layout' : 'community-detail' %>">
 	<div>
@@ -200,13 +201,19 @@
 
 	<% if (profileTab !== 'activity' && profileTab !== 'comments' && profileTab !== 'stats') { %>
 	<section class="community-posts profile-posts">
-		<div class="panel-heading"><h2><%= profileTab === 'likes' ? `${profileUser.name}'s likes` : profileTab === 'saved' ? 'Saved posts' : isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= displayedPosts.length %></span></div>
+		<div class="panel-heading"><h2><%= profileTab === 'likes' ? `${profileUser.name}'s likes` : profileTab === 'saved' ? 'Saved posts' : isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= listTotal.toLocaleString() %></span></div>
 		<% if (!displayedPosts.length) { %>
 		<div class="empty-feed"><h2><%= profileTab === 'saved' ? 'No saved posts yet.' : 'No posts yet.' %></h2><p><%= isSelf ? 'Posts and conversations you collect will appear here.' : 'This person has not posted yet.' %></p></div>
 		<% } %>
 		<% displayedPosts.forEach((post) => { %>
 		<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
 		<% }) %>
+		<% if (hasMoreList) { %>
+		<div class="profile-more" data-profile-more data-url="/u/<%= profileUser._id %>/posts/more" data-tab="<%= profileTab %>" data-page="1">
+			<button class="button button-dark" type="button" data-profile-more-button>Show more posts</button>
+			<p class="profile-more-note" role="status" aria-live="polite" hidden></p>
+		</div>
+		<% } %>
 	</section>
 	<% } %>
 	<% } %>

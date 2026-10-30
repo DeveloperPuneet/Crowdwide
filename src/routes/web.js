@@ -62,6 +62,7 @@ router.get('/media/status', requireAuth, requireVerified, controller.mediaStatus
 router.get('/media/:cluster/:id', controller.media);
 router.get('/notifications', requireAuth, requireVerified, interactionController.notifications);
 router.get('/notifications/unread', requireAuth, requireVerified, interactionController.unreadCount);
+router.get('/notifications/more', requireAuth, requireVerified, interactionController.moreNotifications);
 router.get('/messages', requireAuth, requireVerified, interactionController.messages);
 router.get('/messages/requests', requireAuth, requireVerified, interactionController.messageRequests);
 router.get('/messages/:id/search', requireAuth, requireVerified, messageSearchLimiter, chatController.dmSearch);
@@ -111,6 +112,7 @@ router.post('/posts/:id/delete', requireAuth, requireVerified, interactionLimite
 router.post('/posts/:id/moderate', requireAuth, requireVerified, requireModerator, adminController.moderatePost);
 router.get('/posts/:id/comments', interactionController.commentThread);
 router.post('/notifications/read', requireAuth, requireVerified, interactionController.readNotifications);
+router.post('/notifications/mark', requireAuth, requireVerified, interactionLimiter, interactionController.markNotifications);
 router.post('/posts/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleLike);
 router.post('/posts/:id/report', requireAuth, requireVerified, interactionLimiter, reportUpload, csrfSynchronisedProtection, handleUploadError, validateReportUpload, scanUploadsForViruses, interactionController.reportPost);
 router.post('/comments/:id/report', requireAuth, requireVerified, interactionLimiter, interactionController.reportComment);
@@ -138,6 +140,7 @@ router.post('/search/history/clear', requireAuth, requireVerified, controller.cl
 router.get('/hashtags/suggest', requireAuth, requireVerified, controller.hashtagSuggestions);
 router.get('/users/suggest', requireAuth, requireVerified, controller.userSuggestions);
 router.get('/u/:id', visitorPreview('profile'), requireAuth, requireVerified, controller.profile);
+router.get('/u/:id/posts/more', requireAuth, requireVerified, controller.profileMorePosts);
 router.get('/follow-requests', requireAuth, requireVerified, interactionController.followRequestsPage);
 router.post('/follow-requests/:id/:decision(approve|decline)', requireAuth, requireVerified, interactionLimiter, interactionController.respondFollowRequest);
 router.post('/users/:id/follow', requireAuth, requireVerified, interactionLimiter, interactionController.toggleFollow);

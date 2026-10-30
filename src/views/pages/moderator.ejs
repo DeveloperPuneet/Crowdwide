@@ -1,5 +1,5 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
-<%- include('../partials/app-nav', { active: '', currentUser }) %>
+<%- include('../partials/app-nav', { active: 'moderator', currentUser }) %>
 <% const contentCounts = locals.contentCounts || { post: 0, article: 0, poll: 0 }; const contentType = locals.contentType || ''; const recentAuto = locals.recentAuto || []; const reportedOnly = locals.reportedOnly || false; %>
 <% const monetizationApplications = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
 <main class="explore-page admin-console moderator-modern"><%- include('../partials/flash') %>

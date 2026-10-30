@@ -166,21 +166,11 @@ input:disabled, textarea:disabled, select:disabled { opacity: .6; cursor: not-al
 .settings-more[open] > summary::after { transform: rotate(-135deg); }
 .settings-more > summary span { margin-left: auto; }
 
-/* ---- Mobile edge gutter -------------------------------------------------
-   `.app-layout.dashboard-modern.sidebar-collapsed` (modern-ui.css) sets
-   `padding-left: 0` so the desktop rail sits flush with the page edge. That
-   rule is more specific than the phone gutter in responsive-layout.css, so on
-   phones and small tablets (where the rail is hidden) the feed cards, the
-   "Share something" bar, tabs and the Question of the Day card all touched the
-   left screen edge while keeping a gutter on the right. Restore a symmetric
-   gutter whenever the in-page sidebar is not shown. */
+/* ---- Mobile edge gutter ----------------------------------------------------
+   Below 1024px the home page is one column with the same symmetric gutter on both sides, so the feed
+   cards, the "Share something" bar, tabs and the Question of the Day card never touch the screen edge. */
 @media (max-width: 1024px) {
-  /* The in-page sidebar is hidden at this width (the menu drawer replaces it),
-     but modern-ui.css still reserved a 72px rail column, which squeezed the
-     whole feed into it between 901px and 1024px. One column instead. */
-  .app-layout.dashboard-modern,
-  .app-layout.dashboard-modern.sidebar-collapsed,
-  .app-layout.dashboard-modern:not(.sidebar-collapsed) {
+  body .app-layout.dashboard-modern {
     grid-template-columns: minmax(0, 1fr);
     padding-left: max(var(--responsive-gutter, 16px), env(safe-area-inset-left));
     padding-right: max(var(--responsive-gutter, 16px), env(safe-area-inset-right));
@@ -191,3 +181,50 @@ input:disabled, textarea:disabled, select:disabled { opacity: .6; cursor: not-al
     padding-inline: var(--responsive-gutter, 16px);
   }
 }
+
+/* ---- Profile "Show more posts" ---- */
+.profile-more { display: grid; justify-items: center; gap: 10px; padding: 18px 0 6px; }
+.profile-more .button { min-width: 180px; }
+.profile-more-note { margin: 0; color: var(--tx-faint); font-size: 13px; }
+.profile-posts .panel-heading > span { font-variant-numeric: tabular-nums; }
+
+/* ---- Notifications: row = link + read toggle, day headings, filters, load more ---- */
+.notifications-modern .notification-total[hidden] { display: none; }
+.notification-filters { display: flex; gap: 6px; margin-top: 18px; }
+.notification-filters a { padding: 7px 16px; border: 1px solid var(--bd-1); border-radius: 999px; color: var(--tx-lo); font-size: 13px; font-weight: 600; text-decoration: none; transition: background .15s, color .15s, border-color .15s; }
+.notification-filters a:hover { background: var(--ov-1, var(--sf-2)); color: var(--tx-hi); }
+.notification-filters a.is-on { background: color-mix(in srgb, var(--blue, #4f6bff) 16%, var(--sf-2)); border-color: color-mix(in srgb, var(--blue, #4f6bff) 40%, var(--bd-1)); color: var(--tx-hi); }
+.notification-status { margin: 12px 0 0; padding: 9px 14px; border-radius: 12px; background: color-mix(in srgb, #e5484d 14%, var(--sf-1)); color: var(--tx-hi); font-size: 13px; }
+.notification-status:empty, .notification-status[hidden] { display: none; }
+.notification-day { margin: 22px 0 2px; color: var(--tx-faint); font: 700 11.5px 'DM Sans', sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.notification-list > .notification-day:first-child { margin-top: 6px; }
+
+body .notifications-modern .notification-item { display: flex; align-items: stretch; gap: 0; padding: 0; overflow: hidden; }
+.notification-item .notification-link { display: flex; align-items: center; flex: 1; gap: 14px; min-width: 0; padding: 15px 8px 15px 18px; color: inherit; text-decoration: none; }
+.notification-item .notification-link:focus-visible { outline: 2px solid var(--ac-blue, #6c8cff); outline-offset: -3px; border-radius: 16px; }
+.notification-item .notification-link[aria-disabled="true"] { pointer-events: none; }
+.notification-item .notification-body { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.notification-item .notification-body strong { font-size: 14.5px; color: var(--tx-hi); overflow-wrap: anywhere; }
+.notification-item .notification-body strong em { font-style: normal; font-weight: 600; color: var(--tx-faint); font-size: 12.5px; }
+.notification-item .notification-message { color: var(--tx-mid); font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.notification-item .notification-body small { color: var(--tx-faint); font-size: 12px; }
+.notification-avatars { display: inline-flex; flex: none; }
+.notification-avatars.is-stack > * + * { margin-left: -14px; }
+.notification-avatars.is-stack .avatar { box-shadow: 0 0 0 2px var(--panel); }
+body .notifications-modern .notification-avatars .avatar { width: 42px; height: 42px; font-size: 14px; }
+body .notifications-modern .notification-avatars.is-stack .avatar { width: 34px; height: 34px; font-size: 12px; }
+
+/* Read/unread toggle: a dot that is filled while unread. 44px hit area, small visible mark. */
+.notification-toggle { flex: none; display: grid; place-items: center; width: 52px; border: 0; border-left: 1px solid transparent; background: transparent; cursor: pointer; color: var(--tx-faint); transition: background .15s; }
+.notification-toggle:hover { background: var(--ov-1, var(--sf-2)); }
+.notification-toggle:focus-visible { outline: 2px solid var(--ac-blue, #6c8cff); outline-offset: -3px; }
+body .notifications-modern .notification-toggle .notification-dot { position: static; width: 11px; height: 11px; margin: 0; border-radius: 50%; border: 2px solid var(--tx-faint); background: transparent; box-shadow: none; opacity: .7; transition: background .15s, border-color .15s, box-shadow .15s, opacity .15s; }
+body .notifications-modern .notification-unread .notification-toggle .notification-dot { border-color: var(--ac-blue, var(--blue)); background: var(--ac-blue, var(--blue)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue, #4f6bff) 22%, transparent); opacity: 1; }
+.notification-item:not(.notification-unread) .notification-body strong { font-weight: 600; color: var(--tx-lo); }
+.notification-item:not(.notification-unread) .avatar { opacity: .85; }
+.notification-more { display: grid; justify-items: center; padding: 14px 0 4px; }
+@media (max-width: 560px) {
+  .notification-item .notification-link { padding: 13px 4px 13px 14px; gap: 11px; }
+  .notification-toggle { width: 46px; }
+}
+@media (hover: none) { body .notifications-modern .notification-item:hover { transform: none; } }

@@ -1,23 +1,25 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/notifications', noIndex: true }) %>
 <%- include('../partials/app-nav', { active: 'notifications', currentUser }) %>
-<main class="notifications-page notifications-modern">
+<main class="notifications-page notifications-modern" data-notifications data-unread-total="<%= unread %>" data-filter="<%= unreadOnly ? 'unread' : 'all' %>">
 	<div class="notifications-heading">
-		<div><p class="eyebrow">Stay in the loop</p><h1>Notifications <em><%= unread ? unread : '' %></em></h1></div>
-		<form method="post" action="/notifications/read"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit">Mark all read</button></form>
+		<div><p class="eyebrow">Stay in the loop</p><h1>Notifications <em class="notification-total" data-notification-total <%- unread ? '' : 'hidden' %>><%= unread %></em></h1></div>
+		<form method="post" action="/notifications/read" data-mark-all-form><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit" data-mark-all <%- unread ? '' : 'disabled' %>>Mark all read</button></form>
 	</div>
-	<section class="notification-list">
+	<nav class="notification-filters" aria-label="Filter notifications">
+		<a class="<%= unreadOnly ? '' : 'is-on' %>" href="/notifications" <%- unreadOnly ? '' : 'aria-current="page"' %>>All</a>
+		<a class="<%= unreadOnly ? 'is-on' : '' %>" href="/notifications?filter=unread" <%- unreadOnly ? 'aria-current="page"' : '' %>>Unread</a>
+	</nav>
+	<p class="notification-status" role="status" aria-live="polite" data-notification-status hidden></p>
+	<section class="notification-list" data-notification-list>
 		<% if (!notifications.length) { %>
-		<div class="empty-feed"><div class="notifications-empty-icon" aria-hidden="true"><%- icon('bell', { size: 26 }) %></div><h2>All quiet for now.</h2><p>Your interactions and community updates will appear here.</p></div>
+		<div class="empty-feed"><div class="notifications-empty-icon" aria-hidden="true"><%- icon('bell', { size: 26 }) %></div><h2><%= unreadOnly ? 'You are all caught up.' : 'All quiet for now.' %></h2><p><%= unreadOnly ? 'No unread notifications.' : 'Your interactions and community updates will appear here.' %></p></div>
 		<% } %>
-		<% notifications.forEach((notification) => {
-			const target = notification.url || (notification.post ? `/posts/${notification.post}` : notification.actor ? `/u/${notification.actor._id}` : null);
-		%>
-		<a class="notification-item <%= notification.readAt ? '' : 'notification-unread' %>" href="<%= target || '#' %>" style="<%= target ? '' : 'pointer-events:none;' %>text-decoration:none;color:inherit;">
-			<%- include('../partials/avatar', { person: notification.actor || {}, size: 'tiny', link: false }) %>
-			<span class="notification-dot" aria-hidden="true"></span><div><% if (!notification.readAt) { %><span class="visually-hidden">Unread. </span><% } %><strong><%= notification.actor?.name || 'Crowdwide' %><% if (notification.count > 1) { %> + <%= notification.count - 1 %> more<% } %></strong><span><%= notification.message %></span><small><%= new Date(notification.createdAt).toLocaleString() %></small></div>
-		</a>
-		<% }) %>
+		<%- include('../partials/notification-items', { notifications, lastLabel: '', csrfToken }) %>
+		<% if (hasMore && nextBefore) { %>
+		<div class="notification-more" data-notification-more data-before="<%= nextBefore %>"><button class="button button-dark" type="button" data-notification-more-button>Show earlier</button></div>
+		<% } %>
 	</section>
 </main>
 <%- include('../partials/app-footer') %>
+<script defer src="/js/notifications.js"></script>
 <%- include('../partials/foot') %>

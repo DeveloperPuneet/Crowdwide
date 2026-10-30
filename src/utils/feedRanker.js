@@ -38,6 +38,12 @@ const GRAVITY = 1.35; // "hot" decay used by For you: fast, so the feed keeps mo
 const VIRAL_GRAVITY = 0.85;
 // A post with fewer interactions than this is still in its "first look" window.
 const FIRST_LOOK_INTERACTIONS = 3;
+const EXPOSURE_HALF_VIEWS = 30; // views at which the cold-start boost has halved
+const IGNORED_MIN_VIEWS = 40;
+const IGNORED_PENALTY = 0.08;
+// Share of the discovery lane reserved for topics outside the viewer's known interests, so a feed that
+// learns what you like never closes into a bubble (one in every EXPLORE_EVERY discovery posts).
+const EXPLORE_EVERY = 4;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
@@ -158,7 +164,20 @@ function growthBoost({ authorAgeDays, authorFollowers, communityMembers, qualifi
 // interactions - from then on it competes on merit.
 function firstLook(post, hours, qualifies) {
   if (!qualifies || interactionPoints(post.counts) >= FIRST_LOOK_INTERACTIONS) return 0;
-  return freshness(hours, 6);
+  return freshness(hours, 6) * exposureRoom(post.counts);
+}
+
+// How much "unseen" room a post still has, 1 -> 0 as it is opened more. A post that has been opened by
+// plenty of people and still earned nothing has had its fair look, so the cold-start boost stops
+// leaning on it; a post nobody has opened yet keeps the full boost.
+function exposureRoom(counts = {}) {
+  return 1 / (1 + (counts.views || 0) / EXPOSURE_HALF_VIEWS);
+}
+
+// Seen by many, reacted to by nobody: a mild, real "not for most people" signal.
+function ignoredPenalty(counts = {}) {
+  if ((counts.views || 0) < IGNORED_MIN_VIEWS || interactionPoints(counts) > 0) return 0;
+  return IGNORED_PENALTY;
 }
 
 function passesQualityBar(post) {
@@ -240,7 +259,7 @@ function scorePost(post, ctx, view = 'for-you') {
     score = parts.viralN * (1 + 0.75 * growth) + 0.02 * fresh + qualityAdjustment(post);
   } else {
     const jitter = (hash01(`${ctx.userId}:${post._id}:${Math.floor(ctx.now / HOUR_MS)}`) - 0.5) * 0.05;
-    score = 0.28 * interest + 0.2 * net + 0.06 * affinity + 0.2 * parts.hotN + 0.2 * fresh + 0.1 * growth + 0.08 * look + 0.06 * res - seenPenalty + qualityAdjustment(post) + jitter;
+    score = 0.28 * interest + 0.2 * net + 0.06 * affinity + 0.2 * parts.hotN + 0.2 * fresh + 0.1 * growth + 0.08 * look + 0.06 * res - seenPenalty - ignoredPenalty(post.counts) + qualityAdjustment(post) + jitter;
   }
   return { post, score, lane, reason, parts, source: describeSource(post, reason, parts, ctx) };
 }
@@ -283,6 +302,32 @@ function diversify(scored, { gap = 2, maxPerAuthor = 3, maxPerCommunity = Infini
     out.push(item);
   }
   return out.concat(deferred);
+}
+
+// Serendipity: reorders a ranked discovery lane so one slot in every EXPLORE_EVERY is a good post on a topic
+// the viewer has shown no interest in yet. Candidates must clear the quality bar and are picked by how well
+// they convert attention into action, with a nudge for new voices and fresh posts. Everything else keeps its
+// ranked order, and the lane's size never changes, so the 35-40% outside-network share is untouched.
+function injectExploration(lane, { every = EXPLORE_EVERY } = {}) {
+  if (lane.length < every) return lane;
+  const pool = lane
+    .filter((item) => item.parts.interest === 0 && passesQualityBar(item.post))
+    .map((item) => ({ item, pick: 0.5 * item.parts.res + 0.3 * item.parts.growth + 0.2 * item.parts.fresh }))
+    .sort((a, b) => b.pick - a.pick)
+    .map((entry) => entry.item);
+  const slots = Math.min(pool.length, Math.floor(lane.length / every));
+  if (!slots) return lane;
+  const chosen = new Set(pool.slice(0, slots));
+  const rest = lane.filter((item) => !chosen.has(item));
+  const out = [];
+  const picks = Array.from(chosen);
+  while (rest.length || picks.length) {
+    // positions every-1, 2*every-1, ... (so a page always starts with a relevant post)
+    if (picks.length && out.length % every === every - 1) out.push({ ...picks.shift(), source: 'Something different', explore: true });
+    else if (rest.length) out.push(rest.shift());
+    else out.push({ ...picks.shift(), source: 'Something different', explore: true });
+  }
+  return out;
 }
 
 // Mixes the two lanes.
@@ -376,7 +421,10 @@ function rankFeed(candidates, ctx, view = 'for-you', { limit = 96 } = {}) {
   const networkLane = diversify(scored.filter((item) => item.lane === 'network'));
   // Discovery is capped per community so one busy community cannot crowd out
   // the small, growing ones this lane exists to surface.
-  const discoveryLane = diversify(scored.filter((item) => item.lane === 'discovery'), { maxPerCommunity: 3 });
+  let discoveryLane = diversify(scored.filter((item) => item.lane === 'discovery'), { maxPerCommunity: 3 });
+  // Only the personalised tab explores: New and Viral are visible sort orders, and My community is about
+  // communities the viewer chose. A brand-new account with no learned interests simply sees a ranked lane.
+  if (view === 'for-you' && full.interests.size > 0) discoveryLane = injectExploration(discoveryLane);
   const mixed = mixLanes(networkLane, discoveryLane, { ratio, limit, strict: config.mixing === 'strict' });
   return config.mixing === 'floor' ? sortWithinPages(mixed) : mixed;
 }
@@ -401,6 +449,10 @@ module.exports = {
   viralValue,
   interactionPoints,
   firstLook,
+  exposureRoom,
+  ignoredPenalty,
+  injectExploration,
+  EXPLORE_EVERY,
   sortWithinPages,
   freshness,
   interestScore,

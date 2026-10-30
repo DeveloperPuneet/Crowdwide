@@ -1394,42 +1394,12 @@ html:has(.home-page), .home-page { overflow-x: clip; }
 @media (max-width: 760px) { .community-owner-modern .owner-grid { grid-template-columns: minmax(0, 1fr) !important; } .community-owner-modern .community-location-actions .button { flex: 1 1 100%; justify-content: center; } }
 
 /* =====================================================================
-   DASHBOARD SIDEBAR + FEED TABS FIXES
-   - the collapse toggle was overridden by responsive-layout.css below 1500px
-   - feed tabs spilled out of the column and could not be scrolled with a mouse
-   - long names broke out of the sidebar
+   HOME LAYOUT
+   The home page uses the same fixed icon rail as every other page (partials/app-rail.ejs), so only the
+   feed and the discover column live in this grid. Rail width is handled by `body:has(.app-rail)`.
    ===================================================================== */
-/* The sidebar is an OVERLAY: the grid keeps the same narrow icon column whether it is open or closed, so
-   opening it never shifts or squeezes the feed. The open panel floats over the page behind a dimmed backdrop. */
-.app-layout.dashboard-modern.sidebar-collapsed, .app-layout.dashboard-modern:not(.sidebar-collapsed) { max-width: none; margin-left: 0; padding-left: 0; grid-template-columns: 72px minmax(0, 880px) minmax(240px, 330px); justify-content: start; }
-@media (max-width: 1500px) { .app-layout.dashboard-modern.sidebar-collapsed, .app-layout.dashboard-modern:not(.sidebar-collapsed) { grid-template-columns: 72px minmax(0, 880px) minmax(240px, 290px); } }
-@media (max-width: 1180px) { .app-layout.dashboard-modern.sidebar-collapsed, .app-layout.dashboard-modern:not(.sidebar-collapsed) { grid-template-columns: 72px minmax(0, 1fr); } }
-
-.dashboard-modern .app-sidebar { min-width: 0; padding-right: 22px; }
-.dashboard-modern #dashboard-sidebar { max-height: 100%; overflow-y: auto; overflow-x: hidden; padding: 2px 4px 14px 0; scrollbar-width: thin; }
-.dashboard-modern .sidebar-profile { min-width: 0; }
-.dashboard-modern .sidebar-profile > .avatar { flex: none; }
-.dashboard-modern .sidebar-profile > div { min-width: 0; flex: 1 1 auto; }
-.dashboard-modern .sidebar-profile strong, .dashboard-modern .sidebar-profile span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dashboard-modern .side-links a { min-width: 0; }
-.dashboard-modern .side-links a > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dashboard-modern .sidebar-toggle { right: -13px; top: 22px; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; box-shadow: var(--mu-shadow); transition: transform .25s var(--mu-ease), background .15s; }
-.dashboard-modern .sidebar-toggle:hover { background: var(--mu-grad); border-color: transparent; color: #fff; }
-.dashboard-modern.sidebar-collapsed .sidebar-toggle svg, .dashboard-modern.sidebar-collapsed .sidebar-toggle .icon { transform: rotate(180deg); }
-.dashboard-modern.sidebar-collapsed .app-sidebar { padding-right: 0; }
-.dashboard-modern.sidebar-collapsed #dashboard-sidebar { padding-right: 0; }
-.dashboard-modern.sidebar-collapsed .sidebar-profile { padding: 0; border: 0; background: transparent; justify-content: center; margin-bottom: 18px; }
-.dashboard-modern.sidebar-collapsed .sidebar-profile > div { display: none; }
-.dashboard-modern.sidebar-collapsed .side-links a { justify-content: center; padding: 12px 0; }
-.dashboard-modern.sidebar-collapsed .side-links a > span { display: none; }
-.dashboard-modern.sidebar-collapsed .side-links a.side-active { box-shadow: none; }
-
-/* Open state: the panel grows out of the icon column and covers the page instead of pushing it. */
-.dashboard-modern:not(.sidebar-collapsed) .app-sidebar { z-index: 40; border-right-color: transparent; }
-.dashboard-modern:not(.sidebar-collapsed) #dashboard-sidebar { position: absolute; top: -6px; left: -12px; z-index: 1; box-sizing: border-box; width: 244px; max-height: calc(100vh - var(--header-h) - 28px); padding: 14px 10px 18px; border: 1px solid var(--bd-2); border-radius: 18px; background: var(--sf-1); box-shadow: 0 24px 60px rgba(0, 0, 0, .45); overflow-y: auto; animation: sidebar-panel-in .18s ease both; }
-.dashboard-modern:not(.sidebar-collapsed) .sidebar-toggle { right: auto; left: 232px; z-index: 3; }
-@keyframes sidebar-panel-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .dashboard-modern:not(.sidebar-collapsed) #dashboard-sidebar { animation: none; } }
+body .app-layout.dashboard-modern { max-width: 1280px; margin-inline: auto; padding-left: var(--gutter, 24px); padding-right: var(--gutter, 24px); grid-template-columns: minmax(0, 820px) minmax(240px, 330px); justify-content: center; }
+@media (max-width: 1180px) { body .app-layout.dashboard-modern { grid-template-columns: minmax(0, 1fr); max-width: 860px; } }
 
 /* feed tabs: wrap on desktop, scroll with snap on phones */
 .dashboard-modern .feed-tabs { flex-wrap: wrap; overflow: visible; }
