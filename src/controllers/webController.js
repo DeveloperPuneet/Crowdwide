@@ -65,6 +65,12 @@ async function getLiveStats() {
 }
 
 exports.home = async (req, res) => {
+	// Signed-in, verified members go straight to their dashboard. `?landing=1`
+	// lets them still view the public homepage on purpose.
+	if (req.session?.user?.isVerified && !req.query.landing) {
+		res.set('Cache-Control', 'no-store');
+		return res.redirect(302, '/dashboard');
+	}
 	try {
 		const stats = await getLiveStats();
 		const [viralPosts, popularPeople] = await Promise.all([getViralPosts(4), getPopularPeople(4)]);
