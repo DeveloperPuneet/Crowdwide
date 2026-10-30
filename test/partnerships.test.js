@@ -272,9 +272,9 @@ test('admin partnership and partner-logo panels render requests, decisions and p
 });
 
 // ---------- permissions ----------
-test('every admin partnership route is admin-only, panel-password protected and CSRF checked', () => {
+test('admin partnership and ambassador routes are admin-only, panel-password protected and CSRF checked', () => {
   const router = require('../src/routes/web');
-  const wanted = ['/admin/partnerships/:id/review', '/admin/partners', '/admin/partners/:id', '/admin/partners/:id/visibility', '/admin/partners/:id/delete'];
+  const wanted = ['/admin/partnerships/:id/review', '/admin/partners', '/admin/partners/:id', '/admin/partners/:id/visibility', '/admin/partners/:id/delete', '/admin/brand-ambassadors', '/admin/brand-ambassadors/:id', '/admin/brand-ambassadors/:id/delete'];
   for (const route of wanted) {
     const layer = router.stack.find((l) => l.route?.path === route && l.route.methods.post);
     assert.ok(layer, `${route} is registered`);

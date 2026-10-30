@@ -693,13 +693,29 @@ test('landing page applies the member theme and renders real profile avatars', a
     currentUser: { ...currentUser, theme: 'pink' },
     stats: { members: 2, posts: 1, communities: 0, communitiesAreLive: true, topCommunities: [] },
     viralPosts: [{ author: { _id: 'u2', name: 'Nia', profilePicture: '/media/nia.webp' }, body: 'A bright idea', likesTotal: 3 }],
-    popularPeople: [{ _id: 'u2', name: 'Nia', profilePicture: '/media/nia.webp', followers: 3 }]
+    popularPeople: [{ _id: 'u2', name: 'Nia', profilePicture: '/media/nia.webp', followers: 3 }],
+    brandAmbassadors: [{ name: 'Asha Rao', role: 'Community builder', photoUrl: '/media/asha.webp', bio: '**Building** better communities.' }]
   });
 
   assert.match(html, /data-theme="pink"/);
   assert.match(html, /avatar-stack/);
   assert.match(html, /src="\/media\/nia\.webp"/);
+  assert.match(html, /landing-ambassadors-title/);
+  assert.match(html, /Portrait of Asha Rao/);
+  assert.match(html, /landing-ambassadors-art/);
+  assert.match(html, /landing-ambassador-card/);
+  assert.match(html, /href="\/auth\/register">Join Crowdwide/);
+  assert.match(html, /<strong>Building<\/strong> better communities/);
   assert.doesNotMatch(html, /style="color:#f6f6fa;/);
+});
+
+test('landing page omits the brand ambassador section when there are no published profiles', async () => {
+  const html = await render('pages/home.ejs', {
+    title: 'Home', pagePath: '/',
+    stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] },
+    viralPosts: [], popularPeople: [], brandAmbassadors: []
+  });
+  assert.doesNotMatch(html, /landing-ambassadors-title/);
 });
 
 test('notification settings render grouped, accessible preferences', async () => {
@@ -1005,6 +1021,7 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
     siteSettings: {
       siteName: '', tagline: '', registrationOpen: true, postApprovalDefault: false,
       maintenanceMode: false, maintenanceMessage: '', announcement: '',
+      brandAmbassadors: [{ _id: 'amb1', name: 'Asha Rao', role: 'Community builder', photoUrl: '/media/asha.webp', bio: 'A friendly voice.', isVisible: true, displayOrder: 1 }],
       postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
       postReviewThreshold: 2, postPromotionEnabled: true,
       postPromotionWavesCost: 40, postPromotionDurationHours: 36,
@@ -1017,6 +1034,10 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
     stats: { users: 0, communities: 0, posts: 0, reports: 0 }
   });
   assert.match(html, /id="admin-panel-maintenance"/);
+  assert.match(html, /data-tab="brand-ambassadors"/);
+  assert.match(html, /action="\/admin\/brand-ambassadors\/amb1"/);
+  assert.match(html, /Asha Rao/);
+  assert.match(html, /data-format="bold"/);
   assert.match(html, /Possible bot activity/);
   assert.match(html, /20 flagged events\/attempts/);
   assert.match(html, /Suspicious Waves transfer activity/);

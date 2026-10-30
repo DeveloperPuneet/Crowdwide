@@ -23,6 +23,7 @@
     <button type="button" class="admin-tab" id="admin-tab-campaigns" role="tab" aria-controls="admin-panel-campaigns" data-tab="campaigns">Campaigns<% if (pendingCampaignList.length) { %> (<%= pendingCampaignList.length %> pending)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-partnerships" role="tab" aria-controls="admin-panel-partnerships" data-tab="partnerships">Partnerships<% const pendingPartnerCount = (locals.partnershipApplications || []).filter((a) => a.status === 'pending').length; if (pendingPartnerCount) { %> (<%= pendingPartnerCount %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-partners" role="tab" aria-controls="admin-panel-partners" data-tab="partners">Partner logos</button>
+    <button type="button" class="admin-tab" id="admin-tab-brand-ambassadors" role="tab" aria-controls="admin-panel-brand-ambassadors" data-tab="brand-ambassadors">Brand ambassadors</button>
     <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (openReports.length) { %> (<%= openReports.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-queue" role="tab" aria-controls="admin-panel-queue" data-tab="queue">Approval queue<% if (pendingActions.length) { %> (<%= pendingActions.length %>)<% } %></button>
@@ -299,6 +300,76 @@
   </section>
 
   <%- include('../partials/admin-partnerships', { csrfToken }) %>
+
+  <!-- BRAND AMBASSADORS -->
+  <section class="admin-panel" id="admin-panel-brand-ambassadors" role="tabpanel" aria-labelledby="admin-tab-brand-ambassadors" data-panel="brand-ambassadors">
+    <% const brandAmbassadorList = (siteSettings.brandAmbassadors || []).slice().sort((a, b) => a.displayOrder - b.displayOrder); %>
+    <header class="admin-section-head"><div><h2>Brand ambassadors</h2><p>Introduce the people who represent Crowdwide. Published profiles appear on the public landing page.</p></div></header>
+    <section class="settings-block admin-wide brand-ambassador-editor">
+      <h3>Add an ambassador</h3>
+      <form class="admin-edit-form brand-ambassador-form" method="post" action="/admin/brand-ambassadors" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Name<input type="text" name="name" maxlength="100" required placeholder="Their name"></label>
+        <label>Role or short title<input type="text" name="role" maxlength="100" placeholder="Community builder"></label>
+        <label class="full-width">Photo <span class="form-note">PNG, JPEG or WebP · up to 2 MB</span><input type="file" name="photo" accept="image/png,image/jpeg,image/webp" required data-image-preview></label>
+        <img class="brand-ambassador-photo-preview" data-image-preview-target alt="Selected ambassador photo preview" hidden>
+        <div class="full-width brand-ambassador-bio-field">
+          <label for="ambassador-bio-new">Introduction</label>
+          <div class="brand-ambassador-format-tools" aria-label="Text formatting">
+            <button type="button" data-format="bold" data-target="ambassador-bio-new" aria-label="Make selected text bold"><strong>B</strong></button>
+            <button type="button" data-format="italic" data-target="ambassador-bio-new" aria-label="Make selected text italic"><em>I</em></button>
+            <button type="button" data-format="heading" data-target="ambassador-bio-new" aria-label="Format selected line as a heading">Heading</button>
+            <button type="button" data-format="list" data-target="ambassador-bio-new" aria-label="Format selected lines as a list">List</button>
+          </div>
+          <textarea id="ambassador-bio-new" name="bio" maxlength="2000" rows="5" placeholder="A short introduction about this ambassador…" data-format-field></textarea>
+          <small>Formatting: **bold**, *italic*, ## heading, and - list item.</small>
+        </div>
+        <label>Display order<input type="number" name="displayOrder" min="0" max="9999" value="100"></label>
+        <label class="checkbox-field"><input type="checkbox" name="isVisible"> Publish on landing page</label>
+        <div class="full-width"><button class="button button-primary button-small" type="submit">Add ambassador</button></div>
+      </form>
+    </section>
+    <section class="settings-block admin-wide brand-ambassador-list">
+      <h3>Current ambassadors</h3>
+      <% if (!brandAmbassadorList.length) { %><p>No ambassadors added yet. Create a profile above to get started.</p><% } %>
+      <% brandAmbassadorList.forEach((ambassador) => { const editorId = `ambassador-bio-${ambassador._id}`; %>
+      <article class="brand-ambassador-admin-card">
+        <div class="brand-ambassador-admin-heading">
+          <% if (ambassador.photoUrl) { %><img src="<%= ambassador.photoUrl %>" alt="" loading="lazy"><% } else { %><div class="brand-ambassador-photo-empty" aria-hidden="true">Photo needed</div><% } %>
+          <div><strong><%= ambassador.name %></strong><span><%= ambassador.role || 'Brand ambassador' %></span></div>
+          <span class="admin-badge <%= ambassador.isVisible ? 'status-good' : 'status-needs-review' %>"><%= ambassador.isVisible ? 'Published' : 'Hidden' %></span>
+        </div>
+        <form class="admin-edit-form brand-ambassador-form" method="post" action="/admin/brand-ambassadors/<%= ambassador._id %>" enctype="multipart/form-data">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label>Name<input type="text" name="name" maxlength="100" value="<%= ambassador.name %>" required></label>
+          <label>Role or short title<input type="text" name="role" maxlength="100" value="<%= ambassador.role || '' %>"></label>
+          <label class="full-width">Replace photo <span class="form-note">Leave empty to keep the current photo</span><input type="file" name="photo" accept="image/png,image/jpeg,image/webp" data-image-preview></label>
+          <% if (ambassador.photoUrl) { %><img class="brand-ambassador-photo-preview" src="<%= ambassador.photoUrl %>" data-image-preview-target alt="Current photo of <%= ambassador.name %>"><% } else { %><img class="brand-ambassador-photo-preview" data-image-preview-target alt="Selected ambassador photo preview" hidden><% } %>
+          <div class="full-width brand-ambassador-bio-field">
+            <label for="<%= editorId %>">Introduction</label>
+            <div class="brand-ambassador-format-tools" aria-label="Text formatting">
+              <button type="button" data-format="bold" data-target="<%= editorId %>" aria-label="Make selected text bold"><strong>B</strong></button>
+              <button type="button" data-format="italic" data-target="<%= editorId %>" aria-label="Make selected text italic"><em>I</em></button>
+              <button type="button" data-format="heading" data-target="<%= editorId %>" aria-label="Format selected line as a heading">Heading</button>
+              <button type="button" data-format="list" data-target="<%= editorId %>" aria-label="Format selected lines as a list">List</button>
+            </div>
+            <textarea id="<%= editorId %>" name="bio" maxlength="2000" rows="5" data-format-field><%= ambassador.bio || '' %></textarea>
+            <small>Formatting: **bold**, *italic*, ## heading, and - list item.</small>
+          </div>
+          <label>Display order<input type="number" name="displayOrder" min="0" max="9999" value="<%= ambassador.displayOrder ?? 100 %>"></label>
+          <label class="checkbox-field"><input type="checkbox" name="isVisible" <%= ambassador.isVisible ? 'checked' : '' %>> Publish on landing page</label>
+          <div class="full-width brand-ambassador-form-actions">
+            <button class="button button-primary button-small" type="submit">Save changes</button>
+            <button class="button button-danger button-small" type="submit" form="delete-ambassador-<%= ambassador._id %>">Remove</button>
+          </div>
+        </form>
+        <form id="delete-ambassador-<%= ambassador._id %>" method="post" action="/admin/brand-ambassadors/<%= ambassador._id %>/delete" data-confirm="Remove <%= ambassador.name %> from Brand ambassadors?">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        </form>
+      </article>
+      <% }) %>
+    </section>
+  </section>
 
   <!-- CAMPAIGNS -->
   <section class="admin-panel" id="admin-panel-campaigns" role="tabpanel" aria-labelledby="admin-tab-campaigns" data-panel="campaigns">

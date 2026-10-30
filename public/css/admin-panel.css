@@ -27,6 +27,64 @@
 .admin-panel.is-active { display: block; }
 
 .admin-wide { max-width: none !important; }
+.brand-ambassador-editor, .brand-ambassador-list { margin-top: 20px; }
+.brand-ambassador-form { align-items: start; }
+.brand-ambassador-form .form-note { display: inline; margin-left: 5px; font-size: 11px; }
+.brand-ambassador-photo-preview {
+  width: 112px;
+  height: 112px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  object-fit: cover;
+  background: var(--ov-1);
+}
+.brand-ambassador-photo-preview[hidden] { display: none; }
+.brand-ambassador-bio-field { display: grid; gap: 8px; }
+.brand-ambassador-bio-field > label { margin: 0; }
+.brand-ambassador-bio-field small { color: var(--tx-faint); font-size: 11px; }
+.brand-ambassador-format-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.brand-ambassador-format-tools button {
+  min-width: 34px;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--tx-mid);
+  background: var(--ov-1);
+  cursor: pointer;
+  font-size: 12px;
+}
+.brand-ambassador-format-tools button:hover { color: var(--tx-hi); border-color: var(--ac-blue); }
+.brand-ambassador-admin-card {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 90%, var(--ac-blue) 10%);
+}
+.brand-ambassador-admin-heading { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
+.brand-ambassador-admin-heading > img, .brand-ambassador-photo-empty {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 12px;
+  object-fit: cover;
+}
+.brand-ambassador-photo-empty { display: grid; place-items: center; color: var(--tx-faint); background: var(--ov-1); font-size: 10px; }
+.brand-ambassador-admin-heading > div:nth-child(2) { display: grid; gap: 3px; }
+.brand-ambassador-admin-heading > div:nth-child(2) span { color: var(--tx-lo); font-size: 12px; }
+.brand-ambassador-admin-heading .admin-badge { margin-left: auto; }
+.brand-ambassador-form-actions { display: flex; gap: 9px; flex-wrap: wrap; }
+.brand-ambassador-form input[type="file"] { max-width: 100%; }
+:is(body[data-theme="light"], body[data-theme="pink"]) .brand-ambassador-admin-card {
+  border-color: var(--theme-border);
+  background: var(--theme-surface);
+}
+:is(body[data-theme="light"], body[data-theme="pink"]) .brand-ambassador-format-tools button {
+  color: var(--theme-fg);
+  border-color: var(--theme-border);
+  background: var(--theme-soft);
+}
 .admin-storage-card { margin-top: 16px; }
 .admin-storage-heading, .admin-storage-values { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .admin-storage-heading .eyebrow { margin-bottom: 6px; }

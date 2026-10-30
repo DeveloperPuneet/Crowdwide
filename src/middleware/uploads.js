@@ -17,6 +17,7 @@ const ADVERTISER_BANNER_LIMIT = 2 * 1024 * 1024;
 const REPORT_EVIDENCE_LIMIT = 2 * 1024 * 1024;
 const GROUP_AVATAR_LIMIT = 1.5 * 1024 * 1024;
 const AD_BANNER_LIMIT = 2 * 1024 * 1024;
+const BRAND_AMBASSADOR_PHOTO_LIMIT = 2 * 1024 * 1024;
 const CHAT_ATTACHMENT_LIMIT = 3 * 1024 * 1024;
 
 function classify(file) {
@@ -79,6 +80,33 @@ const partnerLogoUpload = multer({
   limits: { fileSize: PARTNER_LOGO_LIMIT + 1, files: 1 },
   fileFilter: (req, file, callback) => callback(null, ['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype))
 }).single('logo');
+
+const brandAmbassadorPhotoUpload = multer({
+  storage,
+  limits: { fileSize: BRAND_AMBASSADOR_PHOTO_LIMIT + 1, files: 1 },
+  fileFilter: (req, file, callback) => callback(null, ['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype))
+}).single('photo');
+
+async function validateBrandAmbassadorPhoto(req, res, next) {
+  const back = '/admin#brand-ambassadors';
+  if (!req.file) return next();
+  if (req.file.size > BRAND_AMBASSADOR_PHOTO_LIMIT) {
+    req.session.flash = { type: 'error', message: 'Ambassador photos must be 2MB or smaller.' };
+    return res.redirect(back);
+  }
+  try {
+    const { getImageSize } = require('../services/storage');
+    if (!await getImageSize(req.file.buffer)) {
+      req.session.flash = { type: 'error', message: 'Choose a valid PNG, JPEG or WebP photo.' };
+      return res.redirect(back);
+    }
+    return next();
+  } catch (error) {
+    logger.error('Brand ambassador photo validation failed', error);
+    req.session.flash = { type: 'error', message: 'The ambassador photo could not be validated.' };
+    return res.redirect(back);
+  }
+}
 
 async function validatePartnerLogo(req, res, next) {
   const back = '/admin#partners';
@@ -266,8 +294,9 @@ function handleUploadError(error, req, res, next) {
   if (req.path.startsWith('/settings')) return res.redirect('/settings/profile');
   if (req.path.startsWith('/advertising')) return res.redirect('/advertising');
   if (req.path.startsWith('/admin/partners')) return res.redirect('/admin#partners');
+  if (req.path.startsWith('/admin/brand-ambassadors')) return res.redirect('/admin#brand-ambassadors');
   if (req.path.includes('/manage') || req.path.includes('/report')) return res.redirect(req.get('referer') || '/dashboard');
   res.redirect('/dashboard');
 }
 
-module.exports = { partnerLogoUpload, validatePartnerLogo, postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, chatAttachmentUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };
+module.exports = { partnerLogoUpload, validatePartnerLogo, brandAmbassadorPhotoUpload, validateBrandAmbassadorPhoto, postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, chatAttachmentUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateChatAttachment, detectChatAttachmentType, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError };

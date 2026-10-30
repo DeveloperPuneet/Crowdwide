@@ -4,7 +4,8 @@ const {
   validatePostUpload,
   validateProfileUpload,
   validateCommunityUpload,
-  validateAdvertiserApplicationUpload
+  validateAdvertiserApplicationUpload,
+  validateBrandAmbassadorPhoto
 } = require('../src/middleware/uploads');
 
 function fakeReq(overrides = {}) {
@@ -24,6 +25,25 @@ test('validatePostUpload lets a request with no files through', () => {
   validatePostUpload(req, res, () => { calledNext = true; });
   assert.equal(calledNext, true);
   assert.equal(res.redirected, null);
+});
+
+test('validateBrandAmbassadorPhoto passes when no photo is being replaced', async () => {
+  const req = fakeReq();
+  const res = fakeRes();
+  let calledNext = false;
+  await validateBrandAmbassadorPhoto(req, res, () => { calledNext = true; });
+  assert.equal(calledNext, true);
+  assert.equal(res.redirected, null);
+});
+
+test('validateBrandAmbassadorPhoto rejects image data that is not a real image', async () => {
+  const req = fakeReq({ file: { buffer: Buffer.from('not an image'), mimetype: 'image/png', size: 12 } });
+  const res = fakeRes();
+  let calledNext = false;
+  await validateBrandAmbassadorPhoto(req, res, () => { calledNext = true; });
+  assert.equal(calledNext, false);
+  assert.equal(res.redirected, '/admin#brand-ambassadors');
+  assert.match(req.session.flash.message, /valid PNG, JPEG or WebP/);
 });
 
 test('validatePostUpload rejects an image at/over its 1.5MB limit', () => {

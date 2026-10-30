@@ -26,6 +26,7 @@ const { adjustWaves, getReciprocalRewardSignals, creditCommunityAdShare } = requ
 const { reviewAdvertiserAsModerator, reviewCampaignAsModerator, updateAdvertiserStatus, updateCampaignStatus } = require('../services/advertising');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { removeUserFromCommunities } = require('../services/communityMembership');
+const { uploadBuffer, mediaUrl, deleteFile } = require('../services/storageCluster');
 const logger = require('../services/logger');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
@@ -973,6 +974,98 @@ exports.updateSiteSettings = async (req, res) => {
   await audit(req, 'edit-site-settings', 'site', settings._id, {});
   flash(req, 'success', 'Site settings saved.');
   res.redirect('/admin#settings');
+};
+
+function ambassadorPhotoFile(url) {
+  const match = /^\/media\/(\d+)\/([a-f\d]{24})$/i.exec(String(url || ''));
+  return match ? { cluster: Number(match[1]), id: match[2] } : null;
+}
+
+async function removeAmbassadorPhoto(url) {
+  const file = ambassadorPhotoFile(url);
+  if (!file) return;
+  try {
+    await deleteFile(file.cluster, file.id);
+  } catch (error) {
+    logger.warn('Brand ambassador photo could not be deleted', { error });
+  }
+}
+
+exports.saveBrandAmbassador = async (req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 100);
+  const role = String(req.body.role || '').trim().slice(0, 100);
+  const bio = String(req.body.bio || '').trim().slice(0, 2000);
+  const orderValue = Number.parseInt(req.body.displayOrder, 10);
+  const displayOrder = Number.isFinite(orderValue) ? Math.min(9999, Math.max(0, orderValue)) : 100;
+  if (name.length < 2) {
+    flash(req, 'error', 'Add a name with at least 2 characters.');
+    return res.redirect('/admin#brand-ambassadors');
+  }
+
+  const settings = await SiteSetting.getSingleton();
+  const ambassador = req.params.id ? settings.brandAmbassadors.id(req.params.id) : null;
+  if (req.params.id && !ambassador) {
+    flash(req, 'error', 'That brand ambassador could not be found.');
+    return res.redirect('/admin#brand-ambassadors');
+  }
+  if (!req.file && !ambassador?.photoUrl) {
+    flash(req, 'error', 'Add a photo before saving this ambassador.');
+    return res.redirect('/admin#brand-ambassadors');
+  }
+
+  const previousPhotoUrl = ambassador?.photoUrl || '';
+  let uploadedPhoto = null;
+  let photoUrl = previousPhotoUrl;
+  try {
+    if (req.file) {
+      uploadedPhoto = await uploadBuffer(
+        req.file.buffer,
+        `brand-ambassador-${Date.now()}`,
+        req.file.mimetype,
+        { kind: 'brand-ambassador-photo', owner: String(req.roleUser._id) }
+      );
+      photoUrl = mediaUrl(uploadedPhoto);
+    }
+
+    const data = { name, role, bio, photoUrl, isVisible: req.body.isVisible === 'on', displayOrder };
+    if (ambassador) Object.assign(ambassador, data);
+    else settings.brandAmbassadors.push(data);
+    settings.updatedBy = req.roleUser._id;
+    await settings.save();
+  } catch (error) {
+    if (uploadedPhoto) {
+      try {
+        await deleteFile(uploadedPhoto.cluster, uploadedPhoto.id);
+      } catch (cleanupError) {
+        logger.warn('Unattached brand ambassador photo could not be deleted', { error: cleanupError });
+      }
+    }
+    logger.error('Brand ambassador could not be saved', error);
+    flash(req, 'error', 'The brand ambassador could not be saved. Please try again.');
+    return res.redirect('/admin#brand-ambassadors');
+  }
+
+  if (uploadedPhoto && previousPhotoUrl) await removeAmbassadorPhoto(previousPhotoUrl);
+  await audit(req, ambassador ? 'brand-ambassador-updated' : 'brand-ambassador-created', 'site', settings._id, { name, visible: req.body.isVisible === 'on' });
+  flash(req, 'success', `${name} was saved.`);
+  res.redirect('/admin#brand-ambassadors');
+};
+
+exports.deleteBrandAmbassador = async (req, res) => {
+  const settings = await SiteSetting.getSingleton();
+  const ambassador = settings.brandAmbassadors.id(req.params.id);
+  if (!ambassador) {
+    flash(req, 'error', 'That brand ambassador could not be found.');
+    return res.redirect('/admin#brand-ambassadors');
+  }
+  const { _id, name, photoUrl } = ambassador;
+  settings.brandAmbassadors.pull(_id);
+  settings.updatedBy = req.roleUser._id;
+  await settings.save();
+  await removeAmbassadorPhoto(photoUrl);
+  await audit(req, 'brand-ambassador-deleted', 'site', settings._id, { name });
+  flash(req, 'success', `${name} was removed.`);
+  res.redirect('/admin#brand-ambassadors');
 };
 
 exports.createModerator = async (req, res) => {

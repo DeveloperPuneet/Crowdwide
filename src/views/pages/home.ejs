@@ -51,6 +51,36 @@
   </section>
   <% } %>
 
+  <% if (brandAmbassadors?.length) { %>
+  <section class="container landing-ambassadors" aria-labelledby="landing-ambassadors-title">
+    <div class="landing-ambassadors-art" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="landing-ambassadors-heading">
+      <p class="eyebrow"><span class="eyebrow-dot"></span> The people behind the movement</p>
+      <h2 id="landing-ambassadors-title">Meet our<br><em>brand ambassadors.</em></h2>
+      <p class="section-copy">The voices and community builders helping make discovery feel a little more human.</p>
+    </div>
+    <div class="landing-ambassador-grid">
+      <% brandAmbassadors.forEach((ambassador) => { %>
+      <article class="landing-ambassador-card">
+        <div class="landing-ambassador-image-wrap">
+          <img src="<%= ambassador.photoUrl %>" alt="Portrait of <%= ambassador.name %>" loading="lazy">
+          <span class="landing-ambassador-mark" aria-hidden="true">CW</span>
+        </div>
+        <div class="landing-ambassador-copy">
+          <p class="landing-ambassador-role"><%= ambassador.role || 'Crowdwide ambassador' %></p>
+          <h3><%= ambassador.name %></h3>
+          <% if (ambassador.bio) { %><div class="landing-ambassador-bio"><%- renderRichBody(ambassador.bio) %></div><% } %>
+        </div>
+      </article>
+      <% }) %>
+    </div>
+    <aside class="landing-ambassador-invitation">
+      <p>Find your people. Help shape what comes next.</p>
+      <a class="text-link" href="/auth/register">Join Crowdwide <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a>
+    </aside>
+  </section>
+  <% } %>
+
   <div class="container"><%- include('../partials/partners-strip', { variant: 'landing' }) %></div>
   <section class="story-section container"><div class="story-marker"><%- icon('sparkles', { size: 24 }) %></div><div><p class="eyebrow">A better default</p><h2>What if social felt<br><em>like an open door?</em></h2><p>There is more to the internet than the loudest take and the fastest trend. Crowdwide is a place for the slow burn: the person who makes something beautiful, the question that changes how you see a subject, the community that feels like a room you were hoping to find.</p><a class="text-link" href="/about">Read our story <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a></div></section>
   <section class="cta-band container"><div><p class="eyebrow">The door is open</p><h2>Your next community<br><em>is already here.</em></h2></div><a class="button button-light" href="/auth/register">Step inside <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a></section>

@@ -5,6 +5,15 @@ const wavesRewardRangeSchema = new mongoose.Schema({
   maximum: { type: Number, min: 0, max: 10000, default: 3 }
 }, { _id: false });
 
+const brandAmbassadorSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, maxlength: 100 },
+  role: { type: String, trim: true, maxlength: 100, default: '' },
+  bio: { type: String, trim: true, maxlength: 2000, default: '' },
+  photoUrl: { type: String, trim: true, maxlength: 500, default: '' },
+  isVisible: { type: Boolean, default: false },
+  displayOrder: { type: Number, default: 100 }
+}, { timestamps: true });
+
 // Singleton document (there is only ever one row) holding the site-wide
 // controls the admin panel exposes: identity, registration, and a
 // maintenance/announcement banner shown to everyone.
@@ -62,6 +71,7 @@ const siteSettingSchema = new mongoose.Schema({
   advertisingMinimumCampaignBudget: { type: Number, default: 25, min: 1, max: 1000000 },
   advertisingCostPerImpression: { type: Number, default: 0.1, min: 0, max: 10000 },
   advertisingCostPerClick: { type: Number, default: 1, min: 0, max: 10000 },
+  brandAmbassadors: { type: [brandAmbassadorSchema], default: [] },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

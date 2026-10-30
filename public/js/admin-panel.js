@@ -40,4 +40,33 @@
     var row = document.getElementById(toggle.dataset.editToggle);
     if (row) row.classList.toggle('is-open');
   });
+
+  document.addEventListener('click', function (e) {
+    var button = e.target.closest('[data-format][data-target]');
+    if (!button) return;
+    var field = document.getElementById(button.dataset.target);
+    if (!field) return;
+    var start = field.selectionStart;
+    var end = field.selectionEnd;
+    var selected = field.value.slice(start, end);
+    var replacement = selected;
+    if (button.dataset.format === 'bold') replacement = '**' + selected + '**';
+    if (button.dataset.format === 'italic') replacement = '*' + selected + '*';
+    if (button.dataset.format === 'heading') replacement = selected.split('\n').map(function (line) { return '## ' + line; }).join('\n');
+    if (button.dataset.format === 'list') replacement = selected.split('\n').map(function (line) { return '- ' + line; }).join('\n');
+    field.setRangeText(replacement, start, end, 'select');
+    field.focus();
+  });
+
+  document.addEventListener('change', function (e) {
+    var input = e.target.closest('[data-image-preview]');
+    if (!input) return;
+    var preview = input.closest('form')?.querySelector('[data-image-preview-target]');
+    if (!preview) return;
+    if (!input.files || !input.files[0]) return;
+    if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+    preview.dataset.objectUrl = URL.createObjectURL(input.files[0]);
+    preview.src = preview.dataset.objectUrl;
+    preview.hidden = false;
+  });
 })();

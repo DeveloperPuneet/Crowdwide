@@ -5,7 +5,7 @@ const settingsController = require('../controllers/settingsController');
 const communityController = require('../controllers/communityController');
 const { visitorPreview } = require('../controllers/sharePreviewController');
 const onboardingController = require('../controllers/onboardingController');
-const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, partnerLogoUpload, validatePartnerLogo, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
+const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, partnerLogoUpload, validatePartnerLogo, brandAmbassadorPhotoUpload, validateBrandAmbassadorPhoto, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
 const { partnershipLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter, csrfSynchronisedProtection } = require('../middleware/security');
@@ -203,6 +203,9 @@ router.post('/admin/partners', ...partnersAdmin, partnerLogoUpload, csrfSynchron
 router.post('/admin/partners/:id', ...partnersAdmin, partnerLogoUpload, csrfSynchronisedProtection, handleUploadError, validatePartnerLogo, scanUploadsForViruses, partnershipController.savePartner);
 router.post('/admin/partners/:id/visibility', ...partnersAdmin, csrfSynchronisedProtection, partnershipController.togglePartner);
 router.post('/admin/partners/:id/delete', ...partnersAdmin, csrfSynchronisedProtection, partnershipController.deletePartner);
+router.post('/admin/brand-ambassadors', ...partnersAdmin, brandAmbassadorPhotoUpload, csrfSynchronisedProtection, handleUploadError, validateBrandAmbassadorPhoto, scanUploadsForViruses, adminController.saveBrandAmbassador);
+router.post('/admin/brand-ambassadors/:id', ...partnersAdmin, brandAmbassadorPhotoUpload, csrfSynchronisedProtection, handleUploadError, validateBrandAmbassadorPhoto, scanUploadsForViruses, adminController.saveBrandAmbassador);
+router.post('/admin/brand-ambassadors/:id/delete', ...partnersAdmin, csrfSynchronisedProtection, adminController.deleteBrandAmbassador);
 router.post('/admin/advertisers/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdvertiser);
 router.post('/moderator/advertisers/:id/review', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewAdvertiserAsModerator);
 router.post('/admin/campaigns/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewCampaign);

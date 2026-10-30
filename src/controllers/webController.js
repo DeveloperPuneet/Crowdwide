@@ -28,6 +28,7 @@ const { searchPublishedPosts } = require('../services/postSearch');
 const logger = require('../services/logger');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
+const SiteSetting = require('../models/SiteSetting');
 const { getSitewideFeedCampaigns } = require('../services/advertising');
 const Survey = require('../models/Survey');
 const { questionOfTheDay, answerPrefill, startOfDay, QUESTION_TAG } = require('../utils/questions');
@@ -64,6 +65,13 @@ async function getLiveStats() {
 	};
 }
 
+async function getVisibleBrandAmbassadors() {
+	const siteSettings = await SiteSetting.getSingleton();
+	return (siteSettings.brandAmbassadors || [])
+		.filter((ambassador) => ambassador.isVisible && ambassador.name && ambassador.photoUrl)
+		.sort((a, b) => a.displayOrder - b.displayOrder);
+}
+
 exports.home = async (req, res) => {
 	// Signed-in, verified members go straight to their dashboard. `?landing=1`
 	// lets them still view the public homepage on purpose.
@@ -73,7 +81,11 @@ exports.home = async (req, res) => {
 	}
 	try {
 		const stats = await getLiveStats();
-		const [viralPosts, popularPeople] = await Promise.all([getViralPosts(4), getPopularPeople(4)]);
+		const [viralPosts, popularPeople, brandAmbassadors] = await Promise.all([
+			getViralPosts(4),
+			getPopularPeople(4),
+			getVisibleBrandAmbassadors()
+		]);
 		res.render('pages/home', {
 			title: 'A fair chance at discovery',
 			description: 'Crowdwide gives every voice a fair chance at discovery through thoughtful communities and real conversation.',
@@ -82,6 +94,7 @@ exports.home = async (req, res) => {
 			stats,
 			viralPosts,
 			popularPeople,
+			brandAmbassadors,
 			structuredData: {
 				'@context': 'https://schema.org',
 				'@type': 'WebSite',
@@ -92,7 +105,13 @@ exports.home = async (req, res) => {
 		});
 	} catch (error) {
 		logger.error('Unable to load live homepage stats', error);
-		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', currentUser: req.session?.user || null, stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] }, viralPosts: [], popularPeople: [] });
+		let brandAmbassadors = [];
+		try {
+			brandAmbassadors = await getVisibleBrandAmbassadors();
+		} catch (settingsError) {
+			logger.error('Unable to load homepage brand ambassadors', settingsError);
+		}
+		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', currentUser: req.session?.user || null, stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] }, viralPosts: [], popularPeople: [], brandAmbassadors });
 	}
 };
 
