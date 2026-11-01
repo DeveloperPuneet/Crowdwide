@@ -158,7 +158,7 @@ exports.confirm = async (req, res) => {
   if (!pending) return fail(req, res, 'That sign-up expired. Please start again.', '/auth/register');
   const { profile } = pending;
   try {
-    if (!req.body.acceptTerms) return fail(req, res, 'You need to agree to the Terms of use and Privacy policy to create an account.', '/auth/social/confirm');
+    if (!req.body.acceptTerms) return fail(req, res, 'You need to agree to the Terms of Service and Privacy Policy to create an account.', '/auth/social/confirm');
     const name = String(req.body.name || '').trim().slice(0, 60);
     if (!name) return fail(req, res, 'Add the name you would like to go by.', '/auth/social/confirm');
 

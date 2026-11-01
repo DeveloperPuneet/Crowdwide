@@ -1074,7 +1074,7 @@ exports.infoPage = async (req, res) => {
 			]
 		},
 		'/privacy': {
-			title: 'Privacy policy',
+			title: 'Privacy Policy',
 			heading: 'Your data deserves context.',
 			updated: 'Last updated September 2026',
 			intro: 'This policy explains what Crowdwide collects, why it is needed, which outside services touch your data, and the choices available to you. Crowdwide is built to work across your devices, which means some information has to be stored so the service can function.',
@@ -1094,7 +1094,7 @@ exports.infoPage = async (req, res) => {
 			]
 		},
 		'/terms': {
-			title: 'Terms of use',
+			title: 'Terms of Service',
 			heading: 'A few promises in both directions.',
 			updated: 'Last updated September 2026',
 			intro: 'These terms describe the expectations for using Crowdwide and the responsibilities we share as a community. By creating an account, you agree to these terms, along with our Privacy Policy and Community Guidelines.',
@@ -1122,7 +1122,7 @@ exports.infoPage = async (req, res) => {
 			sections: [
 				['Who may advertise', 'Advertisers must provide accurate business or organization details and a working contact method. Applying does not guarantee approval. Crowdwide may request additional information, reject an application, or suspend an advertiser account when needed to enforce these terms.'],
 				['Advertised products and rights', 'Advertisers may promote their own products and services as well as articles, content, or events. Advertisers must own or be authorized to advertise the item and must have rights to all submitted text, images, logos, and destinations. Campaigns must accurately describe the advertised item and link to a relevant destination. Any advertised price is provided by the advertiser; Crowdwide does not process payments for advertised goods or services.'],
-				['Prohibited advertisements', 'Campaigns may not promote pornography, sexually explicit or erotic content, adult-only (18+) services, gambling or betting, illegal goods or services, fraud, deceptive claims, or other material that violates Crowdwide’s Terms of Use or Community Guidelines.'],
+				['Prohibited advertisements', 'Campaigns may not promote pornography, sexually explicit or erotic content, adult-only (18+) services, gambling or betting, illegal goods or services, fraud, deceptive claims, or other material that violates Crowdwide’s Terms of Service or Community Guidelines.'],
 				['Review and availability', 'Campaigns are drafts until submitted and funded, then receive moderator review followed by a final administrator decision. A campaign must be approved before it can be activated. Approved, active, funded campaigns may be displayed in participating public communities. If no community is monetized, an explicitly designated fallback campaign may instead appear in the normal Crowdwide feed; it stops serving as soon as any community is approved for monetization. Approval is not a promise of placement, reach, or performance. Crowdwide counts at most one impression and one click per authenticated viewer, campaign, delivery context, and UTC day. These internal counts are not a third-party provider’s billable records.'],
 				['Waves and campaign budgets', 'Campaign budgets and all charges within Crowdwide use Waves, Crowdwide’s internal platform currency. Waves are not money, do not represent a claim on revenue, and cannot be redeemed or transferred outside Crowdwide. Submitted campaign budgets are held in escrow. Each accepted, deduplicated impression and click consumes the respective Waves rate shown at campaign creation; unused Waves are returned for rejected, cancelled, or completed campaigns according to the campaign ledger. Rates are locked for each campaign. Crowdwide does not receive real-money ad payments or process real-money transactions.'],
 				['Limits and integrity', 'Campaigns must follow their configured total and daily budgets. Advertisers must not manipulate engagement, traffic, impressions, clicks, accounts, or campaign measurement, nor ask others to do so. Crowdwide may pause or remove campaigns and hold activity for review if suspicious or policy-violating activity is detected.'],

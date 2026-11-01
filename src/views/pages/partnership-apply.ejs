@@ -43,14 +43,14 @@
       <label class="consent-check"><input type="checkbox" name="ownsAssets" required><span>The organization owns, or has permission to license, its name, logo and website content, and its use as described does not infringe anyone's rights.</span></label>
       <label class="consent-check"><input type="checkbox" name="lawfulContent" required><span>The website does not host or promote adult or sexually explicit content, gambling or betting, illegal goods or services, hate or harassment, fraud, malware or deceptive practices.</span></label>
       <label class="consent-check"><input type="checkbox" name="displayConsent" required><span>If this request is approved, I grant Crowdwide permission to display the organization's name, logo and website link on Crowdwide as described in the Partnership Terms, until the partnership ends.</span></label>
-      <label class="consent-check"><input type="checkbox" name="acceptsTerms" required><span>I have read and agree to the <a href="/partnerships/terms" target="_blank" rel="noopener">Partnership Terms</a>, the <a href="/partnerships/brand-guidelines" target="_blank" rel="noopener">Partner Brand Guidelines</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy policy</a> (terms version <%= termsVersion %>).</span></label>
+      <label class="consent-check"><input type="checkbox" name="acceptsTerms" required><span>I have read and agree to the <a class="legal-link" href="/partnerships/terms" target="_blank" rel="noopener noreferrer">Partnership Terms</a>, the <a class="legal-link" href="/partnerships/brand-guidelines" target="_blank" rel="noopener noreferrer">Partner Brand Guidelines</a> and the <a class="legal-link" href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> (terms version <%= termsVersion %>).</span></label>
     </fieldset>
 
     <% if (turnstileSiteKey) { %><div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>"></div><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <% } else { %><label>Quick check: what is <%= captcha.a %> + <%= captcha.b %>? *<input type="text" inputmode="numeric" name="captchaAnswer" placeholder="Your answer" required autocomplete="off"></label><% } %>
     <div class="hp-field" aria-hidden="true"><label>Leave this field empty<input type="text" name="companyFax" tabindex="-1" autocomplete="off"></label></div>
 
-    <p class="partner-form-note">We use these details only to review and manage your request. See the <a href="/privacy">Privacy policy</a>. Submitting does not create a partnership; a Crowdwide administrator must approve it.</p>
+    <p class="partner-form-note">We use these details only to review and manage your request. See the <a class="legal-link" href="/privacy">Privacy Policy</a>. Submitting does not create a partnership; a Crowdwide administrator must approve it.</p>
     <button class="button button-primary" type="submit">Submit partnership request <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button>
   </form>
 </main>

@@ -92,7 +92,7 @@ exports.register = async (req, res) => {
       return res.redirect('/auth/register');
     }
     if (!req.body.acceptTerms) {
-      setFlash(req, 'error', 'You need to agree to the Terms of use and Privacy policy to create an account.');
+      setFlash(req, 'error', 'You need to agree to the Terms of Service and Privacy Policy to create an account.');
       return res.redirect('/auth/register');
     }
     const normalizedEmail = email.toLowerCase().trim();
