@@ -136,7 +136,8 @@ async function googleProfile(accessToken, fetchImpl) {
     email,
     // Google returns a boolean, but some older responses used the string "true".
     emailVerified: info.email_verified === true || info.email_verified === 'true',
-    name: String(info.name || info.given_name || email.split('@')[0] || '').trim()
+    name: String(info.name || info.given_name || email.split('@')[0] || '').trim(),
+    picture: String(info.picture || '').trim()
   };
 }
 
@@ -152,7 +153,8 @@ async function githubProfile(accessToken, fetchImpl) {
     providerId: info.id ? String(info.id) : '',
     email: chosen ? String(chosen.email).toLowerCase().trim() : '',
     emailVerified: Boolean(chosen),
-    name: String(info.name || info.login || '').trim()
+    name: String(info.name || info.login || '').trim(),
+    picture: String(info.avatar_url || '').trim()
   };
 }
 

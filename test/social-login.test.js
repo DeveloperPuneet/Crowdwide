@@ -152,11 +152,11 @@ test('statesMatch compares safely and rejects missing or different values', () =
   assert.equal(oauth.statesMatch('abc', ['abc']), false);
 });
 
-test('Google profile: lower-cases the email and reports email_verified', async () => {
+test('Google profile: lower-cases the email, reports email_verified, and keeps the profile picture', async () => {
   reset(); configure();
-  const calls = fakeProviders();
+  const calls = fakeProviders({ google: { picture: 'https://example.com/ada.png' } });
   const profile = await oauth.fetchProfile('google', 'code-1', { verifier: 'ver' });
-  assert.deepEqual(profile, { provider: 'google', providerId: 'g-123', email: 'ada@example.com', emailVerified: true, name: 'Ada Lovelace' });
+  assert.deepEqual(profile, { provider: 'google', providerId: 'g-123', email: 'ada@example.com', emailVerified: true, name: 'Ada Lovelace', picture: 'https://example.com/ada.png' });
   const tokenCall = calls.find((c) => c.url.endsWith('/token'));
   assert.match(tokenCall.options.body, /code_verifier=ver/);
   assert.match(tokenCall.options.body, /redirect_uri=https%3A%2F%2Fapp\.example\.com%2Fauth%2Fgoogle%2Fcallback/);
@@ -182,9 +182,9 @@ test('GitHub profile: uses the primary verified email, ignoring unverified ones'
   assert.equal(profile.email, 'second@example.com');
   assert.equal(profile.emailVerified, true);
 
-  fakeProviders({ githubEmails: [{ email: 'Main@Example.com', primary: true, verified: true }, { email: 'x@example.com', primary: false, verified: true }] });
+  fakeProviders({ github: { avatar_url: 'https://avatars.githubusercontent.com/u/4242?v=4' }, githubEmails: [{ email: 'Main@Example.com', primary: true, verified: true }, { email: 'x@example.com', primary: false, verified: true }] });
   profile = await oauth.fetchProfile('github', 'c');
-  assert.deepEqual(profile, { provider: 'github', providerId: '4242', email: 'main@example.com', emailVerified: true, name: 'Ada L' });
+  assert.deepEqual(profile, { provider: 'github', providerId: '4242', email: 'main@example.com', emailVerified: true, name: 'Ada L', picture: 'https://avatars.githubusercontent.com/u/4242?v=4' });
   reset();
 });
 
@@ -296,7 +296,7 @@ test('a brand-new person is sent to the confirm page and nothing is created yet'
 
 test('confirming requires the Terms, then creates a verified, password-less account and signs in', async () => {
   reset(); configure();
-  fakeProviders();
+  fakeProviders({ google: { picture: 'https://example.com/ada.png' } });
   const { req } = await signIn('google');
   const session = req.session;
 
@@ -315,6 +315,7 @@ test('confirming requires the Terms, then creates a verified, password-less acco
   assert.equal(user.email, 'ada@example.com');
   assert.equal(user.isVerified, true);
   assert.equal(user.passwordSet, false);
+  assert.equal(user.profilePicture, 'https://example.com/ada.png');
   assert.equal(user.role, 'user');
   assert.match(user.username, /^[a-z0-9_]{3,24}$/);
   assert.notEqual(user.password, '');

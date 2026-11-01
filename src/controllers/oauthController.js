@@ -98,9 +98,10 @@ async function signInOrStartSignup(req, res, profile) {
   }
 
   if (user.suspendedUntil && user.suspendedUntil > Date.now()) return fail(req, res, suspensionMessage(user));
+  if (!user.profilePicture && profile.picture) user.profilePicture = profile.picture;
   if (isAdminEmail(user.email) && user.role !== 'admin') user.role = 'admin';
   if (user.loginAttempts) user.loginAttempts = 0;
-  if (linkedNow || user.isModified()) await user.save();
+  if (linkedNow || user.isModified() || user.profilePicture) await user.save();
 
   if (linkedNow) {
     logEvent(user._id, 'social-login-linked', `${oauth.providerLabel(profile.provider)} (${profile.email})`);
@@ -175,6 +176,7 @@ exports.confirm = async (req, res) => {
       passwordSet: false,
       username: await generateUniqueUsername(profile.email.split('@')[0] || name),
       isVerified: true,
+      profilePicture: profile.picture || '',
       socialLogins: [{ provider: profile.provider, providerId: profile.providerId, email: profile.email }]
     });
     if (isAdminEmail(profile.email)) user.role = 'admin';
