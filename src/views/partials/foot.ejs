@@ -1,25 +1,28 @@
+<% const assetUrl = locals.asset || ((p) => p); %>
 <% if (locals.currentUser) { %><%- include('share-sheet') %><% } %>
 <% if (locals.currentUser && currentUser.needsPanelPassword) { %><%- include('panel-password-modal') %><% } %>
-<script src="/js/pwa.js" defer></script>
-<script src="/js/http.js"></script>
-<script src="/js/optimistic.js"></script>
-<script src="/js/app.js"></script>
-<script src="/js/post-submit.js"></script>
-<script src="/js/ui-polish.js" defer></script>
-<script defer src="/js/live-review.js"></script>
-<% if (locals.currentUser) { %><script src="/js/timezone.js" defer data-saved="<%= currentUser.timezone || '' %>"></script><% } %>
-<script defer src="/vendor/prism/components/prism-core.min.js"></script>
-<script defer src="/vendor/prism/plugins/autoloader/prism-autoloader.min.js"></script>
-<script defer src="/js/code-blocks.js"></script>
-<script src="/js/gif-picker.js" defer></script>
-<script src="/js/share-sheet.js" defer></script>
-<script src="/js/chat.js" defer></script>
-<script src="/js/reactions.js" defer></script>
-<script src="/js/translate.js" defer></script>
-<script src="/js/media-player.js" defer></script>
-<script src="/js/media-viewer.js" defer></script>
-<script src="/js/admin-panel.js" defer></script>
-<script src="/js/survey-builder.js" defer></script>
-<script src="/js/push-notifications.js" defer></script>
+<%# Reveal the page as soon as the markup is parsed - not after the scripts below have downloaded. %>
+<script nonce="<%= locals.cspNonce || '' %>">document.body.classList.add('page-ready');</script>
+<script src="<%= assetUrl('/js/pwa.js') %>" defer></script>
+<script src="<%= assetUrl('/js/http.js') %>" defer></script>
+<script src="<%= assetUrl('/js/optimistic.js') %>" defer></script>
+<script src="<%= assetUrl('/js/app.js') %>" defer></script>
+<script src="<%= assetUrl('/js/post-submit.js') %>" defer></script>
+<script src="<%= assetUrl('/js/ui-polish.js') %>" defer></script>
+<script defer src="<%= assetUrl('/js/live-review.js') %>"></script>
+<% if (locals.currentUser) { %><script src="<%= assetUrl('/js/timezone.js') %>" defer data-saved="<%= currentUser.timezone || '' %>"></script><% } %>
+<script defer src="<%= assetUrl('/vendor/prism/components/prism-core.min.js') %>"></script>
+<script defer src="<%= assetUrl('/vendor/prism/plugins/autoloader/prism-autoloader.min.js') %>"></script>
+<script defer src="<%= assetUrl('/js/code-blocks.js') %>"></script>
+<script src="<%= assetUrl('/js/gif-picker.js') %>" defer></script>
+<script src="<%= assetUrl('/js/share-sheet.js') %>" defer></script>
+<script src="<%= assetUrl('/js/chat.js') %>" defer></script>
+<script src="<%= assetUrl('/js/reactions.js') %>" defer></script>
+<script src="<%= assetUrl('/js/translate.js') %>" defer></script>
+<script src="<%= assetUrl('/js/media-player.js') %>" defer></script>
+<script src="<%= assetUrl('/js/media-viewer.js') %>" defer></script>
+<script src="<%= assetUrl('/js/admin-panel.js') %>" defer></script>
+<script src="<%= assetUrl('/js/survey-builder.js') %>" defer></script>
+<script src="<%= assetUrl('/js/push-notifications.js') %>" defer></script>
 </body>
 </html>

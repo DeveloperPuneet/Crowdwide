@@ -1,0 +1,169 @@
+/* Reading & dashboard typography
+   ------------------------------------------------------------------
+   Loads last. Only type, spacing and rhythm are tuned here - colours, borders, radii and the overall look
+   still come from the theme tokens (--tx-*, --sf-*, --bd-*, --ac-*), so every theme keeps working.
+
+   Type scale used below (px):  12 caption · 13 meta · 14.5 UI/names · 15.5 feed text · 17.5-19 reading text
+   Line height:                 1.65 feed/comments · 1.75 long-form reading
+   Reading measure:             ~68 characters, so long posts and articles never run edge to edge.            */
+
+:root {
+  --read-measure: 68ch;
+  --read-size: clamp(17px, 0.55vw + 15.2px, 19px);
+}
+
+/* ---------- Shared rich-text rhythm (post page + feed cards) ---------- */
+.post-view-body, .post-body {
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  hyphens: manual;
+}
+.post-view-body :is(p, ul, ol, h3, h4), .post-body :is(p, ul, ol, h3, h4) { text-wrap: pretty; }
+.post-view-body :is(h3, h4), .post-body :is(h3, h4) { text-wrap: balance; font-family: 'Space Grotesk', 'DM Sans', sans-serif; line-height: 1.25; letter-spacing: -.02em; }
+.post-view-body a.auto-link, .post-body a.auto-link {
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  overflow-wrap: anywhere;
+}
+.post-view-body a.auto-link:hover, .post-body a.auto-link:hover { text-decoration-color: currentColor; }
+.post-view-body strong, .post-body strong { font-weight: 700; }
+.post-view-body li::marker, .post-body li::marker { color: var(--tx-faint); }
+.post-view-body li + li, .post-body li + li { margin-top: .35em; }
+.post-view-body code, .post-body code { font-size: .88em; padding: .12em .38em; border-radius: 6px; }
+.post-view-body pre, .post-body pre { margin: 1.1em 0; }
+
+/* ---------- Post page: comfortable long-form reading ---------- */
+.post-page { width: min(920px, 100%); padding-top: 20px; padding-bottom: 88px; }
+.post-page-bar { margin-bottom: 18px; }
+.post-page-bar h1 { font-size: 15px; font-weight: 600; letter-spacing: .02em; color: var(--tx-mid); }
+.post-view { padding: 30px clamp(18px, 4vw, 40px) 14px; }
+.post-view-head { margin-bottom: 22px; gap: 14px; }
+.post-view-author { gap: 2px; }
+.post-view-author strong { font-size: 16px; letter-spacing: -.01em; }
+.post-view-author span { font-size: 13px; line-height: 1.45; }
+.post-view-author .read-time::before { content: " · "; }
+
+.post-view .post-view-body {
+  font-size: var(--read-size);
+  line-height: 1.75;
+  letter-spacing: -.003em;
+  max-width: var(--read-measure);
+  margin: 0 0 28px;
+}
+.post-view-body p { margin: 0 0 1.15em; }
+.post-view-body > :last-child { margin-bottom: 0; }
+.post-view-body h3 { font-size: 1.45em; margin: 1.7em 0 .55em; }
+.post-view-body h4 { font-size: 1.2em; margin: 1.5em 0 .45em; }
+.post-view-body > :is(h3, h4):first-child { margin-top: 0; }
+.post-view-body ul, .post-view-body ol { margin: .2em 0 1.2em; padding-left: 1.4em; }
+
+.post-view .hashtag-row { margin: 4px 0 20px; gap: 8px; }
+.post-view .quoted-post, .post-view .link-preview-card, .post-view .post-poll { margin: 4px 0 22px; max-width: var(--read-measure); }
+.post-view .quoted-post p { font-size: 14.5px; line-height: 1.6; color: var(--tx-mid); }
+.post-view .quoted-post strong { font-size: 13.5px; }
+.post-view .post-media { margin: 4px 0 22px; }
+.post-view-counts { gap: 8px; padding: 18px 0 14px; margin-top: 6px; font-size: 13px; }
+.post-view-counts span { line-height: 1.2; }
+.post-reposts-action { margin-bottom: 16px; font-size: 13.5px; }
+.reaction-strip { padding: 16px 0 12px; }
+
+/* ---------- Comments ---------- */
+.replies-section { margin-top: 12px; }
+.replies-section .panel-heading { margin-bottom: 16px; }
+.replies-section .panel-heading h2 { font-size: 21px; }
+.post-detail-thread { display: grid; gap: 2px; padding-top: 6px; }
+
+.thread-comment { padding: 16px 0 14px 20px; }
+.thread-comment[data-depth="1"] { margin-left: 20px; }
+.thread-comment[data-depth="2"] { margin-left: 40px; }
+.thread-comment[data-depth="3"] { margin-left: 58px; }
+.thread-comment-head { gap: 10px; margin-bottom: 8px; }
+.thread-comment .thread-comment-head strong, .thread-comment-head .name-link { font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; }
+.thread-comment .thread-comment-head time { font-size: 12.5px; margin: 0 0 0 auto; }
+.thread-comment .thread-comment-text {
+  font-size: 15.5px; line-height: 1.65; letter-spacing: -.003em;
+  max-width: 72ch; margin: 0; text-wrap: pretty; overflow-wrap: anywhere;
+}
+.thread-comment-text a { text-decoration: underline; text-underline-offset: .18em; }
+.thread-comment .comment-gif { margin-top: 10px; }
+.thread-comment-actions { margin-top: 10px; gap: 6px 20px; font-size: 13px; }
+.thread-comment-actions :is(summary, button, .action-translate) { font-size: 13px; }
+.thread-comment > .reaction-row, .thread-comment > .comment-reactions { margin-top: 10px; }
+
+/* Comment composer: roomier text, calm placeholder */
+.comment-form textarea[name="body"] { font-size: 15px; line-height: 1.6; padding: 14px 16px; min-height: 96px; }
+.comment-form.is-compact textarea[name="body"] { font-size: 14.5px; min-height: 76px; }
+
+/* ---------- Dashboard: feed cards ---------- */
+.feed-column .composer-prompt-text { font-size: 15px; }
+.feed-tabs { gap: 26px; margin-bottom: 14px; }
+.feed-tabs a { font-size: 14px; font-weight: 600; letter-spacing: -.005em; padding: 13px 0 12px; }
+.feed-subtabs a { font-size: 13px; font-weight: 600; }
+
+.qotd-card strong { font-size: 17px; line-height: 1.35; letter-spacing: -.015em; text-wrap: balance; }
+.qotd-card .eyebrow { font-size: 11.5px; letter-spacing: .08em; margin-bottom: 6px; }
+.qotd-card .qotd-body > span { font-size: 13px; line-height: 1.5; }
+.welcome-back-card p, .welcome-back-stats { font-size: 14px; line-height: 1.55; }
+
+.post-card { padding: 20px 22px 14px; margin-bottom: 14px; }
+.post-card .post-meta { gap: 12px; align-items: center; }
+.post-card .post-meta strong { font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+.post-card .post-meta span { font-size: 12.5px; line-height: 1.4; margin-top: 2px; }
+.post-card .post-meta .post-source { font-size: 12px; }
+
+.post-card .post-body {
+  font-size: 15.5px; line-height: 1.65; letter-spacing: -.004em;
+  margin: 14px 0 12px;
+}
+.post-card .post-body p { margin: 0 0 .8em; }
+.post-card .post-body > :last-child { margin-bottom: 0; }
+.post-card .post-body h3 { font-size: 1.18em; margin: 1em 0 .4em; }
+.post-card .post-body h4 { font-size: 1.06em; margin: .9em 0 .35em; }
+.post-card .post-body :is(ul, ol) { margin: .2em 0 .8em; padding-left: 1.3em; }
+
+/* Translate stays quiet but always in reach, and no longer leaves an empty gap under the text */
+.post-card .action-translate-inline {
+  opacity: .8; margin: 0 0 6px; padding: 2px 0; min-height: 0; font-size: 12.5px; line-height: 1.4;
+}
+.post-card .action-translate-inline:hover, .post-card .action-translate-inline:focus-visible { opacity: 1; }
+
+/* The feed card used to force a 20px inline margin above hashtags */
+.post-card .hashtag-row { margin: 8px 0 4px !important; gap: 8px; }
+.post-card .hashtag-chip { font-size: 12.5px; padding: 4px 11px; }
+.post-card :is(.quoted-post, .link-preview-card, .post-media) { margin-top: 10px; }
+.post-card .quoted-post p { font-size: 13.5px; line-height: 1.55; }
+.post-card .post-actions { margin-top: 12px; padding-top: 6px; }
+.post-card .post-actions :is(.count, .post-stat span:last-child) { font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.feed-end-note { font-size: 13px; padding: 18px 0 8px; }
+
+/* ---------- Dashboard: side panels ---------- */
+.discover-panel { padding: 20px; }
+.discover-panel .panel-heading h2 { font-size: 16px; letter-spacing: -.02em; }
+.discover-panel .panel-heading a { font-size: 11px; letter-spacing: .07em; }
+.discover-row { gap: 12px; padding: 13px 0; }
+.discover-row strong { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.discover-row span { font-size: 12px; margin-top: 2px; line-height: 1.4; }
+.discover-panel .panel-link { font-size: 13.5px; font-weight: 600; }
+.discover-panel > p { font-size: 13px !important; line-height: 1.55; }
+
+/* ---------- Small screens ---------- */
+@media (max-width: 640px) {
+  .post-page { padding-bottom: 72px; }
+  .post-view { padding: 22px 16px 10px; }
+  .post-view-head { margin-bottom: 18px; }
+  .post-view .post-view-body { margin-bottom: 22px; line-height: 1.7; }
+  .thread-comment { padding-left: 14px; }
+  .thread-comment[data-depth="1"] { margin-left: 10px; }
+  .thread-comment[data-depth="2"] { margin-left: 20px; }
+  .thread-comment[data-depth="3"] { margin-left: 28px; }
+  .thread-comment .thread-comment-text { font-size: 15px; }
+  .post-card { padding: 16px 16px 10px; }
+  .post-card .post-body { font-size: 15px; }
+  .feed-tabs { gap: 22px; }
+}
+@media (hover: none) { .post-card .action-translate-inline { opacity: .9; } }
+@media print {
+  .post-view .post-view-body { max-width: none; font-size: 12pt; line-height: 1.6; }
+}

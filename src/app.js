@@ -1,5 +1,6 @@
 require('./utils/asyncErrors');
 const express = require('express');
+const compression = require('compression');
 const path = require('path');
 const crypto = require('crypto');
 const session = require('express-session');
@@ -20,6 +21,7 @@ const { stagingMiddleware } = require('./services/environment');
 const { alertOnCriticalError } = require('./services/alerting');
 const User = require('./models/User');
 const { getVisiblePartners } = require('./services/partnerships');
+const assets = require('./services/assets');
 
 function createApp({ port = process.env.PORT || 3000 } = {}) {
   const app = express();
@@ -30,6 +32,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   app.set('trust proxy', trustProxyHops);
   // A blocked address (see middleware/botGuard.js) gets a 403 before anything else runs.
   app.use(botGuard.gate);
+  // gzip/brotli for HTML, CSS, JS and JSON (media is already compressed and is skipped automatically).
+  app.use(compression());
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
@@ -74,6 +78,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   });
   app.use('/vendor/leaflet', express.static(path.join(__dirname, '..', 'node_modules', 'leaflet', 'dist')));
   app.use('/vendor/prism', express.static(path.join(__dirname, '..', 'node_modules', 'prismjs')));
+  app.use(assets.serveBundle);
+  app.use(assets.cacheHeaders);
   app.use(express.static(path.join(__dirname, '..', 'public')));
   // Real visits pause the keep-alive ping (see services/keepAlive.js).
   app.use(presenceMiddleware);
@@ -90,7 +96,9 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
   const sessionStore = process.env.MONGODB_URI ? connectMongo.create({
     mongoUrl: process.env.MONGODB_URI,
-    ttl: Math.floor(sessionDurationMs / 1000)
+    ttl: Math.floor(sessionDurationMs / 1000),
+    // Without this every page view rewrote the session document; now it is refreshed at most once a day.
+    touchAfter: 24 * 60 * 60
   }) : undefined;
   app.locals.sessionStore = sessionStore;
   app.use(session({
@@ -122,6 +130,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
       res.locals.preview = preview;
       res.locals.renderRichBody = renderRichBody;
       res.locals.icon = icon;
+      res.locals.asset = assets.asset;
+      res.locals.cssBundles = assets.cssBundleUrls();
       res.locals.gifsEnabled = gifsEnabled();
       // Approved partners for the footer / landing strips (cached for a minute; never throws).
       res.locals.partners = req.method === 'GET' && !req.path.startsWith('/api/') && !req.path.startsWith('/media/') ? await getVisiblePartners() : [];

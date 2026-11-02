@@ -21,7 +21,8 @@
 			<div class="post-view-author">
 				<strong><%= post.author?.name || 'Crowdwide member' %></strong>
 				<% if (coAuthorNames.length) { %><span class="co-author-line">with <%= coAuthorNames.slice(0, 2).join(', ') %><% if (coAuthorNames.length > 2) { %> +<%= coAuthorNames.length - 2 %><% } %></span><% } %>
-				<span><%= post.community?.name || 'Open Crowdwide' %> · <time datetime="<%= new Date(post.createdAt).toISOString() %>"><%= new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time></span>
+				<% const wordTotal = String(post.body || '').trim().split(/\s+/).filter(Boolean).length; %>
+				<span><%= post.community?.name || 'Open Crowdwide' %> · <time datetime="<%= new Date(post.createdAt).toISOString() %>"><%= new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></time><% if (post.type === 'article' && wordTotal >= 120) { %><span class="read-time"><%= Math.max(1, Math.round(wordTotal / 200)) %> min read</span><% } %></span>
 			</div>
 			<% if (currentUser) { %>
 			<details class="post-menu" data-post-menu>

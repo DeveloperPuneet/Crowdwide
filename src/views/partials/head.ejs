@@ -13,14 +13,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-VW1V8S9J0V"></script>
+  <!-- Google tag (gtag.js): loaded after the page is interactive so analytics never competes with content. -->
   <script nonce="<%= locals.cspNonce || '' %>">
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-
     gtag('config', 'G-VW1V8S9J0V');
+    window.addEventListener('load', function () {
+      var load = function () { var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=G-VW1V8S9J0V'; document.head.appendChild(s); };
+      if ('requestIdleCallback' in window) requestIdleCallback(load, { timeout: 4000 }); else setTimeout(load, 1500);
+    });
   </script>
   <title><%= /Crowdwide$/.test(title) ? title : title + ' · Crowdwide' %></title>
   <meta name="description" content="<%= locals.description || 'Crowdwide is a calmer social network for real discovery, thoughtful communities, and voices worth finding.' %>">
@@ -60,7 +62,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <%# The web-font stylesheet is added by app.js after first paint (see loadWebFonts), so a slow or blocked font host can never hold the page back. %>
   <noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"></noscript>
-  <!-- One consolidated, organized stylesheet for the whole app. -->
+  <%
+    const assetUrl = locals.asset || ((p) => p);
+    const bundles = locals.cssBundles;
+  %>
+  <% if (bundles) { %>
+  <link rel="stylesheet" href="<%= bundles.base %>">
+  <% if (locals.communityPage) { %><link rel="stylesheet" href="<%= assetUrl('/css/community-workspace.css') %>"><% } %>
+  <link rel="stylesheet" href="<%= bundles.polish %>">
+  <% } else { %>
+  <!-- Development: the individual files, in cascade order (production serves them as two bundles). -->
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/responsive-media.css">
   <link rel="stylesheet" href="/css/media-player.css">
@@ -75,6 +86,8 @@
   <link rel="stylesheet" href="/css/spacing.css">
   <link rel="stylesheet" href="/css/minimal.css">
   <link rel="stylesheet" href="/css/polish.css">
+  <link rel="stylesheet" href="/css/reading.css">
+  <% } %>
   <% if (locals.includeLeaflet) { %>
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <script defer src="/vendor/leaflet/leaflet.js"></script>

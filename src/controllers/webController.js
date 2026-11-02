@@ -223,43 +223,48 @@ exports.dashboard = async (req, res) => {
 			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			getWordLimits()
 		]);
-		let sitewideCampaigns = [];
-		try {
-			if (!isAdFree(user)) sitewideCampaigns = await getSitewideFeedCampaigns();
-		} catch (error) {
-			logger.error('Crowdwide-feed advertisements could not be loaded', error);
-		}
-		const sitewideFeedAds = buildSitewideFeedAds(sitewideCampaigns, feed.posts.length);
-		// "Help in surveys": live surveys this browser has not answered yet.
-		// Never let a survey problem take the dashboard down.
-		let openSurveys = [];
-		try {
-			const live = await Survey.find({ status: 'published' }).sort({ createdAt: -1 }).limit(20).select('title questions epoch').lean();
-			openSurveys = live
-				.filter((survey) => !surveyService.hasAnswered(req, survey))
-				.map((survey) => ({ _id: String(survey._id), title: survey.title, questionCount: (survey.questions || []).length }));
-		} catch (error) {
-			logger.error('Open surveys could not be loaded for the dashboard', error);
-		}
-		// "Welcome back": a one-time summary after a day or more away, and today's
-		// Question of the Day. Neither may ever take the dashboard down.
+		// These lookups do not depend on each other, so they run together instead of one after another.
 		const awayFrom = req.session.awayFrom;
 		delete req.session.awayFrom;
 		const qotd = questionOfTheDay();
-		let awayInfo = null;
-		let qotdAnswers = 0;
-		try {
-			[awayInfo, qotdAnswers] = await Promise.all([
-				awayFrom ? awaySummary(user, awayFrom) : null,
-				Post.countDocuments({ hashtags: QUESTION_TAG, status: 'published', createdAt: { $gte: startOfDay() } })
-			]);
-		} catch (error) {
-			logger.error('Welcome-back summary could not be loaded', error);
-		}
 		const joinedCommunityDocIds = joinedCommunityDocs.map((community) => community._id);
-		const availableQuests = joinedCommunityDocIds.length
-			? await Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
-			: [];
+		const [sitewideCampaigns, openSurveys, [awayInfo, qotdAnswers], availableQuests] = await Promise.all([
+			// Never let an ad, survey or welcome-back problem take the dashboard down.
+			(async () => {
+				try { return isAdFree(user) ? [] : await getSitewideFeedCampaigns(); } catch (error) {
+					logger.error('Crowdwide-feed advertisements could not be loaded', error);
+					return [];
+				}
+			})(),
+			(async () => {
+				// "Help in surveys": live surveys this browser has not answered yet.
+				try {
+					const live = await Survey.find({ status: 'published' }).sort({ createdAt: -1 }).limit(20).select('title questions epoch').lean();
+					return live
+						.filter((survey) => !surveyService.hasAnswered(req, survey))
+						.map((survey) => ({ _id: String(survey._id), title: survey.title, questionCount: (survey.questions || []).length }));
+				} catch (error) {
+					logger.error('Open surveys could not be loaded for the dashboard', error);
+					return [];
+				}
+			})(),
+			(async () => {
+				// "Welcome back" summary after a day or more away, and today's Question of the Day answers.
+				try {
+					return await Promise.all([
+						awayFrom ? awaySummary(user, awayFrom) : null,
+						Post.countDocuments({ hashtags: QUESTION_TAG, status: 'published', createdAt: { $gte: startOfDay() } })
+					]);
+				} catch (error) {
+					logger.error('Welcome-back summary could not be loaded', error);
+					return [null, 0];
+				}
+			})(),
+			joinedCommunityDocIds.length
+				? Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
+				: []
+		]);
+		const sitewideFeedAds = buildSitewideFeedAds(sitewideCampaigns, feed.posts.length);
 		const composerCommunities = joinedCommunityDocs;
 		const selectedQuest = availableQuests.find((quest) => String(quest._id) === String(req.query.quest || ''));
 		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
