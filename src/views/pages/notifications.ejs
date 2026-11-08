@@ -15,9 +15,6 @@
 		<div class="empty-feed"><div class="notifications-empty-icon" aria-hidden="true"><%- icon('bell', { size: 26 }) %></div><h2><%= unreadOnly ? 'You are all caught up.' : 'All quiet for now.' %></h2><p><%= unreadOnly ? 'No unread notifications.' : 'Your interactions and community updates will appear here.' %></p></div>
 		<% } %>
 		<%- include('../partials/notification-items', { notifications, lastLabel: '', csrfToken }) %>
-		<% if (hasMore && nextBefore) { %>
-		<div class="notification-more" data-notification-more data-before="<%= nextBefore %>"><button class="button button-dark" type="button" data-notification-more-button>Show earlier</button></div>
-		<% } %>
 	</section>
 </main>
 <%- include('../partials/app-footer') %>

@@ -222,7 +222,6 @@ body .notifications-modern .notification-toggle .notification-dot { position: st
 body .notifications-modern .notification-unread .notification-toggle .notification-dot { border-color: var(--ac-blue, var(--blue)); background: var(--ac-blue, var(--blue)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue, #4f6bff) 22%, transparent); opacity: 1; }
 .notification-item:not(.notification-unread) .notification-body strong { font-weight: 600; color: var(--tx-lo); }
 .notification-item:not(.notification-unread) .avatar { opacity: .85; }
-.notification-more { display: grid; justify-items: center; padding: 14px 0 4px; }
 @media (max-width: 560px) {
   .notification-item .notification-link { padding: 13px 4px 13px 14px; gap: 11px; }
   .notification-toggle { width: 46px; }

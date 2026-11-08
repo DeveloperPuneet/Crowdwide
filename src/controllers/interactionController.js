@@ -686,7 +686,6 @@ exports.notifications = async (req, res) => {
   res.render('pages/notifications', { title: 'Notifications', pagePath: '/notifications', noIndex: true, unread, unreadOnly, ...page });
 };
 
-// "Show earlier" - JSON with ready-to-insert HTML for the next page of notifications.
 exports.groupNotifications = groupNotifications;
 exports.notificationDayLabel = notificationDayLabel;
 exports.notificationAgo = notificationAgo;

@@ -83,7 +83,7 @@ test('mark all read answers JSON for the page and still redirects for a plain fo
   assert.equal(plain.res.to, '/notifications');
 });
 
-test('notifications page renders grouped rows, the read toggle and day headings', async () => {
+test('notifications page renders grouped rows, the read toggle and day headings without the older-page control', async () => {
   const views = path.join(__dirname, '..', 'src', 'views');
   const groups = controller.groupNotifications([row(1), row(2), row(3)]).map((g) => ({ ...g, dayLabel: 'Today', ago: '5m ago' }));
   const html = await ejs.renderFile(path.join(views, 'pages', 'notifications.ejs'), {
@@ -94,7 +94,7 @@ test('notifications page renders grouped rows, the read toggle and day headings'
   assert.match(html, /User1, User2 and 1 other/);
   assert.match(html, /data-ids="a{21}101,a{21}102,a{21}103"/);
   assert.match(html, /data-notification-toggle aria-pressed="false" aria-label="Mark as read"/);
-  assert.match(html, /data-notification-more data-before="2026-10-30T05:00:00.000Z"/);
+  assert.doesNotMatch(html, /Show earlier/i);
   assert.match(html, /src="\/js\/notifications\.js"/);
 });
 
@@ -103,4 +103,5 @@ test('page script uses the optimistic runner and never reloads', () => {
   assert.match(js, /cwOptimistic\.run\(list/);
   assert.match(js, /preventDefault\(\)/);
   assert.doesNotMatch(js, /location\.(reload|href)|\.submit\(\)/);
+  assert.doesNotMatch(js, /data-notification-more-button|Show earlier/i);
 });

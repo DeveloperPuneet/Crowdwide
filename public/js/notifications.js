@@ -108,33 +108,6 @@
   });
   page.querySelector('[data-mark-all-form]')?.addEventListener('submit', (event) => { event.preventDefault(); markAllRead(); });
 
-  // "Show earlier": appends the next page in place.
-  const loadMore = () => {
-    const box = list.querySelector('[data-notification-more]');
-    const button = box && box.querySelector('[data-notification-more-button]');
-    if (!box || !button || button.disabled) return;
-    button.disabled = true;
-    button.textContent = 'Loading…';
-    const labels = list.querySelectorAll('.notification-day');
-    const lastLabel = labels.length ? labels[labels.length - 1].dataset.dayLabel : '';
-    const query = new URLSearchParams({ before: box.dataset.before, lastLabel, filter: page.dataset.filter });
-    window.axios.get(`/notifications/more?${query}`, { headers: { Accept: 'application/json' } })
-      .then(({ data }) => {
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = data.html || '';
-        const fresh = Array.from(wrapper.querySelectorAll('[data-notification]'));
-        // Rows that were already unread when loaded come out of the "hidden" count: they are on screen now.
-        const added = fresh.reduce((sum, item) => sum + (Number(item.dataset.unreadCount) || 0), 0);
-        hiddenInitial = Math.max(0, hiddenInitial - added);
-        box.before(...Array.from(wrapper.children));
-        if (typeof initAvatars === 'function') initAvatars(list);
-        if (data.hasMore && data.nextBefore) { box.dataset.before = data.nextBefore; button.disabled = false; button.textContent = 'Show earlier'; }
-        else box.remove();
-      })
-      .catch(() => { button.disabled = false; button.textContent = 'Could not load. Try again'; });
-  };
-  list.addEventListener('click', (event) => { if (event.target.closest('[data-notification-more-button]')) loadMore(); });
-
   // Keep the heading in step with the bell when the 60s poll in app.js learns of new activity elsewhere.
   window.addEventListener('pageshow', () => syncBell(Number(page.dataset.unreadNow ?? page.dataset.unreadTotal) || 0));
 })();
