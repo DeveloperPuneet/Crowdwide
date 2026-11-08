@@ -15,7 +15,7 @@
 		</div>
 	</div>
 </div>
-<script>
+<script nonce="<%= locals.cspNonce || '' %>">
 document.getElementById('download-codes').addEventListener('click', function () {
 	const codes = <%- JSON.stringify(codes) %>;
 	const blob = new Blob(['Crowdwide recovery codes\nEach code can be used once.\n\n' + codes.join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
@@ -26,7 +26,7 @@ document.getElementById('download-codes').addEventListener('click', function () 
 	document.body.appendChild(link);
 	link.click();
 	link.remove();
-	URL.revokeObjectURL(url);
+	setTimeout(() => URL.revokeObjectURL(url), 0);
 });
 </script>
 <%- include('../partials/foot') %>
