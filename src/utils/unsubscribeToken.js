@@ -10,7 +10,7 @@ const KINDS = {
 };
 
 function secret() {
-  return process.env.UNSUBSCRIBE_SECRET || process.env.SESSION_SECRET || 'crowdwide-development-secret';
+  return process.env.UNSUBSCRIBE_SECRET || require('./secrets').sessionSecret();
 }
 
 function signToken(kind, userId) {

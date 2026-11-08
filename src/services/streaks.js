@@ -56,15 +56,19 @@ function nextStreak(streak = {}, today) {
   return { current, longest: Math.max(streak.longest || 0, current), lastDay: today, changed: true };
 }
 
-async function awardBadges(userId, keys, owned = []) {
+// Awards each badge once (the $ne guard makes it safe to race). Returns the keys
+// newly earned. `notify: false` lets a caller that earns several at once (the
+// backfill sweep) send one combined notification instead of one per badge.
+async function awardBadges(userId, keys, owned = [], { notify = true } = {}) {
   const earned = [];
   for (const key of keys) {
     if (owned.includes(key) || !badgeInfo(key)) continue;
     const result = await User.updateOne({ _id: userId, 'badges.key': { $ne: key } }, { $push: { badges: { key, earnedAt: new Date() } } });
     if (!result.modifiedCount) continue;
     earned.push(key);
+    if (!notify) continue;
     const info = badgeInfo(key);
-    await Notification.create({ recipient: userId, type: 'badge', message: `You earned the "${info.name}" badge. ${info.description}`, url: `/u/${userId}` }).catch((error) => logger.warn('Badge notification failed', error));
+    await Notification.create({ recipient: userId, type: 'badge', badgeKey: key, message: `You earned the "${info.name}" badge. ${info.description}`, url: '/badges' }).catch((error) => logger.warn('Badge notification failed', error));
   }
   return earned;
 }

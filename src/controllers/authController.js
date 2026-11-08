@@ -1,6 +1,7 @@
 const { grantWelcomeBonus } = require('../services/waves');
 const { generateUniqueUsername } = require('../services/username');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
@@ -11,12 +12,38 @@ const { enabledProviders } = require('../services/oauth');
 const { logEvent } = require('../services/accountHistory');
 const { hashPassword } = require('../utils/passwords');
 const { recordActivity } = require('../services/reengagement');
+const { passwordProblem } = require('../utils/passwordPolicy');
+const { revokeSessions } = require('../services/sessions');
+const { sha256, linkMatches } = require('../services/unverified');
+const { evaluateBadges } = require('../services/badgeSweep');
+
+// Compared against when an email is unknown, so "no such account" takes as long as "wrong password".
+const DUMMY_HASH = bcrypt.hashSync('crowdwide-timing-equaliser', 10);
+const MAX_VERIFY_ATTEMPTS = 5;
+const asText = (value, max = 320) => (typeof value === 'string' ? value.slice(0, max) : '');
+const sameText = (a, b) => {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+};
 
 const code = () => String(crypto.randomInt(100000, 1000000));
 const token = () => crypto.randomBytes(24).toString('hex');
 const setFlash = (req, type, message) => { req.session.flash = { type, message }; };
 
+// A fresh session id at every sign-in, so an id planted before login (session
+// fixation) is worthless afterwards. Only the "where to go next" link survives.
+async function regenerateSession(req) {
+  if (typeof req.session?.regenerate !== 'function') return;
+  const returnTo = req.session.returnTo;
+  const previousId = req.sessionID;
+  await new Promise((resolve, reject) => req.session.regenerate((error) => (error ? reject(error) : resolve())));
+  if (returnTo) req.session.returnTo = returnTo;
+  await LoginSession.deleteOne({ sessionId: previousId }).catch(() => {});
+}
+
 async function establishSession(req, user) {
+  await regenerateSession(req);
   req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role || 'user', moderatorId: user.moderatorId || '', isVerified: true, profilePicture: user.profilePicture || '', theme: user.theme || 'default' };
   const existingSession = await LoginSession.exists({ user: user._id });
   // Upsert rather than create: signing in again from a browser that already
@@ -77,7 +104,9 @@ exports.resetPage = (req, res) => res.render('pages/reset-password', { title: 'C
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const name = asText(req.body.name, 100).trim();
+    const email = asText(req.body.email);
+    const password = asText(req.body.password, 1000);
     const automated = looksAutomated(req);
     delete req.session.registerFormShownAt;
     const humanVerified = turnstileEnabled()
@@ -87,8 +116,13 @@ exports.register = async (req, res) => {
       setFlash(req, 'error', 'That verification answer was not correct. Try again.');
       return res.redirect('/auth/register');
     }
-    if (!name || !email || !password || password.length < 8) {
-      setFlash(req, 'error', 'Add your name, a valid email, and a password of at least 8 characters.');
+    if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      setFlash(req, 'error', 'Add your name and a valid email address.');
+      return res.redirect('/auth/register');
+    }
+    const weak = passwordProblem(password, { email, name });
+    if (weak) {
+      setFlash(req, 'error', weak);
       return res.redirect('/auth/register');
     }
     if (!req.body.acceptTerms) {
@@ -106,6 +140,7 @@ exports.register = async (req, res) => {
     else if (!user.username) user.username = await generateUniqueUsername(normalizedEmail.split('@')[0] || name);
     user.verificationCode = verificationCode;
     user.verificationExpires = Date.now() + 15 * 60 * 1000;
+    user.verificationAttempts = 0;
     await user.save();
     sendVerificationCode(user, verificationCode); // not awaited - see mailer.js
     setFlash(req, 'success', 'Your verification code is on its way.');
@@ -119,25 +154,33 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
-    if (user?.suspendedUntil && user.suspendedUntil > Date.now()) {
-      setFlash(req, 'error', `Your account is suspended until ${new Date(user.suspendedUntil).toLocaleString()}.${user.suspensionReason ? ` Reason: ${user.suspensionReason}` : ''}`);
-      return res.redirect('/auth/login');
-    }
+    const email = asText(req.body.email).toLowerCase().trim();
+    const password = asText(req.body.password, 1000);
+    const user = email ? await User.findOne({ email }) : null;
     if (user?.loginLockedUntil && user.loginLockedUntil > Date.now()) {
       setFlash(req, 'error', 'Too many failed attempts. Try again later.');
       return res.redirect('/auth/login');
     }
-    if (!user || !(await bcrypt.compare(req.body.password || '', user.password))) {
+    // Always run one bcrypt comparison so an unknown email is not faster than a wrong password.
+    const passwordOk = await bcrypt.compare(password, user ? user.password : DUMMY_HASH);
+    if (!user || !passwordOk) {
       if (user) {
         user.loginAttempts = (user.loginAttempts || 0) + 1;
         if (user.loginAttempts >= 5) {
           user.loginLockedUntil = Date.now() + 15 * 60 * 1000;
           user.loginAttempts = 0;
+          if (user.isVerified && user.notificationPreferences?.security !== false) {
+            sendSecurityAlert(user, { subject: 'Sign-in attempts were blocked on your Crowdwide account', heading: 'Too many sign-in attempts', message: 'Someone entered the wrong password for your account 5 times, so sign-in is paused for 15 minutes. If that was you, nothing else is needed. If not, consider changing your password.', tone: 'warning' });
+          }
         }
         await user.save();
       }
       setFlash(req, 'error', 'That email and password combination is not recognized.');
+      return res.redirect('/auth/login');
+    }
+    // Only someone who proved they know the password is told about a suspension.
+    if (user.suspendedUntil && user.suspendedUntil > Date.now()) {
+      setFlash(req, 'error', `Your account is suspended until ${new Date(user.suspendedUntil).toLocaleString()}.${user.suspensionReason ? ` Reason: ${user.suspensionReason}` : ''}`);
       return res.redirect('/auth/login');
     }
     if (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL.toLowerCase().trim() && user.role !== 'admin') user.role = 'admin';
@@ -147,6 +190,7 @@ exports.login = async (req, res) => {
       const verificationCode = code();
       user.verificationCode = verificationCode;
       user.verificationExpires = Date.now() + 15 * 60 * 1000;
+      user.verificationAttempts = 0;
       await user.save();
       sendVerificationCode(user, verificationCode); // not awaited - see mailer.js
       setFlash(req, 'error', 'Your email is not verified yet. We sent you a fresh code.');
@@ -167,24 +211,44 @@ exports.login = async (req, res) => {
   }
 };
 
+// Marks the address as confirmed, gives the welcome bonus, signs the member in and starts onboarding.
+async function finishVerification(req, res, user) {
+  user.isVerified = true;
+  user.verificationCode = undefined;
+  user.verificationExpires = undefined;
+  user.verificationAttempts = 0;
+  user.verificationLinkHash = undefined;
+  user.verificationLinkExpires = undefined;
+  await user.save();
+  let welcome = { granted: false, amount: 0 };
+  try { welcome = await grantWelcomeBonus(user._id); } catch (bonusError) { logger.warn('Welcome bonus could not be granted', bonusError); }
+  await establishSession(req, user);
+  evaluateBadges(user._id).catch((error) => logger.warn('Badge check after verification failed', error));
+  if (welcome.granted) setFlash(req, 'success', `Welcome to Crowdwide! ${welcome.amount.toLocaleString()} Waves were added to your wallet. Earn more by posting, commenting and joining communities - see how in your wallet.`);
+  // New members start with onboarding (interests, people, communities); it hands them on to
+  // wherever they were heading (or the dashboard) when they finish.
+  return res.redirect('/welcome');
+}
+
 exports.verify = async (req, res) => {
+  const email = asText(req.body.email).toLowerCase().trim();
   try {
-    const user = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
-    if (!user || user.verificationCode !== req.body.code || !user.verificationExpires || user.verificationExpires < Date.now()) {
-      setFlash(req, 'error', 'That code is invalid or has expired.');
-      return res.redirect(`/auth/verify?email=${encodeURIComponent(req.body.email || '')}`);
+    const user = email ? await User.findOne({ email }) : null;
+    const submitted = asText(req.body.code, 12).trim();
+    const live = user && !user.isVerified && user.verificationCode && user.verificationExpires && user.verificationExpires >= Date.now() && (user.verificationAttempts || 0) < MAX_VERIFY_ATTEMPTS;
+    if (!live || !sameText(user.verificationCode, submitted)) {
+      if (live) {
+        // Count the wrong guess; after 5 the code is void and a new one has to be requested.
+        user.verificationAttempts = (user.verificationAttempts || 0) + 1;
+        if (user.verificationAttempts >= MAX_VERIFY_ATTEMPTS) { user.verificationCode = undefined; user.verificationExpires = undefined; }
+        await user.save();
+        setFlash(req, 'error', user.verificationAttempts >= MAX_VERIFY_ATTEMPTS ? 'Too many wrong codes. Request a new code to try again.' : 'That code is not correct.');
+      } else {
+        setFlash(req, 'error', 'That code is invalid or has expired.');
+      }
+      return res.redirect(`/auth/verify?email=${encodeURIComponent(email)}`);
     }
-    user.isVerified = true;
-    user.verificationCode = undefined;
-    user.verificationExpires = undefined;
-    await user.save();
-    let welcome = { granted: false, amount: 0 };
-    try { welcome = await grantWelcomeBonus(user._id); } catch (bonusError) { logger.warn('Welcome bonus could not be granted', bonusError); }
-    await establishSession(req, user);
-    if (welcome.granted) setFlash(req, 'success', `Welcome to Crowdwide! ${welcome.amount.toLocaleString()} Waves were added to your wallet. Earn more by posting, commenting and joining communities - see how in your wallet.`);
-    // New members start with onboarding (interests, people, communities); it hands them on to
-    // wherever they were heading (or the dashboard) when they finish.
-    res.redirect('/welcome');
+    return await finishVerification(req, res, user);
   } catch (error) {
     logger.error('Email verification failed', error);
     setFlash(req, 'error', 'We could not verify that code right now.');
@@ -192,14 +256,52 @@ exports.verify = async (req, res) => {
   }
 };
 
+// One-click link from the reminder emails. GET only shows a confirm button (mail scanners
+// and link previewers open links without anyone clicking); the POST does the work.
+async function userForLink(req) {
+  if (!mongoose.isValidObjectId(req.params.id)) return null;
+  const user = await User.findById(req.params.id);
+  return user && !user.isVerified && linkMatches(user, req.params.token) ? user : null;
+}
+
+exports.verifyLinkPage = async (req, res) => {
+  try {
+    const user = await userForLink(req);
+    if (!user) {
+      setFlash(req, 'error', 'That verification link has expired or was already used. Sign in and we will send you a fresh code.');
+      return res.redirect('/auth/login');
+    }
+    res.render('pages/verify-link', { title: 'Confirm your email', firstName: (user.name || '').split(/\s+/)[0], action: `/auth/verify-email/${user.id}/${req.params.token}` });
+  } catch (error) {
+    logger.error('Verification link page failed', error);
+    res.redirect('/auth/login');
+  }
+};
+
+exports.verifyLink = async (req, res) => {
+  try {
+    const user = await userForLink(req);
+    if (!user) {
+      setFlash(req, 'error', 'That verification link has expired or was already used. Sign in and we will send you a fresh code.');
+      return res.redirect('/auth/login');
+    }
+    return await finishVerification(req, res, user);
+  } catch (error) {
+    logger.error('Verification link failed', error);
+    setFlash(req, 'error', 'We could not verify your email right now. Please try again.');
+    res.redirect('/auth/login');
+  }
+};
+
 exports.resendCode = async (req, res) => {
-  const email = req.body.email?.toLowerCase().trim();
+  const email = asText(req.body.email).toLowerCase().trim();
   try {
     const user = email ? await User.findOne({ email }) : null;
     if (user && !user.isVerified) {
       const verificationCode = code();
       user.verificationCode = verificationCode;
       user.verificationExpires = Date.now() + 15 * 60 * 1000;
+      user.verificationAttempts = 0;
       await user.save();
       sendVerificationCode(user, verificationCode); // not awaited - see mailer.js
     }
@@ -214,13 +316,16 @@ exports.resendCode = async (req, res) => {
 
 exports.forgot = async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email?.toLowerCase().trim() });
+    const email = asText(req.body.email).toLowerCase().trim();
+    const user = email ? await User.findOne({ email }) : null;
     if (user) {
-      user.resetToken = token();
+      const raw = token();
+      // Only a hash is stored: a leaked database copy cannot be used to reset anyone's password.
+      user.resetToken = sha256(raw);
       user.resetExpires = Date.now() + 30 * 60 * 1000;
       await user.save();
       const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
-      sendPasswordResetLink(user, `${appUrl}/auth/reset?token=${user.resetToken}`); // not awaited - see mailer.js
+      sendPasswordResetLink(user, `${appUrl}/auth/reset?token=${raw}`); // not awaited - see mailer.js
     }
     setFlash(req, 'success', 'If that email belongs to Crowdwide, a reset link is on its way.');
     res.redirect('/auth/forgot-password');
@@ -232,31 +337,38 @@ exports.forgot = async (req, res) => {
 };
 
 exports.reset = async (req, res) => {
+  const rawToken = asText(req.body.token, 200);
   try {
-    const user = await User.findOne({ resetToken: req.body.token, resetExpires: { $gt: Date.now() } });
-    if (!user || !req.body.password || req.body.password.length < 8) {
-      setFlash(req, 'error', 'That reset link is invalid or your password is too short.');
-      return res.redirect(`/auth/reset?token=${encodeURIComponent(req.body.token || '')}`);
+    const password = asText(req.body.password, 1000);
+    const user = rawToken ? await User.findOne({ resetToken: sha256(rawToken), resetExpires: { $gt: Date.now() } }) : null;
+    const weak = user ? passwordProblem(password, { email: user.email, name: user.name }) : '';
+    if (!user || weak) {
+      setFlash(req, 'error', weak || 'That reset link is invalid or has expired.');
+      return res.redirect(`/auth/reset?token=${encodeURIComponent(rawToken)}`);
     }
-    user.password = await hashPassword(req.body.password);
+    user.password = await hashPassword(password);
     user.passwordSet = true;
     user.resetToken = undefined;
     user.resetExpires = undefined;
+    user.loginAttempts = 0;
+    user.loginLockedUntil = undefined;
     await user.save();
+    // A reset usually means "someone else may have my password": sign out every device.
+    await revokeSessions(req, user._id, { keepCurrent: false }).catch((error) => logger.warn('Could not sign out devices after a reset', error));
     logEvent(user._id, 'password-changed', 'Via password-reset link');
     if (user.notificationPreferences?.security !== false) {
       sendSecurityAlert(user, {
         subject: 'Your Crowdwide password was reset',
         heading: 'Password reset',
-        message: 'Your Crowdwide password was just reset. If you did not do this, secure your account immediately by resetting your password again and reviewing your active sessions.'
+        message: 'Your Crowdwide password was just reset and every device was signed out. If you did not do this, secure your account immediately by resetting your password again.'
       });
     }
-    setFlash(req, 'success', 'Your password has been updated.');
+    setFlash(req, 'success', 'Your password has been updated. Sign in with the new one.');
     res.redirect('/auth/login');
   } catch (error) {
     logger.error('Auth action failed', error);
     setFlash(req, 'error', 'We could not reset your password right now.');
-    res.redirect(`/auth/reset?token=${encodeURIComponent(req.body.token || '')}`);
+    res.redirect(`/auth/reset?token=${encodeURIComponent(rawToken)}`);
   }
 };
 

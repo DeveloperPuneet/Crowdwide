@@ -22,6 +22,21 @@ const partnershipLimiter = rateLimit({
   message: 'Too many partnership requests from this connection. Please try again later.'
 });
 
+// Mail-bombing guard: at most 5 verification/reset emails per hour for one address, however many
+// IPs ask. Keyed on the email only, so it needs no IP handling.
+const emailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  keyGenerator: (req) => `email:${typeof req.body?.email === 'string' ? req.body.email.toLowerCase().trim().slice(0, 254) : 'none'}`,
+  validate: { keyGeneratorIpFallback: false },
+  handler: (req, res) => {
+    req.session.flash = { type: 'error', message: 'Too many emails requested for that address. Please wait an hour and try again.' };
+    res.redirect(req.get('referer') ? new URL(req.get('referer'), 'http://x').pathname : '/auth/login');
+  }
+});
+
 const interactionLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 60,
@@ -82,4 +97,4 @@ function csrfProtection(req, res, next) {
   return csrfSynchronisedProtection(req, res, next);
 }
 
-module.exports = { csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, partnershipLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter };
+module.exports = { emailLimiter, csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, partnershipLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter };

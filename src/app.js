@@ -17,6 +17,9 @@ const { gifsEnabled } = require('./services/gif');
 const logger = require('./services/logger');
 const { presenceMiddleware } = require('./services/keepAlive');
 const botGuard = require('./middleware/botGuard');
+const { sanitizeInput } = require('./middleware/sanitize');
+const { sessionSecret } = require('./utils/secrets');
+const { badgeMedal } = require('./utils/badges');
 const { stagingMiddleware } = require('./services/environment');
 const { alertOnCriticalError } = require('./services/alerting');
 const User = require('./models/User');
@@ -39,6 +42,8 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   app.set('views', path.join(__dirname, 'views'));
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
+  // Strip MongoDB operator keys ($gt, a.b ...) from everything a visitor can send.
+  app.use(sanitizeInput);
   // Profile pictures, banners, and post media can live on a configured CDN
   // or Google Cloud Storage bucket instead of being served from this app
   // ('self') - without allowing that origin here, the browser's CSP silently
@@ -69,6 +74,11 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
       }
     }
   }));
+  // The browser features this site does not use are switched off for it (and for anything embedded in it).
+  app.use((req, res, next) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), payment=(), usb=(), geolocation=(self), interest-cohort=()');
+    next();
+  });
   app.use(stagingMiddleware);
   app.use((req, res, next) => {
     if (req.path === '/community-map' || /^\/communities\/[^/]+\/manage$/.test(req.path)) {
@@ -102,11 +112,12 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   }) : undefined;
   app.locals.sessionStore = sessionStore;
   app.use(session({
-    secret: process.env.SESSION_SECRET || 'crowdwide-development-secret',
+    secret: sessionSecret(),
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
-    cookie: { maxAge: sessionDurationMs, httpOnly: true, sameSite: 'lax' }
+    // 'auto' = Secure whenever the visit is over HTTPS (also behind the host's proxy); COOKIE_SECURE=off only for odd local setups.
+    cookie: { maxAge: sessionDurationMs, httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_SECURE === 'off' ? false : 'auto' }
   }));
   // Counts requests per address and blocks floods, scanners and rate-limit abuse for 24 hours.
   app.use(botGuard.track);
@@ -130,6 +141,7 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
       res.locals.preview = preview;
       res.locals.renderRichBody = renderRichBody;
       res.locals.icon = icon;
+      res.locals.badgeMedal = badgeMedal;
       res.locals.asset = assets.asset;
       res.locals.cssBundles = assets.cssBundleUrls();
       res.locals.gifsEnabled = gifsEnabled();

@@ -1,0 +1,57 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'badges', currentUser }) %>
+<% if (locals.flash) { %><div class="container" style="padding-top:18px;"><%- include('../partials/flash') %></div><% } %>
+<main class="badges-page">
+	<a class="back-link" href="/u/<%= currentUser.id %>">← Back to your profile</a>
+	<header class="badges-hero">
+		<div class="badges-hero-copy">
+			<p class="eyebrow">Your badges</p>
+			<h1><%= earnedCount %> <span>of <%= totalCount %> earned</span></h1>
+			<div class="badges-meter" role="progressbar" aria-valuemin="0" aria-valuemax="<%= totalCount %>" aria-valuenow="<%= earnedCount %>" aria-label="Badges earned"><span style="width:<%= Math.round(earnedCount / totalCount * 100) %>%"></span></div>
+			<p class="badges-streak"><%- icon('flame', { size: 16 }) %><span><% if (streakInfo.current > 0) { %><strong><%= streakInfo.current %>-day streak</strong><%= streakInfo.doneToday ? ' - done for today' : ' - post or comment today to keep it' %><% } else { %>No streak yet - a post or a comment today starts one.<% } %></span></p>
+		</div>
+		<% if (recent.length) { %><div class="badges-recent" aria-label="Latest badges"><% recent.forEach((badge) => { %><%- badgeMedal(badge, { size: 76 }) %><% }) %></div><% } %>
+	</header>
+
+	<% if (nextUp.length) { %>
+	<section class="badges-next" aria-labelledby="next-up">
+		<h2 id="next-up">Closest to earning</h2>
+		<div class="badges-next-grid">
+			<% nextUp.forEach((badge) => { %>
+			<article class="badge-next-card">
+				<%- badgeMedal(badge, { size: 56, locked: true }) %>
+				<div><strong><%= badge.name %></strong><small><%= badge.description %></small>
+					<div class="badge-bar" role="progressbar" aria-valuemin="0" aria-valuemax="<%= badge.target %>" aria-valuenow="<%= badge.progress.value %>"><span style="width:<%= badge.progress.pct %>%"></span></div>
+					<small class="badge-count"><%= badge.progress.value.toLocaleString() %> / <%= badge.target.toLocaleString() %></small></div>
+			</article>
+			<% }) %>
+		</div>
+	</section>
+	<% } %>
+
+	<% sections.forEach((section) => { const got = section.badges.filter((badge) => badge.earned).length; %>
+	<section class="badges-section" aria-labelledby="cat-<%= section.id %>">
+		<header><div><h2 id="cat-<%= section.id %>"><%= section.label %></h2><p><%= section.blurb %></p></div><span class="badges-section-count"><%= got %>/<%= section.badges.length %></span></header>
+		<ul class="badges-grid">
+			<% section.badges.forEach((badge) => { %>
+			<li class="badge-card badge-tier-<%= badge.tier %><%= badge.earned ? ' is-earned' : ' is-locked' %>">
+				<%- badgeMedal(badge, { size: 72, locked: !badge.earned }) %>
+				<strong><%= badge.name %></strong>
+				<small><%= badge.description %></small>
+				<% if (badge.earned) { %>
+				<span class="badge-status is-earned"><%- icon('check', { size: 12 }) %> Earned <%= new Date(badge.earnedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
+				<% } else if (badge.target > 1) { %>
+				<div class="badge-bar" role="progressbar" aria-valuemin="0" aria-valuemax="<%= badge.target %>" aria-valuenow="<%= badge.progress.value %>"><span style="width:<%= badge.progress.pct %>%"></span></div>
+				<span class="badge-status"><%= badge.progress.value.toLocaleString() %> / <%= badge.target.toLocaleString() %></span>
+				<% } else { %>
+				<span class="badge-status">Not yet earned</span>
+				<% } %>
+				<span class="badge-tier-tag"><%= badge.tierLabel %></span>
+			</li>
+			<% }) %>
+		</ul>
+	</section>
+	<% }) %>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

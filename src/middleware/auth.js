@@ -2,6 +2,7 @@ const LoginSession = require('../models/LoginSession');
 const User = require('../models/User');
 const { recordActivity } = require('../services/reengagement');
 const logger = require('../services/logger');
+const { maybeEvaluateBadges } = require('../services/badgeSweep');
 
 function requireAuth(req, res, next) {
   if (!req.session.user) {
@@ -23,7 +24,12 @@ function requireAuth(req, res, next) {
     // Background polling (unread badge, chat) is not "being here": only real page
     // visits and actions count towards the activity that drives come-back reminders.
     const isBackgroundPoll = req.method === 'GET' && req.get('X-Requested-With') === 'XMLHttpRequest';
-    const markActive = () => (isBackgroundPoll ? Promise.resolve() : recordActivity(req.session.user.id, req.session).catch((error) => logger.warn('Could not record member activity', error)));
+    const markActive = () => {
+      if (isBackgroundPoll) return Promise.resolve();
+      // Real visits also check (at most every 10 minutes) whether a new badge has been earned.
+      if (req.method === 'GET') maybeEvaluateBadges(req.session.user.id);
+      return recordActivity(req.session.user.id, req.session).catch((error) => logger.warn('Could not record member activity', error));
+    };
     if (!loginSession) return LoginSession.updateOne({ sessionId: req.sessionID }, { $set: { user: req.session.user.id, ipAddress: req.ip, userAgent: req.get('user-agent'), lastSeenAt: new Date() } }, { upsert: true }).then(markActive).then(() => next());
     // Only touch the database when lastSeenAt is meaningfully stale. Writing
     // it on every single request added a DB round trip to every page view and

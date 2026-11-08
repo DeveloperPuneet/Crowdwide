@@ -15,7 +15,7 @@ const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 // community-workspace.css is only loaded on community pages, between the two bundles.
 const BUNDLES = {
   base: ['style', 'responsive-media', 'media-player', 'admin-panel', 'responsive-layout', 'chat-ui', 'code-blocks', 'modern-ui', 'surveys', 'partnerships'],
-  polish: ['spacing', 'minimal', 'polish', 'reading']
+  polish: ['spacing', 'minimal', 'polish', 'reading', 'badges']
 };
 
 const enabled = () => process.env.ASSET_BUNDLE === 'on' || (process.env.ASSET_BUNDLE !== 'off' && process.env.NODE_ENV === 'production');

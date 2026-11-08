@@ -35,6 +35,7 @@ const { questionOfTheDay, answerPrefill, startOfDay, QUESTION_TAG } = require('.
 const { awaySummary } = require('../services/reengagement');
 const { recordContribution, effectiveStreak, zoneOf } = require('../services/streaks');
 const { BADGES } = require('../utils/badges');
+const { setupSummary } = require('../services/setup');
 const surveyService = require('../services/surveys');
 const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_SECTION } = require('../utils/partnershipPages');
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
@@ -278,6 +279,8 @@ exports.dashboard = async (req, res) => {
 			openSurveys,
 			awayInfo,
 			streakInfo: effectiveStreak(user.streak, new Date(), zoneOf(user)),
+			// Things skipped or not done yet (profile, interests, 2FA for staff...), shown as a checklist card.
+			setup: setupSummary(user, { facts: { posts: user.streak?.lastDay ? 1 : 0, comments: 0 } }),
 			qotd,
 			qotdAnswers,
 			composerPrefill: req.query.ask === 'qotd' ? answerPrefill(qotd) : '',

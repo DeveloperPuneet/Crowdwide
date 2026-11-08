@@ -1,6 +1,10 @@
 const { normalizeUsername, validateUsername, ensureUsername } = require('../services/username');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 const { hashPassword } = require('../utils/passwords');
+const { passwordProblem } = require('../utils/passwordPolicy');
+const { revokeSessions } = require('../services/sessions');
+const { evaluateBadges, forgetBadgeCheck } = require('../services/badgeSweep');
 const User = require('../models/User');
 const LoginSession = require('../models/LoginSession');
 const Post = require('../models/Post');
@@ -134,12 +138,21 @@ exports.changePassword = async (req, res) => {
       flash(req, 'error', 'You signed up with Google or GitHub, so there is no password to change yet. Use "Forgot password" on the sign-in page to create one.');
       return res.redirect('/settings/security');
     }
-    if (!user || !(await bcrypt.compare(req.body.currentPassword || '', user.password)) || !req.body.newPassword || req.body.newPassword.length < 8) {
-      flash(req, 'error', 'Check your current password and use a new password of at least 8 characters.');
+    const currentPassword = typeof req.body.currentPassword === 'string' ? req.body.currentPassword.slice(0, 1000) : '';
+    const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword.slice(0, 1000) : '';
+    if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+      flash(req, 'error', 'Your current password is not correct.');
       return res.redirect('/settings/security');
     }
-    user.password = await hashPassword(req.body.newPassword);
+    const weak = passwordProblem(newPassword, { email: user.email, name: user.name });
+    if (weak) {
+      flash(req, 'error', weak);
+      return res.redirect('/settings/security');
+    }
+    user.password = await hashPassword(newPassword);
     await user.save();
+    // Changing the password signs out every other device (this one stays).
+    await revokeSessions(req, user._id).catch((error) => logger.warn('Could not sign out other devices', error));
     logEvent(user._id, 'password-changed', 'Via Settings');
     if (user.notificationPreferences?.security !== false) {
       sendSecurityAlert(user, {
@@ -148,7 +161,7 @@ exports.changePassword = async (req, res) => {
         message: 'Your Crowdwide password was just changed. If you did not make this change, reset your password immediately and review your active sessions.'
       });
     }
-    flash(req, 'success', 'Password changed. Other devices remain signed in until you log them out.');
+    flash(req, 'success', 'Password changed. Your other devices were signed out.');
     res.redirect('/settings/security');
   } catch (error) {
     logger.error('Settings action failed', error);
@@ -167,14 +180,13 @@ exports.setTimezone = async (req, res) => {
 };
 
 exports.logoutDevice = async (req, res) => {
-  const device = await LoginSession.findOne({ _id: req.params.id, user: req.session.user.id });
-  if (device && device.sessionId !== req.sessionID) await LoginSession.deleteOne({ _id: device._id });
+  if (mongoose.isValidObjectId(req.params.id)) await revokeSessions(req, req.session.user.id, { only: req.params.id });
   flash(req, 'success', 'That device has been logged out.');
   res.redirect('/settings/security');
 };
 
 exports.logoutAll = async (req, res) => {
-  await LoginSession.deleteMany({ user: req.session.user.id, sessionId: { $ne: req.sessionID } });
+  await revokeSessions(req, req.session.user.id);
   flash(req, 'success', 'All other devices have been logged out.');
   res.redirect('/settings/security');
 };
@@ -232,6 +244,13 @@ exports.deleteAccount = async (req, res) => {
     flash(req, 'error', 'Type DELETE to confirm account deletion.');
     return res.redirect('/settings/account');
   }
+  // Deleting is permanent, so a hijacked session alone must not be enough: password accounts re-enter it.
+  const account = await User.findById(userId).select('password passwordSet');
+  if (account && account.passwordSet !== false && !(await bcrypt.compare(typeof req.body.password === 'string' ? req.body.password.slice(0, 1000) : '', account.password))) {
+    flash(req, 'error', 'Enter your current password to delete your account.');
+    return res.redirect('/settings/account');
+  }
+  await revokeSessions(req, userId, { keepCurrent: false }).catch(() => {});
   await Promise.all([
     User.deleteOne({ _id: userId }),
     LoginSession.deleteMany({ user: userId }),

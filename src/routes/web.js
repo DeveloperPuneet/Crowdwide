@@ -23,6 +23,7 @@ const partnershipController = require('../controllers/partnershipController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
 
 const growthController = require('../controllers/growthController');
+const badgeController = require('../controllers/badgeController');
 
 router.get('/', controller.home);
 router.get('/question', growthController.questionPage);
@@ -40,6 +41,8 @@ router.post('/welcome/communities', requireAuth, requireVerified, interactionLim
 router.post('/welcome/finish', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, onboardingController.finish);
 router.post('/welcome/skip', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, onboardingController.skip);
 router.get('/dashboard', requireAuth, requireVerified, onboardingController.onboardingGate, controller.dashboard);
+router.get('/badges', requireAuth, requireVerified, badgeController.badgesPage);
+router.post('/setup/dismiss', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, badgeController.dismissSetup);
 router.get('/wallet', requireAuth, requireVerified, wavesController.wallet);
 router.post('/wallet/ad-free', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.buyAdFree);
 router.post('/wallet/transfer', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.transfer);

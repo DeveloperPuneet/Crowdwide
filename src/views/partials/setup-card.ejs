@@ -1,0 +1,39 @@
+<%# "Finish setting up" checklist. locals: setup = { pending, done, total } %>
+<% if (locals.setup && setup.pending.length) {
+  const shown = setup.pending.slice(0, 3);
+  const rest = setup.pending.slice(3);
+  const pct = setup.total ? Math.round((setup.done / setup.total) * 100) : 0;
+  const hasRequired = setup.pending.some((item) => item.required);
+  const row = (item) => item;
+%>
+<aside class="setup-card<%= hasRequired ? ' has-required' : '' %>" aria-label="Finish setting up">
+	<header class="setup-head">
+		<div><p class="eyebrow"><%= hasRequired ? 'Action needed' : 'Finish setting up' %></p><strong><%= setup.done %> of <%= setup.total %> steps done</strong></div>
+		<div class="setup-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= pct %>" aria-label="Setup progress"><span style="width:<%= pct %>%"></span></div>
+	</header>
+	<ul class="setup-list">
+		<% shown.forEach((item) => { %>
+		<li class="setup-item<%= item.required ? ' is-required' : '' %>">
+			<span class="setup-icon" aria-hidden="true"><%- icon(item.icon, { size: 18 }) %></span>
+			<div class="setup-text"><strong><%= item.title %><% if (item.required) { %> <em>Required</em><% } %></strong><small><%= item.text %></small></div>
+			<a class="button button-small <%= item.required ? 'button-primary' : 'button-ghost' %>" href="<%= item.url %>"><%= item.cta %></a>
+			<% if (!item.required) { %><form method="post" action="/setup/dismiss" class="setup-dismiss"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="key" value="<%= item.key %>"><button type="submit" aria-label="Hide “<%= item.title %>”" title="Not now"><%- icon('x', { size: 14 }) %></button></form><% } %>
+		</li>
+		<% }) %>
+	</ul>
+	<% if (rest.length) { %>
+	<details class="setup-more"><summary><%= rest.length %> more step<%= rest.length === 1 ? '' : 's' %></summary>
+		<ul class="setup-list">
+			<% rest.forEach((item) => { %>
+			<li class="setup-item<%= item.required ? ' is-required' : '' %>">
+				<span class="setup-icon" aria-hidden="true"><%- icon(item.icon, { size: 18 }) %></span>
+				<div class="setup-text"><strong><%= item.title %><% if (item.required) { %> <em>Required</em><% } %></strong><small><%= item.text %></small></div>
+				<a class="button button-small <%= item.required ? 'button-primary' : 'button-ghost' %>" href="<%= item.url %>"><%= item.cta %></a>
+				<% if (!item.required) { %><form method="post" action="/setup/dismiss" class="setup-dismiss"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="key" value="<%= item.key %>"><button type="submit" aria-label="Hide “<%= item.title %>”" title="Not now"><%- icon('x', { size: 14 }) %></button></form><% } %>
+			</li>
+			<% }) %>
+		</ul>
+	</details>
+	<% } %>
+</aside>
+<% } %>

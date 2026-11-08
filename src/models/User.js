@@ -167,6 +167,22 @@ const userSchema = new mongoose.Schema({
   wavesSuspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
   verificationCode: String,
   verificationExpires: Date,
+  // Wrong guesses against the current code; after 5 the code is thrown away and a new one must be requested.
+  verificationAttempts: { type: Number, default: 0 },
+  // One-click verification link sent in the reminder emails (only a hash is stored).
+  verificationLinkHash: String,
+  verificationLinkExpires: Date,
+  // Reminder emails sent to someone who signed up but never verified.
+  verificationReminders: {
+    sent: [{ type: String }],
+    lastSentAt: Date
+  },
+  // "Finish setting up" nudges: when the last one went out, which items it was about, and items the member dismissed.
+  setupNudge: {
+    lastAt: Date,
+    sent: [new mongoose.Schema({ key: String, at: Date }, { _id: false })]
+  },
+  setupDismissed: [{ type: String }],
   resetToken: String,
   resetExpires: Date,
   dataDownloadRequestedAt: Date,

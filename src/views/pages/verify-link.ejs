@@ -1,0 +1,6 @@
+<%- include('../partials/auth-shell-start', { title }) %>
+<div class="auth-badge" aria-hidden="true"><%- icon('badge-check', { size: 26 }) %></div><p class="eyebrow">Almost there</p><h1>Confirm your<br><em>email.</em></h1>
+<p class="form-note">Hi<%= firstName ? ' ' + firstName : '' %> - tap the button to confirm this email address, sign in and start using Crowdwide.</p>
+<form class="auth-form" method="post" action="<%= action %>"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-full" type="submit">Confirm my email <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button></form>
+<p class="switch-auth">Not you? Just close this page - nothing happens until you tap the button.</p>
+<%- include('../partials/auth-shell-end') %>

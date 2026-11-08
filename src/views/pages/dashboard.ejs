@@ -30,6 +30,7 @@
 			<a class="<%= feed.activeTab.endsWith('-viral') ? 'is-on' : '' %>" href="/dashboard?view=<%= subSorts[0] %>-viral">Viral</a>
 		</nav>
 		<% } %>
+		<%- include('../partials/setup-card', { setup: locals.setup }) %>
 		<% if (locals.awayInfo) { %>
 		<aside class="welcome-back-card" aria-label="While you were away">
 			<div class="welcome-back-head"><span class="welcome-back-icon"><%- icon('sparkles', { size: 20 }) %></span><div><strong>Welcome back!</strong><p>Here is what happened in the last <%= awayInfo.days === 1 ? 'day' : awayInfo.days + ' days' %>.</p></div></div>

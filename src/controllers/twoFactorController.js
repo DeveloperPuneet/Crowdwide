@@ -47,6 +47,7 @@ exports.enable = async (req, res) => {
     user.recoveryCodes = await Promise.all(codes.map(async (code) => ({ codeHash: await bcrypt.hash(code, 10) })));
     await user.save();
     logEvent(user._id, 'two-factor-enabled');
+    require('../services/badgeSweep').evaluateBadges(user._id).catch(() => {}); // "Locked in" badge
     if (user.notificationPreferences?.security !== false) {
       sendSecurityAlert(user, {
         subject: 'Two-factor authentication turned on',

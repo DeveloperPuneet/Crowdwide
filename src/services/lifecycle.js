@@ -289,6 +289,11 @@ async function tick() {
     const { sendStreakSavers } = require('./streaks');
     const savers = await sendStreakSavers();
     if (savers.sent) logger.info(`Streak savers: ${savers.sent} push reminders sent.`);
+    // Sign-ups that never entered their code, and members who skipped setup steps.
+    const unverified = await require('./unverified').sendVerificationReminders();
+    if (unverified.sent) logger.info(`Verification reminders: ${unverified.sent} sent, ${unverified.due} due.`);
+    const nudges = await require('./setup').sendSetupNudges();
+    if (nudges.sent) logger.info(`Setup nudges: ${nudges.sent} sent.`);
   } catch (error) {
     logger.error('Lifecycle run failed', error);
   } finally {

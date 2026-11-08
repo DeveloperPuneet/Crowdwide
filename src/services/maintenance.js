@@ -50,6 +50,7 @@ const TASKS = {
   },
   'finished-ad-campaigns': async (cutoff, { now = new Date() } = {}) => cleanupFinishedCampaigns({ now }),
   'partnership-applications': async (cutoff, { now = new Date() } = {}) => cleanupOldApplications({ now }),
+  badges: async (cutoff, { now = new Date() } = {}) => require('./badgeSweep').sweepBadges({ now }),
   caches: async () => ({
     feed: clearAllFeedCaches(),
     growthStats: clearGrowthStatsCache(),
@@ -68,6 +69,7 @@ const TASK_LABELS = {
   'search-events': 'Search trend events older than 30 days',
   'finished-ad-campaigns': `Finished ad campaigns older than ${AD_RETENTION_DAYS} days`,
   'partnership-applications': `Rejected or ended partnership applications older than ${REJECTED_APPLICATION_RETENTION_DAYS} days`,
+  badges: 'Badge check for active members',
   caches: 'In-memory caches'
 };
 

@@ -370,3 +370,12 @@ The WideWave feature (open topic spaces at `ww/name`) has been removed completel
 admin switch and moderator tab. On the next start `src/services/legacyCleanup.js` runs once (and is safe to
 run again): every post that belonged to a WideWave becomes a normal post, and the `widewaves` collection and
 its index are dropped. No manual step is needed.
+
+## Badges, setup nudges and unverified-account emails
+
+These run inside the existing 30-minute lifecycle worker and the 03:17 maintenance run - no new cron job or env var is required.
+
+* **Badges** (`/badges`): 40 badges in bronze / silver / gold / platinum / special tiers. They are checked while members browse (at most every 10 minutes each), after a post or comment, and by the daily `badges` maintenance task, which also back-fills existing members (one combined notification, not a burst). `EARLY_MEMBER_LIMIT` (default 100) sets how many first accounts get "Founding member".
+* **Setup nudges**: a "Finish setting up" card on the dashboard lists skipped steps (welcome tour, interests, photo, bio, follows, community, 2FA, push; panel password and 2FA for staff). One in-app notification (plus push for required items) goes out at most every 3 days, never repeating an item within 14 days, and stops for anyone who is not active.
+* **Unverified sign-ups**: four short emails at 1 hour, 1 day, 3 days and 7 days after sign-up, each with a one-click verify link, then nothing more. Requires working mail (`npm run mail:test`). Accounts older than 30 days are left alone.
+* Production **must** set `SESSION_SECRET`; without it a random one is generated per process and everyone is signed out on each restart.

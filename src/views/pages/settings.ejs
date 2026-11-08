@@ -123,7 +123,7 @@
       </form>
     </div>
     <div class="settings-block"><h3>Download your activity</h3><p>Get a JSON copy of your profile, posts, and communities you own.</p><a class="button button-small button-ghost" href="/settings/account/download">Request data download <span>↓</span></a></div>
-    <div class="settings-block danger-zone"><h3>Delete account</h3><p>This permanently removes your account, posts, sessions, and communities you own.</p><form method="post" action="/settings/account/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="confirm" placeholder="Type DELETE to confirm" required><button class="button button-small button-danger" type="submit">Delete account</button></form></div>
+    <div class="settings-block danger-zone"><h3>Delete account</h3><p>This permanently removes your account, posts, sessions, and communities you own.</p><form method="post" action="/settings/account/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input name="confirm" placeholder="Type DELETE to confirm" required autocomplete="off"><% if (user.passwordSet !== false) { %><input type="password" name="password" placeholder="Current password" autocomplete="current-password" required><% } %><button class="button button-small button-danger" type="submit">Delete account</button></form></div>
     <form method="post" action="/auth/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit">Sign out this device</button></form>
     <% } %>
   </section>
