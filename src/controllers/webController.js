@@ -12,7 +12,7 @@ const { uploadBuffer, streamFile, mediaUrl, clusterStatus } = require('../servic
 const Comment = require('../models/Comment');
 const PostShare = require('../models/PostShare');
 const { extractHashtags, parseHashtagList } = require('../utils/hashtags');
-const { getViralPosts, getPopularPeople, getTrendingHashtags } = require('../services/discovery');
+const { getViralPosts, getPopularPeople, getTrendingHashtags, getHashtagSuggestions } = require('../services/discovery');
 const { getFeedPage, refreshPersonalization, getInterestProfile, loadPagePosts } = require('../services/feedService');
 const { getRecommendedCommunities } = require('../services/communityRecommendations');
 const { isFeedTab } = require('../utils/feedRanker');
@@ -124,17 +124,6 @@ exports.home = async (req, res) => {
 			logger.error('Unable to load homepage brand ambassadors', settingsError);
 		}
 		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', currentUser: req.session?.user || null, stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] }, viralPosts: [], popularPeople: [], topWaveEarners: [], brandAmbassadors });
-	}
-};
-
-exports.topWaveEarners = async (req, res) => {
-	try {
-		const users = await getTopWaveEarners();
-		res.set('Cache-Control', 'no-store');
-		res.json({ users, updatedAt: new Date().toISOString() });
-	} catch (error) {
-		logger.error('Unable to refresh homepage Waves leaderboard', error);
-		res.status(503).json({ error: 'Unable to refresh the Waves leaderboard right now.' });
 	}
 };
 
@@ -962,8 +951,8 @@ exports.clearSearchHistory = async (req, res) => {
 
 exports.hashtagSuggestions = async (req, res) => {
 	const prefix = (req.query.q || '').replace(/^#/, '').toLowerCase().replace(/[^a-z0-9_]/g, '');
-	const hashtags = await getTrendingHashtags(30);
-	res.json(hashtags.filter(({ tag }) => !prefix || tag.startsWith(prefix)).slice(0, 8));
+	res.set('Cache-Control', 'no-store');
+	res.json(await getHashtagSuggestions(prefix));
 };
 
 exports.userSuggestions = async (req, res) => {

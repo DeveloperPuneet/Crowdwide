@@ -24,16 +24,16 @@
     <div class="principle-grid" id="principles"><article><span class="principle-number">01</span><h3>Find your people</h3><p>Meet communities around the ideas, crafts, and small obsessions that make you feel most like yourself.</p></article><article><span class="principle-number">02</span><h3>See what matters</h3><p>A calmer feed that puts thoughtful posts and fresh perspectives ahead of empty volume.</p></article><article><span class="principle-number">03</span><h3>Make an impact</h3><p>Share work that matters to you and let the right people find it, no popularity contest required.</p></article></div>
   </section>
   <section class="stats-section container" id="communities"><div class="section-intro"><p class="eyebrow">Crowdwide, live</p><h2>Real people.<br><em>Real momentum.</em></h2><p class="section-copy">These numbers update from the Crowdwide community as it grows. When a space is just beginning, we leave it open for the first people to shape.</p></div><div class="stats-content"><div class="stats-grid"><div><strong><%= stats.members.toLocaleString() %></strong><span>members</span></div><div><strong><%= stats.posts.toLocaleString() %></strong><span>posts shared</span></div><div><strong><%= stats.communities.toLocaleString() %></strong><span>communities</span></div></div><div class="community-list"><div class="list-heading"><h3>Top communities</h3><span><%= stats.communitiesAreLive ? 'Live from MongoDB' : 'Ready for yours' %></span></div><% if (!stats.topCommunities.length) { %><p style="color:var(--tx-lo);font-size:12px;padding:16px 0;border-top:1px solid var(--line);">No communities yet — <a href="/auth/register" style="color:var(--ac-blue);">join Crowdwide</a> and start the first one.</p><% } %><% stats.topCommunities.forEach((community, index) => { %><article class="community-row"><span class="community-index">0<%= index + 1 %></span><div><h4><%= community.name %></h4><p><%= community.description %></p></div><span class="community-members"><%= community.members.toLocaleString() %> members</span></article><% }) %></div></div></section>
-  <section class="container landing-highlight landing-waves" aria-labelledby="landing-waves-title" data-waves-url="/api/landing/waves">
+  <section class="container landing-highlight landing-waves" aria-labelledby="landing-waves-title">
     <div class="section-intro">
       <p class="eyebrow"><span class="eyebrow-dot"></span> The Waves leaderboard</p>
       <h2 id="landing-waves-title">Making waves.</h2>
-      <p class="section-copy">Meet the five members with the highest current Waves balances. Rankings refresh automatically.</p>
+      <p class="section-copy">Meet the five members with the highest Waves balances when you open this page.</p>
     </div>
     <div class="landing-waves-panel">
       <div class="landing-waves-heading">
         <h3>Top members</h3>
-        <span class="landing-waves-status" data-waves-status role="status" aria-live="polite">Updates every minute</span>
+        <span class="landing-waves-status">Snapshot at page load</span>
       </div>
       <ol class="landing-waves-list" data-waves-list>
         <% if (!landingWaveLeaders.length) { %>
@@ -113,6 +113,5 @@
   <section class="story-section container"><div class="story-marker"><%- icon('sparkles', { size: 24 }) %></div><div><p class="eyebrow">A better default</p><h2>What if social felt<br><em>like an open door?</em></h2><p>There is more to the internet than the loudest take and the fastest trend. Crowdwide is a place for the slow burn: the person who makes something beautiful, the question that changes how you see a subject, the community that feels like a room you were hoping to find.</p><a class="text-link" href="/about">Read our story <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a></div></section>
   <section class="cta-band container"><div><p class="eyebrow">The door is open</p><h2>Your next community<br><em>is already here.</em></h2></div><a class="button button-light" href="/auth/register">Step inside <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></a></section>
 </main>
-<script defer src="<%= (locals.asset || ((p) => p))('/js/landing-waves.js') %>"></script>
 <%- include('../partials/site-footer') %>
 <%- include('../partials/foot') %>

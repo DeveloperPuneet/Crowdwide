@@ -713,10 +713,9 @@ test('landing page applies the member theme and renders real profile avatars', a
   assert.match(html, /landing-ambassador-card/);
   assert.match(html, /href="\/auth\/register">Join Crowdwide/);
   assert.match(html, /<strong>Building<\/strong> better communities/);
-  assert.match(html, /data-waves-url="\/api\/landing\/waves"/);
   assert.equal((html.match(/class="landing-waves-row"/g) || []).length, 5, 'the landing page only renders the top five');
   assert.match(html, /Wave User 1/);
-  assert.match(html, /\/js\/landing-waves\.js/);
+  assert.match(html, /Snapshot at page load/);
   assert.doesNotMatch(html, /style="color:#f6f6fa;/);
 });
 

@@ -112,4 +112,21 @@ async function getTrendingHashtags(limit = 10) {
   ]);
 }
 
-module.exports = { getViralPosts, getPopularPeople, getTrendingHashtags, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners };
+async function getHashtagSuggestions(prefix) {
+  const normalized = String(prefix || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30);
+  if (normalized.length < 2) return [];
+
+  const startsWithPrefix = new RegExp(`^${normalized}`);
+  return Post.aggregate([
+    // Match the indexed hashtag array before unwind so prefix lookups use its multikey index.
+    { $match: { status: 'published', hashtags: { $regex: startsWithPrefix } } },
+    { $unwind: '$hashtags' },
+    { $match: { hashtags: { $regex: startsWithPrefix } } },
+    { $group: { _id: '$hashtags', posts: { $sum: 1 }, latest: { $max: '$createdAt' } } },
+    { $sort: { posts: -1, latest: -1, _id: 1 } },
+    { $limit: 8 },
+    { $project: { _id: 0, tag: '$_id', posts: 1 } }
+  ]);
+}
+
+module.exports = { getViralPosts, getPopularPeople, getTrendingHashtags, getHashtagSuggestions, getCommonInterestPeople, getMutualNetworkPeople, getTrendingCreators, getNewJoiners };

@@ -33,7 +33,6 @@ router.post('/unsubscribe/:kind(reminders|welcome)/:id/:token', growthController
 router.get('/health', controller.health);
 router.get('/rss.xml', controller.rss);
 router.get('/u/:id/rss.xml', controller.profileRss);
-router.get('/api/landing/waves', apiLimiter, controller.topWaveEarners);
 router.get('/api/v1/posts', apiLimiter, controller.apiPosts);
 router.get('/welcome', requireAuth, requireVerified, onboardingController.page);
 router.post('/welcome/interests', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, onboardingController.saveInterests);
@@ -141,7 +140,7 @@ router.get('/communities/mine', requireAuth, requireVerified, communityControlle
 router.get('/communities/rising', requireAuth, requireVerified, communityController.risingCommunities);
 router.get('/search', requireAuth, requireVerified, controller.search);
 router.post('/search/history/clear', requireAuth, requireVerified, controller.clearSearchHistory);
-router.get('/hashtags/suggest', requireAuth, requireVerified, controller.hashtagSuggestions);
+router.get('/hashtags/suggest', requireAuth, requireVerified, apiLimiter, controller.hashtagSuggestions);
 router.get('/users/suggest', requireAuth, requireVerified, controller.userSuggestions);
 router.get('/u/:id', visitorPreview('profile'), requireAuth, requireVerified, controller.profile);
 router.get('/u/:id/posts/more', requireAuth, requireVerified, controller.profileMorePosts);

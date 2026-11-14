@@ -218,12 +218,38 @@ if (composer) {
     }));
   };
   let suggestionTimer;
+  let suggestionController;
+  let suggestionRequest = 0;
+  const clearHashtagSuggestions = () => {
+    clearTimeout(suggestionTimer);
+    suggestionController?.abort();
+    suggestionController = null;
+    suggestionRequest += 1;
+    suggestions.replaceChildren();
+  };
   textarea.addEventListener('input', () => {
     updateCount();
     const match = textarea.value.match(/(?:^|\s)#([a-z0-9_]*)$/i);
-    if (!match) return suggestions.replaceChildren();
+    if (!match || match[1].length < 2) return clearHashtagSuggestions();
     clearTimeout(suggestionTimer);
-    suggestionTimer = setTimeout(() => fetch(`/hashtags/suggest?q=${encodeURIComponent(match[1])}`).then((response) => response.json()).then(renderSuggestions).catch(() => {}), 120);
+    suggestionController?.abort();
+    const requestId = ++suggestionRequest;
+    const prefix = match[1];
+    suggestions.replaceChildren();
+    suggestionTimer = setTimeout(async () => {
+      const requestController = new AbortController();
+      suggestionController = requestController;
+      try {
+        const response = await fetch(`/hashtags/suggest?q=${encodeURIComponent(prefix)}`, { signal: requestController.signal });
+        if (!response.ok) throw new Error('Hashtag suggestions are unavailable.');
+        const items = await response.json();
+        if (requestId === suggestionRequest) renderSuggestions(items);
+      } catch (error) {
+        if (error.name !== 'AbortError' && requestId === suggestionRequest) {
+          suggestions.textContent = 'Could not load hashtag suggestions.';
+        }
+      }
+    }, 180);
   });
   typeSelect.addEventListener('change', updateCount);
   communitySelect?.addEventListener('change', () => updateQuestOptions('community'));
