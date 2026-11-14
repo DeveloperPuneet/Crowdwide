@@ -66,6 +66,15 @@ async function getLiveStats() {
 	};
 }
 
+async function getTopWaveEarners() {
+	if (!User.db.readyState) return [];
+	return User.find({ isVerified: true, privacy: 'public', wavesBalance: { $gt: 0 } })
+		.sort({ wavesBalance: -1, _id: 1 })
+		.limit(5)
+		.select('_id name profilePicture wavesBalance')
+		.lean();
+}
+
 async function getVisibleBrandAmbassadors() {
 	const siteSettings = await SiteSetting.getSingleton();
 	return (siteSettings.brandAmbassadors || [])
@@ -82,10 +91,11 @@ exports.home = async (req, res) => {
 	}
 	try {
 		const stats = await getLiveStats();
-		const [viralPosts, popularPeople, brandAmbassadors] = await Promise.all([
+		const [viralPosts, popularPeople, brandAmbassadors, topWaveEarners] = await Promise.all([
 			getViralPosts(4),
 			getPopularPeople(4),
-			getVisibleBrandAmbassadors()
+			getVisibleBrandAmbassadors(),
+			getTopWaveEarners()
 		]);
 		res.render('pages/home', {
 			title: 'A fair chance at discovery',
@@ -95,6 +105,7 @@ exports.home = async (req, res) => {
 			stats,
 			viralPosts,
 			popularPeople,
+			topWaveEarners,
 			brandAmbassadors,
 			structuredData: {
 				'@context': 'https://schema.org',
@@ -112,7 +123,18 @@ exports.home = async (req, res) => {
 		} catch (settingsError) {
 			logger.error('Unable to load homepage brand ambassadors', settingsError);
 		}
-		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', currentUser: req.session?.user || null, stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] }, viralPosts: [], popularPeople: [], brandAmbassadors });
+		res.render('pages/home', { title: 'A fair chance at discovery', pagePath: '/', currentUser: req.session?.user || null, stats: { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] }, viralPosts: [], popularPeople: [], topWaveEarners: [], brandAmbassadors });
+	}
+};
+
+exports.topWaveEarners = async (req, res) => {
+	try {
+		const users = await getTopWaveEarners();
+		res.set('Cache-Control', 'no-store');
+		res.json({ users, updatedAt: new Date().toISOString() });
+	} catch (error) {
+		logger.error('Unable to refresh homepage Waves leaderboard', error);
+		res.status(503).json({ error: 'Unable to refresh the Waves leaderboard right now.' });
 	}
 };
 

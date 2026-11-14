@@ -688,12 +688,19 @@ test('Waves and community monetization terms disclose platform-currency and payo
 });
 
 test('landing page applies the member theme and renders real profile avatars', async () => {
+  const topWaveEarners = Array.from({ length: 6 }, (_, index) => ({
+    _id: `wave-user-${index + 1}`,
+    name: `Wave User ${index + 1}`,
+    profilePicture: index === 0 ? '/media/wave-user.webp' : '',
+    wavesBalance: 100 - index
+  }));
   const html = await render('pages/home.ejs', {
     title: 'Home', pagePath: '/',
     currentUser: { ...currentUser, theme: 'pink' },
     stats: { members: 2, posts: 1, communities: 0, communitiesAreLive: true, topCommunities: [] },
     viralPosts: [{ author: { _id: 'u2', name: 'Nia', profilePicture: '/media/nia.webp' }, body: 'A bright idea', likesTotal: 3 }],
     popularPeople: [{ _id: 'u2', name: 'Nia', profilePicture: '/media/nia.webp', followers: 3 }],
+    topWaveEarners,
     brandAmbassadors: [{ name: 'Asha Rao', role: 'Community builder', photoUrl: '/media/asha.webp', bio: '**Building** better communities.' }]
   });
 
@@ -706,6 +713,10 @@ test('landing page applies the member theme and renders real profile avatars', a
   assert.match(html, /landing-ambassador-card/);
   assert.match(html, /href="\/auth\/register">Join Crowdwide/);
   assert.match(html, /<strong>Building<\/strong> better communities/);
+  assert.match(html, /data-waves-url="\/api\/landing\/waves"/);
+  assert.equal((html.match(/class="landing-waves-row"/g) || []).length, 5, 'the landing page only renders the top five');
+  assert.match(html, /Wave User 1/);
+  assert.match(html, /\/js\/landing-waves\.js/);
   assert.doesNotMatch(html, /style="color:#f6f6fa;/);
 });
 

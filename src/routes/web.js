@@ -33,6 +33,7 @@ router.post('/unsubscribe/:kind(reminders|welcome)/:id/:token', growthController
 router.get('/health', controller.health);
 router.get('/rss.xml', controller.rss);
 router.get('/u/:id/rss.xml', controller.profileRss);
+router.get('/api/landing/waves', apiLimiter, controller.topWaveEarners);
 router.get('/api/v1/posts', apiLimiter, controller.apiPosts);
 router.get('/welcome', requireAuth, requireVerified, onboardingController.page);
 router.post('/welcome/interests', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, onboardingController.saveInterests);

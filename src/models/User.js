@@ -195,6 +195,7 @@ const userSchema = new mongoose.Schema({
 // Feed ranking counts followers ("who follows this author") from this field.
 userSchema.index({ following: 1 });
 userSchema.index({ isVerified: 1, createdAt: -1 });
+userSchema.index({ isVerified: 1, privacy: 1, wavesBalance: -1 });
 userSchema.index({ 'socialLogins.provider': 1, 'socialLogins.providerId': 1 });
 
 module.exports = mongoose.model('User', userSchema);
