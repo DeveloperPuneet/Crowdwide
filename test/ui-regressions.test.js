@@ -12,6 +12,13 @@ test('the hidden composer really is hidden: .composer {display:flex} must not ov
   assert.doesNotMatch(css, /(^|\n)\.composer-hidden\s*\{/);
 });
 
+test('dashboard post activity controls blend into the card instead of forming a tinted strip', () => {
+  const css = read('public', 'css', 'minimal.css');
+  assert.match(css, /\.dashboard-page \.post-card \.post-actions\s*\{[^}]*border-top:\s*1px solid var\(--line\);[^}]*background:\s*transparent;/);
+  assert.match(css, /\.dashboard-page \.post-card \.post-actions > :is\(form, a, button, span\)\s*\{[^}]*background:\s*transparent;/);
+  assert.match(css, /\.dashboard-page \.post-card \.post-actions > form\s*\{\s*border:\s*0;/);
+});
+
 test('the feed card shows content plus likes/comments/shares/views only; reply, report and edit live on the post page', () => {
   const card = read('src', 'views', 'partials', 'post-card.ejs');
   for (const forbidden of ['/reply', '/quote', '/report', '/edit', '/bookmark', '/comments"', 'reaction-bar']) {

@@ -102,6 +102,21 @@ body .feed-subtabs a:hover, body .feed-subtabs a.is-on { color: var(--tx-hi); }
 body .post-card .post-actions .action-like { background: transparent; }
 body .post-card .post-actions .action-like:hover { background: var(--ov-1, var(--sf-2)); }
 
+/* Keep dashboard activity controls visually attached to the post card. */
+.dashboard-page .post-card .post-actions {
+  margin-top: 8px;
+  padding: 5px 0 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  gap: 4px;
+}
+.dashboard-page .post-card .post-actions > :is(form, a, button, span) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.dashboard-page .post-card .post-actions > form { border: 0; }
+
 /* Profile sits at the very bottom of the sidebar */
 .side-links { min-height: 100%; }
 .app-rail .rail-scroll { display: flex; flex-direction: column; }
