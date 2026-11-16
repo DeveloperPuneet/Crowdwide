@@ -65,7 +65,7 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
-        scriptSrc: ["'self'", 'https://www.googletagmanager.com', (req, res) => `'nonce-${res.locals.cspNonce}'`, ...turnstileOrigins],
+        scriptSrc: ["'self'", 'https://www.googletagmanager.com', 'https://cdn.apitiny.net', (req, res) => `'nonce-${res.locals.cspNonce}'`, ...turnstileOrigins],
         frameSrc: ["'self'", ...turnstileOrigins],
         connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', ...turnstileOrigins],
         mediaSrc: ["'self'", ...mediaOrigins],
