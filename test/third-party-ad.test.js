@@ -6,13 +6,20 @@ const ejs = require('ejs');
 const homeTemplate = fs.readFileSync('src/views/pages/home.ejs', 'utf8');
 const footTemplate = fs.readFileSync('src/views/partials/foot.ejs', 'utf8');
 const appSource = fs.readFileSync('src/app.js', 'utf8');
+const appJs = fs.readFileSync('public/js/app.js', 'utf8');
+const dashboardTemplate = fs.readFileSync('src/views/pages/dashboard.ejs', 'utf8');
+const postDetailTemplate = fs.readFileSync('src/views/pages/post-detail.ejs', 'utf8');
+const webControllerSource = fs.readFileSync('src/controllers/webController.js', 'utf8');
 
-test('third-party ads load on the homepage where the ad container is present', () => {
+test('third-party ads are absent from the landing page and attach to feed or comment slots', () => {
   const homepageFoot = ejs.render(footTemplate, { pagePath: '/', asset: (path) => path });
-  const dashboardFoot = ejs.render(footTemplate, { pagePath: '/dashboard', asset: (path) => path });
 
-  assert.match(homeTemplate, /<div ta-ad-container><\/div>/);
-  assert.match(homepageFoot, /<script src="https:\/\/cdn\.apitiny\.net\/scripts\/v2\.0\/main\.js" data-site-id="6afab90572e32d7989c230ed" data-test-mode="false" async><\/script>\s*<\/body>/);
-  assert.doesNotMatch(dashboardFoot, /cdn\.apitiny\.net/);
+  assert.doesNotMatch(homeTemplate, /ta-ad-container/);
+  assert.doesNotMatch(homepageFoot, /cdn\.apitiny\.net/);
+  assert.match(dashboardTemplate, /data-ad-after=/);
+  assert.match(postDetailTemplate, /commentAdState = locals\.showThirdPartyAds/);
+  assert.match(webControllerSource, /crypto\.randomInt\(18, 25\)/);
+  assert.match(appJs, /adAfter < 18/);
+  assert.match(appJs, /script\.src = 'https:\/\/cdn\.apitiny\.net\/scripts\/v2\.0\/main\.js'/);
   assert.match(appSource, /'https:\/\/cdn\.apitiny\.net'/);
 });

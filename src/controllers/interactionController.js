@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
 const { getPostPromotionOffer, promotePost } = require('../services/postPromotion');
+const { isAdFree } = require('../services/adFree');
 const logger = require('../services/logger');
 const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
@@ -573,6 +574,7 @@ exports.postDetail = async (req, res) => {
     structuredData,
     noIndex: false,
     post,
+    showThirdPartyAds: comments.length >= 30 && !isAdFree(req.session.user),
     promotionOffer: viewerId && String(post.author?._id) === String(viewerId)
       ? await getPostPromotionOffer()
       : null,

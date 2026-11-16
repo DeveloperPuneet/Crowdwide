@@ -262,12 +262,12 @@ test('product advertisements render product details, price, image, and a tracked
 
 test('sitewide feed ads are distinct and appear together at one organic-feed position', () => {
   const campaigns = [{ _id: 'campaign-1' }, { _id: 'campaign-2' }, { _id: 'campaign-3' }];
-  const ads = webController.buildSitewideFeedAds(campaigns, 12);
+  const ads = webController.buildSitewideFeedAds(campaigns, 22);
   assert.equal(ads.length, 2);
   assert.deepEqual(ads.map((ad) => ad.campaign), campaigns.slice(0, 2));
-  assert.deepEqual(ads.map((ad) => ad.afterPost), [5, 5]);
+  assert.deepEqual(ads.map((ad) => ad.afterPost), [22, 22]);
   assert.notEqual(ads[0].eventToken, ads[1].eventToken);
-  assert.deepEqual(webController.buildSitewideFeedAds(campaigns.slice(0, 1), 3).map((ad) => ad.afterPost), [3]);
+  assert.deepEqual(webController.buildSitewideFeedAds(campaigns.slice(0, 1), 19).map((ad) => ad.afterPost), [19]);
   assert.deepEqual(webController.buildSitewideFeedAds(campaigns, 0).map((ad) => ad.afterPost), [0, 0]);
 });
 
@@ -494,6 +494,38 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
   assert.match(html, /Choose a reason/);
 });
 
+test('third-party comment ads appear after each thirty-comment threshold', async () => {
+  const commentTree = Array.from({ length: 61 }, (_, index) => ({
+    _id: `c${index + 1}`,
+    author: { _id: `a${index + 1}`, name: `Member ${index + 1}` },
+    body: `Comment ${index + 1}`,
+    createdAt: new Date(),
+    likes: [],
+    reactions: [],
+    children: []
+  }));
+  const html = await render('pages/post-detail.ejs', {
+    title: 'p', pagePath: '/posts/p1', showThirdPartyAds: true,
+    post: { ...post(1), liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null },
+    comments: commentTree,
+    commentTree
+  });
+
+  assert.equal((html.match(/ta-ad-container/g) || []).length, 2);
+  assert.ok(html.indexOf('data-comment-id="c30"') < html.indexOf('ta-ad-container'));
+  assert.ok(html.indexOf('ta-ad-container') < html.indexOf('data-comment-id="c31"'));
+  assert.ok(html.lastIndexOf('data-comment-id="c60"') < html.lastIndexOf('ta-ad-container'));
+  assert.ok(html.lastIndexOf('ta-ad-container') < html.indexOf('data-comment-id="c61"'));
+
+  const belowThreshold = await render('pages/post-detail.ejs', {
+    title: 'p', pagePath: '/posts/p1', showThirdPartyAds: true,
+    post: { ...post(1), liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null },
+    comments: commentTree.slice(0, 29),
+    commentTree: commentTree.slice(0, 29)
+  });
+  assert.doesNotMatch(belowThreshold, /ta-ad-container/);
+});
+
 test('post detail links directly to the replies-with-a-post list and shows its count', async () => {
   const html = await render('pages/post-detail.ejs', {
     title: 'p', pagePath: '/posts/p1', comments: [],
@@ -589,12 +621,13 @@ test('share sheet and group join pages render', async () => {
   assert.match(join, /action="\/groups\/join\/abc"/);
 });
 
-test('dashboard still renders with the share button and share sheet in the footer', async () => {
+test('dashboard defers feed advertisements until the random placement threshold', async () => {
   const promotedPost = { ...post(1), feedSource: 'Sponsored' };
   const followingPost = post(2);
   const html = await render('pages/dashboard.ejs', {
     title: 't', pagePath: '/dashboard', noIndex: true,
     feed: { posts: [promotedPost, followingPost], visiblePosts: [promotedPost, followingPost], hasMore: true, activeTab: 'for-you', note: 'n' },
+    thirdPartyFeedAdAfter: 20,
     sitewideFeedAds: [{
       afterPost: 1,
       contextType: 'sitewide',
@@ -637,7 +670,9 @@ test('dashboard still renders with the share button and share sheet in the foote
   const firstAdIndex = html.indexOf('data-campaign-id="campaign-global"');
   const secondAdIndex = html.indexOf('data-campaign-id="campaign-global-2"');
   const nextPostIndex = html.indexOf('data-post-id="p2"');
-  assert.ok(firstAdIndex < secondAdIndex && secondAdIndex < nextPostIndex, 'both feed advertisements appear together between organic posts');
+  assert.ok(nextPostIndex < firstAdIndex && firstAdIndex < secondAdIndex, 'advertisements stay inert in the template until the feed reaches its threshold');
+  assert.match(html, /id="feed-posts" data-ad-after="20"/);
+  assert.match(html, /<template id="sitewide-feed-ads">/);
   assert.match(html, /data-context-type="sitewide"/);
   assert.match(html, /click\?context=sitewide&amp;event=/);
   assert.match(html, /deliveryContext: 'sitewide'/);

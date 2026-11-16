@@ -129,8 +129,8 @@
 			<a class="button button-dark button-small" href="/explore">Explore communities <span><%- icon('arrow-up-right', { size: 14 }) %></span></a>
 		</section>
 		<% } %>
-		<div id="feed-posts"><% feed.visiblePosts.forEach((post, postIndex) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% (locals.sitewideFeedAds || []).filter((ad) => ad.afterPost === postIndex + 1).forEach((ad) => { %><%- include('../partials/community-ad', { ad, csrfToken }) %><% }) %><% }) %>
-		<% if (!feed.visiblePosts.length) { %><% (locals.sitewideFeedAds || []).filter((ad) => ad.afterPost === 0).forEach((ad) => { %><%- include('../partials/community-ad', { ad, csrfToken }) %><% }) %><% } %></div>
+		<div id="feed-posts" data-ad-after="<%= locals.thirdPartyFeedAdAfter || '' %>"><% feed.visiblePosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div>
+		<% if ((locals.sitewideFeedAds || []).length) { %><template id="sitewide-feed-ads"><% sitewideFeedAds.forEach((ad) => { %><%- include('../partials/community-ad', { ad, csrfToken }) %><% }) %></template><% } %>
 		<% if (feed.visiblePosts.length && feed.hasMore) { %>
 		<div id="feed-sentinel" data-feed-view="<%= feed.activeTab %>" data-page="1"></div>
 		<% } %>
@@ -170,7 +170,6 @@
 </main>
 <script nonce="<%= locals.cspNonce || '' %>">
 document.addEventListener('DOMContentLoaded', function () {
-  var cards = document.querySelectorAll('[data-community-ad][data-context-type="sitewide"]');
   if (!('IntersectionObserver' in window)) return;
   var observer = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
@@ -190,7 +189,15 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
   }, { threshold: 0.5 });
-  cards.forEach(function (card) { observer.observe(card); });
+  var observeCards = function (root) {
+    if (root.matches && root.matches('[data-community-ad][data-context-type="sitewide"]')) observer.observe(root);
+    root.querySelectorAll && root.querySelectorAll('[data-community-ad][data-context-type="sitewide"]').forEach(function (card) { observer.observe(card); });
+  };
+  observeCards(document);
+  var feedList = document.getElementById('feed-posts');
+  if (feedList) new MutationObserver(function (records) {
+    records.forEach(function (record) { record.addedNodes.forEach(function (node) { if (node.nodeType === 1) observeCards(node); }); });
+  }).observe(feedList, { childList: true, subtree: true });
 });
 </script>
 <%- include('../partials/app-footer') %>

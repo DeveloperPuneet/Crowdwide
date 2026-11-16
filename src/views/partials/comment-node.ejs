@@ -5,6 +5,8 @@
   const postAuthorId = locals.postAuthorId;
   const csrf = locals.csrfToken;
   const canReply = locals.canReply;
+  const adState = locals.adState;
+  if (adState) adState.count += 1;
   const isPostAuthor = currentUser && postAuthorId && String(postAuthorId) === String(currentUser.id);
   const reactions = (node.reactions || []).map((r) => ({ emoji: r.emoji, count: (r.users || []).length, reacted: currentUser ? (r.users || []).some((id) => String(id) === String(currentUser.id)) : false }));
 %>
@@ -65,7 +67,8 @@
 		<% } %>
 	</div>
 	<% if (currentUser) { %><%- include('emoji-reaction-bar', { reactions, targetType: 'comment', targetId: node._id }) %><% } else if (reactions.length) { %><div class="comment-reactions" role="group" aria-label="Comment reactions"><% reactions.forEach((reaction) => { %><span><%= reaction.emoji %> <%= reaction.count %></span><% }) %></div><% } %>
+	<% if (adState && adState.count >= adState.nextAdAt) { %><div ta-ad-container></div><% adState.nextAdAt += 30; %><% } %>
 	<% (node.children || []).forEach((child) => { %>
-		<%- include('comment-node', { node: child, depth: depth + 1, postId, postAuthorId, csrfToken: csrf, canReply }) %>
+		<%- include('comment-node', { node: child, depth: depth + 1, postId, postAuthorId, csrfToken: csrf, canReply, adState }) %>
 	<% }) %>
 </article>

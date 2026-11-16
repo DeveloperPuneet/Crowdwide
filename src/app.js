@@ -66,11 +66,11 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     contentSecurityPolicy: {
       directives: {
         scriptSrc: ["'self'", 'https://www.googletagmanager.com', 'https://cdn.apitiny.net', (req, res) => `'nonce-${res.locals.cspNonce}'`, ...turnstileOrigins],
-        frameSrc: ["'self'", ...turnstileOrigins],
-        connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', ...turnstileOrigins],
+        frameSrc: ["'self'", 'https://*.apitiny.net', ...turnstileOrigins],
+        connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', 'https://*.apitiny.net', ...turnstileOrigins],
         mediaSrc: ["'self'", ...mediaOrigins],
         // GIFs come from GIPHY's CDN; blob: lets upload previews render.
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.giphy.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://api.maptiler.com', 'https://www.google-analytics.com', ...mediaOrigins]
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.apitiny.net', 'https://*.giphy.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://api.maptiler.com', 'https://www.google-analytics.com', ...mediaOrigins]
       }
     }
   }));

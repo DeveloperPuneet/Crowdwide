@@ -129,9 +129,10 @@
 		<div class="public-comments-join"><p>Reading the conversation is open to everyone. Create an account to add your voice.</p><a class="button button-primary button-small" href="/auth/register">Join the conversation</a></div>
 		<% } %>
 		<p class="no-comments" data-no-comments<%- comments.length ? ' hidden' : '' %>>No comments yet. Start the conversation.</p>
+		<% const commentAdState = locals.showThirdPartyAds ? { count: 0, nextAdAt: 30 } : null; %>
 		<div class="post-detail-thread">
 			<% commentTree.forEach((node) => { %>
-				<%- include('../partials/comment-node', { node, depth: 0, postId: post._id, postAuthorId: post.author?._id, csrfToken, canReply: !!currentUser }) %>
+				<%- include('../partials/comment-node', { node, depth: 0, postId: post._id, postAuthorId: post.author?._id, csrfToken, canReply: !!currentUser, adState: commentAdState }) %>
 			<% }) %>
 		</div>
 	</section>

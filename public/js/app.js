@@ -12,6 +12,18 @@ const removeBrokenAvatar = (image) => {
   avatar.classList.remove('has-image');
   avatar.classList.remove('image-loaded');
 };
+const loadApiTinyAds = () => {
+  if (document.querySelector('script[data-apitiny-ads]')) return;
+  const script = document.createElement('script');
+  script.src = 'https://cdn.apitiny.net/scripts/v2.0/main.js';
+  script.dataset.siteId = '6afab90572e32d7989c230ed';
+  script.dataset.testMode = 'false';
+  script.dataset.apitinyAds = 'true';
+  script.async = true;
+  document.body.append(script);
+};
+if (document.querySelector('[ta-ad-container]')) loadApiTinyAds();
+
 const showLoadedAvatar = (image) => {
   const avatar = image.closest('.avatar');
   if (avatar) avatar.classList.add('image-loaded');
@@ -961,8 +973,29 @@ document.addEventListener('submit', (event) => {
 // ranked list as the first page (page number, not a date cursor), so a page
 // never repeats or skips posts whichever tab is open.
 const feedSentinel = document.getElementById('feed-sentinel');
+const feedList = document.getElementById('feed-posts');
+const adAfter = Number(feedList?.dataset.adAfter);
+let feedAdInserted = false;
+const insertFeedAd = () => {
+  if (feedAdInserted || !Number.isInteger(adAfter) || adAfter < 18 || !feedList) return;
+  const cards = feedList.querySelectorAll(':scope > .post-card');
+  if (cards.length < adAfter) return;
+  const slot = document.createElement('div');
+  slot.setAttribute('ta-ad-container', '');
+  cards[adAfter - 1].after(slot);
+  const adTemplates = document.getElementById('sitewide-feed-ads');
+  if (adTemplates) {
+    slot.after(adTemplates.content.cloneNode(true));
+    adTemplates.remove();
+  }
+  feedAdInserted = true;
+  loadApiTinyAds();
+};
+insertFeedAd();
+if (feedList && 'MutationObserver' in window) {
+  new MutationObserver(insertFeedAd).observe(feedList, { childList: true });
+}
 if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
-  const feedList = document.getElementById('feed-posts');
   const endNote = document.getElementById('feed-end-note');
   let loading = false;
   let done = false;
@@ -983,6 +1016,7 @@ if (feedSentinel && window.axios && 'IntersectionObserver' in window) {
           wrapper.innerHTML = data.html;
           const existing = new Set(Array.from(feedList.querySelectorAll('.post-card')).map((card) => card.id));
           feedList.append(...Array.from(wrapper.children).filter((card) => !existing.has(card.id)));
+          insertFeedAd();
           Array.from(wrapper.querySelectorAll('.post-card img')).forEach((img) => { img.loading = 'lazy'; img.decoding = 'async'; });
           initAvatars(feedList);
           enhanceCards(feedList);

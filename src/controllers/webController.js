@@ -211,8 +211,7 @@ function resolveFeedView(query = {}) {
 	return query.feed === 'personalized' ? 'my-community' : 'for-you';
 }
 
-function buildSitewideFeedAds(campaigns, postCount) {
-	const afterPost = postCount ? Math.min(postCount, 5) : 0;
+function buildSitewideFeedAds(campaigns, afterPost) {
 	return campaigns.slice(0, 2).map((campaign) => ({
 		campaign,
 		eventToken: crypto.randomUUID(),
@@ -277,7 +276,8 @@ exports.dashboard = async (req, res) => {
 				? Quest.find({ participants: user._id, community: { $in: joinedCommunityDocIds }, status: { $nin: ['ended', 'archived'] } }).select('title community status').populate('community', 'name').sort({ createdAt: -1 }).lean()
 				: []
 		]);
-		const sitewideFeedAds = buildSitewideFeedAds(sitewideCampaigns, feed.posts.length);
+		const thirdPartyFeedAdAfter = isAdFree(user) ? 0 : crypto.randomInt(18, 25);
+		const sitewideFeedAds = buildSitewideFeedAds(sitewideCampaigns, thirdPartyFeedAdAfter);
 		const composerCommunities = joinedCommunityDocs;
 		const selectedQuest = availableQuests.find((quest) => String(quest._id) === String(req.query.quest || ''));
 		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
@@ -287,6 +287,7 @@ exports.dashboard = async (req, res) => {
 			pagePath: '/dashboard',
 			noIndex: true,
 			feed: { ...feed, activeTab, visiblePosts: feed.posts },
+			thirdPartyFeedAdAfter,
 			sitewideFeedAds,
 			openSurveys,
 			awayInfo,
