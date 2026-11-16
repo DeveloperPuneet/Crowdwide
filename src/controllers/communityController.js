@@ -169,9 +169,21 @@ exports.communityMap = async (req, res) => {
   const filter = {
     isPrivate: false,
     showOnMap: true,
-    locationLabel: { $type: 'string', $ne: '' },
-    locationLat: { $gte: -90, $lte: 90 },
-    locationLng: { $gte: -180, $lte: 180 }
+    $or: [
+      {
+        locationLabel: { $type: 'string', $ne: '' },
+        locationLat: { $gte: -90, $lte: 90 },
+        locationLng: { $gte: -180, $lte: 180 }
+      },
+      {
+        $or: [
+          { locationLat: { $exists: false } },
+          { locationLat: null },
+          { locationLng: { $exists: false } },
+          { locationLng: null }
+        ]
+      }
+    ]
   };
   const [mapCommunities, categories] = await Promise.all([
     Community.find(filter).sort({ membersCount: -1, name: 1 }).limit(500).select('name slug description category hashtags membersCount avatarImage locationLabel locationLat locationLng').lean(),

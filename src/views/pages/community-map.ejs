@@ -11,29 +11,30 @@
 	<section class="community-map-tools" aria-label="Filter communities">
 		<label class="community-map-search"><span class="visually-hidden">Search communities and interests</span><%- icon('search', { size: 16 }) %><input type="search" placeholder="Search communities or interests" data-map-search></label>
 		<label class="community-map-category"><span class="visually-hidden">Filter by category</span><select data-map-category><option value="">All categories</option><% categories.forEach((category) => { %><option value="<%= category %>"><%= category %></option><% }) %></select></label>
-		<p class="community-map-count" data-map-count><%= mapCommunities.length %> mapped communities</p>
+		<p class="community-map-count" data-map-count><%= mapCommunities.length %> communities shown</p>
 	</section>
 	<section class="community-map-layout">
 		<div>
 			<div class="community-map-canvas" data-community-discovery-map data-map-api-key="<%= locals.mapApiKey || '' %>" aria-label="Map of public communities"></div>
 			<p class="community-map-tile-error" data-map-tile-error role="status" hidden>Map tiles are blocked on this connection. You can still search and open communities from the list.</p>
 		</div>
-		<div class="community-map-results" aria-label="Mapped communities">
-			<div class="community-map-results-heading"><h2>Mapped communities</h2><span><%= mapCommunities.length %></span></div>
+		<div class="community-map-results" aria-label="Communities on the map">
+			<div class="community-map-results-heading"><h2>Communities on the map</h2><span><%= mapCommunities.length %></span></div>
 			<div class="community-map-list" data-map-list>
 				<% mapCommunities.forEach((community) => { %>
-				<article class="community-map-row" data-map-community data-name="<%= community.name %>" data-location="<%= community.locationLabel %>" data-category="<%= community.category || 'general' %>" data-topics="<%= (community.hashtags || []).join(' ') %>" data-lat="<%= community.locationLat %>" data-lng="<%= community.locationLng %>" data-members="<%= community.membersCount || 0 %>" data-slug="<%= community.slug %>">
+				<% const hasLocation = Number.isFinite(community.locationLat) && Number.isFinite(community.locationLng) && Boolean(community.locationLabel); %>
+				<article class="community-map-row" data-map-community data-name="<%= community.name %>" data-location="<%= hasLocation ? community.locationLabel : 'Roaming somewhere in the world' %>" data-category="<%= community.category || 'general' %>" data-topics="<%= (community.hashtags || []).join(' ') %>" data-lat="<%= hasLocation ? community.locationLat : '' %>" data-lng="<%= hasLocation ? community.locationLng : '' %>" data-members="<%= community.membersCount || 0 %>" data-slug="<%= community.slug %>">
 					<div class="community-map-row-top">
 						<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" loading="lazy"><% } else { %><span class="community-map-avatar"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
-						<div><a href="/communities/<%= community.slug %>"><%= community.name %></a><span><%= community.locationLabel %></span></div>
+						<div><a href="/communities/<%= community.slug %>"><%= community.name %></a><span><%= hasLocation ? community.locationLabel : 'Roaming · no location shared' %></span></div>
 					</div>
 					<p><%= community.description %></p>
 					<div class="community-map-row-meta"><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span><%= community.category || 'general' %></span></div>
 					<% if ((community.hashtags || []).length) { %><div class="hashtag-row"><% community.hashtags.slice(0, 4).forEach((tag) => { %><span class="hashtag-chip">#<%= tag %></span><% }) %></div><% } %>
-					<button class="community-map-focus" type="button" data-map-focus>Show on map <%- icon('map-pin', { size: 13 }) %></button>
+					<button class="community-map-focus" type="button" data-map-focus><%= hasLocation ? 'Show on map' : 'Find roaming dot' %> <%- icon('map-pin', { size: 13 }) %></button>
 				</article>
 				<% }) %>
-				<p class="community-map-empty" data-map-empty <%= mapCommunities.length ? 'hidden' : '' %>>No communities are mapped yet. Community owners can add an optional general location in their community settings.</p>
+				<p class="community-map-empty" data-map-empty <%= mapCommunities.length ? 'hidden' : '' %>>No public communities have opted into appearing on the map yet.</p>
 			</div>
 		</div>
 	</section>

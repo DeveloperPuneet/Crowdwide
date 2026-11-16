@@ -137,6 +137,11 @@ function addLocationPicker(mapContainer) {
 }
 
 function addDiscoveryMap(mapContainer) {
+  const markerColors = ['#e879f9', '#fb7185', '#f97316', '#facc15', '#4ade80', '#2dd4bf', '#38bdf8', '#818cf8'];
+  for (let index = markerColors.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [markerColors[index], markerColors[swapIndex]] = [markerColors[swapIndex], markerColors[index]];
+  }
   const searchInput = document.querySelector('[data-map-search]');
   const categorySelect = document.querySelector('[data-map-category]');
   const countOutput = document.querySelector('[data-map-count]');
@@ -144,16 +149,21 @@ function addDiscoveryMap(mapContainer) {
   const rows = [...document.querySelectorAll('[data-map-community]')];
   const map = L.map(mapContainer).setView([20, 0], 2);
   addResilientTiles(map, mapContainer);
-  const markers = rows.map((row) => {
-    const lat = Number(row.dataset.lat);
-    const lng = Number(row.dataset.lng);
+  const roamingMarkers = [];
+  const randomPoint = () => [(Math.random() * 110) - 55, (Math.random() * 360) - 180];
+  const markers = rows.map((row, index) => {
+    const hasLocation = row.dataset.lat !== '' && row.dataset.lng !== ''
+      && Number.isFinite(Number(row.dataset.lat)) && Number.isFinite(Number(row.dataset.lng));
+    const position = hasLocation ? [Number(row.dataset.lat), Number(row.dataset.lng)] : randomPoint();
+    const [lat, lng] = position;
     const members = Number(row.dataset.members) || 0;
+    const color = markerColors[index % markerColors.length];
     const marker = L.circleMarker([lat, lng], {
-      radius: Math.min(18, 7 + Math.sqrt(members) / 5),
-      color: '#f8ab62',
-      weight: 2,
-      fillColor: '#44bdb0',
-      fillOpacity: 0.78
+      radius: hasLocation ? Math.min(18, 7 + Math.sqrt(members) / 5) : 4,
+      color,
+      weight: hasLocation ? 2 : 1,
+      fillColor: color,
+      fillOpacity: hasLocation ? 0.78 : 0.92
     });
     const popup = document.createElement('div');
     popup.className = 'community-map-popup';
@@ -168,13 +178,44 @@ function addDiscoveryMap(mapContainer) {
     marker.bindPopup(popup);
     marker.addTo(map);
     row.querySelector('[data-map-focus]')?.addEventListener('click', () => {
-      map.flyTo([lat, lng], Math.max(map.getZoom(), 7), { duration: 0.45 });
+      map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 7), { duration: 0.45 });
       marker.openPopup();
     });
+    if (!hasLocation) roamingMarkers.push(marker);
     return { row, marker, searchText: `${row.dataset.name} ${row.dataset.location} ${row.dataset.category} ${row.dataset.topics}`.toLowerCase() };
   });
   if (markers.length > 1) map.fitBounds(L.featureGroup(markers.map(({ marker }) => marker)).getBounds().pad(0.12), { maxZoom: 8 });
   else if (markers.length === 1) map.setView(markers[0].marker.getLatLng(), 7);
+
+  if (roamingMarkers.length) {
+    const makeRoute = (marker, now) => {
+      const from = marker.getLatLng();
+      const [toLat, toLng] = randomPoint();
+      return {
+        marker,
+        fromLat: from.lat,
+        fromLng: from.lng,
+        toLat,
+        lngDelta: ((toLng - from.lng + 540) % 360) - 180,
+        startedAt: now,
+        duration: 9000 + Math.random() * 8000
+      };
+    };
+    let routes = roamingMarkers.map((marker) => makeRoute(marker, 0));
+    const moveRoamingMarkers = (now) => {
+      routes = routes.map((route) => {
+        const progress = Math.min(1, Math.max(0, (now - route.startedAt) / route.duration));
+        const lng = ((route.fromLng + route.lngDelta * progress + 540) % 360) - 180;
+        route.marker.setLatLng([
+          route.fromLat + (route.toLat - route.fromLat) * progress,
+          lng
+        ]);
+        return progress === 1 ? makeRoute(route.marker, now) : route;
+      });
+      requestAnimationFrame(moveRoamingMarkers);
+    };
+    requestAnimationFrame(moveRoamingMarkers);
+  }
 
   const filterResults = () => {
     const query = (searchInput?.value || '').trim().toLowerCase();
@@ -191,7 +232,7 @@ function addDiscoveryMap(mapContainer) {
         row.hidden = true;
       }
     });
-    if (countOutput) countOutput.textContent = `${visible} mapped communit${visible === 1 ? 'y' : 'ies'}`;
+    if (countOutput) countOutput.textContent = `${visible} communit${visible === 1 ? 'y' : 'ies'} shown`;
     if (emptyMessage) emptyMessage.hidden = visible > 0;
   };
   searchInput?.addEventListener('input', filterResults);

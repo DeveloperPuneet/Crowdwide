@@ -19,9 +19,12 @@ test('community map route is registered before the dynamic community page route'
   assert.ok(mapIndex < detailIndex);
 });
 
-test('community map only queries public, opted-in communities with valid coordinate bounds', async (t) => {
+test('community map queries public, opted-in communities with valid or missing locations', async (t) => {
   let query;
-  const communities = [{ _id: 'c1', name: 'Map Makers', slug: 'map-makers', isPrivate: false, showOnMap: true, locationLabel: 'London, UK', locationLat: 51.5, locationLng: -0.1 }];
+  const communities = [
+    { _id: 'c1', name: 'Map Makers', slug: 'map-makers', isPrivate: false, showOnMap: true, locationLabel: 'London, UK', locationLat: 51.5, locationLng: -0.1 },
+    { _id: 'c2', name: 'Wandering Makers', slug: 'wandering-makers', isPrivate: false, showOnMap: true }
+  ];
   t.mock.method(Community, 'find', (filter) => {
     query = filter;
     return { sort: () => ({ limit: () => ({ select: () => ({ lean: () => Promise.resolve(communities) }) }) }) };
@@ -33,8 +36,10 @@ test('community map only queries public, opted-in communities with valid coordin
 
   assert.equal(query.isPrivate, false);
   assert.equal(query.showOnMap, true);
-  assert.deepEqual(query.locationLat, { $gte: -90, $lte: 90 });
-  assert.deepEqual(query.locationLng, { $gte: -180, $lte: 180 });
+  assert.deepEqual(query.$or[0].locationLat, { $gte: -90, $lte: 90 });
+  assert.deepEqual(query.$or[0].locationLng, { $gte: -180, $lte: 180 });
+  assert.ok(query.$or[1].$or.some((condition) => condition.locationLat?.$exists === false));
+  assert.ok(query.$or[1].$or.some((condition) => condition.locationLng?.$exists === false));
   assert.equal(res.view, 'pages/community-map');
   assert.deepEqual(res.data.mapCommunities, communities);
   assert.deepEqual(res.data.categories, ['creative', 'learning']);
@@ -158,6 +163,72 @@ test('map tile loading follows OSM policy and falls back to CARTO and optional M
   withKey.failCurrentProvider();
   assert.match(withKey.urls[2], /api\.maptiler\.com/);
   assert.match(withKey.urls[2], /key=test-key/);
+});
+
+test('discovery map colors markers and smoothly moves communities without shared locations', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'community-map.js'), 'utf8');
+  const rows = [
+    { dataset: { lat: '51.5', lng: '-0.1', members: '100', name: 'London Makers', location: 'London', category: 'creative', topics: '', slug: 'london-makers' }, querySelector: () => null },
+    { dataset: { lat: '', lng: '', members: '10', name: 'Wandering Makers', location: 'Roaming somewhere', category: 'creative', topics: '', slug: 'wandering-makers' }, querySelector: () => null }
+  ];
+  const markerOptions = [];
+  const markers = [];
+  const map = {
+    setView() { return this; },
+    fitBounds() { return this; },
+    getZoom() { return 2; },
+    on() {},
+    flyTo() {}
+  };
+  const mapContainer = { dataset: { mapApiKey: '' }, parentElement: { querySelector: () => ({ hidden: true }) } };
+  const count = { textContent: '' };
+  const frameCallbacks = [];
+  const randomValues = [0.01, 0.2, 0.4, 0.26, 0.5, 0.6, 0.3, 0.9, 0.9, 0.6, 0.7, 0.3];
+  const math = Object.create(Math);
+  math.random = () => randomValues.shift() ?? 0.5;
+  let filterSearch;
+  const search = { value: '', addEventListener: (event, callback) => { if (event === 'input') filterSearch = callback; } };
+  let now = 0;
+  const L = {
+    map: () => map,
+    tileLayer: () => ({ on() { return this; }, addTo() { return this; } }),
+    circleMarker(position, options) {
+      markerOptions.push(options);
+      const marker = {
+        position: { lat: position[0], lng: position[1] },
+        addTo() { return this; },
+        bindPopup() { return this; },
+        getLatLng() { return this.position; },
+        setLatLng(next) { this.position = { lat: next[0], lng: next[1] }; return this; },
+        removeFrom() { return this; },
+        openPopup() {}
+      };
+      markers.push(marker);
+      return marker;
+    },
+    featureGroup: () => ({ getBounds: () => ({ pad: () => ({}) }) })
+  };
+  const document = {
+    querySelector: (selector) => selector === '[data-map-search]' ? search : selector === '[data-map-category]' ? null : selector === '[data-map-count]' ? count : null,
+    querySelectorAll: (selector) => selector === '[data-community-discovery-map]' ? [mapContainer] : selector === '[data-map-community]' ? rows : [],
+    createElement: () => ({ append() {}, className: '', textContent: '', href: '' })
+  };
+
+  vm.runInNewContext(source, {
+    document, L, Math: math, encodeURIComponent,
+    requestAnimationFrame: (callback) => frameCallbacks.push(callback),
+    performance: { now: () => now }
+  });
+
+  assert.notEqual(markerOptions[0].fillColor, markerOptions[1].fillColor, 'each community receives its own random marker color');
+  assert.equal(markerOptions[1].radius, 4, 'communities without a location get a small marker');
+  assert.equal(frameCallbacks.length, 1, 'roaming markers start an animation loop');
+  const startingPosition = { ...markers[1].position };
+  now = 10000;
+  frameCallbacks.shift()(now);
+  assert.notDeepEqual(markers[1].position, startingPosition, 'the no-location marker moves over time');
+  filterSearch();
+  assert.equal(count.textContent, '2 communities shown');
 });
 
 test('current-location control rounds the pin and fills a broad reverse-geocoded label', async () => {
