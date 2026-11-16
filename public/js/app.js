@@ -17,7 +17,10 @@ const loadApiTinyAds = () => {
   const script = document.createElement('script');
   script.src = 'https://cdn.apitiny.net/scripts/v2.0/main.js';
   script.dataset.siteId = '6afab90572e32d7989c230ed';
-  script.dataset.testMode = String(['localhost', '127.0.0.1', '::1', '[::1]'].includes(window.location.hostname));
+  const hostname = window.location.hostname;
+  const isLocalHost = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname);
+  const isDevelopmentPreview = hostname.endsWith('.github.dev') || hostname.endsWith('.gitpod.io');
+  script.dataset.testMode = String(isLocalHost || isDevelopmentPreview);
   script.dataset.apitinyAds = 'true';
   script.async = true;
   script.addEventListener('error', () => console.error('Apitiny ads could not load the ad script.'));
