@@ -7,6 +7,7 @@ const { questionOfTheDay, startOfDay, QUESTION_TAG } = require('../utils/questio
 const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const { getWeeklyTop } = require('../services/weeklyTop');
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
+const { attachPollVoters } = require('../services/pollVoters');
 const logger = require('../services/logger');
 
 const OBJECT_ID = /^[a-f0-9]{24}$/;
@@ -46,7 +47,7 @@ exports.questionPage = async (req, res) => {
       Post.countDocuments(filter)
     ]);
     const viewerId = req.session?.user?.id;
-    const answersWithReplyCounts = await attachReplyPostCounts(answers);
+    const answersWithReplyCounts = await attachPollVoters(await attachReplyPostCounts(answers), viewerId);
     if (viewerId) answersWithReplyCounts.forEach((post) => { post.liked = (post.likes || []).some((like) => String(like) === String(viewerId)); });
     const appUrl = String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
     res.render('pages/question', {
@@ -72,9 +73,9 @@ exports.weeklyTopPage = async (req, res) => {
     const viewerId = req.session?.user?.id;
     const mark = (post) => ({ ...post, liked: viewerId ? (post.likes || []).some((like) => String(like) === String(viewerId)) : false });
     const [topPosts, articles, discussed] = await Promise.all([
-      attachReplyPostCounts(data.top),
-      attachReplyPostCounts(data.articles),
-      attachReplyPostCounts(data.discussed)
+      attachPollVoters(await attachReplyPostCounts(data.top), viewerId),
+      attachPollVoters(await attachReplyPostCounts(data.articles), viewerId),
+      attachPollVoters(await attachReplyPostCounts(data.discussed), viewerId)
     ]);
     const appUrl = String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
     const lead = data.top[0];

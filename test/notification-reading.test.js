@@ -102,6 +102,18 @@ test('page script uses the optimistic runner and never reloads', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'notifications.js'), 'utf8');
   assert.match(js, /cwOptimistic\.run\(list/);
   assert.match(js, /preventDefault\(\)/);
+  assert.match(js, /addEventListener\('pagehide'/);
+  assert.match(js, /keepalive:\s*true/);
   assert.doesNotMatch(js, /location\.(reload|href)|\.submit\(\)/);
   assert.doesNotMatch(js, /data-notification-more-button|Show earlier/i);
+});
+
+test('notification script loads after its HTTP and optimistic dependencies', async () => {
+  const views = path.join(__dirname, '..', 'src', 'views');
+  const html = await ejs.renderFile(path.join(views, 'pages', 'notifications.ejs'), {
+    icon, csrfToken: 't', flash: null, currentUser: { id: 'me', name: 'Me', role: 'user' }, title: 'n', pagePath: '/notifications', noIndex: true,
+    notifications: [], unread: 0, unreadOnly: false, hasMore: false, nextBefore: null
+  });
+  assert.ok(html.indexOf('/js/http.js') < html.indexOf('/js/notifications.js'));
+  assert.ok(html.indexOf('/js/optimistic.js') < html.indexOf('/js/notifications.js'));
 });

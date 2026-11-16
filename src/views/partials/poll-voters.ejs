@@ -1,0 +1,20 @@
+<% if (poll?.voterOptions?.length) { %>
+<details class="post-poll-voters">
+	<summary>See voter choices <span><%= poll.voterOptions.reduce((total, option) => total + option.voters.length, 0) %></span></summary>
+	<div class="post-poll-voter-options">
+		<% poll.voterOptions.forEach((option) => { %>
+		<div class="post-poll-voter-option">
+			<strong><%= option.label %></strong>
+			<div class="post-poll-voter-list">
+				<% option.voters.forEach((voter) => { %>
+				<div class="post-poll-voter">
+					<%- include('avatar', { person: voter, size: 'tiny', link: false }) %>
+					<a href="/u/<%= voter._id %>"><%= voter.name %></a>
+				</div>
+				<% }) %>
+			</div>
+		</div>
+		<% }) %>
+	</div>
+</details>
+<% } %>

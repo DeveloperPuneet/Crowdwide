@@ -14,6 +14,7 @@ const { getInterestProfile, topInterestTags, refreshPersonalization } = require(
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
+const { attachPollVoters } = require('../services/pollVoters');
 const { reconcileCommunityMembers } = require('../services/communityMembership');
 const { isAdFree } = require('../services/adFree');
 const { getCommunityCampaigns } = require('../services/advertising');
@@ -315,10 +316,10 @@ exports.detail = async (req, res) => {
     Quest.find({ community: community._id }).sort({ createdAt: -1 }).populate('creator', 'name profilePicture').populate('participants', 'name profilePicture').populate('completedBy', 'name profilePicture').populate('winner', 'name profilePicture').lean()
   ]);
   const pinnedById = new Map(pinnedPosts.map((post) => [String(post._id), post]));
-  const posts = await attachReplyPostCounts([
+  const posts = await attachPollVoters(await attachReplyPostCounts([
     ...pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean),
     ...recentPosts.filter((post) => !pinnedById.has(String(post._id)))
-  ]);
+  ]), req.session.user.id);
   const viewerDoc = await User.findById(req.session.user.id).select('adFreeUntil').lean();
   const viewerAdFree = isAdFree(viewerDoc);
   // Full post cards need the viewer's like state, as in the main feed.

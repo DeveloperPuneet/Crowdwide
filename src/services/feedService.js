@@ -6,6 +6,7 @@ const Community = require('../models/Community');
 const { getHiddenAuthorIds } = require('../utils/profilePrivacy');
 const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const { attachReplyPostCounts } = require('./replyPostCounts');
+const { attachPollVoters } = require('./pollVoters');
 const ranker = require('../utils/feedRanker');
 const logger = require('./logger');
 
@@ -350,7 +351,7 @@ async function loadPagePosts(entries, user) {
   const sources = new Map(entries.map((entry) => [entry.id, entry.source]));
   const bookmarked = new Set((user.bookmarks || []).map(String));
   const me = String(user._id);
-  const withReplyCounts = await attachReplyPostCounts(populated);
+  const withReplyCounts = await attachPollVoters(await attachReplyPostCounts(populated), user._id);
   return withReplyCounts
     .filter((post) => post.author)
     .map((post) => ({

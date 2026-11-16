@@ -57,6 +57,7 @@
   }
 
   const post = async (url, body) => (await window.axios.post(url, body, { headers: headers() })).data;
+  let preserveUnreadOnExit = false;
 
   function toggleItem(item) {
     const index = items().indexOf(item);
@@ -89,6 +90,7 @@
 
   // Clicking the dot flips one row; Mark all read flips everything. Neither navigates or reloads.
   page.addEventListener('click', (event) => {
+    if (event.target.closest('[data-notification-filter]')) preserveUnreadOnExit = true;
     const toggle = event.target.closest('[data-notification-toggle]');
     if (toggle) { event.preventDefault(); toggleItem(toggle.closest('[data-notification]')); return; }
     const link = event.target.closest('.notification-link');
@@ -110,4 +112,19 @@
 
   // Keep the heading in step with the bell when the 60s poll in app.js learns of new activity elsewhere.
   window.addEventListener('pageshow', () => syncBell(Number(page.dataset.unreadNow ?? page.dataset.unreadTotal) || 0));
+
+  // Leaving the notifications page marks anything still unread as read. Keepalive lets this finish on
+  // navigation or tab close, without changing the unread styling while the page is open.
+  window.addEventListener('pagehide', () => {
+    if (preserveUnreadOnExit) return;
+    const state = read();
+    write(list, { ...state, flags: state.flags.map(() => false), hidden: 0 });
+    window.fetch('/notifications/read', {
+      method: 'POST',
+      keepalive: true,
+      credentials: 'same-origin',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    }).catch(() => {});
+  });
 })();

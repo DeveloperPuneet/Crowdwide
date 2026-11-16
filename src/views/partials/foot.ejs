@@ -6,6 +6,7 @@
 <script src="<%= assetUrl('/js/pwa.js') %>" defer></script>
 <script src="<%= assetUrl('/js/http.js') %>" defer></script>
 <script src="<%= assetUrl('/js/optimistic.js') %>" defer></script>
+<% if (locals.pagePath === '/notifications') { %><script src="<%= assetUrl('/js/notifications.js') %>" defer></script><% } %>
 <script src="<%= assetUrl('/js/app.js') %>" defer></script>
 <script src="<%= assetUrl('/js/post-submit.js') %>" defer></script>
 <script src="<%= assetUrl('/js/ui-polish.js') %>" defer></script>

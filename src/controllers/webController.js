@@ -39,6 +39,7 @@ const { setupSummary } = require('../services/setup');
 const surveyService = require('../services/surveys');
 const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_SECTION } = require('../utils/partnershipPages');
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
+const { attachPollVoters } = require('../services/pollVoters');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -152,8 +153,8 @@ exports.publicPosts = async (req, res) => {
 			Post.countDocuments(filter)
 		]);
 		const hasMore = results.length > pageSize;
-		const posts = await attachReplyPostCounts(results.slice(0, pageSize));
 		const viewerId = req.session?.user?.id;
+		const posts = await attachPollVoters(await attachReplyPostCounts(results.slice(0, pageSize)), viewerId);
 		if (viewerId) {
 			posts.forEach((post) => {
 				post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
@@ -733,12 +734,13 @@ exports.profile = async (req, res) => {
 	const populatedPosts = (await Post.populate(posts, { path: 'author', select: 'name profilePicture' }));
 	const populatedLikes = (await Post.populate(likedPosts, { path: 'author', select: 'name profilePicture' }));
 	const bookmarked = (viewer?.bookmarks || []).map(String);
-	const posts_ = await attachReplyPostCounts(populatedPosts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) })));
+	const posts_ = await attachPollVoters(await attachReplyPostCounts(populatedPosts.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) }))), viewerId);
+	const visibleLikes = await attachPollVoters(populatedLikes, viewerId);
 	let savedPosts = [];
 	if (isSelf && bookmarked.length) {
 		savedPosts = await Post.find({ _id: { $in: bookmarked }, status: 'published' }).sort({ createdAt: -1 }).populate('community', 'name slug').lean();
 		savedPosts = await Post.populate(savedPosts, { path: 'author', select: 'name profilePicture' });
-		savedPosts = await attachReplyPostCounts(savedPosts);
+		savedPosts = await attachPollVoters(await attachReplyPostCounts(savedPosts), viewerId);
 	}
 
 	let activity = [];
@@ -805,7 +807,7 @@ exports.profile = async (req, res) => {
 		})(),
 		posts: posts_,
 		profileTab: tab,
-		profileLikes: populatedLikes,
+		profileLikes: visibleLikes,
 		profileComments: visibleComments,
 		savedPosts,
 		statsDetail,
@@ -850,7 +852,7 @@ exports.profileMorePosts = async (req, res) => {
 			User.findById(viewerId).select('bookmarks').lean()
 		]);
 		const bookmarked = (viewer?.bookmarks || []).map(String);
-		const posts = await attachReplyPostCounts(rows.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) })));
+		const posts = await attachPollVoters(await attachReplyPostCounts(rows.map((post) => ({ ...post, liked: (post.likes || []).some((id) => String(id) === String(viewerId)), bookmarked: bookmarked.includes(String(post._id)) }))), viewerId);
 		res.render('partials/post-cards-fragment', { posts, csrfToken: res.locals.csrfToken, hideSource: true }, (error, html) => {
 			if (error) return res.status(500).json({ error: 'Could not load more posts.' });
 			return res.json({ html, page, total, done: page * PROFILE_PAGE_SIZE >= total || !posts.length });
@@ -938,10 +940,11 @@ exports.search = async (req, res) => {
 		posts.sort((a, b) => (rank.get(String(a._id)) ?? Infinity) - (rank.get(String(b._id)) ?? Infinity));
 		posts.splice(20);
 	}
+	const visiblePosts = await attachPollVoters(posts, req.session.user.id);
 	// Feeds "Popular searches" for everyone. Never awaited: it must not slow
 	// the results page down or break it.
 	recordSearch({ userId: req.session.user.id, query: q, hits: users.length + communities.length + posts.length });
-	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts, hashtag: tag, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled });
+	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts: visiblePosts, hashtag: tag, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled });
 };
 
 exports.clearSearchHistory = async (req, res) => {

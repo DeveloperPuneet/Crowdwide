@@ -880,6 +880,19 @@ html { scrollbar-gutter: stable; }
 .post-poll button:hover { border-color: #7182ff; background: #253267; }
 .post-poll button span, .post-poll > p span { color: #9eaaff; font-size: 11px; }
 .post-poll > p { display: flex; justify-content: space-between; margin: 0; padding: 9px 11px; border: 1px solid var(--bd-2); border-radius: 8px; color: #dfe3ff; font-size: 12px; }
+.post-poll-voters { min-width: 0; border-top: 1px solid var(--bd-1); padding-top: 8px; }
+.post-poll-voters summary { display: flex; width: fit-content; max-width: 100%; align-items: center; gap: 7px; color: var(--ac-blue); cursor: pointer; font-size: 12px; font-weight: 650; list-style: none; }
+.post-poll-voters summary::-webkit-details-marker { display: none; }
+.post-poll-voters summary::before { content: '+'; display: grid; width: 18px; height: 18px; place-items: center; border: 1px solid var(--bd-1); border-radius: 50%; color: var(--tx-lo); font-size: 14px; line-height: 1; }
+.post-poll-voters[open] summary::before { content: '-'; }
+.post-poll-voters summary span { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--sf-2); color: var(--tx-hi); text-align: center; font-size: 10px; }
+.post-poll-voter-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 8px; margin-top: 10px; }
+.post-poll-voter-option { min-width: 0; padding: 9px; border: 1px solid var(--bd-1); border-radius: 10px; background: var(--sf-2); }
+.post-poll-voter-option > strong { display: block; overflow-wrap: anywhere; color: var(--tx-hi); font-size: 11px; }
+.post-poll-voter-list { display: grid; gap: 6px; margin-top: 8px; }
+.post-poll-voter { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.post-poll-voter a:not(.avatar-link) { overflow: hidden; color: var(--tx-mid); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.post-poll-voter a:not(.avatar-link):hover { color: var(--ac-blue); text-decoration: underline; }
 .quoted-post { display: block; margin: 12px 0 14px; padding: 12px; border: 1px solid var(--bd-2); border-radius: 10px; background: var(--sf-1); }
 .quoted-post strong { color: var(--ac-blue); font-size: 11px; }
 .quoted-post p { color: var(--tx-lo); font-size: 12px; line-height: 1.5; margin: 5px 0 0; white-space: pre-wrap; }

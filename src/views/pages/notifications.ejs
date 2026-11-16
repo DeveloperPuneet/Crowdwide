@@ -6,8 +6,8 @@
 		<form method="post" action="/notifications/read" data-mark-all-form><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost" type="submit" data-mark-all <%- unread ? '' : 'disabled' %>>Mark all read</button></form>
 	</div>
 	<nav class="notification-filters" aria-label="Filter notifications">
-		<a class="<%= unreadOnly ? '' : 'is-on' %>" href="/notifications" <%- unreadOnly ? '' : 'aria-current="page"' %>>All</a>
-		<a class="<%= unreadOnly ? 'is-on' : '' %>" href="/notifications?filter=unread" <%- unreadOnly ? 'aria-current="page"' : '' %>>Unread</a>
+		<a class="<%= unreadOnly ? '' : 'is-on' %>" href="/notifications" data-notification-filter <%- unreadOnly ? '' : 'aria-current="page"' %>>All</a>
+		<a class="<%= unreadOnly ? 'is-on' : '' %>" href="/notifications?filter=unread" data-notification-filter <%- unreadOnly ? 'aria-current="page"' : '' %>>Unread</a>
 	</nav>
 	<p class="notification-status" role="status" aria-live="polite" data-notification-status hidden></p>
 	<section class="notification-list" data-notification-list>
@@ -18,5 +18,4 @@
 	</section>
 </main>
 <%- include('../partials/app-footer') %>
-<script defer src="/js/notifications.js"></script>
 <%- include('../partials/foot') %>

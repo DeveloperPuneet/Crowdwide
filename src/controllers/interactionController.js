@@ -28,6 +28,7 @@ const { rewardWavesForAction } = require('../services/waves');
 const { recordContribution } = require('../services/streaks');
 const { handleReplyReceived } = require('../services/lifecycle');
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
+const { attachPollVoters } = require('../services/pollVoters');
 
 const MAX_REPLY_POST_WORDS = 50;
 
@@ -451,7 +452,7 @@ exports.replyPostsPage = async (req, res) => {
     Post.countDocuments({ replyTo: source._id, status: 'published' })
   ]);
   const hasMore = rows.length > perPage;
-  const posts = await attachReplyPostCounts(rows.slice(0, perPage));
+  const posts = await attachPollVoters(await attachReplyPostCounts(rows.slice(0, perPage)), viewerId);
   if (viewerId) {
     posts.forEach((post) => { post.liked = (post.likes || []).some((id) => String(id) === String(viewerId)); });
   }
@@ -502,7 +503,7 @@ exports.postDetail = async (req, res) => {
   const existing = await Post.findOne({ _id: req.params.id, $or: [{ status: 'published' }, { author: viewerId || null }] }).select('author status community').lean();
   if (!(await canAccessPost(existing, viewerId))) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const countView = shouldCountView('post', String(req.params.id), req) && String(existing.author) !== String(viewerId || '');
-  const post = await Post.findByIdAndUpdate(req.params.id, countView ? { $inc: { viewsCount: 1 } } : {}, { new: true })
+  let post = await Post.findByIdAndUpdate(req.params.id, countView ? { $inc: { viewsCount: 1 } } : {}, { new: true })
     .populate('author', 'name profilePicture')
     .populate('coAuthors', 'name profilePicture')
     .populate('community', 'name slug')
@@ -510,6 +511,7 @@ exports.postDetail = async (req, res) => {
     .populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } })
     .lean();
   if (!post) return res.status(404).render('pages/not-found', { title: 'Post not found' });
+  [post] = await attachPollVoters([post], viewerId);
   post.replyPostsCount = await Post.countDocuments({ replyTo: post._id, status: 'published' });
   let blockedIds = [];
   let postModerationRole = null;
