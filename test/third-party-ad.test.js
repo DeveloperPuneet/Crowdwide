@@ -21,5 +21,6 @@ test('third-party ads are absent from the landing page and attach to feed or com
   assert.match(webControllerSource, /crypto\.randomInt\(18, 25\)/);
   assert.match(appJs, /adAfter < 18/);
   assert.match(appJs, /script\.src = 'https:\/\/cdn\.apitiny\.net\/scripts\/v2\.0\/main\.js'/);
+  assert.match(appJs, /script\.dataset\.testMode = String\(\['localhost', '127\.0\.0\.1', '::1', '\[::1\]'\]/);
   assert.match(appSource, /'https:\/\/cdn\.apitiny\.net'/);
 });
