@@ -178,13 +178,15 @@ function addDiscoveryMap(mapContainer) {
     marker.bindPopup(popup);
     marker.addTo(map);
     row.querySelector('[data-map-focus]')?.addEventListener('click', () => {
-      map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 7), { duration: 0.45 });
+      if (row.dataset.mapGroup === 'unmapped') map.setView([20, 0], 2);
+      else map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 7), { duration: 0.45 });
       marker.openPopup();
     });
     if (!hasLocation) roamingMarkers.push(marker);
     return { row, marker, searchText: `${row.dataset.name} ${row.dataset.location} ${row.dataset.category} ${row.dataset.topics}`.toLowerCase() };
   });
-  if (markers.length > 1) map.fitBounds(L.featureGroup(markers.map(({ marker }) => marker)).getBounds().pad(0.12), { maxZoom: 8 });
+  if (roamingMarkers.length) map.setView([20, 0], 2);
+  else if (markers.length > 1) map.fitBounds(L.featureGroup(markers.map(({ marker }) => marker)).getBounds().pad(0.12), { maxZoom: 8 });
   else if (markers.length === 1) map.setView(markers[0].marker.getLatLng(), 7);
 
   if (roamingMarkers.length) {
@@ -221,19 +223,30 @@ function addDiscoveryMap(mapContainer) {
     const query = (searchInput?.value || '').trim().toLowerCase();
     const category = categorySelect?.value || '';
     let visible = 0;
+    const visibleByGroup = { mapped: 0, unmapped: 0 };
     markers.forEach(({ row, marker, searchText }) => {
       const matches = (!query || searchText.includes(query)) && (!category || row.dataset.category === category);
       if (matches) {
         marker.addTo(map);
         row.hidden = false;
         visible += 1;
+        visibleByGroup[row.dataset.mapGroup] = (visibleByGroup[row.dataset.mapGroup] || 0) + 1;
       } else {
         marker.removeFrom(map);
         row.hidden = true;
       }
     });
+    document.querySelectorAll('[data-map-section]').forEach((section) => {
+      const sectionCount = visibleByGroup[section.dataset.mapSection] || 0;
+      const count = section.querySelector('[data-map-section-count]');
+      if (count) count.textContent = String(sectionCount);
+      section.hidden = sectionCount === 0;
+    });
     if (countOutput) countOutput.textContent = `${visible} communit${visible === 1 ? 'y' : 'ies'} shown`;
-    if (emptyMessage) emptyMessage.hidden = visible > 0;
+    if (emptyMessage) {
+      emptyMessage.hidden = visible > 0;
+      if (!visible && rows.length) emptyMessage.textContent = 'No communities match your search and category. Clear filters to see all communities.';
+    }
   };
   searchInput?.addEventListener('input', filterResults);
   categorySelect?.addEventListener('change', filterResults);

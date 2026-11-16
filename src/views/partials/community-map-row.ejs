@@ -1,0 +1,10 @@
+<article class="community-map-row" data-map-community data-map-group="<%= mapped ? 'mapped' : 'unmapped' %>" data-name="<%= community.name %>" data-location="<%= mapped ? community.locationLabel : 'Roaming somewhere in the world' %>" data-category="<%= community.category || 'general' %>" data-topics="<%= (community.hashtags || []).join(' ') %>" data-lat="<%= mapped ? community.locationLat : '' %>" data-lng="<%= mapped ? community.locationLng : '' %>" data-members="<%= community.membersCount || 0 %>" data-slug="<%= community.slug %>">
+	<div class="community-map-row-top">
+		<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" loading="lazy"><% } else { %><span class="community-map-avatar"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
+		<div><a href="/communities/<%= community.slug %>"><%= community.name %></a><span><%= mapped ? community.locationLabel : 'Roaming · no location shared' %></span></div>
+	</div>
+	<p><%= community.description %></p>
+	<div class="community-map-row-meta"><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span><%= community.category || 'general' %></span></div>
+	<% if ((community.hashtags || []).length) { %><div class="hashtag-row"><% community.hashtags.slice(0, 4).forEach((tag) => { %><span class="hashtag-chip">#<%= tag %></span><% }) %></div><% } %>
+	<button class="community-map-focus" type="button" data-map-focus><%= mapped ? 'Show on map' : 'Find roaming dot' %> <%- icon('map-pin', { size: 13 }) %></button>
+</article>

@@ -21,19 +21,15 @@
 		<div class="community-map-results" aria-label="Communities on the map">
 			<div class="community-map-results-heading"><h2>Communities on the map</h2><span><%= mapCommunities.length %></span></div>
 			<div class="community-map-list" data-map-list>
-				<% mapCommunities.forEach((community) => { %>
-				<% const hasLocation = Number.isFinite(community.locationLat) && Number.isFinite(community.locationLng) && Boolean(community.locationLabel); %>
-				<article class="community-map-row" data-map-community data-name="<%= community.name %>" data-location="<%= hasLocation ? community.locationLabel : 'Roaming somewhere in the world' %>" data-category="<%= community.category || 'general' %>" data-topics="<%= (community.hashtags || []).join(' ') %>" data-lat="<%= hasLocation ? community.locationLat : '' %>" data-lng="<%= hasLocation ? community.locationLng : '' %>" data-members="<%= community.membersCount || 0 %>" data-slug="<%= community.slug %>">
-					<div class="community-map-row-top">
-						<% if (community.avatarImage) { %><img src="<%= community.avatarImage %>" alt="" loading="lazy"><% } else { %><span class="community-map-avatar"><%= (community.name || '?').trim().charAt(0).toUpperCase() || '?' %></span><% } %>
-						<div><a href="/communities/<%= community.slug %>"><%= community.name %></a><span><%= hasLocation ? community.locationLabel : 'Roaming · no location shared' %></span></div>
-					</div>
-					<p><%= community.description %></p>
-					<div class="community-map-row-meta"><span><%= (community.membersCount || 0).toLocaleString() %> members</span><span><%= community.category || 'general' %></span></div>
-					<% if ((community.hashtags || []).length) { %><div class="hashtag-row"><% community.hashtags.slice(0, 4).forEach((tag) => { %><span class="hashtag-chip">#<%= tag %></span><% }) %></div><% } %>
-					<button class="community-map-focus" type="button" data-map-focus><%= hasLocation ? 'Show on map' : 'Find roaming dot' %> <%- icon('map-pin', { size: 13 }) %></button>
-				</article>
-				<% }) %>
+				<section class="community-map-section" data-map-section="mapped" <%= mappedCommunities.length ? '' : 'hidden' %>>
+					<div class="community-map-section-heading"><h3>Mapped communities</h3><span data-map-section-count><%= mappedCommunities.length %></span></div>
+					<div class="community-map-section-rows"><% mappedCommunities.forEach((community) => { %><%- include('../partials/community-map-row', { community, mapped: true }) %><% }) %></div>
+				</section>
+				<section class="community-map-section" data-map-section="unmapped" <%= unmappedCommunities.length ? '' : 'hidden' %>>
+					<div class="community-map-section-heading"><h3>Unmapped communities</h3><span data-map-section-count><%= unmappedCommunities.length %></span></div>
+					<p class="community-map-unmapped-note">These public communities haven’t shared a location. Their small dots roam randomly and don’t represent real places.</p>
+					<div class="community-map-section-rows"><% unmappedCommunities.forEach((community) => { %><%- include('../partials/community-map-row', { community, mapped: false }) %><% }) %></div>
+				</section>
 				<p class="community-map-empty" data-map-empty <%= mapCommunities.length ? 'hidden' : '' %>>No public communities have opted into appearing on the map yet.</p>
 			</div>
 		</div>

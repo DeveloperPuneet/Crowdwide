@@ -1150,6 +1150,12 @@ html { scrollbar-gutter: stable; }
 .community-map-results-heading h2 { font-size: 15px; }
 .community-map-results-heading span { color: var(--tx-lo); font-size: 11px; }
 .community-map-list { max-height: min(72vh, 720px); overflow-y: auto; padding-right: 5px; }
+.community-map-section { margin: 0 0 18px; }
+.community-map-section[hidden] { display: none; }
+.community-map-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 12px 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.community-map-section-heading h3 { color: var(--tx-hi); font-size: 13px; }
+.community-map-section-heading > span { min-width: 24px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--tx-lo); font-size: 10px; text-align: center; }
+.community-map-unmapped-note { margin: 0 0 10px; color: var(--tx-lo); font-size: 11px; line-height: 1.5; }
 .community-map-row { margin-bottom: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .community-map-row[hidden] { display: none; }
 .community-map-row-top { display: flex; align-items: center; gap: 9px; min-width: 0; }

@@ -168,9 +168,9 @@ const getRisingCommunities = async (limit = 12) => {
 exports.communityMap = async (req, res) => {
   const filter = {
     isPrivate: false,
-    showOnMap: true,
     $or: [
       {
+        showOnMap: true,
         locationLabel: { $type: 'string', $ne: '' },
         locationLat: { $gte: -90, $lte: 90 },
         locationLng: { $gte: -180, $lte: 180 }
@@ -180,15 +180,26 @@ exports.communityMap = async (req, res) => {
           { locationLat: { $exists: false } },
           { locationLat: null },
           { locationLng: { $exists: false } },
-          { locationLng: null }
+          { locationLng: null },
+          { locationLabel: { $exists: false } },
+          { locationLabel: null },
+          { locationLabel: '' }
         ]
       }
     ]
   };
   const [mapCommunities, categories] = await Promise.all([
-    Community.find(filter).sort({ membersCount: -1, name: 1 }).limit(500).select('name slug description category hashtags membersCount avatarImage locationLabel locationLat locationLng').lean(),
+    Community.find(filter).sort({ membersCount: -1, name: 1 }).limit(500).select('name slug description category hashtags membersCount avatarImage showOnMap locationLabel locationLat locationLng').lean(),
     Community.distinct('category', filter)
   ]);
+  const hasSharedLocation = (community) => Boolean(
+    community.showOnMap
+    && community.locationLabel
+    && Number.isFinite(community.locationLat)
+    && Number.isFinite(community.locationLng)
+  );
+  const mappedCommunities = mapCommunities.filter(hasSharedLocation);
+  const unmappedCommunities = mapCommunities.filter((community) => !hasSharedLocation(community));
   res.render('pages/community-map', {
     title: 'Community Galaxy',
     description: 'Explore public Crowdwide communities by location, interests, and category.',
@@ -197,6 +208,8 @@ exports.communityMap = async (req, res) => {
     includeLeaflet: true,
     mapApiKey: process.env.MAPTILER_API_KEY || '',
     mapCommunities,
+    mappedCommunities,
+    unmappedCommunities,
     categories: categories.filter(Boolean).sort()
   });
 };
