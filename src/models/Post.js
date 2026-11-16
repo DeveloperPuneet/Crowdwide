@@ -49,6 +49,7 @@ const postSchema = new mongoose.Schema({
       votes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
     }]
   },
+  pinnedComment: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null },
   quotedPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
   replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
   linkPreview: {
@@ -71,11 +72,6 @@ const postSchema = new mongoose.Schema({
   sharesCount: { type: Number, default: 0 },
   moderationScore: { type: Number, default: 0, index: true },
   moderationStatus: { type: String, enum: ['unreviewed', 'good', 'needs-review', 'reported'], default: 'unreviewed', index: true },
-  boostStatus: { type: String, enum: ['disabled', 'pending', 'active', 'expired'], default: 'disabled', index: true },
-  boostStartedAt: Date,
-  boostUntil: Date,
-  boostWavesCost: { type: Number, min: 0 },
-  boostPurchaseKey: { type: String, trim: true, maxlength: 100 },
   // Which moderators have already looked at this post in the moderation
   // feed - lets a moderator's queue skip what they've personally already
   // reviewed, and lets everyone's queue skip a post once enough distinct

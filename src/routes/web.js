@@ -5,7 +5,7 @@ const settingsController = require('../controllers/settingsController');
 const communityController = require('../controllers/communityController');
 const { visitorPreview } = require('../controllers/sharePreviewController');
 const onboardingController = require('../controllers/onboardingController');
-const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, advertisementBannerUpload, advertiserApplicationUpload, partnerLogoUpload, validatePartnerLogo, brandAmbassadorPhotoUpload, validateBrandAmbassadorPhoto, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateAdvertiserApplicationUpload, validateAdvertisementBanner, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
+const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, partnerLogoUpload, validatePartnerLogo, brandAmbassadorPhotoUpload, validateBrandAmbassadorPhoto, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
 const { partnershipLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter, csrfSynchronisedProtection } = require('../middleware/security');
@@ -18,7 +18,6 @@ const adminController = require('../controllers/adminController');
 const surveyController = require('../controllers/surveyController');
 const translateController = require('../controllers/translateController');
 const wavesController = require('../controllers/wavesController');
-const advertisingController = require('../controllers/advertisingController');
 const partnershipController = require('../controllers/partnershipController');
 const { requireAdmin, requireModerator, requirePanelPassword } = require('../middleware/roles');
 
@@ -50,14 +49,6 @@ router.get('/partnerships', partnershipController.overview);
 router.get('/partnerships/apply', partnershipController.applyPage);
 router.post('/partnerships/apply', partnershipLimiter, csrfSynchronisedProtection, partnershipController.submitApplication);
 router.get('/partnerships/received', partnershipController.received);
-router.get('/advertising', requireAuth, requireVerified, advertisingController.dashboard);
-router.post('/advertising/submit', requireAuth, requireVerified, interactionLimiter, advertiserApplicationUpload, csrfSynchronisedProtection, handleUploadError, validateAdvertiserApplicationUpload, scanUploadsForViruses, advertisingController.submitAd);
-router.post('/advertising/profile', requireAuth, requireVerified, interactionLimiter, advertiserApplicationUpload, csrfSynchronisedProtection, handleUploadError, validateAdvertiserApplicationUpload, scanUploadsForViruses, advertisingController.updateProfile);
-router.post('/advertising/appeal', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.submitAdvertiserAppeal);
-router.post('/advertising/campaigns/:id/action', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.campaignAction);
-router.post('/ads/:id/impression', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.trackCampaignImpression);
-router.get('/ads/:id/click', requireAuth, requireVerified, interactionLimiter, advertisingController.clickCampaign);
-router.post('/ads/:id/report', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, advertisingController.reportCampaign);
 router.get('/recap', requireAuth, requireVerified, controller.activityRecap);
 router.get('/dashboard/feed/more', requireAuth, requireVerified, controller.moreFeedPosts);
 router.get('/media/signed-upload', requireAuth, requireVerified, controller.signedUpload);
@@ -110,7 +101,6 @@ router.get('/posts/:id/reply', requireAuth, requireVerified, interactionControll
 router.get('/posts/:id/replies-with-posts', interactionController.replyPostsPage);
 router.get('/posts/:id', interactionController.postDetail);
 router.post('/posts/:id/edit', requireAuth, requireVerified, interactionLimiter, interactionController.editPost);
-router.post('/posts/:id/promote', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, interactionController.promotePost);
 router.post('/posts/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deletePost);
 router.post('/posts/:id/moderate', requireAuth, requireVerified, requireModerator, adminController.moderatePost);
 router.get('/posts/:id/comments', interactionController.commentThread);
@@ -124,6 +114,7 @@ router.post('/comments/:id/edit', requireAuth, requireVerified, interactionLimit
 router.post('/comments/:id/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deleteComment);
 router.post('/comments/:id/like', requireAuth, requireVerified, interactionLimiter, interactionController.toggleCommentLike);
 router.post('/comments/:id/author-heart', requireAuth, requireVerified, interactionLimiter, interactionController.toggleAuthorHeart);
+router.post('/comments/:id/pin', requireAuth, requireVerified, interactionLimiter, interactionController.togglePinnedComment);
 router.post('/comments/:id/react', requireAuth, requireVerified, interactionLimiter, interactionController.toggleCommentReaction);
 router.post('/posts/:id/bookmark', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBookmark);
 router.post('/posts/:id/share', requireAuth, requireVerified, interactionLimiter, interactionController.share);
@@ -169,8 +160,6 @@ router.get('/communities/:id/manage', requireAuth, requireVerified, communityCon
 router.post('/communities/:id/invite', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.createInvite);
 router.post('/communities/:id/invite/revoke', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.ownerOnly, communityController.revokeInvite);
 router.post('/communities/:id/promote', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, communityController.ownerOnly, communityController.promoteCommunity);
-router.post('/communities/:id/monetization', requireAuth, requireVerified, communityController.ownerOnly, interactionLimiter, csrfSynchronisedProtection, communityController.submitMonetizationApplication);
-router.post('/communities/:id/monetization/appeal', requireAuth, requireVerified, communityController.ownerOnly, interactionLimiter, csrfSynchronisedProtection, communityController.submitMonetizationAppeal);
 router.post('/communities/:id/manage', requireAuth, requireVerified, communityController.ownerOnly, communityUpload, csrfSynchronisedProtection, handleUploadError, validateCommunityUpload, scanUploadsForViruses, communityController.update);
 router.post('/communities/:id/moderators', requireAuth, requireVerified, communityController.ownerOnly, communityController.addModerator);
 router.get('/communities/:id/review-queue', requireAuth, requireVerified, communityController.moderationOnly, communityController.reviewQueueState);
@@ -196,10 +185,7 @@ router.post('/admin/users/:id/delete', requireAuth, requireVerified, requireAdmi
 router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateUser);
 router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.updateCommunity);
 router.post('/admin/communities/:id/monetization', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewMonetization);
-router.post('/admin/community-ad-shares/:id/retry', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.retryCommunityAdShare);
-router.post('/admin/ad-abuse/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdAbuseSignal);
 router.post('/admin/waves-abuse/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewWavesAbuseSignal);
-router.post('/moderator/communities/:id/monetization', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewCommunityMonetizationAsModerator);
 const partnersAdmin = [requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin')];
 router.post('/admin/partnerships/:id/review', ...partnersAdmin, csrfSynchronisedProtection, partnershipController.reviewApplication);
 router.post('/admin/partners', ...partnersAdmin, partnerLogoUpload, csrfSynchronisedProtection, handleUploadError, validatePartnerLogo, scanUploadsForViruses, partnershipController.savePartner);
@@ -209,10 +195,6 @@ router.post('/admin/partners/:id/delete', ...partnersAdmin, csrfSynchronisedProt
 router.post('/admin/brand-ambassadors', ...partnersAdmin, brandAmbassadorPhotoUpload, csrfSynchronisedProtection, handleUploadError, validateBrandAmbassadorPhoto, scanUploadsForViruses, adminController.saveBrandAmbassador);
 router.post('/admin/brand-ambassadors/:id', ...partnersAdmin, brandAmbassadorPhotoUpload, csrfSynchronisedProtection, handleUploadError, validateBrandAmbassadorPhoto, scanUploadsForViruses, adminController.saveBrandAmbassador);
 router.post('/admin/brand-ambassadors/:id/delete', ...partnersAdmin, csrfSynchronisedProtection, adminController.deleteBrandAmbassador);
-router.post('/admin/advertisers/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewAdvertiser);
-router.post('/moderator/advertisers/:id/review', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewAdvertiserAsModerator);
-router.post('/admin/campaigns/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewCampaign);
-router.post('/admin/campaigns/:id/manage', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.manageCampaign);
 router.post('/admin/communities/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteCommunity);
 router.post('/admin/settings', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateSiteSettings);
 router.post('/admin/maintenance/run', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.runMaintenance);
@@ -227,7 +209,6 @@ router.post('/admin/surveys/:id/delete', requireAuth, requireVerified, requireAd
 router.post('/admin/surveys/:id', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), surveyController.update);
 router.get('/moderator', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.moderator);
 router.post('/moderator/actions', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.submitAction);
-router.post('/moderator/campaigns/:id/review', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), csrfSynchronisedProtection, adminController.reviewCampaignAsModerator);
 router.post('/moderator/appeals/:id', requireAuth, requireVerified, requireModerator, requirePanelPassword('moderator'), adminController.resolveAppeal);
 router.get('/settings/:section?', requireAuth, requireVerified, settingsController.page);
 router.post('/settings/profile', requireAuth, requireVerified, profileUpload, csrfSynchronisedProtection, handleUploadError, validateProfileUpload, scanUploadsForViruses, settingsController.updateProfile);
@@ -252,7 +233,7 @@ router.get('/settings/account/download', requireAuth, requireVerified, settingsC
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
 router.get('/docs', controller.docs);
-['/about', '/about/developer', '/privacy', '/terms', '/advertising/terms', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
+['/about', '/about/developer', '/privacy', '/terms', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);
 router.get('/sitemap.xml', controller.sitemap);
 

@@ -12,7 +12,9 @@ const removeBrokenAvatar = (image) => {
   avatar.classList.remove('has-image');
   avatar.classList.remove('image-loaded');
 };
+const adsAreDisabled = () => document.body?.dataset.adFree === 'true';
 const loadApiTinyAds = () => {
+  if (adsAreDisabled()) return;
   if (document.querySelector('script[data-apitiny-ads]')) return;
   const script = document.createElement('script');
   script.src = 'https://cdn.apitiny.net/scripts/v2.0/main.js';
@@ -26,7 +28,7 @@ const loadApiTinyAds = () => {
   script.addEventListener('error', () => console.error('Apitiny ads could not load the ad script.'));
   document.body.append(script);
 };
-if (document.querySelector('[ta-ad-container]')) loadApiTinyAds();
+if (!adsAreDisabled() && document.querySelector('[ta-ad-container]')) loadApiTinyAds();
 
 const showLoadedAvatar = (image) => {
   const avatar = image.closest('.avatar');
@@ -713,6 +715,18 @@ const insertComment = (form, data) => {
 // does the rest: instant update, in-order background requests, reconcile with the server, undo on failure.
 const countOf = (el) => { const n = parseInt(String(el?.textContent || '').replace(/[^\d]/g, ''), 10); return Number.isFinite(n) ? n : 0; };
 const submitButtonOf = (form) => form.querySelector('button[type="submit"]');
+const pinnedCommentPositions = new WeakMap();
+const restoreCommentPosition = (thread, comment) => {
+  const parentId = comment.dataset.originalParent;
+  const parent = parentId ? thread.querySelector(`[data-comment-id="${parentId}"]`) : thread;
+  if (!parent) return thread.append(comment);
+  const siblings = Array.from(parent.children).filter((child) => child.matches('.thread-comment'));
+  const originalIndex = Number(comment.dataset.originalIndex);
+  const before = Number.isInteger(originalIndex) && originalIndex >= 0
+    ? siblings[Math.min(originalIndex, siblings.length)]
+    : null;
+  parent.insertBefore(comment, before || null);
+};
 
 const optimisticSpecs = [
   { // like a post or a comment
@@ -809,6 +823,62 @@ const optimisticSpecs = [
         badge.innerHTML = button.querySelector('svg')?.outerHTML || '';
         head.append(badge);
       } else if (!state.hearted && badge) badge.remove();
+    }
+  },
+  { // Pin a comment to the top of a post's thread.
+    match: (form) => form.classList.contains('comment-pin-form'),
+    scope: (form) => form.closest('.post-detail-thread'),
+    read: (thread) => ({ pinnedComment: thread.querySelector('.thread-comment.is-pinned')?.dataset.commentId || null }),
+    next: (state, form) => {
+      const commentId = form.closest('.thread-comment')?.dataset.commentId;
+      if (!commentId) return null;
+      return { pinnedComment: state.pinnedComment === commentId ? null : commentId };
+    },
+    fromServer: (data) => (data.pinned === undefined ? null : { pinnedComment: data.pinnedComment || null }),
+    write: (thread, state) => {
+      const currentPin = thread.querySelector('.thread-comment.is-pinned');
+      if (currentPin && currentPin.dataset.commentId !== state.pinnedComment) {
+        const savedPosition = pinnedCommentPositions.get(currentPin);
+        if (savedPosition?.parent?.isConnected) {
+          savedPosition.parent.insertBefore(currentPin, savedPosition.nextSibling?.parentNode === savedPosition.parent ? savedPosition.nextSibling : null);
+          pinnedCommentPositions.delete(currentPin);
+        } else {
+          restoreCommentPosition(thread, currentPin);
+        }
+      }
+
+      thread.querySelectorAll('.thread-comment').forEach((comment) => {
+        const pinned = comment.dataset.commentId === state.pinnedComment;
+        comment.classList.toggle('is-pinned', pinned);
+        const button = comment.querySelector(':scope > .thread-comment-actions > .comment-pin-form > .action-pin-comment');
+        if (button) {
+          button.classList.toggle('is-selected', pinned);
+          button.setAttribute('aria-pressed', String(pinned));
+          button.querySelector('.action-pin-label').textContent = pinned ? 'Unpin' : 'Pin';
+        }
+        const head = comment.querySelector(':scope > .thread-comment-head');
+        let badge = head?.querySelector('.pinned-comment-badge');
+        if (pinned && !badge && head) {
+          badge = document.createElement('span');
+          badge.className = 'pinned-comment-badge';
+          const icon = button?.querySelector('svg')?.cloneNode(true);
+          if (icon) badge.append(icon);
+          badge.append(document.createTextNode(' Pinned by publisher'));
+          head.append(badge);
+        } else if (!pinned && badge) badge.remove();
+      });
+
+      if (state.pinnedComment) {
+        const pinned = thread.querySelector(`[data-comment-id="${state.pinnedComment}"]`);
+        if (pinned && pinned.parentElement !== thread) {
+          if (!pinnedCommentPositions.has(pinned)) {
+            pinnedCommentPositions.set(pinned, { parent: pinned.parentElement, nextSibling: pinned.nextSibling });
+          }
+          thread.prepend(pinned);
+        } else if (pinned && thread.firstElementChild !== pinned) {
+          thread.insertBefore(pinned, thread.firstElementChild);
+        }
+      }
     }
   },
   { // Celebrate / Insightful / Support / Funny on a post: one choice at a time, tap again to remove
@@ -981,17 +1051,12 @@ const feedList = document.getElementById('feed-posts');
 const adAfter = Number(feedList?.dataset.adAfter);
 let feedAdInserted = false;
 const insertFeedAd = () => {
-  if (feedAdInserted || !Number.isInteger(adAfter) || adAfter < 18 || !feedList) return;
+  if (adsAreDisabled() || feedAdInserted || !Number.isInteger(adAfter) || adAfter < 18 || !feedList) return;
   const cards = feedList.querySelectorAll(':scope > .post-card');
   if (cards.length < adAfter) return;
   const slot = document.createElement('div');
   slot.setAttribute('ta-ad-container', '');
   cards[adAfter - 1].after(slot);
-  const adTemplates = document.getElementById('sitewide-feed-ads');
-  if (adTemplates) {
-    slot.after(adTemplates.content.cloneNode(true));
-    adTemplates.remove();
-  }
   feedAdInserted = true;
   loadApiTinyAds();
 };

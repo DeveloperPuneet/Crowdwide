@@ -62,15 +62,9 @@ const siteSettingSchema = new mongoose.Schema({
   adFreePrice1Month: { type: Number, default: 100, min: 1, max: 1000000 },
   adFreePrice4Months: { type: Number, default: 360, min: 1, max: 1000000 },
   adFreePrice12Months: { type: Number, default: 1000, min: 1, max: 1000000 },
-  postPromotionEnabled: { type: Boolean, default: true },
-  postPromotionWavesCost: { type: Number, default: 25, min: 1, max: 10000 },
-  postPromotionDurationHours: { type: Number, default: 24, min: 1, max: 168 },
   communityPromotionEnabled: { type: Boolean, default: true },
   communityPromotionWavesCost: { type: Number, default: 50, min: 1, max: 10000 },
   communityPromotionDurationHours: { type: Number, default: 48, min: 1, max: 168 },
-  advertisingMinimumCampaignBudget: { type: Number, default: 25, min: 1, max: 1000000 },
-  advertisingCostPerImpression: { type: Number, default: 0.1, min: 0, max: 10000 },
-  advertisingCostPerClick: { type: Number, default: 1, min: 0, max: 10000 },
   brandAmbassadors: { type: [brandAmbassadorSchema], default: [] },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });

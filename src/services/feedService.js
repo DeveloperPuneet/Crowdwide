@@ -381,73 +381,6 @@ async function recencyFallback({ user, view }) {
   return posts.map((post) => ({ id: String(post._id), source: 'Fresh from Crowdwide', lane: 'discovery' }));
 }
 
-function interleaveEntriesWithAds(entries, ads) {
-  if (!ads.length || entries.length < 3) return entries;
-
-  const firstAfter = Math.min(entries.length, 3 + Math.floor(Math.random() * Math.min(4, entries.length - 2)));
-  const positions = [{ after: firstAfter, ad: ads[0] }];
-  if (ads[1] && entries.length >= 10) {
-    const secondMin = Math.max(firstAfter + 4, 8);
-    const secondMax = Math.min(entries.length, 13);
-    if (secondMin <= secondMax) {
-      positions.push({
-        after: secondMin + Math.floor(Math.random() * (secondMax - secondMin + 1)),
-        ad: ads[1]
-      });
-    }
-  }
-
-  const result = [];
-  entries.forEach((entry, index) => {
-    result.push(entry);
-    positions.filter((position) => position.after === index + 1).forEach(({ ad }) => result.push(ad));
-  });
-  return result;
-}
-
-async function addActiveSponsoredPosts(entries, user, view, now) {
-  if (user?.adFreeUntil && new Date(user.adFreeUntil) > new Date(now)) return entries;
-  try {
-    const restricted = await getRestrictedCommunityIds(user._id);
-    const hiddenAuthors = await getHiddenAuthorIds(user._id, user.following || []);
-    const types = ranker.TAB_CONFIG[view].types;
-    const candidates = await Post.find({
-      status: 'published',
-      boostStatus: 'active',
-      boostUntil: { $gt: new Date(now) },
-      moderationStatus: { $in: ['unreviewed', 'good'] },
-      replyTo: null,
-      community: { $nin: restricted },
-      author: { $nin: [...(user.blockedUsers || []), ...(user.mutedUsers || []), ...hiddenAuthors] },
-      ...(types ? { type: { $in: types } } : {})
-    }).sort({ boostStartedAt: -1, createdAt: -1 }).limit(30).select('_id').lean();
-    if (!candidates.length) return entries;
-
-    const pageIds = new Set(entries.map((entry) => entry.id));
-    const inPageCandidates = candidates.filter((post) => pageIds.has(String(post._id)));
-    const otherCandidates = candidates.filter((post) => !pageIds.has(String(post._id)));
-    for (const group of [inPageCandidates, otherCandidates]) {
-      for (let index = group.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [group[index], group[swapIndex]] = [group[swapIndex], group[index]];
-      }
-    }
-    const shuffledCandidates = [...inPageCandidates, ...otherCandidates];
-    const promotedIds = new Set(candidates.map((post) => String(post._id)));
-    const organicEntries = entries.filter((entry) => !promotedIds.has(entry.id));
-    const adCount = organicEntries.length >= 10 ? 2 : 1;
-    const ads = shuffledCandidates.slice(0, adCount).map((post) => ({
-      id: String(post._id),
-      source: 'Sponsored',
-      lane: 'sponsored'
-    }));
-    return interleaveEntriesWithAds(organicEntries, ads);
-  } catch (error) {
-    logger.error('Could not load sponsored posts for the feed', error);
-    return entries;
-  }
-}
-
 async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(), force = false, user: preloaded = null }) {
   const tab = ranker.isFeedTab(view) ? view : 'for-you';
   const pageNumber = Math.max(1, Number.parseInt(page, 10) || 1);
@@ -474,7 +407,7 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
 
   const start = (pageNumber - 1) * ranker.PAGE_SIZE;
   const organicSlice = entries.slice(start, start + ranker.PAGE_SIZE);
-  const slice = await addActiveSponsoredPosts(organicSlice, user, tab, now);
+  const slice = organicSlice;
   const pending = tab === 'for-you' && pageNumber === 1 ? await loadOwnPending(user) : [];
   const posts = await loadPagePosts([...pending, ...slice], user);
   const discoveryShown = slice.filter((entry) => entry.lane === 'discovery').length;
@@ -488,4 +421,4 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   };
 }
 
-module.exports = { loadPagePosts, getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, addActiveSponsoredPosts, interleaveEntriesWithAds, POOL_LIMIT, NOTES };
+module.exports = { loadPagePosts, getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, POOL_LIMIT, NOTES };

@@ -130,7 +130,6 @@
 		</section>
 		<% } %>
 		<div id="feed-posts" data-ad-after="<%= locals.thirdPartyFeedAdAfter || '' %>"><% feed.visiblePosts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div>
-		<% if ((locals.sitewideFeedAds || []).length) { %><template id="sitewide-feed-ads"><% sitewideFeedAds.forEach((ad) => { %><%- include('../partials/community-ad', { ad, csrfToken }) %><% }) %></template><% } %>
 		<% if (feed.visiblePosts.length && feed.hasMore) { %>
 		<div id="feed-sentinel" data-feed-view="<%= feed.activeTab %>" data-page="1"></div>
 		<% } %>
@@ -168,37 +167,5 @@
 		</section>
 	</aside>
 </main>
-<script nonce="<%= locals.cspNonce || '' %>">
-document.addEventListener('DOMContentLoaded', function () {
-  if (!('IntersectionObserver' in window)) return;
-  var observer = new IntersectionObserver(function (entries) {
-    entries.forEach(function (entry) {
-      if (!entry.isIntersecting) return;
-      observer.unobserve(entry.target);
-      var card = entry.target;
-      fetch('/ads/' + encodeURIComponent(card.dataset.campaignId) + '/impression', {
-        method: 'POST',
-        credentials: 'same-origin',
-        keepalive: true,
-        headers: { 'Content-Type': 'application/json', 'x-csrf-token': card.dataset.csrf },
-        body: JSON.stringify({ deliveryContext: 'sitewide', eventToken: card.dataset.eventToken })
-      }).then(function (response) {
-        if (!response.ok) console.error('Advertisement impression tracking failed:', response.status);
-      }).catch(function (error) {
-        console.error('Advertisement impression tracking failed:', error);
-      });
-    });
-  }, { threshold: 0.5 });
-  var observeCards = function (root) {
-    if (root.matches && root.matches('[data-community-ad][data-context-type="sitewide"]')) observer.observe(root);
-    root.querySelectorAll && root.querySelectorAll('[data-community-ad][data-context-type="sitewide"]').forEach(function (card) { observer.observe(card); });
-  };
-  observeCards(document);
-  var feedList = document.getElementById('feed-posts');
-  if (feedList) new MutationObserver(function (records) {
-    records.forEach(function (record) { record.addedNodes.forEach(function (node) { if (node.nodeType === 1) observeCards(node); }); });
-  }).observe(feedList, { childList: true, subtree: true });
-});
-</script>
 <%- include('../partials/app-footer') %>
 <%- include('../partials/foot') %>

@@ -1908,6 +1908,11 @@ body.no-scroll { overflow: hidden; }
 .comment-report > form { width: min(320px, 100%); }
 .thread-comment-actions .action-like.is-liked { color: #ff4d7a; }
 .thread-comment-actions .action-like.is-liked .icon-heart { fill: currentColor; }
+.thread-comment.is-pinned { border-left-color: var(--theme-accent, #7e8dff); }
+.pinned-comment-badge { display: inline-flex; align-items: center; gap: 4px; color: var(--theme-accent, #7e8dff); font-size: 10px; font-weight: 600; }
+.comment-pin-form { margin: 0; }
+.action-pin-comment { display: inline-flex; align-items: center; gap: 4px; padding: 3px 0; border: 0; background: transparent; color: var(--tx-faint); font-size: 12px; cursor: pointer; }
+.action-pin-comment:hover, .action-pin-comment.is-selected { color: var(--theme-accent, #7e8dff); }
 .thread-comment-new { animation: comment-in .4s ease; }
 @keyframes comment-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 

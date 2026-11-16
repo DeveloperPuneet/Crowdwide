@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const Post = require('../models/Post');
 const Community = require('../models/Community');
-const { getPostPromotionOffer, promotePost } = require('../services/postPromotion');
 const { isAdFree } = require('../services/adFree');
 const logger = require('../services/logger');
 const Comment = require('../models/Comment');
@@ -268,7 +267,8 @@ exports.comment = async (req, res) => {
     // Send the finished comment back as HTML so the page can drop it into the
     // thread without reloading.
     const node = { ...comment.toObject(), author: { _id: req.session.user.id, name: req.session.user.name, profilePicture: req.session.user.profilePicture }, children: [] };
-    const html = await renderPartial(res, 'partials/comment-node', { node, depth: parent ? 1 : 0, postId: post._id, postAuthorId: post.author, csrfToken: res.locals.csrfToken, canReply: true });
+    const canPinComments = [post.author, ...(post.coAuthors || [])].some((id) => String(id) === String(req.session.user.id));
+    const html = await renderPartial(res, 'partials/comment-node', { node, depth: parent ? 1 : 0, postId: post._id, postAuthorId: post.author, csrfToken: res.locals.csrfToken, canReply: true, canPinComments });
     return res.json({ ok: true, html: html.trim(), id: comment._id, parent, commentsCount: post.commentsCount });
   }
   res.redirect(`${req.get('referer') || '/dashboard'}#post-${post._id}`);
@@ -290,6 +290,10 @@ exports.deleteComment = async (req, res) => {
   const descendants = await Comment.deleteMany({ parent: comment._id });
   const post = await Post.findById(comment.post);
   if (post) {
+    if (post.pinnedComment && (
+      String(post.pinnedComment) === String(comment._id)
+      || await Comment.exists({ _id: post.pinnedComment, parent: comment._id })
+    )) post.pinnedComment = null;
     post.commentsCount = Math.max(0, (post.commentsCount || 0) - 1 - descendants.deletedCount);
     await post.save();
   }
@@ -317,6 +321,19 @@ exports.toggleAuthorHeart = async (req, res) => {
   await comment.save();
   if (comment.heartedByAuthor) await notify(comment.author, req.session.user.id, 'comment', 'hearted your comment.', comment.post._id, comment.post.community, req.session.user.name, `/posts/${comment.post._id}`);
   return redirectBack(req, res, { hearted: comment.heartedByAuthor });
+};
+
+exports.togglePinnedComment = async (req, res) => {
+  const comment = await Comment.findById(req.params.id).populate('post', 'author coAuthors status community pinnedComment');
+  if (!comment || !comment.post || !(await canAccessPost(comment.post, req.session.user.id))) return redirectBack(req, res, { ok: false });
+  const publishers = [comment.post.author, ...(comment.post.coAuthors || [])];
+  if (!publishers.some((id) => String(id) === String(req.session.user.id))) {
+    return redirectBack(req, res, { ok: false, error: 'Only a post publisher can pin a comment.' });
+  }
+  const isPinned = String(comment.post.pinnedComment || '') === String(comment._id);
+  comment.post.pinnedComment = isPinned ? null : comment._id;
+  await comment.post.save();
+  return redirectBack(req, res, { pinned: !isPinned, pinnedComment: isPinned ? null : String(comment._id) });
 };
 
 exports.toggleCommentReaction = async (req, res) => {
@@ -494,8 +511,31 @@ function buildCommentTree(comments) {
       roots.push(comment);
     }
   });
+  const assignPositions = (nodes, parentId = '') => nodes.forEach((node, index) => {
+    node.originalParentId = parentId;
+    node.originalIndex = index;
+    assignPositions(node.children, String(node._id));
+  });
+  assignPositions(roots);
   return roots;
 }
+
+function movePinnedCommentToRoots(commentTree, pinnedCommentId) {
+  if (!pinnedCommentId) return commentTree;
+  let pinnedComment = null;
+  const detachPinnedComment = (nodes, parentId = '') => {
+    const index = nodes.findIndex((node) => String(node._id) === String(pinnedCommentId));
+    if (index !== -1) {
+      [pinnedComment] = nodes.splice(index, 1);
+      pinnedComment.isPinned = true;
+      return true;
+    }
+    return nodes.some((node) => detachPinnedComment(node.children, String(node._id)));
+  };
+  detachPinnedComment(commentTree);
+  return pinnedComment ? [pinnedComment, ...commentTree] : commentTree;
+}
+exports.movePinnedCommentToRoots = movePinnedCommentToRoots;
 
 const { shouldCount: shouldCountView } = require('../utils/viewDedupe');
 
@@ -516,8 +556,10 @@ exports.postDetail = async (req, res) => {
   post.replyPostsCount = await Post.countDocuments({ replyTo: post._id, status: 'published' });
   let blockedIds = [];
   let postModerationRole = null;
+  let viewerAdFree = false;
   if (viewerId) {
-    const viewer = await User.findById(viewerId).select('bookmarks blockedUsers role').lean();
+    const viewer = await User.findById(viewerId).select('bookmarks blockedUsers role adFreeUntil').lean();
+    viewerAdFree = isAdFree(viewer);
     post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
     post.bookmarked = (viewer?.bookmarks || []).some((id) => String(id) === String(post._id));
     blockedIds = (viewer?.blockedUsers || []).map(String);
@@ -536,7 +578,9 @@ exports.postDetail = async (req, res) => {
   }
   const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean())
     .filter((comment) => !blockedIds.includes(String(comment.author?._id)));
-  const commentTree = buildCommentTree(comments);
+  const commentTree = movePinnedCommentToRoots(buildCommentTree(comments), post.pinnedComment);
+  const canPinComments = viewerId && [post.author?._id, ...(post.coAuthors || []).map((publisher) => publisher?._id)]
+    .some((id) => String(id) === String(viewerId));
   const postType = post.type === 'article' ? 'Article' : post.type === 'poll' ? 'Poll' : 'Post';
   const summary = post.type === 'poll' ? post.poll?.question || post.body : post.body;
   const description = preview(summary, 160);
@@ -574,32 +618,12 @@ exports.postDetail = async (req, res) => {
     structuredData,
     noIndex: false,
     post,
-    showThirdPartyAds: comments.length >= 30 && !isAdFree(req.session.user),
-    promotionOffer: viewerId && String(post.author?._id) === String(viewerId)
-      ? await getPostPromotionOffer()
-      : null,
+    showThirdPartyAds: comments.length >= 30 && !viewerAdFree,
     comments,
     commentTree,
+    canPinComments,
     postModerationRole
   });
-};
-
-exports.promotePost = async (req, res) => {
-  try {
-    const result = await promotePost({ postId: req.params.id, userId: req.session.user.id });
-    req.session.flash = {
-      type: 'success',
-      message: `Your post is promoted for ${result.durationHours} hours for ${result.wavesCost} Waves.`
-    };
-  } catch (error) {
-    logger.warn('Post promotion could not be completed', { userId: req.session.user.id, postId: req.params.id, error });
-    const expected = /Only the author|Only published|already has an active|already being processed|private or unavailable|Add text or media|temporarily held|not enough Waves|currently unavailable|not configured|contact support/i.test(error.message);
-    req.session.flash = {
-      type: 'error',
-      message: expected ? error.message : 'The post promotion could not be completed. Please try again later.'
-    };
-  }
-  return res.redirect(`/posts/${encodeURIComponent(req.params.id)}`);
 };
 
 exports.commentThread = async (req, res) => {

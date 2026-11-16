@@ -23,7 +23,7 @@
       <div class="wallet-earn-item"><span class="wallet-earn-icon"><%- icon(item.icon, { size: 18 }) %></span><div><strong><%= item.title %></strong><small><%= item.detail %></small></div><b>+<%= item.range %></b></div>
       <% }) %>
     </div>
-    <p class="recap-muted">You can earn up to about <%= earnGuide.dailyLimit.toLocaleString() %> Waves a day from activity. Spend Waves on Ad-Free plans, boosting posts and promoting communities, or send them to friends.</p>
+    <p class="recap-muted">You can earn up to about <%= earnGuide.dailyLimit.toLocaleString() %> Waves a day from activity. Spend Waves on Ad-Free plans and promoting communities, or send them to friends.</p>
   </section>
   <% } %>
   <% const adFreeInfo = locals.adFree || { enabled: false, plans: [] }; %>
@@ -31,7 +31,7 @@
   <section class="recap-panel wallet-adfree" id="ad-free">
     <div class="recap-section-heading"><div><p class="eyebrow">Waves premium</p><h2>Go Ad-Free</h2></div>
       <% if (adFreeInfo.active) { %><span class="wallet-adfree-status is-active"><%- icon('check', { size: 13 }) %> Active until <%= new Date(adFreeInfo.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span><% } %></div>
-    <p class="recap-muted">Hide advertiser campaigns and sponsored posts in your feeds and communities. Buying again while active adds time to your plan.</p>
+    <p class="recap-muted">Hide TinyAds advertisements across Crowdwide. Buying again while active adds time to your plan.</p>
     <% if (adFreeInfo.enabled) { %>
     <div class="wallet-plan-grid">
       <% adFreeInfo.plans.forEach((plan) => { %>

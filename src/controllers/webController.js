@@ -29,7 +29,6 @@ const logger = require('../services/logger');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { rewardWavesForAction } = require('../services/waves');
 const SiteSetting = require('../models/SiteSetting');
-const { getSitewideFeedCampaigns } = require('../services/advertising');
 const Survey = require('../models/Survey');
 const { questionOfTheDay, answerPrefill, startOfDay, QUESTION_TAG } = require('../utils/questions');
 const { awaySummary } = require('../services/reengagement');
@@ -211,16 +210,6 @@ function resolveFeedView(query = {}) {
 	return query.feed === 'personalized' ? 'my-community' : 'for-you';
 }
 
-function buildSitewideFeedAds(campaigns, afterPost) {
-	return campaigns.slice(0, 2).map((campaign) => ({
-		campaign,
-		eventToken: crypto.randomUUID(),
-		contextType: 'sitewide',
-		afterPost
-	}));
-}
-exports.buildSitewideFeedAds = buildSitewideFeedAds;
-
 exports.dashboard = async (req, res) => {
 	try {
 		const user = await User.findById(req.session.user.id).lean();
@@ -240,14 +229,7 @@ exports.dashboard = async (req, res) => {
 		delete req.session.awayFrom;
 		const qotd = questionOfTheDay();
 		const joinedCommunityDocIds = joinedCommunityDocs.map((community) => community._id);
-		const [sitewideCampaigns, openSurveys, [awayInfo, qotdAnswers], availableQuests] = await Promise.all([
-			// Never let an ad, survey or welcome-back problem take the dashboard down.
-			(async () => {
-				try { return isAdFree(user) ? [] : await getSitewideFeedCampaigns(); } catch (error) {
-					logger.error('Crowdwide-feed advertisements could not be loaded', error);
-					return [];
-				}
-			})(),
+		const [openSurveys, [awayInfo, qotdAnswers], availableQuests] = await Promise.all([
 			(async () => {
 				// "Help in surveys": live surveys this browser has not answered yet.
 				try {
@@ -277,7 +259,6 @@ exports.dashboard = async (req, res) => {
 				: []
 		]);
 		const thirdPartyFeedAdAfter = isAdFree(user) ? 0 : crypto.randomInt(18, 25);
-		const sitewideFeedAds = buildSitewideFeedAds(sitewideCampaigns, thirdPartyFeedAdAfter);
 		const composerCommunities = joinedCommunityDocs;
 		const selectedQuest = availableQuests.find((quest) => String(quest._id) === String(req.query.quest || ''));
 		const coAuthorSuggestions = Array.from(new Map([...followedPeople, ...followerPeople].map((person) => [String(person._id), person])).values());
@@ -288,7 +269,6 @@ exports.dashboard = async (req, res) => {
 			noIndex: true,
 			feed: { ...feed, activeTab, visiblePosts: feed.posts },
 			thirdPartyFeedAdAfter,
-			sitewideFeedAds,
 			openSurveys,
 			awayInfo,
 			streakInfo: effectiveStreak(user.streak, new Date(), zoneOf(user)),

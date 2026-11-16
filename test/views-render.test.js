@@ -475,7 +475,7 @@ test('post cards render co-author credit when a post is collaborative', async ()
 
 test('post page: flat actions, send-to-chat share, comment box, no Quote', async () => {
   const html = await render('pages/post-detail.ejs', {
-    title: 'p', pagePath: '/posts/p1', comments: [{}],
+    title: 'p', pagePath: '/posts/p1', comments: [{}], canPinComments: true,
     post: { ...post(1), body: 'Hi,\nhow are you?\nwassup', liked: true, bookmarked: false, poll: null, quotedPost: null, replyTo: null, questTitle: 'Weekly sketch sprint' },
     commentTree: [{ _id: 'c1', author: { _id: 'a2', name: 'B' }, body: 'hi', gif: { url: 'https://media.giphy.com/c.gif' }, createdAt: new Date(), likes: [], children: [] }]
   });
@@ -491,6 +491,7 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
   assert.match(html, /data-share-count-for="p1"/);
   assert.match(html, /Quest post · Weekly sketch sprint/);
   assert.match(html, /action="\/comments\/c1\/report"/);
+  assert.match(html, /class="comment-pin-form" data-async-interaction method="post" action="\/comments\/c1\/pin"/);
   assert.match(html, /Choose a reason/);
 });
 
