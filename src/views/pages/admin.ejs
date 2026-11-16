@@ -1,9 +1,5 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'admin', currentUser }) %>
-<% const pendingMonetizationList = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
-<% const pendingAdvertiserList = Array.isArray(locals.pendingAdvertisers) ? locals.pendingAdvertisers : []; %>
-<% const pendingCampaignList = Array.isArray(locals.pendingCampaigns) ? locals.pendingCampaigns : []; %>
-<% const managedCampaignList = Array.isArray(locals.managedCampaigns) ? locals.managedCampaigns : []; %>
 <main class="explore-page admin-console admin-wide admin-modern"><%- include('../partials/flash') %>
   <header class="admin-page-header"><div><p class="eyebrow">Restricted operations</p><h1>Admin console</h1><p>Monitor the community, resolve reports, and manage platform settings.</p></div><span class="admin-access-badge"><%- icon('shield', { size: 15 }) %> Admin access</span></header>
   <div class="admin-stats" aria-label="Platform overview">
@@ -19,8 +15,6 @@
     <button type="button" class="admin-tab" id="admin-tab-users" role="tab" aria-controls="admin-panel-users" data-tab="users">Users</button>
     <button type="button" class="admin-tab" id="admin-tab-posts" role="tab" aria-controls="admin-panel-posts" data-tab="posts">Posts</button>
     <button type="button" class="admin-tab" id="admin-tab-communities" role="tab" aria-controls="admin-panel-communities" data-tab="communities">Communities</button>
-    <button type="button" class="admin-tab" id="admin-tab-advertisers" role="tab" aria-controls="admin-panel-advertisers" data-tab="advertisers">Advertisers<% if (pendingAdvertiserList.length) { %> (<%= pendingAdvertiserList.length %>)<% } %></button>
-    <button type="button" class="admin-tab" id="admin-tab-campaigns" role="tab" aria-controls="admin-panel-campaigns" data-tab="campaigns">Campaigns<% if (pendingCampaignList.length) { %> (<%= pendingCampaignList.length %> pending)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-partnerships" role="tab" aria-controls="admin-panel-partnerships" data-tab="partnerships">Partnerships<% const pendingPartnerCount = (locals.partnershipApplications || []).filter((a) => a.status === 'pending').length; if (pendingPartnerCount) { %> (<%= pendingPartnerCount %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-partners" role="tab" aria-controls="admin-panel-partners" data-tab="partners">Partner logos</button>
     <button type="button" class="admin-tab" id="admin-tab-brand-ambassadors" role="tab" aria-controls="admin-panel-brand-ambassadors" data-tab="brand-ambassadors">Brand ambassadors</button>
@@ -44,10 +38,7 @@
     <% const rewardSignals = Array.isArray(locals.suspiciousRewardPairs) ? locals.suspiciousRewardPairs : []; %>
     <% const economyRows = Array.isArray(locals.wavesEconomy) ? locals.wavesEconomy : []; %>
     <% const heldWavesAccounts = Array.isArray(locals.heldWavesUsers) ? locals.heldWavesUsers : []; %>
-    <% const repeatedAdEvents = Array.isArray(locals.suspiciousAdEvents) ? locals.suspiciousAdEvents : []; %>
     <% const transferSignals = Array.isArray(locals.suspiciousWavesTransfers) ? locals.suspiciousWavesTransfers : []; %>
-    <% const communityAdShares = Array.isArray(locals.communityAdShares) ? locals.communityAdShares : []; %>
-    <% const pendingCommunityAdShares = Array.isArray(locals.pendingCommunityShares) ? locals.pendingCommunityShares : []; %>
     <section class="settings-block admin-wide">
       <h2>Waves activity · last 30 days</h2>
       <% if (!economyRows.length) { %><p>No posted Waves ledger activity in the last 30 days.</p><% } %>
@@ -60,39 +51,10 @@
       <p>Holds are review controls, not automatic findings or proof of abuse. Adjust or lift them from the user management panel.</p>
     </section>
     <section class="settings-block admin-wide">
-      <h2>Community ad shares · lifetime</h2>
-      <p>These are internal Waves credited from eligible, deduplicated community campaign spend. Crowdwide does not receive real-money ad payments or process cash payouts.</p>
-      <% if (!communityAdShares.length) { %><p>No community ad shares have been credited.</p><% } %>
-      <% communityAdShares.forEach((row) => { %>
-      <% if (row.community) { %>
-      <div class="device-row">
-        <div><strong><a href="/communities/<%= row.community.slug %>"><%= row.community.name %></a> · owner <%= row.community.owner?.name || 'unknown' %></strong><span><%= Number(row.entries || 0).toLocaleString() %> credited events · <%= Number(row.totalWaves || 0).toLocaleString() %> Waves · last <%= new Date(row.lastEarnedAt).toLocaleString() %></span></div>
-      </div>
-      <% } %>
-      <% }) %>
-    </section>
-    <section class="settings-block admin-wide">
-      <h2>Pending community Waves shares</h2>
-      <p>Pending entries are retained for retry if an owner account was temporarily ineligible or a credit could not be finalized.</p>
-      <% if (!pendingCommunityAdShares.length) { %><p>No community ad shares are pending.</p><% } %>
-      <% pendingCommunityAdShares.forEach((event) => { %>
-      <div class="device-row">
-        <div><strong><%= event.community?.name || 'Community' %> · <%= event.communityOwner?.name || 'Owner account unavailable' %></strong><span><%= event.campaign?.title || 'Campaign' %> · <%= Number(event.communityOwnerShareWaves || 0).toLocaleString() %> Waves · <%= event.eventType %> · <%= new Date(event.createdAt).toLocaleString() %></span></div>
-        <form method="post" action="/admin/community-ad-shares/<%= event._id %>/retry"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-primary" type="submit">Retry credit</button></form>
-      </div>
-      <% }) %>
-    </section>
-    <section class="settings-block admin-wide">
       <h2>Suspicious Waves transfer activity</h2>
       <p>Repeated outgoing transfers (five or more in ten minutes, or four to the same recipient) are queued for review only. These patterns can have legitimate causes and do not trigger automatic account restrictions.</p>
       <% if (!transferSignals.length) { %><p>No Waves transfer signals are waiting for review.</p><% } %>
       <% transferSignals.forEach((signal) => { %><div class="device-row"><div><strong><%= signal.sender?.name || 'Account' %> · <%= signal.sender?.email || '' %></strong><span><%= Number(signal.transferCount || 0).toLocaleString() %> transfers · <%= Number(signal.totalWaves || 0).toLocaleString() %> Waves<% if (signal.recipient) { %> · recipient: <%= signal.recipient.name %> (<%= signal.recipient.email %>)<% } %> · last seen <%= new Date(signal.lastSeenAt).toLocaleString() %></span><small><%= signal.reason %></small></div><form method="post" action="/admin/waves-abuse/<%= signal._id %>/review"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Review note<input name="reviewNote" maxlength="500" required></label><button class="button button-small button-primary" type="submit">Mark reviewed</button></form></div><% }) %>
-    </section>
-    <section class="settings-block admin-wide">
-      <h2>Advertisement abuse and bot-activity signals</h2>
-      <p>Daily duplicate events are excluded from advertiser totals. High-volume activity (20 or more unique ad events in one minute) is flagged for review only. Signals are not proof of bot or coordinated activity and do not trigger automatic penalties.</p>
-      <% if (!repeatedAdEvents.length) { %><p>No advertisement signals are waiting for review.</p><% } %>
-      <% repeatedAdEvents.forEach((signal) => { %><div class="device-row"><div><strong><%= signal.eventType === 'bot-activity' ? 'Possible bot activity' : signal.eventType %> · <%= signal.campaign?.title || 'Campaign' %></strong><span><%= signal.viewer?.name || 'Member' %> · <%= signal.community?.name || 'Community' %> · <%= Number(signal.attempts || 0).toLocaleString() %> flagged events/attempts · last seen <%= new Date(signal.lastSeenAt).toLocaleString() %></span><small><%= signal.reason %></small></div><form method="post" action="/admin/ad-abuse/<%= signal._id %>/review"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Review note<input name="reviewNote" maxlength="500" required></label><button class="button button-small button-primary" type="submit">Mark reviewed</button></form></div><% }) %>
     </section>
     <section class="settings-block admin-wide">
       <h2>Possible coordinated Waves rewards</h2>
@@ -253,52 +215,6 @@
     </table>
   </section>
 
-  <!-- ADVERTISERS -->
-  <section class="admin-panel" id="admin-panel-advertisers" role="tabpanel" aria-labelledby="admin-tab-advertisers" data-panel="advertisers">
-    <h2>Advertiser applications</h2>
-    <p>Moderator screening is required before final admin approval. Applications waiting for moderator review are shown here with their submitted business details.</p>
-    <% if (!pendingAdvertiserList.length) { %><p>No advertiser applications are waiting for review.</p><% } %>
-    <% if (pendingAdvertiserList.length) { %>
-    <section class="settings-block">
-      <% pendingAdvertiserList.forEach((advertiser) => { %>
-      <article class="device-row advertiser-application-card" style="flex-direction:column;align-items:stretch;">
-        <% if (advertiser.bannerUrl) { %><img class="advertiser-application-banner" src="<%= advertiser.bannerUrl %>" alt="<%= advertiser.businessName %> banner" loading="lazy"><% } %>
-        <div class="advertiser-application-identity">
-          <% if (advertiser.logoUrl) { %><img class="advertiser-application-logo" src="<%= advertiser.logoUrl %>" alt="<%= advertiser.businessName %> logo" loading="lazy"><% } %>
-          <div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'unknown' %> · <%= advertiser.user?.email || '' %></span></div>
-        </div>
-        <% if (advertiser.businessDescription) { %><p><%= advertiser.businessDescription %></p><% } %>
-        <% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener noreferrer"><%= advertiser.website %></a></p><% } %>
-        <% if (advertiser.notes) { %><p>Additional information: <%= advertiser.notes %></p><% } %>
-        <p>Application status: <strong><%= advertiser.moderatorReview?.status === 'cleared' ? 'Awaiting admin decision' : advertiser.moderatorReview?.status === 'flagged' ? 'Flagged by moderator' : 'Awaiting moderator screening' %></strong></p>
-        <p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleString() %><% } %></p>
-        <p>Moderator review: <strong><%= advertiser.moderatorReview?.status || 'pending' %></strong><% if (advertiser.moderatorReview?.reason) { %> · <%= advertiser.moderatorReview.reason %><% } %></p>
-          <details><summary>Advertiser review history (<%= (advertiser.moderationHistory || []).length %>)</summary>
-            <% (advertiser.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
-          </details>
-        <div class="advertiser-review-actions">
-          <% if (advertiser.moderatorReview?.status === 'cleared') { %>
-          <form method="post" action="/admin/advertisers/<%= advertiser._id %>/review">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve and verify advertiser</button>
-          </form>
-          <% } else if (advertiser.moderatorReview?.status === 'flagged') { %>
-          <p>Moderator flagged this application. Read the reason and history before deciding.</p>
-          <% } else { %>
-          <p>Awaiting moderator screening. The Approve button appears here after a moderator clears the application.</p>
-          <% } %>
-          <form method="post" action="/admin/advertisers/<%= advertiser._id %>/review" class="advertiser-reject-form">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <label>Rejection reason<input type="text" name="reason" maxlength="500" placeholder="Required to reject" required></label>
-            <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject application</button>
-          </form>
-        </div>
-      </article>
-      <% }) %>
-    </section>
-    <% } %>
-  </section>
-
   <%- include('../partials/admin-partnerships', { csrfToken }) %>
 
   <!-- BRAND AMBASSADORS -->
@@ -371,124 +287,11 @@
     </section>
   </section>
 
-  <!-- CAMPAIGNS -->
-  <section class="admin-panel" id="admin-panel-campaigns" role="tabpanel" aria-labelledby="admin-tab-campaigns" data-panel="campaigns">
-    <h2>Advertisement campaigns</h2>
-    <p>Campaigns cleared or flagged by moderators wait here for your final decision. Approving a campaign makes it live immediately (and approves a first-time advertiser with it); no further advertiser step is needed.</p>
-    <% if (!pendingCampaignList.length) { %><p>No campaign decisions are waiting for admin review.</p><% } %>
-    <% if (pendingCampaignList.length) { %>
-    <section class="settings-block">
-      <h3>Campaign review queue (<%= pendingCampaignList.length %>)</h3>
-      <% pendingCampaignList.forEach((campaign) => { %>
-      <article class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div>
-          <strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong>
-          <span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.brandName ? campaign.brandName + ' (' + (campaign.advertiser?.businessName || 'Advertiser') + ')' : (campaign.advertiser?.businessName || 'Advertiser') %> · <%= campaign.advertiser?.user?.email || '' %></span>
-          <%- include('../partials/advertiser-details', { advertiser: campaign.advertiser }) %>
-          <% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-displayed price: <%= campaign.productPrice %></p><% } %>
-          <p><%= campaign.description || 'No ad details provided.' %></p>
-          <% if (campaign.bannerUrl) { %><img src="<%= campaign.bannerUrl %>" alt="Campaign banner for <%= campaign.productName || campaign.title %>" style="display:block;max-width:100%;max-height:180px;object-fit:contain;margin:8px 0;"><% } %>
-          <% if (campaign.destinationUrl) { %><p>Ad destination: <a href="<%= campaign.destinationUrl %>" rel="nofollow noopener noreferrer"><%= campaign.destinationUrl %></a></p><% } %>
-          <p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · Daily: <%= Number(campaign.dailyBudget || 0).toLocaleString() %> · <% if (campaign.smartPlacement) { %>smart placement in relevant public communities<%= (campaign.keywords || []).length ? ' (' + campaign.keywords.join(', ') + ')' : '' %><% } else if (campaign.sitewideFallback) { %>normal-feed fallback (only while no public community is monetized)<% } else { %>Targets: <%- include('../partials/campaign-targets', { campaign }) %> · shown only there, labelled Sponsored<% } %></p>
-          <p>Rates: <%= Number(campaign.impressionCostWaves ?? 0.1) %> Waves/impression · <%= Number(campaign.clickCostWaves ?? 1) %> Waves/click</p>
-          <p>Moderator review: <strong><%= campaign.moderatorReview?.status || 'pending' %></strong> · <%= campaign.moderatorReview?.reason || '' %><% if (campaign.moderatorReview?.reviewedBy?.name) { %> · <%= campaign.moderatorReview.reviewedBy.name %><% } %><% if (campaign.moderatorReview?.reviewedAt) { %> · <%= new Date(campaign.moderatorReview.reviewedAt).toLocaleString() %><% } %><% if (campaign.moderatorReview?.flaggedCategory) { %> · category: <%= campaign.moderatorReview.flaggedCategory %><% } %><% if (campaign.moderatorReview?.policyChecks?.length) { %> · checks confirmed: <%= campaign.moderatorReview.policyChecks.join(', ') %><% } %></p>
-          <p>Rights attestation: <%= campaign.rightsConfirmedAt ? `confirmed ${new Date(campaign.rightsConfirmedAt).toLocaleString()}` : 'not recorded for this legacy campaign' %></p>
-          <p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleString() %><% } %></p>
-          <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
-            <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
-          </details>
-        </div>
-        <form method="post" action="/admin/campaigns/<%= campaign._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="text" name="reason" maxlength="500" placeholder="Reason (required for reject)" style="flex:1;min-width:180px;">
-          <% if (campaign.moderatorReview?.status === 'cleared') { %><button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve campaign</button><% } %>
-          <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject and refund</button>
-        </form>
-      </article>
-      <% }) %>
-    </section>
-    <% } %>
-    <% if (managedCampaignList.length) { %>
-    <section class="settings-block">
-      <h3>Approved campaign management</h3>
-      <p>Suspend a campaign to immediately stop delivery while keeping its remaining Waves held. Removal cancels it and refunds any unused funded balance. Reinstated campaigns return as approved and the advertiser resumes them.</p>
-      <% managedCampaignList.forEach((campaign) => { %>
-      <article class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div>
-          <strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong>
-          <span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.status %> · <%= campaign.brandName ? campaign.brandName + ' (' + (campaign.advertiser?.businessName || 'Advertiser') + ')' : (campaign.advertiser?.businessName || 'Advertiser') %> · <%= campaign.advertiser?.user?.email || '' %></span>
-          <% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-listed price: <%= campaign.productPrice %></p><% } %>
-          <p><%= campaign.description || 'No description provided.' %></p>
-          <p><%= Number(campaign.remainingBudget || 0).toLocaleString() %> Waves remaining · <%= Number(campaign.wavesSpent || 0).toLocaleString() %> Waves spent · <% if (campaign.sitewideFallback) { %>normal-feed fallback<% } else { %>targets <%- include('../partials/campaign-targets', { campaign }) %><% } %></p>
-          <% if (campaign.suspensionReason) { %><p>Suspension reason: <%= campaign.suspensionReason %></p><% } %>
-          <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
-            <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
-          </details>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <% if (campaign.status === 'suspended') { %>
-          <form method="post" action="/admin/campaigns/<%= campaign._id %>/manage" style="display:flex;gap:6px;flex:1 1 280px;">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <input type="text" name="reason" maxlength="500" placeholder="Reinstatement reason" required style="flex:1;min-width:160px;">
-            <button class="button button-small button-primary" name="action" value="reinstate" type="submit">Reinstate</button>
-          </form>
-          <% } else { %>
-          <form method="post" action="/admin/campaigns/<%= campaign._id %>/manage" style="display:flex;gap:6px;flex:1 1 280px;">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <input type="text" name="reason" maxlength="500" placeholder="Suspension reason" required style="flex:1;min-width:160px;">
-            <button class="button button-small button-danger" name="action" value="suspend" type="submit">Suspend</button>
-          </form>
-          <% } %>
-          <form method="post" action="/admin/campaigns/<%= campaign._id %>/manage" data-confirm="Remove this campaign and refund its unused funded Waves?">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <input type="text" name="reason" maxlength="500" placeholder="Removal reason" required>
-            <button class="button button-small button-danger" name="action" value="remove" type="submit">Remove campaign</button>
-          </form>
-        </div>
-      </article>
-      <% }) %>
-    </section>
-    <% } %>
-    <% if (!pendingCampaignList.length && !managedCampaignList.length) { %><p>No campaign review or management items right now.</p><% } %>
-  </section>
-
   <!-- COMMUNITIES -->
   <section class="admin-panel" id="admin-panel-communities" role="tabpanel" aria-labelledby="admin-tab-communities" data-panel="communities">
     <h2>Communities</h2>
-    <% if (pendingMonetizationList.length) { %>
-    <section class="settings-block">
-      <h3>Monetization applications</h3>
-      <% pendingMonetizationList.forEach((community) => { %>
-      <div class="device-row" style="flex-direction:column;align-items:stretch;">
-        <div>
-          <strong><%= community.name %></strong>
-          <span>Owner <%= community.owner?.name || 'unknown' %> · submitted <%= new Date(community.monetizationApplication?.submittedAt || community.createdAt).toLocaleDateString() %></span>
-          <p><%= community.monetizationApplication?.goals || 'No goals provided yet.' %></p>
-          <p>Moderator screening: <strong><%= community.monetizationModeratorReview?.status || 'not reviewed' %></strong> · <%= community.monetizationModeratorReview?.reason || '' %></p>
-          <% if (community.monetizationApplication?.appealStatus === 'pending') { %><p><strong>Appeal filed:</strong> <%= community.monetizationApplication.appealMessage %></p><% } %>
-        </div>
-        <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <label>Owner Waves share (%)<input type="number" name="revenueSharePercent" min="0" max="100" step="0.01" value="<%= community.monetizationSettings?.revenueSharePercent ?? 50 %>" required></label>
-          <label class="checkbox-field"><input type="checkbox" name="adsEnabled"> Enable ads after approval</label>
-          <label>Ad placement<select name="adPlacement"><option value="feed">Feed</option><option value="sidebar">Sidebar</option><option value="all">Feed and sidebar</option></select></label>
-          <label>Show after every<input type="number" name="adFrequency" min="1" max="10" step="1" value="1" style="max-width:90px;"> posts</label>
-          <input type="text" name="note" placeholder="Decision note (optional)" style="flex:1;min-width:140px;">
-          <% if (community.monetizationApplication?.appealStatus === 'pending') { %>
-          <button class="button button-small button-primary" name="decision" value="approve-appeal" type="submit">Approve appeal</button>
-          <button class="button button-small button-danger" name="decision" value="deny-appeal" type="submit">Deny appeal</button>
-          <% } else { %>
-          <button class="button button-small button-primary" name="decision" value="approve" type="submit" <%= community.monetizationModeratorReview?.status === 'cleared' ? '' : 'disabled' %>>Approve</button>
-          <button class="button button-small button-ghost" name="decision" value="reject" type="submit" <%= ['cleared', 'flagged'].includes(community.monetizationModeratorReview?.status) ? '' : 'disabled' %>>Reject</button>
-          <% } %>
-          <button class="button button-small button-danger" name="decision" value="pause" type="submit">Pause</button>
-        </form>
-      </div>
-      <% }) %>
-    </section>
-    <% } %>
     <table class="admin-table">
-      <thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Privacy</th><th>Monetization</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Privacy</th><th></th></tr></thead>
       <tbody>
       <% communities.forEach((community) => { %>
         <tr>
@@ -496,11 +299,10 @@
           <td data-label="Owner"><%= community.owner?.name || 'unknown' %></td>
           <td data-label="Members"><%= community.membersCount %></td>
           <td data-label="Privacy"><%= community.isPrivate ? 'Private' : 'Public' %> · <%= community.requireApproval ? 'approval on' : 'approval off' %></td>
-          <td data-label="Monetization"><%= community.monetizationStatus || 'none' %></td>
           <td><button type="button" class="admin-row-toggle" data-edit-toggle="community-edit-<%= community._id %>">Edit</button></td>
         </tr>
         <tr class="admin-editrow" id="community-edit-<%= community._id %>">
-          <td colspan="6">
+          <td colspan="5">
             <form class="admin-edit-form" method="post" action="/admin/communities/<%= community._id %>/edit">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <label>Name<input type="text" name="name" value="<%= community.name %>"></label>
@@ -513,40 +315,10 @@
               <label class="full-width">Banned words (comma separated)<input type="text" name="bannedWords" value="<%= (community.bannedWords || []).join(', ') %>"></label>
               <label class="checkbox-field"><input type="checkbox" name="isPrivate" <%= community.isPrivate ? 'checked' : '' %>> Private</label>
               <label class="checkbox-field"><input type="checkbox" name="requireApproval" <%= community.requireApproval ? 'checked' : '' %>> Require post approval</label>
-              <% if (community.monetizationStatus === 'approved' && community.isMonetized) { %>
-              <fieldset class="full-width">
-                <legend>Community advertising</legend>
-                <input type="hidden" name="updateAdvertisingSettings" value="on">
-                <label class="checkbox-field"><input type="checkbox" name="adsEnabled" <%= community.monetizationSettings?.adsEnabled ? 'checked' : '' %>> Ads enabled (uncheck to pause ads)</label>
-                <label>Ad placement<select name="adPlacement">
-                  <option value="feed" <%= (community.monetizationSettings?.adPlacement || 'feed') === 'feed' ? 'selected' : '' %>>Feed</option>
-                  <option value="sidebar" <%= community.monetizationSettings?.adPlacement === 'sidebar' ? 'selected' : '' %>>Sidebar</option>
-                  <option value="all" <%= community.monetizationSettings?.adPlacement === 'all' ? 'selected' : '' %>>Feed and sidebar</option>
-                </select></label>
-                <label>Frequency (posts between ads)<input type="number" name="adFrequency" min="1" max="10" step="1" value="<%= community.monetizationSettings?.adFrequency || 1 %>"></label>
-                <label>Owner Waves share (%)<input type="number" name="revenueSharePercent" min="0" max="100" step="0.01" value="<%= community.monetizationSettings?.revenueSharePercent ?? 50 %>" required></label>
-              </fieldset>
-              <% } %>
               <div class="admin-edit-form-actions">
                 <button class="button button-small button-primary" type="submit">Save</button>
               </div>
             </form>
-            <% if (community.monetizationStatus === 'approved') { %>
-            <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="text" name="note" maxlength="500" placeholder="Required reason for monetization suspension" required>
-              <button class="button button-small button-danger" name="decision" value="pause" type="submit">Suspend monetization now</button>
-            </form>
-            <% } else if (community.monetizationStatus === 'paused' && community.monetizationModeratorReview?.status === 'cleared') { %>
-            <form method="post" action="/admin/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <label class="checkbox-field"><input type="checkbox" name="adsEnabled"> Re-enable ads</label>
-              <label>Placement<select name="adPlacement"><option value="feed">Feed</option><option value="sidebar">Sidebar</option><option value="all">Feed and sidebar</option></select></label>
-              <label>Frequency<input type="number" name="adFrequency" min="1" max="10" value="1"></label>
-              <input type="text" name="note" maxlength="500" placeholder="Reinstatement reason" required>
-              <button class="button button-small button-primary" name="decision" value="approve" type="submit">Restore monetization</button>
-            </form>
-            <% } %>
             <form method="post" action="/admin/communities/<%= community._id %>/delete" data-confirm="Delete this community and all of its posts?" style="margin-top:8px;">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="button button-small button-danger" type="submit">Delete community</button>
@@ -587,15 +359,15 @@
     <% pendingAppeals.forEach((appeal) => { %>
     <div class="device-row">
       <div>
-        <strong><%= appeal.actionType === 'advertiser' ? `Advertiser appeal · ${appeal.advertiser?.businessName || 'unknown business'}` : `${appeal.actionType} · ${appeal.user?.name || 'member'} (${appeal.user?.email || 'unknown'})` %></strong>
+        <strong><%= appeal.actionType %> · <%= appeal.user?.name || 'member' %> (<%= appeal.user?.email || 'unknown' %>)</strong>
         <span>Filed <%= new Date(appeal.createdAt).toLocaleString() %><% if (appeal.reasonSnapshot) { %> · original reason: <%= appeal.reasonSnapshot %><% } %></span>
         <p><%= appeal.message %></p>
       </div>
       <form method="post" action="/admin/appeals/<%= appeal._id %>" style="display:flex;gap:6px;flex:1 1 260px;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input name="note" placeholder="Review note (optional)" style="flex:1;min-width:0;background:transparent;border:1px solid var(--line);color:var(--tx-mid);border-radius:7px;padding:7px 9px;font-size:11px;">
-        <button name="decision" value="approve" class="button button-small button-primary"><%= appeal.actionType === 'advertiser' ? 'Approve & restore' : 'Approve & lift' %></button>
-        <button name="decision" value="deny" class="button button-small button-ghost"><%= appeal.actionType === 'advertiser' ? 'Deny appeal' : 'Deny' %></button>
+        <button name="decision" value="approve" class="button button-small button-primary">Approve &amp; lift</button>
+        <button name="decision" value="deny" class="button button-small button-ghost">Deny</button>
       </form>
     </div>
     <% }) %>
@@ -666,11 +438,6 @@
         <label>Article word limit<input type="number" name="articleWordLimit" min="50" max="20000" value="<%= siteSettings.articleWordLimit %>"></label>
         <label>Default suspension length (days)<input type="number" name="suspensionDefaultDays" min="1" max="3650" value="<%= siteSettings.suspensionDefaultDays %>"></label>
         <label>Moderators needed to clear a post<input type="number" name="postReviewThreshold" min="1" max="50" value="<%= siteSettings.postReviewThreshold %>"></label>
-        <label>Monetization minimum posts<input type="number" name="monetizationMinimumPosts" min="0" max="10000" value="<%= siteSettings.monetizationMinimumPosts ?? 20 %>"></label>
-        <label>Monetization minimum likes<input type="number" name="monetizationMinimumLikes" min="0" max="100000" value="<%= siteSettings.monetizationMinimumLikes ?? 30 %>"></label>
-        <label>Monetization minimum comments<input type="number" name="monetizationMinimumComments" min="0" max="100000" value="<%= siteSettings.monetizationMinimumComments ?? 10 %>"></label>
-        <label>Minimum community age (days)<input type="number" name="monetizationMinimumCommunityAgeDays" min="0" max="3650" value="<%= siteSettings.monetizationMinimumCommunityAgeDays ?? 30 %>"></label>
-        <label>Recent activity window (days)<input type="number" name="monetizationRecentActivityDays" min="1" max="365" value="<%= siteSettings.monetizationRecentActivityDays ?? 30 %>"></label>
         <label>Post reward minimum Waves<input type="number" name="wavesPostRewardMinimum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesPostReward?.minimum ?? 1 %>"></label>
         <label>Post reward maximum Waves<input type="number" name="wavesPostRewardMaximum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesPostReward?.maximum ?? 3 %>"></label>
         <label>Comment reward minimum Waves<input type="number" name="wavesCommentRewardMinimum" min="0" max="10000" step="0.01" value="<%= siteSettings.wavesCommentReward?.minimum ?? 1 %>"></label>

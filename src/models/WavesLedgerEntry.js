@@ -8,7 +8,7 @@ const wavesLedgerEntrySchema = new mongoose.Schema({
   balanceAfter: { type: Number, default: 0 },
   type: {
     type: String,
-    enum: ['earn', 'spend', 'transfer-in', 'transfer-out', 'campaign', 'adjustment', 'refund'],
+    enum: ['earn', 'spend', 'transfer-in', 'transfer-out', 'adjustment', 'refund'],
     default: 'earn',
     index: true
   },

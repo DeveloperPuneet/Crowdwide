@@ -25,7 +25,7 @@
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button class="button button-small button-primary" name="decision" value="approved" type="submit">Approve partnership</button>
       </form>
-      <form method="post" action="/admin/partnerships/<%= app._id %>/review" class="advertiser-reject-form">
+      <form method="post" action="/admin/partnerships/<%= app._id %>/review" class="partner-reject-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label>Rejection reason (sent to the applicant)<input type="text" name="reason" maxlength="500" placeholder="Required to reject" required></label>
         <button class="button button-small button-danger" name="decision" value="rejected" type="submit">Reject</button>

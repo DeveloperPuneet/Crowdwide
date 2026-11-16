@@ -41,11 +41,6 @@ const siteSettingSchema = new mongoose.Schema({
   // Master switch for the first-week welcome email series.
   welcomeEmailsEnabled: { type: Boolean, default: true },
   postReviewThreshold: { type: Number, default: 5, min: 1, max: 50 },
-  monetizationMinimumPosts: { type: Number, default: 20, min: 0, max: 10000 },
-  monetizationMinimumLikes: { type: Number, default: 30, min: 0, max: 100000 },
-  monetizationMinimumComments: { type: Number, default: 10, min: 0, max: 100000 },
-  monetizationMinimumCommunityAgeDays: { type: Number, default: 30, min: 0, max: 3650 },
-  monetizationRecentActivityDays: { type: Number, default: 30, min: 1, max: 365 },
   wavesWelcomeBonus: { type: Number, default: 25, min: 0, max: 10000 },
   wavesPostReward: { type: wavesRewardRangeSchema, default: () => ({}) },
   wavesCommentReward: { type: wavesRewardRangeSchema, default: () => ({}) },

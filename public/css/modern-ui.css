@@ -988,8 +988,6 @@ body .profile-tabs a.profile-tab-active, body .public-posts-modern .public-post-
 .moderator-modern .moderation-post p { font-size: 15px; color: var(--tx-hi); }
 .moderator-modern .moderation-actions { gap: 10px; align-items: flex-end; }
 .moderator-modern .moderation-actions form { flex: 1 1 220px; align-items: flex-end; }
-.moderator-modern .advertiser-application-banner { border-radius: 16px; max-height: 200px; }
-.moderator-modern .advertiser-application-logo { border-radius: 14px; }
 .moderator-modern .form-note { font-size: 13px; }
 .moderator-modern .device-row a { color: var(--ac-blue); font-weight: 600; }
 
@@ -1410,7 +1408,7 @@ body .app-layout.dashboard-modern { max-width: 1280px; margin-inline: auto; padd
 }
 
 /* =====================================================================
-   BATCH 8 — activity recap, admin, advertising dashboard, appeal
+   BATCH 8 — activity recap, admin, appeal
    ===================================================================== */
 
 /* ---- recap ---- */
@@ -1445,9 +1443,9 @@ body .app-layout.dashboard-modern { max-width: 1280px; margin-inline: auto; padd
 .admin-modern .admin-page-header h1 { font-size: clamp(28px, 5.5vw, 48px); letter-spacing: -2px; }
 .admin-modern .admin-page-header > div > p:not(.eyebrow) { font-size: 14px; line-height: 1.6; color: var(--tx-lo); }
 .admin-modern .admin-access-badge { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: color-mix(in srgb, var(--blue) 14%, var(--sf-2)); color: var(--ac-blue); font-weight: 700; font-size: 12px; border: 1px solid color-mix(in srgb, var(--blue) 35%, transparent); }
-.admin-modern .admin-stats, .advertising-page .admin-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; margin: 0 0 18px; }
-.admin-modern .admin-stat, .advertising-page .admin-stat { border-radius: 20px; box-shadow: var(--mu-shadow); padding: 16px 18px; }
-.admin-modern .admin-stat strong, .advertising-page .admin-stat strong { letter-spacing: -1px; }
+.admin-modern .admin-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; margin: 0 0 18px; }
+.admin-modern .admin-stat { border-radius: 20px; box-shadow: var(--mu-shadow); padding: 16px 18px; }
+.admin-modern .admin-stat strong { letter-spacing: -1px; }
 .admin-modern .admin-stat-attention { border-color: color-mix(in srgb, var(--ac-orange) 55%, var(--line)); background: color-mix(in srgb, var(--ac-orange) 7%, var(--panel)); }
 .admin-modern .admin-tabs { gap: 8px; border-bottom: 0; margin: 4px 0 6px; padding: 8px; border: 1px solid var(--line); border-radius: 22px; background: var(--sf-1); }
 .admin-modern .admin-tab { border: 1px solid transparent; border-radius: 999px; padding: 9px 14px; font-size: 12.5px; white-space: nowrap; transition: background .15s, color .15s; }
@@ -1471,33 +1469,6 @@ body .app-layout.dashboard-modern { max-width: 1280px; margin-inline: auto; padd
   .admin-modern .admin-tabs::-webkit-scrollbar { display: none; }
   .admin-modern .admin-tab { flex: none; }
 }
-
-/* ---- advertising dashboard ---- */
-.advertising-page { padding-top: 30px; }
-.advertising-page .admin-page-header { position: relative; align-items: center; gap: 16px; padding: clamp(20px, 4vw, 34px); border: 1px solid var(--line); border-radius: 26px; overflow: hidden; box-shadow: var(--mu-shadow); background: radial-gradient(70% 140% at 100% 0%, var(--mu-glow), transparent 70%), var(--panel); margin-bottom: 18px; }
-.advertising-page .admin-page-header::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--mu-grad); }
-.advertising-page .admin-page-header h1 { font-size: clamp(28px, 5.5vw, 46px); letter-spacing: -2px; }
-.advertising-page .admin-page-header .button { border-radius: 999px; background: color-mix(in srgb, var(--blue) 14%, var(--sf-2)); color: var(--ac-blue); border-color: color-mix(in srgb, var(--blue) 35%, transparent); font-weight: 700; }
-.advertising-page .settings-block { border-radius: 22px; padding: clamp(16px, 3vw, 28px); box-shadow: var(--mu-shadow); margin-top: 16px; }
-.advertising-page .settings-block h2 { font-size: clamp(18px, 2.6vw, 22px); letter-spacing: -.5px; }
-.advertising-page .admin-edit-form label { font-size: 12.5px; font-weight: 600; color: var(--tx-mid); }
-.advertising-page .admin-edit-form label small { font-weight: 400; color: var(--tx-lo); }
-.advertising-page .admin-edit-form :is(input:not([type="checkbox"]):not([type="file"]):not([type="hidden"]), select, textarea) { border-radius: 12px !important; background-color: var(--sf-1) !important; border: 1px solid var(--bd-1) !important; color: var(--tx-hi) !important; min-height: 44px; padding: 10px 14px; }
-.advertising-page .admin-edit-form :is(input, select, textarea):focus { border-color: var(--blue) !important; box-shadow: var(--mu-ring) !important; outline: 0; }
-.advertising-page .admin-edit-form textarea { min-height: 96px; }
-.advertising-page :is(.checkbox-field, .privacy-check, label:has(> input[type="checkbox"])) { display: flex !important; align-items: center; gap: 10px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--sf-1); font-weight: 500; }
-.advertising-page input[type="checkbox"] { width: 18px !important; height: 18px; min-height: 0 !important; padding: 0 !important; margin: 0; accent-color: var(--blue); flex: none; }
-.advertising-page fieldset { border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; background: var(--sf-1); display: grid; gap: 8px; min-width: 0; }
-.advertising-page fieldset legend { padding: 0 8px; font-size: 12.5px; font-weight: 700; color: var(--tx-mid); }
-.advertising-page fieldset label { background: var(--panel); }
-.advertising-page .campaign-dashboard-card { border-radius: 20px; padding: clamp(16px, 3vw, 22px); background: var(--sf-1); margin-top: 14px; }
-.advertising-page .campaign-dashboard-header { flex-wrap: wrap; }
-.advertising-page .campaign-dashboard-details > * { border-radius: 14px; }
-.advertising-page .admin-badge { border-radius: 999px; padding: 3px 12px; font-weight: 700; }
-.advertising-page .button-primary { background: var(--mu-grad); color: #fff; }
-.advertising-page .button-danger { background: var(--fill-red); color: #fff; }
-.advertising-page .admin-edit-form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-@media (max-width: 520px) { .advertising-page .admin-edit-form-actions .button { flex: 1 1 100%; justify-content: center; } }
 
 /* ==========================================================================
    BATCH 9 — Ad-Free plans, auto-growing textareas, mobile bottom menu
@@ -1769,8 +1740,6 @@ textarea[data-autosize="on"] { resize: none; transition: height .12s ease; }
 .post-card .action-like svg { transition: transform .15s; }
 .post-card .public-interaction-prompt { display: block; margin-top: 10px; padding: 10px 14px; border-radius: 12px; text-align: center; font-size: 13px; font-weight: 600; background: color-mix(in srgb, var(--blue, #586aff) 10%, transparent); text-decoration: none; }
 .post-card .public-interaction-prompt:hover { background: color-mix(in srgb, var(--blue, #586aff) 18%, transparent); }
-.post-card.is-sponsored-post { border-color: color-mix(in srgb, var(--ac-orange, #f59e4b) 45%, var(--bd-1)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ac-orange, #f59e4b) 15%, transparent), var(--mu-shadow, none); }
-.post-card .sponsored-post-notice { margin-bottom: 12px; }
 .post-card .content-warning-toggle { border-radius: 12px; font-weight: 600; }
 @media (max-width: 640px) {
   .post-card { padding: 16px 14px; border-radius: 18px; }
@@ -1791,7 +1760,7 @@ textarea[data-autosize="on"] { resize: none; transition: height .12s ease; }
 @media (prefers-reduced-motion: reduce) { .popular-search-list a { transition: none; } .popular-search-list a:hover { transform: none; } }
 
 /* ==========================================================================
-   BATCH 14 — Shared partials: flash, avatar, invite-share, community-ad,
+   BATCH 14 — Shared partials: flash, avatar, invite-share,
    comment-form/-node, emoji-reaction-bar, chat-message/-body, growth charts,
    preloader (head), auth shell
    ========================================================================== */
@@ -1821,14 +1790,6 @@ a.avatar-link:focus-visible { outline: 2px solid var(--blue, #586aff); outline-o
 .invite-share-status { min-height: 18px; margin: 8px 0 0; font-size: 12px; color: var(--ac-green, #35c98a); }
 @media (max-width: 520px) { .invite-share .invite-box { flex-wrap: wrap; } .invite-share .invite-box .button { flex: 1 1 100%; justify-content: center; } .invite-share-actions .button { flex: 1 1 calc(50% - 4px); justify-content: center; } }
 
-/* ---- Community / sitewide ad card ---- */
-.community-ad-card { border-radius: 20px; overflow: hidden; box-shadow: var(--mu-shadow, none); }
-.community-ad-sponsored-label { font-weight: 700; letter-spacing: .08em; }
-.community-ad-price strong { font-size: 18px; letter-spacing: -.01em; }
-.community-ad-price small { font-size: 11.5px; }
-.community-ad-cta { border-radius: 999px; font-weight: 700; }
-.community-ad-cta:focus-visible, .community-ad-report summary:focus-visible { outline: 2px solid var(--blue, #586aff); outline-offset: 2px; }
-.community-ad-report > form { border-radius: 14px; }
 
 /* ---- Comment composer + thread ---- */
 .comment-form .comment-form-row { align-items: flex-start; gap: 10px; }

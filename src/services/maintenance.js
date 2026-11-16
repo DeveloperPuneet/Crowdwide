@@ -10,7 +10,6 @@ const { clearGrowthStatsCache } = require('./publicStats');
 const { clearPopularSearchesCache } = require('./popularSearches');
 const { clearGifCache } = require('./gif');
 const { clearSiteConfigCache } = require('./siteConfig');
-const { AD_RETENTION_DAYS, cleanupFinishedCampaigns } = require('./advertising');
 const { REJECTED_APPLICATION_RETENTION_DAYS, cleanupOldApplications } = require('./partnerships');
 const logger = require('./logger');
 
@@ -48,7 +47,6 @@ const TASKS = {
     const result = await SearchEvent.deleteMany({ createdAt: { $lt: cutoff } });
     return { searchEvents: result.deletedCount };
   },
-  'finished-ad-campaigns': async (cutoff, { now = new Date() } = {}) => cleanupFinishedCampaigns({ now }),
   'partnership-applications': async (cutoff, { now = new Date() } = {}) => cleanupOldApplications({ now }),
   badges: async (cutoff, { now = new Date() } = {}) => require('./badgeSweep').sweepBadges({ now }),
   caches: async () => ({
@@ -67,7 +65,6 @@ const TASK_LABELS = {
   'search-history': 'Personal search history older than 30 days',
   'recent-views': 'Recent-view history older than 30 days',
   'search-events': 'Search trend events older than 30 days',
-  'finished-ad-campaigns': `Finished ad campaigns older than ${AD_RETENTION_DAYS} days`,
   'partnership-applications': `Rejected or ended partnership applications older than ${REJECTED_APPLICATION_RETENTION_DAYS} days`,
   badges: 'Badge check for active members',
   caches: 'In-memory caches'

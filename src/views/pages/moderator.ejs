@@ -1,7 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: 'moderator', currentUser }) %>
 <% const contentCounts = locals.contentCounts || { post: 0, article: 0, poll: 0 }; const contentType = locals.contentType || ''; const recentAuto = locals.recentAuto || []; const reportedOnly = locals.reportedOnly || false; %>
-<% const monetizationApplications = Array.isArray(locals.pendingMonetization) ? locals.pendingMonetization : []; %>
 <main class="explore-page admin-console moderator-modern"><%- include('../partials/flash') %>
   <p class="eyebrow">Restricted operations</p><h1>Moderator console</h1><p class="form-note">Identifier: <strong><%= moderator.moderatorId %></strong>. Personal emails, sessions, and account security data are hidden here. Low-risk actions apply instantly; high-risk actions are queued for an admin's approval.</p>
   <nav class="admin-tabs" role="tablist" aria-label="Moderator sections">
@@ -10,9 +9,6 @@
     <button type="button" class="admin-tab" id="admin-tab-reports" role="tab" aria-controls="admin-panel-reports" data-tab="reports">Reports<% if (reports.length) { %> (<%= reports.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-appeals" role="tab" aria-controls="admin-panel-appeals" data-tab="appeals">Appeals<% if (pendingAppeals.length) { %> (<%= pendingAppeals.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-communities" role="tab" aria-controls="admin-panel-communities" data-tab="communities">Community changes</button>
-    <button type="button" class="admin-tab" id="admin-tab-monetization" role="tab" aria-controls="admin-panel-monetization" data-tab="monetization">Monetization<% if (monetizationApplications.length) { %> (<%= monetizationApplications.length %>)<% } %></button>
-    <button type="button" class="admin-tab" id="admin-tab-advertisers" role="tab" aria-controls="admin-panel-advertisers" data-tab="advertisers">Advertisers<% if (pendingAdvertisers.length) { %> (<%= pendingAdvertisers.length %>)<% } %></button>
-    <button type="button" class="admin-tab" id="admin-tab-campaigns" role="tab" aria-controls="admin-panel-campaigns" data-tab="campaigns">Campaigns<% if (pendingCampaigns.length) { %> (<%= pendingCampaigns.length %>)<% } %></button>
     <button type="button" class="admin-tab" id="admin-tab-history" role="tab" aria-controls="admin-panel-history" data-tab="history">My activity</button>
   </nav>
 
@@ -21,7 +17,6 @@
       <article class="admin-stat admin-stat-attention"><span>Content</span><strong><%= (contentCounts.post + contentCounts.article + contentCounts.poll).toLocaleString() %></strong><small>unreviewed items</small></article>
       <article class="admin-stat"><span>Reports</span><strong><%= reports.length.toLocaleString() %></strong><small>open</small></article>
       <article class="admin-stat"><span>Appeals</span><strong><%= pendingAppeals.length.toLocaleString() %></strong><small>pending</small></article>
-      <article class="admin-stat"><span>Ad reviews</span><strong><%= (monetizationApplications.length + pendingAdvertisers.length + pendingCampaigns.length).toLocaleString() %></strong><small>to screen</small></article>
     </div>
     <section class="settings-block admin-wide"><h2>How your actions work</h2>
       <div class="mod-risk-grid">
@@ -139,78 +134,6 @@
     </form>
   </details>
   <% }) %></section>
-  </section>
-
-  <section class="admin-panel" id="admin-panel-monetization" role="tabpanel" aria-labelledby="admin-tab-monetization" data-panel="monetization">
-  <section class="settings-block admin-wide" id="monetization"><h2>Community monetization screening</h2><p>Check eligibility and policy history. This review is a recommendation; an admin makes the final decision.</p>
-    <% if (!monetizationApplications.length) { %><p>No community monetization applications are waiting for review.</p><% } %>
-    <% monetizationApplications.forEach((community) => { %>
-    <article class="device-row" style="flex-direction:column;align-items:stretch;">
-      <div><strong><%= community.name %></strong><span>Owner <%= community.owner?.name || 'unknown' %> · submitted <%= new Date(community.monetizationApplication?.submittedAt || community.createdAt).toLocaleDateString() %></span><p><%= community.monetizationApplication?.goals || 'No application goals provided.' %></p><p>Public community · confirm recent activity, owner standing, and upheld policy reports before clearing.</p></div>
-      <form method="post" action="/moderator/communities/<%= community._id %>/monetization" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="text" name="reason" maxlength="500" placeholder="Review notes (required)" required style="flex:1;min-width:180px;">
-        <button class="button button-small button-primary" name="decision" value="cleared" type="submit">Clear for admin</button>
-        <button class="button button-small button-danger" name="decision" value="flagged" type="submit">Flag for admin</button>
-      </form>
-    </article>
-    <% }) %>
-  </section>
-  </section>
-
-  <section class="admin-panel" id="admin-panel-advertisers" role="tabpanel" aria-labelledby="admin-tab-advertisers" data-panel="advertisers">
-  <section class="settings-block admin-wide" id="advertisers"><h2>Advertiser applications</h2><p>Screen advertiser details and policy fit. An admin makes the final approval or rejection decision.</p>
-    <% if (!pendingAdvertisers.length) { %><p>No advertiser applications are waiting for moderator review.</p><% } %>
-    <% pendingAdvertisers.forEach((advertiser) => { %>
-    <article class="device-row" style="flex-direction:column;align-items:stretch;">
-      <% if (advertiser.bannerUrl) { %><img class="advertiser-application-banner" src="<%= advertiser.bannerUrl %>" alt="<%= advertiser.businessName %> banner" loading="lazy"><% } %>
-      <div class="advertiser-application-identity"><% if (advertiser.logoUrl) { %><img class="advertiser-application-logo" src="<%= advertiser.logoUrl %>" alt="<%= advertiser.businessName %> logo" loading="lazy"><% } %><div><strong><%= advertiser.businessName %></strong><span><%= advertiser.user?.name || 'member' %></span></div></div>
-        <% if (advertiser.businessDescription) { %><p><%= advertiser.businessDescription %></p><% } %>
-        <% if (advertiser.website) { %><p><a href="<%= advertiser.website %>" rel="nofollow noopener noreferrer"><%= advertiser.website %></a></p><% } %>
-        <% if (advertiser.notes) { %><p><%= advertiser.notes %></p><% } %>
-        <p>Advertising Terms: <%= advertiser.termsVersion || 'not accepted' %><% if (advertiser.termsAcceptedAt) { %> · <%= new Date(advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p>
-        <details><summary>Advertiser review history (<%= (advertiser.moderationHistory || []).length %>)</summary>
-          <% (advertiser.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
-        </details>
-      <form method="post" action="/moderator/advertisers/<%= advertiser._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="text" name="reason" maxlength="500" placeholder="Review notes (required)" required style="flex:1;min-width:180px;">
-        <button class="button button-small button-primary" name="decision" value="cleared" type="submit">Clear for admin</button>
-        <button class="button button-small button-danger" name="decision" value="flagged" type="submit">Flag for admin</button>
-      </form>
-    </article>
-    <% }) %>
-  </section>
-  </section>
-
-  <section class="admin-panel" id="admin-panel-campaigns" role="tabpanel" aria-labelledby="admin-tab-campaigns" data-panel="campaigns">
-  <section class="settings-block admin-wide" id="campaigns"><h2>Advertisement campaign review</h2><p>Review submitted campaigns for policy concerns. Once you clear or flag a campaign, it leaves this queue for the final admin decision. After admin approval it goes live automatically. For a first-time advertiser, this single review also covers their business details.</p>
-    <% if (!pendingCampaigns.length) { %><p>No campaigns are waiting for moderator screening. Cleared or flagged campaigns are no longer shown in this queue.</p><% } %>
-    <% pendingCampaigns.forEach((campaign) => { %>
-    <article class="device-row" style="flex-direction:column;align-items:stretch;">
-      <div><strong><%= campaign.campaignType === 'product' ? (campaign.productName || campaign.title) : campaign.title %></strong><span><%= (campaign.campaignType || 'other').replace(/-/g, ' ') %> · <%= campaign.brandName ? campaign.brandName + ' (' + (campaign.advertiser?.businessName || 'Advertiser') + ')' : (campaign.advertiser?.businessName || 'Advertiser') %> · <%= campaign.advertiser?.user?.name || 'member' %></span><%- include('../partials/advertiser-details', { advertiser: campaign.advertiser }) %><% if (campaign.campaignType === 'product' && campaign.productPrice) { %><p>Advertiser-displayed price: <%= campaign.productPrice %></p><% } %><p><%= campaign.description || 'No description provided.' %></p><p>Rights attestation: <%= campaign.rightsConfirmedAt ? `confirmed ${new Date(campaign.rightsConfirmedAt).toLocaleString()}` : 'not recorded for this legacy campaign' %></p><p>Budget: <%= Number(campaign.totalBudget || 0).toLocaleString() %> Waves · <% if (campaign.sitewideFallback) { %>normal-feed fallback (only while no community is monetized)<% } else { %>targets: <%- include('../partials/campaign-targets', { campaign }) %> · shown only there, labelled Sponsored<% } %></p><p>Advertising Terms: <%= campaign.advertiser?.termsVersion || 'not accepted' %><% if (campaign.advertiser?.termsAcceptedAt) { %> · <%= new Date(campaign.advertiser.termsAcceptedAt).toLocaleDateString() %><% } %></p></div>
-      <details><summary>Campaign review history (<%= (campaign.moderationHistory || []).length %>)</summary>
-        <% (campaign.moderationHistory || []).slice().reverse().forEach((event) => { %><p><strong><%= event.status.replace(/-/g, ' ') %></strong> · <%= new Date(event.createdAt).toLocaleString() %> · <%= event.actor?.name || 'Staff' %><% if (event.reason) { %><br><%= event.reason %><% } %></p><% }) %>
-      </details>
-      <p>Do not clear campaigns promoting adult-only (18+) services, erotic or sexually explicit content, gambling or betting, pornography, or other inappropriate products or services. This is a policy review, not automated content detection.</p>
-      <form method="post" action="/moderator/campaigns/<%= campaign._id %>/review" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="text" name="reason" maxlength="500" placeholder="Review notes (required)" required style="flex:1;min-width:180px;">
-        <fieldset style="flex-basis:100%;">
-          <legend>For a clear decision, confirm every policy check</legend>
-          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="adult-18-plus"> Not for adult-only (18+) products or services</label>
-          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="sexual-content"> No erotic or sexually explicit content</label>
-          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="gambling-betting"> No gambling or betting</label>
-          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="pornography"> No pornography</label>
-          <label class="checkbox-field"><input type="checkbox" name="policyChecks" value="other-inappropriate"> No other inappropriate products or services</label>
-        </fieldset>
-        <label>Flag category<select name="flaggedCategory"><option value="">Choose a category if flagging</option><option value="adult-18-plus">Adult-only (18+)</option><option value="sexual-content">Erotic or sexually explicit</option><option value="gambling-betting">Gambling or betting</option><option value="pornography">Pornography</option><option value="other-inappropriate">Other inappropriate content</option></select></label>
-        <button class="button button-small button-primary" name="decision" value="cleared" type="submit">Clear for admin</button>
-        <button class="button button-small button-danger" name="decision" value="flagged" type="submit">Flag for admin</button>
-      </form>
-    </article>
-    <% }) %>
-  </section>
   </section>
 
   <section class="admin-panel" id="admin-panel-history" role="tabpanel" aria-labelledby="admin-tab-history" data-panel="history">

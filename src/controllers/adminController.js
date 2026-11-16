@@ -8,22 +8,17 @@ const Report = require('../models/Report');
 const AuditLog = require('../models/AuditLog');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const WavesAbuseSignal = require('../models/WavesAbuseSignal');
-const CampaignAbuseSignal = require('../models/CampaignAbuseSignal');
 const { clearAllFeedCaches } = require('../services/feedService');
 const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
 const { reengagementReport } = require('../services/reengagement');
 const MaintenanceRun = require('../models/MaintenanceRun');
 const Appeal = require('../models/Appeal');
-const Advertiser = require('../models/Advertiser');
-const Campaign = require('../models/Campaign');
-const CampaignEvent = require('../models/CampaignEvent');
 const { logEvent } = require('../services/accountHistory');
 const { getSiteConfig, clearSiteConfigCache, getPostReviewThreshold } = require('../services/siteConfig');
 const { runMaintenance, TASK_LABELS } = require('../services/maintenance');
 const { getMongoStorage, formatStorage } = require('../services/mongoStorage');
-const { adjustWaves, getReciprocalRewardSignals, creditCommunityAdShare } = require('../services/waves');
-const { reviewAdvertiserAsModerator, reviewCampaignAsModerator, updateAdvertiserStatus, updateCampaignStatus } = require('../services/advertising');
+const { adjustWaves, getReciprocalRewardSignals } = require('../services/waves');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { removeUserFromCommunities } = require('../services/communityMembership');
 const { uploadBuffer, mediaUrl, deleteFile } = require('../services/storageCluster');
@@ -39,14 +34,6 @@ const LOW_RISK_ACTIONS = new Set(['rate-good-post', 'rate-bad-post', 'edit-post'
 const REVERTIBLE_ACTIONS = new Set(['rate-good-post', 'rate-bad-post', 'edit-post']);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SUSPENSION_MS = 365 * DAY_MS; // fallback used only where a site-config lookup isn't already in hand
-const validRevenueSharePercent = (value) => {
-  const percent = Number(value);
-  return String(value ?? '').trim() !== ''
-    && Number.isFinite(percent)
-    && percent >= 0
-    && percent <= 100
-    && Math.abs(percent * 100 - Math.round(percent * 100)) <= 1e-8;
-};
 
 
 // Applies a moderator's low-risk action right away and records it for admin oversight.
@@ -194,238 +181,33 @@ async function attachActionContext(actions) {
 }
 
 exports.admin = async (req, res) => {
-  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares] = await Promise.all([
+  const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousWavesTransfers] = await Promise.all([
     User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason wavesSuspendedUntil wavesSuspensionReason wavesBalance warnings').lean(),
-    Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts monetizationStatus monetizationApplication monetizationSettings createdAt').populate('owner', 'name email').lean(),
+    Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(80).populate('reporter', 'name email').lean(),
     ModerationAction.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('moderator', 'name moderatorId').lean(),
-    Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').populate('advertiser', 'businessName status').lean(),
+    Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
     User.find({ role: 'moderator' }).select('name email moderatorId isVerified createdAt loginLockedUntil').sort({ createdAt: -1 }).lean(),
     AuditLog.find().sort({ createdAt: -1 }).limit(100).populate('actor', 'name email role moderatorId').lean(),
     MaintenanceRun.find().sort({ createdAt: -1 }).limit(30).populate('triggeredBy', 'name').lean(),
     SiteSetting.getSingleton(),
     getMongoStorage(),
-    Community.find({
-      $or: [
-        { monetizationStatus: 'pending', 'monetizationModeratorReview.status': { $in: ['cleared', 'flagged'] } },
-        { 'monetizationApplication.appealStatus': 'pending' }
-      ]
-    }).sort({ updatedAt: -1 }).limit(30).select('name slug owner monetizationApplication monetizationModeratorReview monetizationStatus monetizationSettings monetizationHistory createdAt').populate('owner', 'name email').lean(),
-    Advertiser.find({ status: 'pending', viaCampaign: { $ne: true } }).sort({ createdAt: 1 }).limit(50).populate('user', 'name email').populate('moderationHistory.actor', 'name role').populate('moderatorReview.reviewedBy', 'name role').lean(),
-    Campaign.find({ status: 'submitted', 'moderatorReview.status': { $in: ['cleared', 'flagged'] } }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('targetCommunities', 'name slug').populate('moderatorReview.reviewedBy', 'name role').populate('moderationHistory.actor', 'name role').lean(),
-    Campaign.find({ status: { $in: ['approved', 'active', 'paused', 'suspended'] } }).sort({ updatedAt: -1 }).limit(100).populate({ path: 'advertiser', populate: [{ path: 'user', select: 'name email' }, { path: 'moderationHistory.actor', select: 'name role' }] }).populate('targetCommunities', 'name slug').populate('moderationHistory.actor', 'name role').lean(),
     getReciprocalRewardSignals(),
     WavesLedgerEntry.aggregate([
       { $match: { status: 'posted', createdAt: { $gte: new Date(Date.now() - 30 * DAY_MS) } } },
       { $group: { _id: '$type', entries: { $sum: 1 }, netWaves: { $sum: '$amount' } } }
     ]),
     User.find({ wavesSuspendedUntil: { $gt: new Date() } }).sort({ wavesSuspendedUntil: 1 }).limit(30).select('name email wavesSuspendedUntil wavesSuspensionReason wavesBalance').lean(),
-    CampaignAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('campaign', 'title').populate('community', 'name slug').populate('viewer', 'name email').lean(),
-    WavesAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('sender', 'name email').populate('recipient', 'name email').lean(),
-    WavesLedgerEntry.aggregate([
-      { $match: { type: 'earn', status: 'posted', referenceType: 'community-ad-share', community: { $ne: null } } },
-      { $group: { _id: '$community', totalWaves: { $sum: '$amount' }, entries: { $sum: 1 }, lastEarnedAt: { $max: '$createdAt' } } },
-      { $sort: { lastEarnedAt: -1 } },
-      { $limit: 50 }
-    ]),
-    CampaignEvent.find({
-      communityShareStatus: 'pending',
-      community: { $ne: null },
-      communityOwner: { $ne: null },
-      communityOwnerShareWaves: { $gt: 0 }
-    })
-      .sort({ createdAt: 1 })
-      .limit(100)
-      .populate('campaign', 'title')
-      .populate('community', 'name slug')
-      .populate('communityOwner', 'name email')
-      .lean()
+    WavesAbuseSignal.find({ status: 'open' }).sort({ lastSeenAt: -1 }).limit(100).populate('sender', 'name email').populate('recipient', 'name email').lean()
   ]);
   const pinnedPostIds = new Set(communities.flatMap((community) => (community.pinnedPosts || []).map((id) => String(id))));
   const autoApplied = await ModerationAction.find({ autoApplied: true, status: 'approved', revertedAt: null, action: { $in: [...REVERTIBLE_ACTIONS] } }).sort({ createdAt: -1 }).limit(30).populate('moderator', 'name moderatorId').lean();
   await attachActionContext([...pendingActions, ...autoApplied]);
-  const communityAdShareIds = communityAdShares.map((row) => row._id);
-  const communityAdShareCommunities = communityAdShareIds.length
-    ? await Community.find({ _id: { $in: communityAdShareIds } }).select('name slug owner').populate('owner', 'name email').lean()
-    : [];
-  const communityAdShareById = new Map(communityAdShareCommunities.map((community) => [String(community._id), community]));
-  communityAdShares.forEach((row) => { row.community = communityAdShareById.get(String(row._id)) || null; });
   res.locals.surveys = await require('../services/surveys').adminSurveys();
   const partnershipData = await require('./partnershipController').adminData();
   const reengagement = await reengagementReport().catch(() => null);
-  res.render('pages/admin', { reengagement, title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, ...partnershipData, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, pinnedPostIds, mongoStorage, formatStorage, pendingMonetization, pendingAdvertisers, pendingCampaigns, managedCampaigns, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousAdEvents, suspiciousWavesTransfers, communityAdShares, pendingCommunityShares, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
-};
-
-exports.retryCommunityAdShare = async (req, res) => {
-  const event = await CampaignEvent.findOne({
-    _id: req.params.id,
-    communityShareStatus: 'pending',
-    community: { $ne: null },
-    communityOwner: { $ne: null },
-    communityOwnerShareWaves: { $gt: 0 }
-  });
-  if (!event) {
-    flash(req, 'error', 'That community ad share is no longer pending.');
-    return res.redirect('/admin#overview');
-  }
-  try {
-    const result = await creditCommunityAdShare({
-      userId: event.communityOwner,
-      amount: event.communityOwnerShareWaves,
-      communityId: event.community,
-      eventId: event._id,
-      viewerId: event.viewer,
-      revenueSharePercent: event.communityOwnerSharePercent
-    });
-    if (result.amount > 0 || result.duplicate) {
-      await CampaignEvent.updateOne(
-        { _id: event._id, communityShareStatus: 'pending' },
-        { $set: { communityShareStatus: 'posted' } }
-      );
-      await audit(req, 'retry-community-ad-share', 'community', event.community, {
-        event: event._id,
-        amount: event.communityOwnerShareWaves,
-        owner: event.communityOwner
-      });
-      flash(req, 'success', 'The community ad share was credited to the owner wallet.');
-    } else {
-      flash(req, 'error', 'The share is already being processed. Refresh shortly to check its status.');
-    }
-  } catch (error) {
-    logger.warn('Community ad share retry failed', { eventId: event._id, error });
-    flash(req, 'error', error.message || 'The community ad share could not be credited.');
-  }
-  return res.redirect('/admin#overview');
-};
-
-exports.reviewAdvertiser = async (req, res) => {
-  const status = req.body.decision;
-  const reason = String(req.body.reason || '').trim().slice(0, 500);
-  try {
-    const advertiser = await updateAdvertiserStatus({
-      advertiserId: req.params.id,
-      status,
-      reason,
-      actorId: req.roleUser._id
-    });
-    await audit(req, `advertiser-${status}`, 'advertiser', advertiser._id, { reason });
-    flash(req, 'success', `Advertiser application ${status}.`);
-  } catch (error) {
-    logger.warn('Admin advertiser review failed', { advertiserId: req.params.id, error });
-    flash(req, 'error', error.message || 'Advertiser review could not be completed.');
-  }
-  res.redirect('/admin#advertisers');
-};
-
-exports.reviewAdvertiserAsModerator = async (req, res) => {
-  const decision = String(req.body.decision || '');
-  const reason = String(req.body.reason || '').trim().slice(0, 500);
-  try {
-    const advertiser = await reviewAdvertiserAsModerator({
-      advertiserId: req.params.id,
-      decision,
-      reason,
-      moderatorId: req.roleUser._id
-    });
-    await audit(req, `advertiser-moderator-${decision}`, 'advertiser', advertiser._id, { reason });
-    flash(req, 'success', decision === 'cleared' ? 'Advertiser application cleared for final admin review.' : 'Advertiser application flagged for final admin review.');
-  } catch (error) {
-    logger.warn('Moderator advertiser review failed', { advertiserId: req.params.id, moderatorId: req.roleUser._id, error });
-    flash(req, 'error', error.message || 'Advertiser review could not be completed.');
-  }
-  res.redirect('/moderator#advertisers');
-};
-
-exports.reviewCampaign = async (req, res) => {
-  const decision = req.body.decision;
-  const reason = String(req.body.reason || '').trim().slice(0, 500);
-  if (!['approved', 'rejected'].includes(decision)) {
-    flash(req, 'error', 'Choose approve or reject for campaign review.');
-    return res.redirect('/admin#campaigns');
-  }
-  try {
-    const campaign = await updateCampaignStatus({
-      campaignId: req.params.id,
-      status: decision,
-      rejectionReason: reason,
-      actorId: req.roleUser._id,
-      activateOnApproval: true
-    });
-    await audit(req, `campaign-${decision}`, 'campaign', campaign._id, { reason, status: campaign.status });
-    flash(req, 'success', decision === 'approved'
-      ? (campaign.status === 'active' ? 'Campaign approved and live.' : campaign.status === 'completed' ? 'Campaign approved, but its end date had already passed; it was closed and the budget refunded.' : 'Campaign approved.')
-      : `Campaign rejected${campaign.fundingStatus === 'refunded' ? '; unused Waves were refunded.' : '.'}`);
-  } catch (error) {
-    logger.warn('Admin campaign review failed', { campaignId: req.params.id, error });
-    flash(req, 'error', error.message || 'Campaign review could not be completed.');
-  }
-  res.redirect('/admin#campaigns');
-};
-
-exports.manageCampaign = async (req, res) => {
-  const action = String(req.body.action || '');
-  const reason = String(req.body.reason || '').trim().slice(0, 500);
-  const statusByAction = { suspend: 'suspended', reinstate: 'approved', remove: 'cancelled' };
-  const status = statusByAction[action];
-  if (!status) {
-    flash(req, 'error', 'Choose suspend, reinstate, or remove for this campaign.');
-    return res.redirect('/admin#campaigns');
-  }
-  if (!reason) {
-    flash(req, 'error', 'Provide a reason for this campaign action.');
-    return res.redirect('/admin#campaigns');
-  }
-  try {
-    const campaign = await updateCampaignStatus({
-      campaignId: req.params.id,
-      status,
-      reason,
-      actorId: req.roleUser._id
-    });
-    await audit(req, `campaign-${action}`, 'campaign', campaign._id, {
-      reason,
-      refundedBudget: action === 'remove' ? campaign.refundedBudget : 0
-    });
-    flash(req, 'success', action === 'suspend'
-      ? 'Campaign suspended; delivery is disabled and its remaining budget remains held.'
-      : action === 'reinstate'
-        ? 'Campaign reinstated as approved; the advertiser must activate it.'
-        : 'Campaign removed; any unused funded Waves were refunded.');
-  } catch (error) {
-    logger.warn('Admin campaign management failed', { campaignId: req.params.id, action, error });
-    flash(req, 'error', error.message || 'Campaign action could not be completed.');
-  }
-  res.redirect('/admin#campaigns');
-};
-
-exports.reviewCampaignAsModerator = async (req, res) => {
-  const decision = String(req.body.decision || '');
-  const reason = String(req.body.reason || '').trim().slice(0, 500);
-  const policyChecks = Array.isArray(req.body.policyChecks)
-    ? req.body.policyChecks
-    : [req.body.policyChecks].filter(Boolean);
-  const flaggedCategory = String(req.body.flaggedCategory || '');
-  try {
-    const campaign = await reviewCampaignAsModerator({
-      campaignId: req.params.id,
-      decision,
-      reason,
-      flaggedCategory,
-      policyChecks,
-      moderatorId: req.roleUser._id
-    });
-    await audit(req, `campaign-moderator-${decision}`, 'campaign', campaign._id, {
-      reason,
-      flaggedCategory: campaign.moderatorReview.flaggedCategory,
-      policyChecks: campaign.moderatorReview.policyChecks
-    });
-    flash(req, 'success', decision === 'cleared' ? 'Campaign cleared for final admin review.' : 'Campaign flagged for final admin review.');
-  } catch (error) {
-    logger.warn('Moderator campaign review failed', { campaignId: req.params.id, moderatorId: req.roleUser._id, error });
-    flash(req, 'error', error.message || 'Campaign review could not be completed.');
-  }
-  res.redirect('/moderator#campaigns');
+  res.render('pages/admin', { reengagement, title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, ...partnershipData, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, mongoStorage, formatStorage, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousWavesTransfers, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
 exports.runMaintenance = async (req, res) => {
@@ -458,32 +240,10 @@ exports.resolveAppeal = async (req, res) => {
     flash(req, 'error', 'That appeal is no longer pending.');
     return res.redirect(backTo);
   }
-  if (appeal.actionType === 'advertiser' && req.roleUser.role !== 'admin') {
-    flash(req, 'error', 'Advertiser appeals can only be decided by an admin.');
-    return res.redirect('/moderator#appeals');
-  }
   const approve = req.body.decision === 'approve';
   appeal.reviewNote = req.body.note?.trim().slice(0, 500) || '';
   if (approve) {
-    if (appeal.actionType === 'advertiser') {
-      const advertiser = await Advertiser.findOne({ _id: appeal.advertiser, user: appeal.user });
-      if (!advertiser || !['rejected', 'suspended'].includes(advertiser.status)) {
-        flash(req, 'error', 'The advertiser account is no longer eligible for restoration through this appeal.');
-        return res.redirect(backTo);
-      }
-      advertiser.status = 'approved';
-      advertiser.isVerified = true;
-      advertiser.approvedAt = new Date();
-      advertiser.verifiedAt = advertiser.verifiedAt || new Date();
-      advertiser.rejectionReason = '';
-      advertiser.reviewedBy = req.roleUser._id;
-      advertiser.reviewedAt = new Date();
-      advertiser.moderationHistory = [
-        ...(advertiser.moderationHistory || []).slice(-9),
-        { status: 'approved', reason: appeal.reviewNote || 'Advertiser appeal approved.', createdAt: new Date(), actor: req.roleUser._id }
-      ];
-      await advertiser.save();
-    } else if (appeal.actionType === 'suspension') await User.findByIdAndUpdate(appeal.user, { suspendedUntil: null, suspensionReason: '' });
+    if (appeal.actionType === 'suspension') await User.findByIdAndUpdate(appeal.user, { suspendedUntil: null, suspensionReason: '' });
     else if (appeal.actionType === 'posting-restriction') await User.findByIdAndUpdate(appeal.user, { postingRestrictedUntil: null, postingRestrictionReason: '' });
     else if (appeal.actionType === 'warning') await User.findByIdAndUpdate(appeal.user, { $pull: { warnings: { _id: appeal.warningId } } });
   }
@@ -491,8 +251,8 @@ exports.resolveAppeal = async (req, res) => {
   appeal.reviewedBy = req.roleUser._id;
   appeal.reviewedAt = new Date();
   await appeal.save();
-  if (appeal.actionType !== 'advertiser') logEvent(appeal.user, approve ? 'appeal-approved' : 'appeal-denied', appeal.reviewNote);
-  await audit(req, approve ? 'approve-appeal' : 'deny-appeal', appeal.actionType === 'advertiser' ? 'advertiser' : 'user', appeal.actionType === 'advertiser' ? appeal.advertiser : appeal.user, { actionType: appeal.actionType });
+  logEvent(appeal.user, approve ? 'appeal-approved' : 'appeal-denied', appeal.reviewNote);
+  await audit(req, approve ? 'approve-appeal' : 'deny-appeal', 'user', appeal.user, { actionType: appeal.actionType });
   flash(req, 'success', `Appeal ${approve ? 'approved' : 'denied'}.`);
   res.redirect(backTo);
 };
@@ -613,192 +373,6 @@ exports.deletePost = async (req, res) => {
   res.redirect('/admin#posts');
 };
 
-exports.reviewMonetization = async (req, res) => {
-  const community = await Community.findById(req.params.id);
-  if (!community) return res.redirect('/admin#communities');
-
-  const decision = String(req.body.decision || '');
-  const note = req.body.note?.trim().slice(0, 500) || '';
-
-  if (decision === 'approve' && community.monetizationModeratorReview?.status !== 'cleared') {
-    flash(req, 'error', 'A moderator must clear this application before final admin approval.');
-    return res.redirect('/admin#communities');
-  }
-  if (['approve', 'approve-appeal'].includes(decision)) {
-    if (!validRevenueSharePercent(req.body.revenueSharePercent)) {
-      flash(req, 'error', 'Set a community Waves share between 0 and 100%, using at most two decimal places.');
-      return res.redirect('/admin#communities');
-    }
-  }
-
-  if (decision === 'approve') {
-    const adPlacement = String(req.body.adPlacement || 'feed');
-    const adFrequency = Number(req.body.adFrequency || 1);
-    if (!['feed', 'sidebar', 'all'].includes(adPlacement) || !Number.isInteger(adFrequency) || adFrequency < 1 || adFrequency > 10) {
-      flash(req, 'error', 'Choose a valid ad placement and a frequency between 1 and 10 posts.');
-      return res.redirect('/admin#communities');
-    }
-    community.monetizationStatus = 'approved';
-    community.isMonetized = true;
-    community.monetizationApprovedAt = new Date();
-    community.monetizationApplication = {
-      ...(community.monetizationApplication?.toObject?.() || community.monetizationApplication || {}),
-      reviewedAt: new Date(),
-      reviewedBy: req.roleUser._id,
-      rejectionReason: ''
-    };
-    community.monetizationSettings = {
-      ...(community.monetizationSettings || {}),
-      adsEnabled: req.body.adsEnabled === 'on',
-      adPlacement,
-      adFrequency,
-      revenueSharePercent: Number(req.body.revenueSharePercent),
-      requiresAdminReview: true
-    };
-    community.monetizationHistory = [
-      ...(community.monetizationHistory || []).slice(-9),
-      { status: 'approved', action: 'approved', note: note || 'Community monetization approved by admin.', createdAt: new Date(), actor: req.roleUser._id }
-    ];
-  } else if (decision === 'reject') {
-    if (!['cleared', 'flagged'].includes(community.monetizationModeratorReview?.status) || !note) {
-      flash(req, 'error', 'Moderator screening must be complete and a rejection reason is required.');
-      return res.redirect('/admin#communities');
-    }
-    community.monetizationStatus = 'rejected';
-    community.isMonetized = false;
-    community.monetizationApplication = {
-      ...(community.monetizationApplication?.toObject?.() || community.monetizationApplication || {}),
-      rejectionReason: note || 'This community did not meet the monetization requirements.'
-    };
-    community.monetizationHistory = [
-      ...(community.monetizationHistory || []).slice(-9),
-      { status: 'rejected', action: 'rejected', note: note || 'Community monetization application rejected.', createdAt: new Date(), actor: req.roleUser._id }
-    ];
-  } else if (decision === 'pause') {
-    if (!note) {
-      flash(req, 'error', 'A reason is required when suspending monetization.');
-      return res.redirect('/admin#communities');
-    }
-    community.monetizationStatus = 'paused';
-    community.isMonetized = false;
-    community.monetizationSettings = { ...(community.monetizationSettings || {}), adsEnabled: false };
-    community.monetizationHistory = [
-      ...(community.monetizationHistory || []).slice(-9),
-      { status: 'paused', action: 'paused', note: note || 'Monetization was paused by admin.', createdAt: new Date(), actor: req.roleUser._id }
-    ];
-  } else if (decision === 'approve-appeal' || decision === 'deny-appeal') {
-    const application = community.monetizationApplication || {};
-    if (application.appealStatus !== 'pending') {
-      flash(req, 'error', 'There is no pending monetization appeal for this community.');
-      return res.redirect('/admin#communities');
-    }
-    if (decision === 'deny-appeal' && !note) {
-      flash(req, 'error', 'A reason is required when denying an appeal.');
-      return res.redirect('/admin#communities');
-    }
-    community.monetizationApplication = {
-      ...(application.toObject?.() || application),
-      appealStatus: decision === 'approve-appeal' ? 'approved' : 'denied'
-    };
-    if (decision === 'approve-appeal') {
-      community.monetizationStatus = 'approved';
-      community.isMonetized = true;
-      community.monetizationApprovedAt = new Date();
-      community.monetizationSettings = {
-        ...(community.monetizationSettings || {}),
-        adsEnabled: false,
-        revenueSharePercent: Number(req.body.revenueSharePercent)
-      };
-    }
-    community.monetizationHistory = [
-      ...(community.monetizationHistory || []).slice(-19),
-      {
-        status: community.monetizationStatus,
-        action: decision,
-        note: note || 'Monetization appeal approved; advertising remains disabled pending admin activation.',
-        createdAt: new Date(),
-        actor: req.roleUser._id
-      }
-    ];
-  } else {
-    flash(req, 'error', 'Choose a valid monetization decision.');
-    return res.redirect('/admin#communities');
-  }
-
-  community.monetizationUpdatedAt = new Date();
-  await community.save();
-  await audit(req, 'review-community-monetization', 'community', community._id, { decision, note });
-  flash(req, 'success', `Monetization status updated to ${community.monetizationStatus}.`);
-  res.redirect('/admin#communities');
-};
-
-exports.reviewCommunityMonetizationAsModerator = async (req, res) => {
-  const community = await Community.findById(req.params.id);
-  const decision = String(req.body.decision || '');
-  const reason = String(req.body.reason || '').trim().slice(0, 500);
-  if (!community || community.monetizationStatus !== 'pending'
-    || !['pending', undefined].includes(community.monetizationModeratorReview?.status)) {
-    flash(req, 'error', 'That community application is no longer awaiting moderator review.');
-    return res.redirect('/moderator#monetization');
-  }
-  if (String(community.owner) === String(req.roleUser._id)) {
-    flash(req, 'error', 'You cannot moderate your own community monetization application.');
-    return res.redirect('/moderator#monetization');
-  }
-  if (!['cleared', 'flagged'].includes(decision) || !reason) {
-    flash(req, 'error', 'Choose clear or flag and provide moderator review notes.');
-    return res.redirect('/moderator#monetization');
-  }
-  community.monetizationModeratorReview = {
-    status: decision,
-    reason,
-    reviewedAt: new Date(),
-    reviewedBy: req.roleUser._id
-  };
-  community.monetizationHistory = [
-    ...(community.monetizationHistory || []).slice(-19),
-    {
-      status: 'pending',
-      action: `moderator-${decision}`,
-      note: reason,
-      createdAt: new Date(),
-      actor: req.roleUser._id
-    }
-  ];
-  community.monetizationUpdatedAt = new Date();
-  await community.save();
-  await audit(req, `community-monetization-moderator-${decision}`, 'community', community._id, { reason });
-  flash(req, 'success', decision === 'cleared' ? 'Application cleared for final admin review.' : 'Application flagged for final admin review.');
-  return res.redirect('/moderator#monetization');
-};
-
-exports.reviewAdAbuseSignal = async (req, res) => {
-  const signal = await CampaignAbuseSignal.findOne({ _id: req.params.id, status: 'open' });
-  const reviewNote = String(req.body.reviewNote || '').trim().slice(0, 500);
-  if (!signal) {
-    flash(req, 'error', 'That advertisement signal is already reviewed or unavailable.');
-    return res.redirect('/admin#overview');
-  }
-  if (!reviewNote) {
-    flash(req, 'error', 'Add a review note before closing an advertisement signal.');
-    return res.redirect('/admin#overview');
-  }
-  signal.status = 'reviewed';
-  signal.reviewedBy = req.roleUser._id;
-  signal.reviewedAt = new Date();
-  signal.reviewNote = reviewNote;
-  await signal.save();
-  await audit(req, 'review-ad-abuse-signal', 'campaign', signal.campaign, {
-    community: signal.community,
-    viewer: signal.viewer,
-    eventType: signal.eventType,
-    attempts: signal.attempts,
-    note: reviewNote
-  });
-  flash(req, 'success', 'Advertisement activity signal reviewed.');
-  return res.redirect('/admin#overview');
-};
-
 exports.reviewWavesAbuseSignal = async (req, res) => {
   const signal = await WavesAbuseSignal.findOne({ _id: req.params.id, status: 'open' });
   const reviewNote = String(req.body.reviewNote || '').trim().slice(0, 500);
@@ -842,44 +416,8 @@ exports.updateCommunity = async (req, res) => {
   community.isPrivate = req.body.isPrivate === 'on';
   community.requireApproval = req.body.requireApproval === 'on';
   community.bannedWords = (req.body.bannedWords || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean).slice(0, 100);
-  let advertisingSettingsUpdated = false;
-  let revenueShareUpdated = false;
-  if (req.body.updateAdvertisingSettings === 'on') {
-    if (community.monetizationStatus !== 'approved' || !community.isMonetized) {
-      flash(req, 'error', 'Advertising settings are available only for actively monetized communities.');
-      return res.redirect('/admin#communities');
-    }
-    const adPlacement = String(req.body.adPlacement || '');
-    const adFrequency = Number(req.body.adFrequency);
-    if (!['feed', 'sidebar', 'all'].includes(adPlacement)
-      || !Number.isInteger(adFrequency)
-      || adFrequency < 1
-      || adFrequency > 10
-      || !validRevenueSharePercent(req.body.revenueSharePercent)) {
-      flash(req, 'error', 'Choose a valid ad placement, a frequency between 1 and 10 posts, and a Waves share from 0 to 100% (up to two decimal places).');
-      return res.redirect('/admin#communities');
-    }
-    community.monetizationSettings = {
-      ...(community.monetizationSettings || {}),
-      adsEnabled: req.body.adsEnabled === 'on',
-      adPlacement,
-      adFrequency,
-      revenueSharePercent: Number(req.body.revenueSharePercent)
-    };
-    advertisingSettingsUpdated = true;
-    revenueShareUpdated = true;
-  }
   await community.save();
-  const auditDetails = { name: community.name, advertisingSettingsUpdated, revenueShareUpdated };
-  if (advertisingSettingsUpdated) {
-    auditDetails.advertisingSettings = {
-      adsEnabled: community.monetizationSettings.adsEnabled,
-      adPlacement: community.monetizationSettings.adPlacement,
-      adFrequency: community.monetizationSettings.adFrequency,
-      revenueSharePercent: community.monetizationSettings.revenueSharePercent
-    };
-  }
-  await audit(req, 'edit-community', 'community', community._id, auditDetails);
+  await audit(req, 'edit-community', 'community', community._id, { name: community.name });
   flash(req, 'success', 'Community updated.');
   res.redirect('/admin#communities');
 };
@@ -913,16 +451,6 @@ exports.updateSiteSettings = async (req, res) => {
   if (Number.isFinite(suspensionDefaultDays) && suspensionDefaultDays >= 1) settings.suspensionDefaultDays = Math.min(3650, Math.round(suspensionDefaultDays));
   const postReviewThreshold = Number(req.body.postReviewThreshold);
   if (Number.isFinite(postReviewThreshold) && postReviewThreshold >= 1) settings.postReviewThreshold = Math.min(50, Math.round(postReviewThreshold));
-  const monetizationMinimumPosts = Number(req.body.monetizationMinimumPosts);
-  if (Number.isFinite(monetizationMinimumPosts) && monetizationMinimumPosts >= 0) settings.monetizationMinimumPosts = Math.min(10000, Math.round(monetizationMinimumPosts));
-  const monetizationMinimumLikes = Number(req.body.monetizationMinimumLikes);
-  if (Number.isFinite(monetizationMinimumLikes) && monetizationMinimumLikes >= 0) settings.monetizationMinimumLikes = Math.min(100000, Math.round(monetizationMinimumLikes));
-  const monetizationMinimumComments = Number(req.body.monetizationMinimumComments);
-  if (Number.isFinite(monetizationMinimumComments) && monetizationMinimumComments >= 0) settings.monetizationMinimumComments = Math.min(100000, Math.round(monetizationMinimumComments));
-  const monetizationMinimumCommunityAgeDays = Number(req.body.monetizationMinimumCommunityAgeDays);
-  if (Number.isFinite(monetizationMinimumCommunityAgeDays) && monetizationMinimumCommunityAgeDays >= 0) settings.monetizationMinimumCommunityAgeDays = Math.min(3650, Math.round(monetizationMinimumCommunityAgeDays));
-  const monetizationRecentActivityDays = Number(req.body.monetizationRecentActivityDays);
-  if (Number.isFinite(monetizationRecentActivityDays) && monetizationRecentActivityDays >= 1) settings.monetizationRecentActivityDays = Math.min(365, Math.round(monetizationRecentActivityDays));
   for (const [field, formName] of [
     ['wavesPostReward', 'post'],
     ['wavesCommentReward', 'comment'],
@@ -1180,7 +708,7 @@ exports.moderator = async (req, res) => {
   const reviewThreshold = await getPostReviewThreshold();
   const reportedOnly = req.query.filter === 'reported';
   const contentType = ['post', 'article', 'poll'].includes(req.query.type) ? req.query.type : '';
-  const [reports, actions, communities, moderationFeed, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization] = await Promise.all([
+  const [reports, actions, communities, moderationFeed, pendingAppeals] = await Promise.all([
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ status: 1, createdAt: -1 }).limit(60).select('targetType target reason evidenceUrl status createdAt').populate('reporter', 'name').lean(),
     ModerationAction.find({ moderator: req.roleUser._id }).sort({ createdAt: -1 }).limit(60).select('action targetType target reason status createdAt reviewNote autoApplied revertedAt').lean(),
     Community.find().sort({ membersCount: -1 }).limit(60).select('name slug description guidelines category membersCount requireApproval bannedWords createdAt').lean(),
@@ -1197,27 +725,14 @@ exports.moderator = async (req, res) => {
       ...(reportedOnly ? { moderationStatus: 'reported' } : {}),
       ...(contentType ? { type: contentType } : {})
     }).sort({ moderationStatus: -1, moderationScore: -1, createdAt: -1 }).limit(50).select('body type poll.question poll.options.label author community createdAt moderationScore moderationStatus moderatorReviews').populate('author', 'name profilePicture').populate('community', 'name slug').lean(),
-    Appeal.find({ status: 'pending', actionType: { $ne: 'advertiser' } }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean(),
-    Campaign.find({
-      status: 'submitted',
-      'moderatorReview.status': 'pending',
-      'moderatorReview.reviewedAt': null
-    }).sort({ createdAt: 1 }).limit(50).populate({ path: 'advertiser', populate: { path: 'user', select: 'name' } }).populate('targetCommunities', 'name slug').populate('moderationHistory.actor', 'name role').lean(),
-    Advertiser.find({ status: 'pending', viaCampaign: { $ne: true }, 'moderatorReview.status': 'pending' }).sort({ createdAt: 1 }).limit(50).populate('user', 'name').populate('moderationHistory.actor', 'name role').lean(),
-    Community.find({
-      monetizationStatus: 'pending',
-      $or: [
-        { 'monetizationModeratorReview.status': 'pending' },
-        { 'monetizationModeratorReview.status': { $exists: false } }
-      ]
-    }).sort({ createdAt: 1 }).limit(50).populate('owner', 'name').lean()
+    Appeal.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(80).populate('user', 'name email').lean()
   ]);
   const queueBase = { status: 'published', author: { $ne: req.roleUser._id }, moderatorReviews: { $ne: req.roleUser._id }, $expr: { $lt: [{ $size: { $ifNull: ['$moderatorReviews', []] } }, reviewThreshold] } };
   const typeCountRows = await Post.aggregate([{ $match: { ...queueBase, moderationStatus: 'unreviewed' } }, { $group: { _id: '$type', n: { $sum: 1 } } }]);
   const contentCounts = { post: 0, article: 0, poll: 0 };
   typeCountRows.forEach((row) => { if (row._id in contentCounts) contentCounts[row._id] = row.n; });
   const myOpenReportRecommendations = new Set(actions.filter((a) => a.action === 'resolve-report' && a.status === 'pending').map((a) => String(a.target)));
-  res.render('pages/moderator', { contentType, contentCounts, recentAuto: actions.filter((a) => a.autoApplied).slice(0, 8), title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals, pendingCampaigns, pendingAdvertisers, pendingMonetization });
+  res.render('pages/moderator', { contentType, contentCounts, recentAuto: actions.filter((a) => a.autoApplied).slice(0, 8), title: 'Moderator console', pagePath: '/moderator', noIndex: true, reports, actions, communities, moderationFeed, moderator: req.roleUser, reviewThreshold, myOpenReportRecommendations, reportedOnly, pendingAppeals });
 };
 
 // Moderation forms are submitted in the background (no page reload). The same handlers

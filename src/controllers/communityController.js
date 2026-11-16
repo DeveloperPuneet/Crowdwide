@@ -1,7 +1,6 @@
 const Community = require('../models/Community');
 const User = require('../models/User');
 const Post = require('../models/Post');
-const Report = require('../models/Report');
 const Quest = require('../models/Quest');
 const crypto = require('node:crypto');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');

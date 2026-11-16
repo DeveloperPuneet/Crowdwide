@@ -184,7 +184,6 @@ router.post('/admin/posts/:id/edit', requireAuth, requireVerified, requireAdmin,
 router.post('/admin/users/:id/delete', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.deleteUser);
 router.post('/admin/users/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.updateUser);
 router.post('/admin/communities/:id/edit', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.updateCommunity);
-router.post('/admin/communities/:id/monetization', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewMonetization);
 router.post('/admin/waves-abuse/:id/review', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.reviewWavesAbuseSignal);
 const partnersAdmin = [requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin')];
 router.post('/admin/partnerships/:id/review', ...partnersAdmin, csrfSynchronisedProtection, partnershipController.reviewApplication);
@@ -233,7 +232,7 @@ router.get('/settings/account/download', requireAuth, requireVerified, settingsC
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
 router.get('/docs', controller.docs);
-['/about', '/about/developer', '/privacy', '/terms', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-monetization/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
+['/about', '/about/developer', '/privacy', '/terms', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);
 router.get('/sitemap.xml', controller.sitemap);
 

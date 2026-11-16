@@ -112,7 +112,7 @@ npm run reset:waves -- --confirm-reset-waves
 The confirmation flag is required. The reset runs in a MongoDB transaction;
 the database must support transactions (for example, a replica set). If the
 transaction fails, no partial reset is committed. This does not change
-campaign/community records, reward settings, or account restrictions.
+community records, reward settings, or account restrictions.
 
 ## Upload virus scanning
 
@@ -279,11 +279,11 @@ nothing worth saying.
 - Check without sending: the welcome series runs from the same 30-minute worker
   as the streak savers; there is no new environment variable to set.
 
-## Advertising, private profiles and live moderation
+## TinyAds, private profiles and live moderation
 
-**Advertiser dashboard.** Every ad now has its own *brand name* and *logo*, so a new ad no longer
-shows the previous ad's name. Approved advertisers can edit their business profile (website,
-description, logo, banner) from the dashboard (`POST /advertising/profile`).
+**TinyAds and Ad-Free plans.** TinyAds placements are loaded on eligible feed and comment pages.
+Active Waves Ad-Free plans prevent TinyAds from loading; buying another plan while one is active
+extends its expiry.
 
 **Keep-alive pauses while people are on the site.** Real page visits are tracked in memory;
 while someone has been seen within `KEEP_ALIVE_PRESENCE_SECONDS` (default 120, `0` turns this off)
@@ -309,14 +309,6 @@ moderator handled disappear and new ones are announced. Without JavaScript the f
 **Panel password for Google/GitHub staff.** Admins and moderators who have no password see a blocking
 prompt on every page until they set one (`POST /account/panel-password`). It becomes their account
 password and therefore their panel password.
-
-**Ad algorithm and community ads.** Ads are scored by relevance (keywords and the community's topic),
-smoothed click-through rate, budget pacing (total, daily cap, days left) and freshness, with a
-fatigue penalty for ads the viewer just saw, one ad per advertiser and weighted-random selection
-(`src/services/adRanker.js`). New *smart placement* campaigns (with optional keywords) show in any
-public community: monetized communities with ads on earn their revenue share; other public
-communities show them every 4th post with no share. Communities that opted out and private
-communities never show ads.
 
 **Community page and feed fixes.** The public community page shows full formatted post cards with
 like, comment and share. Avatars in infinite-scroll feed pages, comments and chat now load. "Reply
@@ -360,8 +352,8 @@ extra configuration.
 Make sure `TRUST_PROXY_HOPS` matches your host (1 on Render). If it is wrong, every visitor looks like the proxy address; the guard never blocks private proxy addresses, but it cannot tell your visitors apart either.
 
 
-## Ads, view bots and replies-with-a-post (final6)
-- Approved ads now serve right away (`approved` is treated as live). Feed ads keep showing even when a community is monetized, and monetized communities also carry feed/smart ads. Targeted ads still need a monetized community with ads switched on. The advertiser dashboard has a "Where it shows" note per campaign. People with an Ad-Free plan never see ads.
+## TinyAds, view bots and replies-with-a-post (final6)
+- TinyAds loads in feed and comment placements unless the signed-in member has an active Waves Ad-Free plan.
 - Post and profile views count once per viewer per 30 minutes, whatever ?query is added. The bot guard also blocks an address for 24 hours when it opens the same post/profile on a fixed rhythm (`fixed-rhythm`) or with 10+ different ?query links (`url-variants`). See /admin/blocked-ips.
 - Post cards have a "Replies with a post" button (`/posts/:id/replies-with-posts`).
 

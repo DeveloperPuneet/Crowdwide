@@ -16,7 +16,7 @@ const { TASK_LABELS } = require('../src/services/maintenance');
 
 const views = path.join(__dirname, '..', 'src', 'views');
 const currentUser = { id: 'u1', name: 'Puneet K', email: 'p@x.com', role: 'user', profilePicture: '' };
-const base = { icon, renderMentions, renderRichBody, renderInlineText, plainText, preview, csrfToken: 'tok', flash: null, currentUser, appUrl: 'http://x', gifsEnabled: true, communityCategories: COMMUNITY_CATEGORIES, promotionOffer: null };
+const base = { icon, renderMentions, renderRichBody, renderInlineText, plainText, preview, csrfToken: 'tok', flash: null, currentUser, appUrl: 'http://x', gifsEnabled: true, communityCategories: COMMUNITY_CATEGORIES };
 const render = (file, data = {}) => ejs.renderFile(path.join(views, file), { ...base, ...data });
 const post = (i, extra = {}) => ({ _id: `p${i}`, author: { _id: `a${i}`, name: `Author ${i}` }, body: `Hello #tag ${i}`, type: 'post', likes: [1, 2], commentsCount: 3, sharesCount: 4, viewsCount: 9, hashtags: ['tag'], community: null, createdAt: new Date(), status: 'published', reactions: {}, media: [], ...extra });
 
@@ -126,235 +126,6 @@ test('public community owner can purchase a Waves promotion and see its status',
   assert.match(active, /eligible for labeled promoted placements/);
   assert.doesNotMatch(active, /Promote with Waves/);
 
-  const monetized = await render('pages/community-owner.ejs', {
-    ...common,
-    monetizationStats: { impressions: 1200, clicks: 34, campaignSpendWaves: 20, ownerShareWaves: 12 },
-    community: {
-      ...common.community,
-      monetizationStatus: 'approved',
-      isMonetized: true,
-      monetizationSettings: { revenueSharePercent: 60 }
-    },
-    ownerEarningsHistory: [{
-      status: 'posted',
-      amount: 12,
-      createdAt: new Date('2026-10-07T10:00:00Z')
-    }]
-  });
-  assert.match(monetized, /Owner share/);
-  assert.match(monetized, /60% · credited Waves/);
-  assert.match(monetized, /Recent Waves earnings/);
-  assert.match(monetized, /\+12 Waves/);
-  assert.match(monetized, /1,200/);
-  assert.match(monetized, /34/);
-});
-
-test('advertiser dashboard renders application form and campaign metrics', async () => {
-  const html = await render('pages/advertising-dashboard.ejs', {
-    title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
-    advertiser: {
-      _id: 'a1', user: 'u1', businessName: 'Example Co', status: 'approved', isVerified: true,
-      businessDescription: 'A company description.',
-      logoUrl: '/uploads/business-logo.png',
-      bannerUrl: '/uploads/business-banner.png',
-      moderationHistory: [{ status: 'approved', reason: 'Verified.', actor: { name: 'Admin A' }, createdAt: new Date() }]
-    },
-    advertisingTermsVersion: '2026-10-07-v3',
-    advertisingTermsAccepted: true,
-    campaigns: [{
-      _id: 'campaign-1', title: 'Launch', status: 'approved', fundingStatus: 'funded',
-      impressions: 100, clicks: 5, ctr: 5, wavesSpent: 2, remainingBudget: 18,
-      totalBudget: 20, description: 'Campaign description',
-      moderationHistory: [{ status: 'approved', reason: 'Approved.', actor: { name: 'Admin B' }, createdAt: new Date() }]
-    }],
-    communities: [],
-    sitewideFallbackAvailable: true,
-    campaignAnalytics: {
-      byCommunity: [{ campaignId: 'campaign-1', communityName: 'Public Community', impressions: 40, clicks: 2, ctr: 5 }],
-      daily: [{ campaignId: 'campaign-1', date: '2026-10-06', impressions: 10, clicks: 1, ctr: 10 }]
-    },
-    totals: { impressions: 100, clicks: 5, ctr: 5, wavesSpent: 2, remainingBudget: 18 }
-  });
-  assert.match(html, /Advertising dashboard/);
-  assert.match(html, /<main class="explore-page admin-wide advertising-page">/);
-  assert.match(html, /A company description/);
-  assert.match(html, /business-logo\.png/);
-  assert.match(html, /business-banner\.png/);
-  assert.match(html, /performance totals/);
-  assert.match(html, /5% CTR/);
-  assert.match(html, /Your campaigns/);
-  assert.match(html, /Product name/);
-  assert.match(html, /Advertiser-listed price \(optional\)/);
-  assert.match(html, /Advertiser review history/);
-  assert.match(html, /campaign-dashboard-card/);
-  assert.match(html, /campaign-status-approved/);
-  assert.match(html, /Campaign review history/);
-  assert.match(html, /Performance by community and date/);
-  assert.match(html, /Show this ad in the normal Crowdwide feed/);
-  assert.match(html, /What are you advertising/);
-  assert.match(html, /Campaign budgets and all Crowdwide platform charges use Waves/);
-  assert.match(html, /this platform does not process that payment/);
-  assert.match(html, /value="product">My product/);
-  assert.match(html, /I own or am authorized to advertise this product/);
-  assert.match(html, /name="confirmAdvertisingRights" required/);
-  assert.match(html, /communities reached by a recorded impression or click/);
-  assert.match(html, /Public Community<\/strong> · 40 impressions · 2 clicks · 5% CTR/);
-  assert.match(html, /Daily activity · last 30 days/);
-  assert.match(html, /2026-10-06<\/strong> · 10 impressions · 1 click · 10% CTR/);
-  assert.match(html, /Admin A/);
-  assert.match(html, /Admin B/);
-  assert.match(html, /href="\/advertising\/terms"/);
-  assert.match(html, /Fund and submit|Resume/);
-  assert.match(html, /action="\/advertising\/submit"/);
-});
-
-test('advertiser campaign card explains pending review and approved activation states', async () => {
-  const base = {
-    title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
-    advertiser: { _id: 'a1', businessName: 'Example Co', status: 'approved' },
-    advertisingTermsVersion: '2026-10-07-v3', advertisingTermsAccepted: true,
-    campaigns: [], communities: [], campaignAnalytics: { byCommunity: [], daily: [] },
-    sitewideFallbackAvailable: true,
-    totals: { impressions: 0, clicks: 0, ctr: 0, wavesSpent: 0, remainingBudget: 0 }
-  };
-  const submitted = await render('pages/advertising-dashboard.ejs', {
-    ...base,
-    campaigns: [{ _id: 'c1', title: 'My product ad', campaignType: 'product', productName: 'My product', status: 'submitted', fundingStatus: 'funded', remainingBudget: 40, moderatorReview: { status: 'cleared', reason: 'Looks fine' }, moderationHistory: [] }]
-  });
-  assert.match(submitted, /campaign-status-submitted/);
-  assert.match(submitted, /Moderator cleared · awaiting admin approval/);
-  assert.doesNotMatch(submitted, /name="action" value="activate"/);
-
-  const approved = await render('pages/advertising-dashboard.ejs', {
-    ...base,
-    campaigns: [{ _id: 'c2', title: 'My product ad', campaignType: 'product', productName: 'My product', status: 'approved', fundingStatus: 'funded', remainingBudget: 40, moderationHistory: [] }]
-  });
-  assert.match(approved, /campaign-status-approved/);
-  assert.match(approved, /Press Resume below to start showing it in the feed/);
-  assert.match(approved, /name="action" value="activate"/);
-});
-
-test('product advertisements render product details, price, image, and a tracked product action', async () => {
-  const html = await render('partials/community-ad.ejs', {
-    ad: {
-      contextType: 'sitewide',
-      eventToken: '12345678-1234-4123-8123-123456789abc',
-      campaign: {
-        _id: 'product-campaign', title: 'Store campaign', campaignType: 'product',
-        productName: 'Crowdwide Mug', productPrice: '$19.99',
-        description: 'A ceramic mug for the community.', bannerUrl: '/uploads/mug.png',
-        destinationUrl: 'https://shop.example.test/mug',
-        advertiser: { businessName: 'Crowdwide Shop', logoUrl: '/uploads/crowdwide-shop.png' }
-      }
-    }
-  });
-  assert.match(html, /<h2>Crowdwide Mug<\/h2>/);
-  assert.match(html, /<strong>\$19\.99<\/strong>/);
-  assert.match(html, /Advertiser-listed price · purchases are not processed on Crowdwide/);
-  assert.match(html, /alt="Image of Crowdwide Mug" class="community-ad-image"/);
-  assert.match(html, /crowdwide-shop\.png" alt="" class="community-ad-logo"/);
-  assert.match(html, /Explore product/);
-  assert.match(html, /\/ads\/product-campaign\/click\?context=sitewide/);
-  assert.match(html, /community-ad-sponsored-label/);
-  assert.match(html, /community-ad-brand/);
-  assert.match(html, /community-ad-cta/);
-});
-
-test('sitewide feed ads are distinct and appear together at one organic-feed position', () => {
-  const campaigns = [{ _id: 'campaign-1' }, { _id: 'campaign-2' }, { _id: 'campaign-3' }];
-  const ads = webController.buildSitewideFeedAds(campaigns, 22);
-  assert.equal(ads.length, 2);
-  assert.deepEqual(ads.map((ad) => ad.campaign), campaigns.slice(0, 2));
-  assert.deepEqual(ads.map((ad) => ad.afterPost), [22, 22]);
-  assert.notEqual(ads[0].eventToken, ads[1].eventToken);
-  assert.deepEqual(webController.buildSitewideFeedAds(campaigns.slice(0, 1), 19).map((ad) => ad.afterPost), [19]);
-  assert.deepEqual(webController.buildSitewideFeedAds(campaigns, 0).map((ad) => ad.afterPost), [0, 0]);
-});
-
-test('advertising application requires acknowledgement of the linked Advertising Terms', async () => {
-  const html = await render('pages/advertising-dashboard.ejs', {
-    title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
-    advertiser: null, campaigns: [], communities: [],
-    advertisingTermsVersion: '2026-10-07-v3', advertisingTermsAccepted: false,
-    totals: { impressions: 0, clicks: 0, ctr: 0, wavesSpent: 0, remainingBudget: 0 }
-  });
-  assert.match(html, /enctype="multipart\/form-data"/);
-  assert.match(html, /name="businessDescription"[^>]+required/);
-  assert.match(html, /name="logo"/);
-  assert.match(html, /name="banner"/);
-  assert.match(html, /name="acceptAdvertisingTerms" required/);
-  assert.match(html, /href="\/advertising\/terms"/);
-});
-
-test('rejected advertiser sees an appeal form and pending appeals replace it with status', async () => {
-  const baseData = {
-    title: 'Advertising dashboard', pagePath: '/advertising', noIndex: true,
-    advertiser: { _id: 'a1', businessName: 'Example Co', status: 'rejected', rejectionReason: 'More information needed' },
-    campaigns: [], communities: [], advertisingTermsVersion: '2026-10-07-v3',
-    advertisingTermsAccepted: true,
-    totals: { impressions: 0, clicks: 0, ctr: 0, wavesSpent: 0, remainingBudget: 0 }
-  };
-  const appealForm = await render('pages/advertising-dashboard.ejs', { ...baseData, advertiserAppeal: null });
-  assert.match(appealForm, /action="\/advertising\/appeal"/);
-  assert.match(appealForm, /name="message"/);
-
-  const pending = await render('pages/advertising-dashboard.ejs', {
-    ...baseData, advertiserAppeal: { createdAt: new Date() }
-  });
-  assert.match(pending, /appeal is pending admin review/);
-  assert.doesNotMatch(pending, /action="\/advertising\/appeal"/);
-});
-
-test('moderator console exposes advertiser screening and final admin review context', async () => {
-  const html = await render('pages/moderator.ejs', {
-    title: 'Moderator console', pagePath: '/moderator', noIndex: true,
-    moderator: { moderatorId: 'MOD-1' }, reviewThreshold: 2, reportedOnly: false,
-    reports: [], actions: [], communities: [], moderationFeed: [], pendingAppeals: [],
-    pendingCampaigns: [],
-    pendingAdvertisers: [{
-      _id: 'advertiser-1', businessName: 'Example Co', user: { name: 'Asha' },
-      businessDescription: 'Handmade prints and illustrations.',
-      logoUrl: 'https://cdn.example.test/moderator-logo.png',
-      bannerUrl: 'https://cdn.example.test/moderator-banner.png',
-      website: 'https://example.test', notes: 'Local maker',
-      termsVersion: '2026-10-07-v3', termsAcceptedAt: new Date(),
-      moderationHistory: [{ status: 'pending', reason: 'Application submitted.', actor: { name: 'Asha' }, createdAt: new Date() }]
-    }],
-    myOpenReportRecommendations: new Set()
-  });
-
-  test('moderator campaign review exposes prohibited-ad policy checks and flag categories', async () => {
-    const html = await render('pages/moderator.ejs', {
-      title: 'Moderator console', pagePath: '/moderator', noIndex: true,
-      moderator: { moderatorId: 'MOD-1' }, reviewThreshold: 2, reportedOnly: false,
-      reports: [], actions: [], communities: [], moderationFeed: [], pendingAppeals: [],
-      pendingAdvertisers: [],
-      pendingCampaigns: [{
-        _id: 'campaign-policy', title: 'Campaign', description: 'Campaign text',
-        totalBudget: 100, targetCommunities: [],
-        advertiser: { businessName: 'Example Co', user: { name: 'Asha' } },
-        moderationHistory: [{ status: 'submitted', reason: 'Budget funded.', actor: { name: 'Asha' }, createdAt: new Date() }]
-      }],
-      myOpenReportRecommendations: new Set()
-    });
-    assert.match(html, /Not for adult-only \(18\+\) products or services/);
-    assert.match(html, /No erotic or sexually explicit content/);
-    assert.match(html, /No gambling or betting/);
-    assert.match(html, /No pornography/);
-    assert.match(html, /No other inappropriate products or services/);
-    assert.match(html, /name="flaggedCategory"/);
-    assert.match(html, /Budget funded/);
-  });
-  assert.match(html, /Advertiser applications/);
-  assert.match(html, /Handmade prints and illustrations/);
-  assert.match(html, /moderator-logo\.png/);
-  assert.match(html, /moderator-banner\.png/);
-  assert.match(html, /action="\/moderator\/advertisers\/advertiser-1\/review"/);
-  assert.match(html, /Clear for admin/);
-  assert.match(html, /Flag for admin/);
-  assert.match(html, /Advertising Terms/);
-  assert.match(html, /Advertiser review history/);
-  assert.match(html, /Application submitted/);
 });
 
 test('community invite landing renders a join confirmation page', async () => {
@@ -525,6 +296,14 @@ test('third-party comment ads appear after each thirty-comment threshold', async
     commentTree: commentTree.slice(0, 29)
   });
   assert.doesNotMatch(belowThreshold, /ta-ad-container/);
+
+  const adFree = await render('pages/post-detail.ejs', {
+    title: 'p', pagePath: '/posts/p1', showThirdPartyAds: false,
+    post: { ...post(1), liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null },
+    comments: commentTree,
+    commentTree
+  });
+  assert.doesNotMatch(adFree, /ta-ad-container/);
 });
 
 test('post detail links directly to the replies-with-a-post list and shows its count', async () => {
@@ -552,34 +331,6 @@ test('replies-with-a-post page has a clear source preview and reply action', asy
   assert.match(html, /Original post/);
   assert.match(html, /href="\/posts\/p1\/reply"/);
   assert.match(html, /No replies with a post yet/);
-});
-
-test('post owners can buy a clearly labeled Waves promotion', async () => {
-  const html = await render('pages/post-detail.ejs', {
-    title: 'p', pagePath: '/posts/p1', comments: [], promotionOffer: { wavesCost: 25, durationHours: 24 },
-    post: {
-      ...post(1, { author: { _id: 'u1', name: 'Me' }, moderationStatus: 'good' }),
-      liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null
-    },
-    commentTree: []
-  });
-  assert.match(html, /Promote with Waves/);
-  assert.match(html, /Promoted posts are labeled/);
-  assert.match(html, /25 Waves/);
-  assert.match(html, /action="\/posts\/p1\/promote"/);
-  assert.match(html, /name="_csrf" value="tok"/);
-
-  const activeHtml = await render('pages/post-detail.ejs', {
-    title: 'p', pagePath: '/posts/p1', comments: [], promotionOffer: { wavesCost: 25, durationHours: 24 },
-    post: {
-      ...post(1, { author: { _id: 'u1', name: 'Me' }, moderationStatus: 'good', boostStatus: 'active', boostWavesCost: 25, boostUntil: new Date(Date.now() + 3600000) }),
-      liked: false, bookmarked: false, poll: null, quotedPost: null, replyTo: null
-    },
-    commentTree: []
-  });
-  assert.match(activeHtml, /Promoted/);
-  assert.match(activeHtml, /Paid with 25 Waves/);
-  assert.doesNotMatch(activeHtml, /Promote with Waves/);
 });
 
 test('post moderation controls render visibly for staff outside the collapsed more-options menu', async () => {
@@ -622,61 +373,37 @@ test('share sheet and group join pages render', async () => {
   assert.match(join, /action="\/groups\/join\/abc"/);
 });
 
-test('dashboard defers feed advertisements until the random placement threshold', async () => {
-  const promotedPost = { ...post(1), feedSource: 'Sponsored' };
-  const followingPost = post(2);
-  const html = await render('pages/dashboard.ejs', {
+test('dashboard renders the organic feed and does not include Crowdwide ad placements', async () => {
+  const data = {
     title: 't', pagePath: '/dashboard', noIndex: true,
-    feed: { posts: [promotedPost, followingPost], visiblePosts: [promotedPost, followingPost], hasMore: true, activeTab: 'for-you', note: 'n' },
-    thirdPartyFeedAdAfter: 20,
-    sitewideFeedAds: [{
-      afterPost: 1,
-      contextType: 'sitewide',
-      eventToken: '12345678-1234-4123-8123-123456789abc',
-      campaign: {
-        _id: 'campaign-global', title: 'A normal-feed advertisement', description: 'Campaign text',
-        destinationUrl: 'https://example.test/landing',
-        advertiser: { businessName: 'Example Ltd' }
-      }
-    }, {
-      afterPost: 1,
-      contextType: 'sitewide',
-      eventToken: '22345678-1234-4123-8123-123456789abc',
-      campaign: {
-        _id: 'campaign-global-2', title: 'Another feed advertisement', description: 'Another campaign.',
-        destinationUrl: 'https://example.test/another',
-        advertiser: { businessName: 'Another Ltd' }
-      }
-    }],
+    feed: { posts: [post(1), post(2)], visiblePosts: [post(1), post(2)], hasMore: true, activeTab: 'for-you', note: 'n' },
     communities: [{ _id: 'c1', name: 'Sketch Club', slug: 'sketch-club', avatarImage: '/uploads/sketch.png' }], communityCategories: COMMUNITY_CATEGORIES, composerCommunities: [{ _id: 'c1', name: 'Sketch Club' }],
     availableQuests: [{ _id: 'q1', title: 'Weekly sketch sprint', community: { _id: 'c1', name: 'Sketch Club' } }],
     selectedQuestId: 'q1', selectedCommunityId: 'c1',
     people: [], joinedCommunities: [], following: []
+  };
+  const html = await render('pages/dashboard.ejs', data);
+  const adFreeHtml = await render('pages/dashboard.ejs', {
+    ...data,
+    currentUser: { ...currentUser, adFreeUntil: new Date(Date.now() + 60 * 60 * 1000) }
   });
+  const expiredAdFreeHtml = await render('pages/dashboard.ejs', {
+    ...data,
+    currentUser: { ...currentUser, adFreeUntil: new Date(Date.now() - 60 * 60 * 1000) }
+  });
+  assert.match(adFreeHtml, /data-ad-free="true"/);
+  assert.match(expiredAdFreeHtml, /data-ad-free="false"/);
   assert.match(html, /data-share-open/);
   assert.match(html, /data-share-sheet/);
   assert.doesNotMatch(html, /<details class="app-nav-more/, 'the top bar no longer repeats the sidebar More menu');
-  assert.match(html, /<details class="side-more"[\s\S]*?href="\/advertising"[\s\S]*?Advertising/);
-  assert.doesNotMatch(html, /class="advertising-side-link"/);
-  assert.match(html, /data-sponsored-post/);
-  assert.match(html, /class="sponsored-post-notice"><strong>Sponsored<\/strong><span>Promoted with Waves<\/span>/);
-  assert.match(html, /class="post-card[^"]*is-sponsored-post/);
+  assert.doesNotMatch(html, /\/advertising|data-campaign-id|sitewide-feed-ads|Sponsored/);
   assert.match(html, /feed-sentinel/);
   assert.doesNotMatch(html, /Ranked for you:/);
   assert.match(html, /composer-options/);
   assert.match(html, /composer-prompt[\s\S]*?Share something/);
   assert.doesNotMatch(html, /Account settings →/);
   assert.match(html, /name="quest"/);
-  assert.match(html, /Crowdwide feed/);
-  const firstAdIndex = html.indexOf('data-campaign-id="campaign-global"');
-  const secondAdIndex = html.indexOf('data-campaign-id="campaign-global-2"');
-  const nextPostIndex = html.indexOf('data-post-id="p2"');
-  assert.ok(nextPostIndex < firstAdIndex && firstAdIndex < secondAdIndex, 'advertisements stay inert in the template until the feed reaches its threshold');
-  assert.match(html, /id="feed-posts" data-ad-after="20"/);
-  assert.match(html, /<template id="sitewide-feed-ads">/);
-  assert.match(html, /data-context-type="sitewide"/);
-  assert.match(html, /click\?context=sitewide&amp;event=/);
-  assert.match(html, /deliveryContext: 'sitewide'/);
+  assert.match(html, /data-post-id="p1"/);
   assert.match(html, /Weekly sketch sprint/);
   assert.doesNotMatch(html, /name="quest"[^>]*disabled/);
   assert.match(html, /value="c1" selected/);
@@ -695,32 +422,6 @@ test('docs page renders the API endpoints, and info pages cover help', async () 
   });
   assert.match(help, /Answers, not tickets\./);
   assert.match(help, /Why verify\?/);
-});
-
-test('Waves and community monetization terms disclose platform-currency and payout limits', async () => {
-  for (const [pagePath, expected] of [
-    ['/waves/terms', /not money, cryptocurrency, stored value/],
-    ['/community-monetization/terms', /internal Waves ledger credits/],
-    ['/advertising/terms', /All platform advertising budgets and charges use Waves/]
-  ]) {
-    let page;
-    await webController.infoPage({ path: pagePath }, {
-      render(view, data) {
-        page = { view, data };
-      }
-    });
-    assert.equal(page.view, 'pages/info');
-    const html = await render('pages/info.ejs', page.data);
-    assert.match(html, expected);
-    if (pagePath === '/waves/terms') {
-      assert.match(html, /Post promotions/);
-      assert.match(html, /Community promotions/);
-      assert.match(html, /Promoted · paid with Waves/);
-      assert.doesNotMatch(html, /No unlaunched premium, ad-free, post-promotion/);
-    } else {
-      assert.match(html, /does not process real-money/);
-    }
-  }
 });
 
 test('landing page applies the member theme and renders real profile avatars', async () => {
@@ -806,48 +507,6 @@ test('community detail renders a quest board with member actions', async () => {
   assert.match(html, /Join quest/);
   assert.match(html, /href="\/dashboard\?quest=q3"/);
   assert.doesNotMatch(html, /action="\/communities\/c1\/leave"/, 'the owner must retain community ownership');
-});
-
-test('community advertisement card provides a tracked visit and report action', async () => {
-  const html = await render('partials/community-ad.ejs', {
-    community: { _id: 'community-1' },
-    ad: {
-      eventToken: '12345678-1234-4123-8123-123456789abc',
-      campaign: {
-        _id: 'campaign-1', title: 'A useful product', description: 'Learn more about this service.',
-        advertiser: { businessName: 'Example Ltd', website: 'https://example.test' }
-      }
-    }
-  });
-  assert.match(html, /Sponsored/);
-  assert.match(html, /Learn more/);
-  assert.match(html, /\/ads\/campaign-1\/click\?community=community-1&amp;event=/);
-  assert.match(html, /action="\/ads\/campaign-1\/report"/);
-  assert.match(html, /name="reason"/);
-});
-
-test('community detail places ads after the configured feed interval and in the sidebar', async () => {
-  const html = await render('pages/community-detail.ejs', {
-    title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
-    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', description: 'Share ideas', hashtags: [], membersCount: 1, isPrivate: false, owner: { _id: 'u1', name: 'Puneet' }, members: ['u1'], moderators: [], pinnedPosts: [] },
-    posts: [post(1)], members: [], moderatorIds: [], joined: true, requested: false, isOwner: false, locked: false, quests: [],
-    feedAds: [{
-      afterPost: 1, eventToken: '12345678-1234-4123-8123-123456789abc',
-      campaign: { _id: 'campaign-1', title: 'Design tools', description: 'Try these tools.', advertiser: { businessName: 'Example Ltd', website: 'https://example.test' } }
-    }],
-    sidebarAds: [{
-      eventToken: '12345678-1234-4123-8123-123456789def',
-      campaign: { _id: 'campaign-2', title: 'A second sponsor', advertiser: { businessName: 'Other Ltd' } }
-    }]
-  });
-  assert.match(html, /Sponsored/);
-  assert.match(html, /Design tools/);
-  assert.match(html, /A second sponsor/);
-  assert.match(html, /data-community-ad/);
-  assert.match(html, /data-campaign-id="campaign-1"/);
-  assert.match(html, /\/impression/);
-  assert.match(html, /x-csrf-token/);
-  assert.match(html, /Report this ad/);
 });
 
 test('joined community detail renders a leave action and focused community styling', async () => {
@@ -1026,27 +685,14 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       _id: 'c1', name: 'Sketch Club', owner: null, membersCount: 12,
       isPrivate: false, requireApproval: false, category: 'technology',
       description: 'Draw together', guidelines: '', bannedWords: [],
-      monetizationStatus: 'approved', isMonetized: true,
-      monetizationSettings: { adsEnabled: true, adPlacement: 'all', adFrequency: 2 }
     }], posts: [], openReports: [{
-      _id: 'report-ad-1', targetType: 'advertisement', target: 'campaign-1',
-      reason: 'Inappropriate content', contextText: 'Advertisement: Example campaign · Community: design-lab',
+      _id: 'report-post-1', targetType: 'post', target: 'post-1',
+      reason: 'Spam', contextText: 'Reported post',
       reporter: { name: 'Asha' }, createdAt: new Date('2026-04-20T14:00:00Z')
     }], pendingActions: [],
-    pendingMonetization: [{
-      _id: 'pending-community', name: 'Pending Space', owner: { name: 'Asha' }, createdAt: new Date(),
-      monetizationApplication: { submittedAt: new Date(), goals: 'Support the community.' },
-      monetizationSettings: {}
-    }],
     suspiciousRewardPairs: [{
       accountA: { id: 'user-a', name: 'Asha' }, accountB: { id: 'user-b', name: 'Ravi' },
       totalRewards: 10, rewardsFromA: 5, rewardsFromB: 5, uniqueTargets: 6, activeDays: 2, totalWaves: 16.25
-    }],
-    suspiciousAdEvents: [{
-      _id: 'bot-signal-1', eventType: 'bot-activity', campaign: { title: 'Launch campaign' },
-      community: { name: 'Design Lab' }, viewer: { name: 'Asha' }, attempts: 20,
-      lastSeenAt: new Date('2026-04-20T12:00:00Z'),
-      reason: 'High-volume ad activity: 20 unique events within one minute.'
     }],
     suspiciousWavesTransfers: [{
       _id: 'waves-signal-1', sender: { name: 'Asha', email: 'asha@example.test' },
@@ -1055,8 +701,8 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       reason: 'Repeated transfers to one account.'
     }],
     pendingAppeals: [], moderators: [], auditLogs: [{
-      action: 'campaign-rejected', actor: { name: 'Operator', role: 'admin' },
-      targetType: 'campaign', target: 'campaign-1', details: { reason: 'Policy violation' },
+      action: 'post-reviewed', actor: { name: 'Operator', role: 'admin' },
+      targetType: 'post', target: 'post-1', details: { reason: 'Spam' },
       createdAt: new Date('2026-04-20T13:00:00Z')
     }],
     maintenanceRuns: [{
@@ -1069,11 +715,9 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       maintenanceMode: false, maintenanceMessage: '', announcement: '',
       brandAmbassadors: [{ _id: 'amb1', name: 'Asha Rao', role: 'Community builder', photoUrl: '/media/asha.webp', bio: 'A friendly voice.', isVisible: true, displayOrder: 1 }],
       postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
-      postReviewThreshold: 2, postPromotionEnabled: true,
-      postPromotionWavesCost: 40, postPromotionDurationHours: 36,
+      postReviewThreshold: 2,
       communityPromotionEnabled: true, communityPromotionWavesCost: 65,
-      communityPromotionDurationHours: 72, advertisingMinimumCampaignBudget: 35,
-      advertisingCostPerImpression: 0.25, advertisingCostPerClick: 2
+      communityPromotionDurationHours: 72
     },
     mongoStorage: { available: true, percentUsed: 72, percentRemaining: 28, barPercent: 72, usedBytes: 512 * 1024 ** 2, capacityBytes: 712 * 1024 ** 2, remainingBytes: 200 * 1024 ** 2, clusters: 2 },
     formatStorage,
@@ -1084,20 +728,12 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   assert.match(html, /action="\/admin\/brand-ambassadors\/amb1"/);
   assert.match(html, /Asha Rao/);
   assert.match(html, /data-format="bold"/);
-  assert.match(html, /Possible bot activity/);
-  assert.match(html, /20 flagged events\/attempts/);
   assert.match(html, /Suspicious Waves transfer activity/);
   assert.match(html, /Repeated transfers to one account/);
   assert.match(html, /Run all cleanup processes/);
   assert.match(html, /name="communityPromotionEnabled"/);
   assert.match(html, /name="communityPromotionWavesCost"[^>]+value="65"/);
   assert.match(html, /name="communityPromotionDurationHours"[^>]+value="72"/);
-  assert.match(html, /name="advertisingMinimumCampaignBudget"[^>]+value="35"/);
-  assert.match(html, /name="advertisingCostPerImpression"[^>]+value="0\.25"/);
-  assert.match(html, /name="advertisingCostPerClick"[^>]+value="2"/);
-  assert.match(html, /name="postPromotionEnabled"/);
-  assert.match(html, /name="postPromotionWavesCost"[^>]+value="40"/);
-  assert.match(html, /name="postPromotionDurationHours"[^>]+value="36"/);
   assert.match(html, /Recent cleanup runs/);
   assert.match(html, /Run by Operator/);
   assert.match(html, /directMessages&#34;:2/);
@@ -1106,117 +742,13 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   assert.match(html, /512 MB \/ 712 MB/);
   assert.match(html, /200 MB remaining across 2 clusters/);
   assert.match(html, /Combined filesystem figures reported by the configured MongoDB URLs/);
-  assert.match(html, /Enable ads after approval/);
-  assert.match(html, /Ads enabled \(uncheck to pause ads\)/);
-  assert.match(html, /Frequency \(posts between ads\)/);
   assert.match(html, /Possible coordinated Waves rewards/);
   assert.match(html, /Asha · Ravi/);
   assert.match(html, /not proof of linked accounts/);
-  assert.match(html, /advertisement · campaign-1/);
-  assert.match(html, /Example campaign/);
-  assert.match(html, /Inappropriate content/);
+  assert.match(html, /post · post-1/);
+  assert.match(html, /Reported post/);
   assert.match(html, /data-filter-audit/);
-  assert.match(html, /campaign-rejected/);
-  assert.match(html, /Affected campaign · campaign-1/);
-  assert.match(html, /Policy violation/);
-});
-
-test('admin panel exposes suspend, reinstate, and remove controls for approved campaigns', async () => {
-  const { formatStorage } = require('../src/services/mongoStorage');
-  const html = await render('pages/admin.ejs', {
-    title: 'Admin console', pagePath: '/admin', noIndex: true,
-    users: [], communities: [], posts: [], openReports: [], pendingActions: [],
-    pendingAppeals: [{
-      _id: 'advertiser-appeal-1', actionType: 'advertiser',
-      advertiser: { businessName: 'Appealing Co' },
-      user: { name: 'Asha', email: 'asha@example.test' },
-      createdAt: new Date(), reasonSnapshot: 'Verification issue',
-      message: 'Please reconsider my application.'
-    }], moderators: [], auditLogs: [], pendingMonetization: [],
-    pendingAdvertisers: [],
-    pendingCampaigns: [{
-      _id: 'campaign-pending-review', title: 'Rizzzler', campaignType: 'service',
-      status: 'submitted', fundingStatus: 'funded', totalBudget: 25, remainingBudget: 25,
-      targetCommunities: [], sitewideFallback: true, moderationHistory: [],
-      moderatorReview: { status: 'cleared', reason: 'Fine', reviewedAt: new Date(), reviewedBy: { name: 'Puneet Kumar Mishra' } },
-      advertiser: { businessName: 'Example Co', user: { email: 'ads@example.test' } }
-    }],
-    managedCampaigns: [
-      { _id: 'active-1', title: 'Active campaign', status: 'active', advertiser: { businessName: 'Example Co', user: { email: 'ads@example.test' } }, remainingBudget: 90, wavesSpent: 10, targetCommunities: ['c1'] },
-      { _id: 'suspended-1', title: 'Suspended campaign', status: 'suspended', suspensionReason: 'Review pending', advertiser: { businessName: 'Example Co' }, remainingBudget: 50, wavesSpent: 50, targetCommunities: [] }
-    ],
-    maintenanceRuns: [], maintenanceTaskLabels: TASK_LABELS, pinnedPostIds: new Set(),
-    siteSettings: {
-      siteName: '', tagline: '', registrationOpen: true, postApprovalDefault: false,
-      maintenanceMode: false, maintenanceMessage: '', announcement: '',
-      postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
-      postReviewThreshold: 2, communityPromotionEnabled: true,
-      communityPromotionWavesCost: 65, communityPromotionDurationHours: 72
-    },
-    mongoStorage: { available: false }, formatStorage,
-    stats: { users: 0, communities: 0, posts: 0, reports: 0 }
-  });
-
-  test('admin advertiser tab shows applications and gates approval on moderator clearance', async () => {
-    const { formatStorage } = require('../src/services/mongoStorage');
-    const advertiser = {
-      _id: 'advertiser-pending-1',
-      businessName: 'Bright Studio',
-      businessDescription: 'A small illustration studio.',
-      logoUrl: 'https://cdn.example.test/logo.png',
-      bannerUrl: 'https://cdn.example.test/banner.png',
-      website: 'https://bright.example.test',
-      notes: 'We sell original prints.',
-      status: 'pending',
-      user: { name: 'Asha', email: 'asha@example.test' },
-      moderatorReview: { status: 'pending' },
-      moderationHistory: [],
-      termsVersion: '2026-10-07-v3'
-    };
-    const html = await render('pages/admin.ejs', {
-      title: 'Admin console', pagePath: '/admin', noIndex: true,
-      users: [], communities: [], posts: [], openReports: [], pendingActions: [],
-      pendingAppeals: [], moderators: [], auditLogs: [], pendingMonetization: [],
-      pendingAdvertisers: [advertiser], pendingCampaigns: [], managedCampaigns: [],
-      maintenanceRuns: [], maintenanceTaskLabels: TASK_LABELS, pinnedPostIds: new Set(),
-      siteSettings: {
-        siteName: '', tagline: '', registrationOpen: true, postApprovalDefault: false,
-        maintenanceMode: false, maintenanceMessage: '', announcement: '',
-        postWordLimit: 500, articleWordLimit: 5000, suspensionDefaultDays: 365,
-        postReviewThreshold: 2, communityPromotionEnabled: true,
-        communityPromotionWavesCost: 65, communityPromotionDurationHours: 72
-      },
-      mongoStorage: { available: false }, formatStorage,
-      stats: { users: 0, communities: 0, posts: 0, reports: 0 }
-    });
-    assert.match(html, /admin-tab-advertisers[^>]*>Advertisers \(1\)/);
-    assert.match(html, /admin-panel-advertisers/);
-    assert.match(html, /Bright Studio/);
-    assert.match(html, /A small illustration studio/);
-    assert.match(html, /bright\.example\.test/);
-    assert.match(html, /logo\.png/);
-    assert.match(html, /banner\.png/);
-    assert.match(html, /Awaiting moderator screening/);
-    assert.doesNotMatch(html, /Approve and verify advertiser/);
-    assert.match(html, /name="reason"[^>]+required/);
-    assert.match(html, /Reject application/);
-  });
-  assert.match(html, /Approved campaign management/);
-  assert.match(html, /admin-tab-campaigns/);
-  assert.match(html, /Campaigns \(1 pending\)/);
-  assert.match(html, /admin-panel-campaigns/);
-  assert.match(html, /Campaign review queue \(1\)/);
-  assert.match(html, /action="\/admin\/campaigns\/campaign-pending-review\/review"/);
-  assert.match(html, /Moderator review: <strong>cleared<\/strong> · Fine · Puneet Kumar Mishra/);
-  assert.match(html, /action="\/admin\/campaigns\/active-1\/manage"/);
-  assert.match(html, /name="action" value="suspend"/);
-  assert.match(html, /action="\/admin\/campaigns\/suspended-1\/manage"/);
-  assert.match(html, /name="action" value="reinstate"/);
-  assert.match(html, /name="action" value="remove"/);
-  assert.match(html, /Review pending/);
-  assert.match(html, /Advertiser appeal · Appealing Co/);
-  assert.match(html, /Approve &amp; restore/);
-  assert.match(html, /Deny appeal/);
+  assert.doesNotMatch(html, /Advertiser|Campaigns|Advertising Terms|Campaign monetization|Enable ads after approval/);
 });
 
 test('personal recap renders activity totals and a monthly timeline', async () => {
@@ -1251,18 +783,6 @@ test('personal recap renders activity totals and a monthly timeline', async () =
   assert.match(html, /class="recap-chart-line recap-chart-line-comments"/);
   assert.match(html, /class="recap-chart-line recap-chart-line-shares"/);
   assert.doesNotMatch(html, /recap-bar/);
-});
-
-test('signed-in navigation keeps advertiser tools under one More fold in the sidebar and the phone menu', async () => {
-  const html = await render('partials/app-nav.ejs', { active: 'home' });
-  assert.doesNotMatch(html, /<details class="app-nav-more/, 'the top bar no longer repeats the sidebar More menu');
-  const sidebar = await render('partials/side-links.ejs', { active: 'home' });
-  assert.match(sidebar, /<details class="side-more"[\s\S]*?href="\/advertising"[\s\S]*?Advertising/);
-  assert.match(html, /<details class="nav-drawer-more">[\s\S]*?<a class="nav-drawer-advertising" href="\/advertising">/);
-  assert.doesNotMatch(html, /<a class="advertiser-nav-link/);
-  assert.doesNotMatch(html, /<a class="advertising-side-link"/);
-  const footer = await render('partials/app-footer.ejs');
-  assert.match(footer, /<a href="\/advertising">Advertiser dashboard<\/a>/);
 });
 
 test('footers link to the new docs and help pages, and the GitHub link uses a real icon (not a stray glyph)', async () => {
@@ -1334,7 +854,7 @@ test('guests can read comment threads but only see account-gated comment actions
 test('dashboard keeps surveys one tap away (under More) without a panel of its own', async () => {
   const data = {
     title: 'Your Crowdwide', pagePath: '/dashboard', noIndex: true,
-    feed: { posts: [], visiblePosts: [], hasMore: false, activeTab: 'for-you' }, sitewideFeedAds: [],
+    feed: { posts: [], visiblePosts: [], hasMore: false, activeTab: 'for-you' },
     communities: [], composerCommunities: [], availableQuests: [], selectedQuestId: '', selectedCommunityId: '',
     people: [], coAuthorSuggestions: [], joinedCommunities: [], following: [], wordLimits: { post: 60, article: 300 },
     profileUser: currentUser, showEarnTip: false

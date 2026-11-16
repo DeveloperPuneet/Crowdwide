@@ -48,7 +48,6 @@
       <a href="/wallet"><%- icon('waves', { size: 18 }) %> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %></a>
       <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>
       <a href="/welcome"><%- icon('sparkles', { size: 18 }) %> Personalize feed</a>
-      <a class="nav-drawer-advertising" href="/advertising"><%- icon('megaphone', { size: 18 }) %> Advertising</a>
       <a href="/settings/account"><%- icon('settings', { size: 18 }) %> Settings</a>
       <% if (currentUser.role === 'admin') { %><a href="/admin"><%- icon('shield', { size: 18 }) %> Admin console</a><% } %>
       <% if (['admin', 'moderator'].includes(currentUser.role)) { %><a href="/moderator"><%- icon('shield', { size: 18 }) %> Moderator console</a><% } %>
