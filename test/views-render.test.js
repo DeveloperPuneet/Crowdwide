@@ -681,7 +681,10 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   const { formatStorage } = require('../src/services/mongoStorage');
   const html = await render('pages/admin.ejs', {
     title: 'Admin console', pagePath: '/admin', noIndex: true,
-    users: [], communities: [{
+    users: [{
+      _id: 'user-interest-1', name: 'Asha', email: 'asha@example.test', role: 'user',
+      isVerified: true, createdAt: new Date('2026-04-20T14:00:00Z'), hashtags: ['music', 'travel']
+    }], communities: [{
       _id: 'c1', name: 'Sketch Club', owner: null, membersCount: 12,
       isPrivate: false, requireApproval: false, category: 'technology',
       description: 'Draw together', guidelines: '', bannedWords: [],
@@ -729,6 +732,9 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
     stats: { users: 0, communities: 0, posts: 0, reports: 0 }
   });
   assert.match(html, /id="admin-panel-maintenance"/);
+  assert.match(html, /<th>Interests<\/th>/);
+  assert.match(html, /#music, #travel/);
+  assert.match(html, /Filter by name, email, or interest/);
   assert.match(html, /data-tab="brand-ambassadors"/);
   assert.match(html, /action="\/admin\/brand-ambassadors\/amb1"/);
   assert.match(html, /Asha Rao/);
