@@ -50,12 +50,13 @@ test('a signed-in "user" role gets a 403 on /admin, never reaching the panel pas
 test('a "moderator" role is also blocked from the admin-only panel', async () => {
   const email = `moduser.${Date.now()}@example.com`;
   const password = 'a-strong-password-123';
-  await User.create({ name: 'Mod User', email, password: await bcrypt.hash(password, 12), isVerified: true, role: 'moderator' });
+  const user = await User.create({ name: 'Mod User', email, password: await bcrypt.hash(password, 12), isVerified: true, role: 'moderator' });
 
   const agent = createAgent(app);
   await loginAs(agent, email, password);
   const adminRes = await agent.get('/admin');
   assert.equal(adminRes.status, 403);
+  assert.equal((await agent.get(`/admin/users/${user._id}/preview`)).status, 403);
 });
 
 test('moderators can confirm the moderator panel but cannot open or submit admin panel access', async () => {
@@ -174,6 +175,11 @@ test('an "admin" role must confirm their password before reaching the panel, the
   const adminPage = await agent.get('/admin');
   assert.equal(adminPage.status, 200);
   assert.match(adminPage.text, /Admin console/i);
+  const adminUser = await User.findOne({ email }).select('_id').lean();
+  const previewPage = await agent.get(`/admin/users/${adminUser._id}/preview`);
+  assert.equal(previewPage.status, 200);
+  assert.match(previewPage.text, /Observed preferences/);
+  assert.match(previewPage.text, /Feed delivered to this user/);
 
   const moderatorAccess = await agent.get('/moderator/access');
   assert.equal(moderatorAccess.status, 200);

@@ -1,0 +1,67 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
+<%- include('../partials/app-nav', { active: 'admin', currentUser }) %>
+<main class="explore-page admin-console admin-wide admin-modern">
+  <header class="admin-preview-header">
+    <div>
+      <p class="eyebrow">Admin · read-only simulation</p>
+      <h1>Preferences &amp; feed preview</h1>
+      <p><strong><%= user.name %></strong> · <%= user.email %></p>
+    </div>
+    <a class="admin-preview-back" href="/admin#users">← Back to users</a>
+  </header>
+
+  <section class="settings-block admin-preview-block">
+    <h2>Observed preferences</h2>
+    <p>Inferred from hashtags on posts this person opened, liked, reacted to, commented on, or saved. Profile hashtags and other things they wrote are not used in this summary.</p>
+    <div class="admin-preview-signals" aria-label="Activity used to infer preferences">
+      <span><%= behaviorActivity.opens %> recently opened posts</span>
+      <span><%= behaviorActivity.likes %> liked posts</span>
+      <span><%= behaviorActivity.reactions %> reacted posts</span>
+      <span><%= behaviorActivity.comments %> commented posts</span>
+      <span><%= behaviorActivity.saves %> saved posts</span>
+    </div>
+    <% if (interestTopics.length) { %>
+    <p>Topic strength is relative to this person’s observed activity, not a probability. Evidence counts show posts with each topic that they acted on.</p>
+    <table class="admin-preview-topics">
+      <thead><tr><th>Topic</th><th>Strength</th><th>Observed actions</th></tr></thead>
+      <tbody><% interestTopics.forEach((topic) => { %>
+        <tr>
+          <td>#<%= topic.tag %></td>
+          <td><span class="admin-preview-topic-bar" style="width:<%= topic.score %>px"></span><%= topic.score %>%</td>
+          <td><%= topic.evidence.likes %> liked · <%= topic.evidence.reactions %> reacted to · <%= topic.evidence.comments %> commented on · <%= topic.evidence.saves %> saved · <%= topic.evidence.opens %> opened</td>
+        </tr>
+      <% }) %></tbody>
+    </table>
+    <% } else { %>
+    <p>There is not enough tagged activity to infer topic preferences yet. The feed preview uses the normal cold-start discovery behavior.</p>
+    <% } %>
+  </section>
+
+  <section class="settings-block admin-preview-block">
+    <h2>Feed delivered to this user</h2>
+    <p><%= feed.note %> Per-post match compares hashtags with observed preferences; it is not a probability. Feed order uses the existing ranking system, including follows and joined communities. The preview is read-only and does not add activity to the user’s account.</p>
+    <form class="admin-preview-controls" method="get" action="/admin/users/<%= user._id %>/preview">
+      <label>Feed
+        <select name="view"><% viewOptions.forEach(([key, label]) => { %>
+          <option value="<%= key %>" <%= view === key ? 'selected' : '' %>><%= label %></option>
+        <% }) %></select>
+      </label>
+      <button class="button button-small button-primary" type="submit">Preview feed</button>
+    </form>
+
+    <% if (!posts.length) { %><p>No posts are available in this feed right now.</p><% } %>
+    <div class="admin-preview-feed">
+      <% posts.forEach((post) => { %>
+        <div class="admin-preview-block">
+          <span class="admin-preview-match">Behavior-interest match: <%= post.behaviorMatchPercent %>%</span>
+          <%- include('../partials/post-card', { post, csrfToken, readOnly: true }) %>
+        </div>
+      <% }) %>
+    </div>
+    <nav class="admin-preview-pagination" aria-label="Feed preview pages">
+      <% if (page > 1) { %><a href="?view=<%= view %>&amp;page=<%= page - 1 %>">Previous page</a><% } %>
+      <% if (feed.hasMore) { %><a href="?view=<%= view %>&amp;page=<%= page + 1 %>">Next page</a><% } %>
+    </nav>
+  </section>
+</main>
+<%- include('../partials/foot') %>

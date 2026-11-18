@@ -123,7 +123,30 @@
   color: var(--tx-mid);
 }
 .admin-table tr:last-child td { border-bottom: 0; }
-.admin-user-interests { max-width: 220px; overflow-wrap: anywhere; }
+.admin-preview-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+.admin-preview-header h1 { margin: 0; }
+.admin-preview-header p { color: var(--tx-lo); }
+.admin-preview-back { color: var(--theme-accent); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.admin-preview-block { margin: 18px 0; }
+.admin-preview-signals { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.admin-preview-signals span, .admin-preview-match { padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--tx-mid); font-size: 11px; }
+.admin-preview-topics { width: 100%; max-width: 680px; border-collapse: collapse; font-size: 12px; }
+.admin-preview-topics th, .admin-preview-topics td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+.admin-preview-topic-bar { display: inline-block; height: 6px; margin-right: 6px; border-radius: 5px; background: var(--theme-accent); vertical-align: middle; }
+.admin-preview-feed { max-width: 760px; }
+.admin-preview-feed .admin-preview-match { display: inline-block; margin: 0 0 7px; }
+.admin-preview-feed .post-card { cursor: default; }
+.admin-preview-feed .post-card:hover { transform: none; }
+.admin-preview-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 14px 0; }
+.admin-preview-controls label { display: grid; gap: 5px; color: var(--tx-lo); font-size: 12px; }
+.admin-preview-controls select { min-width: 180px; }
+.admin-preview-pagination { display: flex; gap: 8px; margin: 16px 0; }
+.admin-preview-pagination a { color: var(--theme-accent); font-size: 13px; font-weight: 700; }
+
+@media (max-width: 600px) {
+  .admin-preview-header { flex-direction: column-reverse; }
+  .admin-preview-topics { display: block; overflow-x: auto; }
+}
 
 .admin-badge {
   display: inline-block;

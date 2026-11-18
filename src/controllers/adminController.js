@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 const { hashPassword } = require('../utils/passwords');
 const User = require('../models/User');
 const Post = require('../models/Post');
@@ -8,7 +9,9 @@ const Report = require('../models/Report');
 const AuditLog = require('../models/AuditLog');
 const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const WavesAbuseSignal = require('../models/WavesAbuseSignal');
-const { clearAllFeedCaches } = require('../services/feedService');
+const feedService = require('../services/feedService');
+const feedRanker = require('../utils/feedRanker');
+const { clearAllFeedCaches } = feedService;
 const ModerationAction = require('../models/ModerationAction');
 const SiteSetting = require('../models/SiteSetting');
 const { reengagementReport } = require('../services/reengagement');
@@ -182,7 +185,7 @@ async function attachActionContext(actions) {
 
 exports.admin = async (req, res) => {
   const [users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, siteSettings, mongoStorage, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousWavesTransfers] = await Promise.all([
-    User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason wavesSuspendedUntil wavesSuspensionReason wavesBalance warnings hashtags').lean(),
+    User.find().sort({ createdAt: -1 }).limit(80).select('name email role moderatorId isVerified createdAt suspendedUntil suspensionReason postingRestrictedUntil postingRestrictionReason wavesSuspendedUntil wavesSuspensionReason wavesBalance warnings').lean(),
     Community.find().sort({ createdAt: -1 }).limit(60).select('name slug description guidelines category isPrivate requireApproval bannedWords owner membersCount members moderators pinnedPosts createdAt').populate('owner', 'name email').lean(),
     Post.find().sort({ moderationScore: -1, createdAt: -1 }).limit(40).select('body type status contentWarning author community createdAt likes commentsCount sharesCount moderationScore moderationStatus').populate('author', 'name email').populate('community', 'name').lean(),
     Report.find({ status: { $in: ['open', 'reviewing'] } }).sort({ createdAt: -1 }).limit(80).populate('reporter', 'name email').lean(),
@@ -208,6 +211,55 @@ exports.admin = async (req, res) => {
   const partnershipData = await require('./partnershipController').adminData();
   const reengagement = await reengagementReport().catch(() => null);
   res.render('pages/admin', { reengagement, title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, ...partnershipData, users, communities, posts, pinnedPostIds, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, mongoStorage, formatStorage, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousWavesTransfers, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+};
+
+exports.userFeedPreview = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).render('pages/not-found', { title: 'User not found' });
+  const user = await User.findById(req.params.id)
+    .select('name email role following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt recentViews adFreeUntil')
+    .lean();
+  if (!user) return res.status(404).render('pages/not-found', { title: 'User not found' });
+
+  const view = feedRanker.isFeedTab(req.query.view) ? req.query.view : 'for-you';
+  const page = Math.min(6, Math.max(1, Number.parseInt(req.query.page, 10) || 1));
+  const profile = await feedService.getInterestProfile(user);
+  const feed = await feedService.getFeedPage({
+    userId: user._id,
+    user,
+    view,
+    page,
+    force: page === 1
+  });
+  const interestTopics = Array.from(profile.behaviorInterests, ([tag, score]) => ({
+    tag,
+    score: Math.round(score * 100),
+    evidence: profile.behaviorEvidence.get(tag)
+  })).sort((a, b) => b.score - a.score).slice(0, 12);
+  const posts = feed.posts.map((post) => ({
+    ...post,
+    behaviorMatchPercent: Math.round(feedRanker.interestScore(post.hashtags || [], profile.behaviorInterests) * 100)
+  }));
+
+  res.render('pages/admin-user-preview', {
+    title: `User feed preview · ${user.name}`,
+    pagePath: `/admin/users/${user._id}/preview`,
+    noIndex: true,
+    user,
+    view,
+    page,
+    feed,
+    posts,
+    interestTopics,
+    behaviorActivity: profile.behaviorActivity,
+    viewOptions: [
+      ['for-you', 'For you'],
+      ['my-community', 'My community'],
+      ['posts-new', 'New posts'],
+      ['posts-viral', 'Viral posts'],
+      ['articles-new', 'New articles'],
+      ['articles-viral', 'Viral articles']
+    ]
+  });
 };
 
 exports.runMaintenance = async (req, res) => {

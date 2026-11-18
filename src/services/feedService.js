@@ -62,6 +62,35 @@ function refreshPersonalization(userId) {
   clearInterestProfile(userId);
 }
 
+function buildBehaviorInterestProfile({ liked = [], reacted = [], commented = [], saved = [], viewed = [] } = {}) {
+  const sources = [
+    { key: 'likes', posts: liked, weight: 1, recency: true },
+    { key: 'reactions', posts: reacted, weight: 1.2, recency: true },
+    { key: 'comments', posts: commented, weight: 2 },
+    { key: 'saves', posts: saved, weight: 2.5 },
+    { key: 'opens', posts: viewed, weight: 0.6, recency: true }
+  ];
+  const signals = [];
+  const evidence = new Map();
+  const activity = {};
+
+  sources.forEach(({ key, posts, weight, recency }) => {
+    activity[key] = posts.length;
+    posts.forEach((post, index) => {
+      const tags = Array.from(new Set((post.hashtags || []).map((tag) => String(tag || '').toLowerCase()).filter(Boolean)));
+      if (!tags.length) return;
+      const signalWeight = recency ? weight * (1 - 0.5 * (index / Math.max(1, posts.length))) : weight;
+      signals.push({ tags, weight: signalWeight });
+      tags.forEach((tag) => {
+        if (!evidence.has(tag)) evidence.set(tag, { likes: 0, reactions: 0, comments: 0, saves: 0, opens: 0 });
+        evidence.get(tag)[key] += 1;
+      });
+    });
+  });
+
+  return { interests: ranker.buildInterestMap(signals), evidence, activity };
+}
+
 // Projection shared by every candidate query: only scoring fields and cheap
 // counts, never the heavy arrays (likes, media, comments).
 function candidateProjection() {
@@ -169,6 +198,7 @@ async function getInterestProfile(user) {
   ]);
   const commented = commentRows.length ? await Post.find({ _id: { $in: commentRows.map((row) => row.post) } }).select('hashtags author').lean() : [];
 
+  const behaviorProfile = buildBehaviorInterestProfile({ liked, reacted, commented, saved, viewed });
   // Lists are newest-first: the latest actions say more about what someone is into now.
   const recent = (posts, weight) => posts.map((post, index) => ({ tags: post.hashtags || [], weight: weight * (1 - 0.5 * (index / Math.max(1, posts.length))) }));
   const searchTags = (user.searchHistory || []).slice(0, 10).flatMap((entry) => String(entry.query || '').toLowerCase().replace(/^#/, '').split(/[^a-z0-9_]+/).filter((word) => word.length >= 3));
@@ -197,7 +227,13 @@ async function getInterestProfile(user) {
   const maxAffinity = Math.max(0, ...rawAffinity.values());
   const authorAffinity = new Map(Array.from(rawAffinity, ([author, value]) => [author, maxAffinity ? Math.sqrt(value / maxAffinity) : 0]));
 
-  const value = { interests, authorAffinity };
+  const value = {
+    interests,
+    authorAffinity,
+    behaviorInterests: behaviorProfile.interests,
+    behaviorEvidence: behaviorProfile.evidence,
+    behaviorActivity: behaviorProfile.activity
+  };
   remember(profileCache, key, { at: Date.now(), value });
   return value;
 }
@@ -421,4 +457,4 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   };
 }
 
-module.exports = { loadPagePosts, getFeedPage, getInterestProfile, topInterestTags, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, POOL_LIMIT, NOTES };
+module.exports = { loadPagePosts, getFeedPage, getInterestProfile, topInterestTags, buildBehaviorInterestProfile, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, POOL_LIMIT, NOTES };

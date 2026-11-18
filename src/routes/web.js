@@ -171,6 +171,7 @@ router.post('/communities/:id/members/:userId/role', requireAuth, requireVerifie
 router.get('/:panel(admin|moderator)/access', requireAuth, requireVerified, adminController.panelAccessPage);
 router.post('/:panel(admin|moderator)/access', requireAuth, requireVerified, adminController.panelAccess);
 router.get('/admin', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.admin);
+router.get('/admin/users/:id/preview', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.userFeedPreview);
 router.get('/admin/blocked-ips', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.blockedIpsPage);
 router.post('/admin/blocked-ips/unblock', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), csrfSynchronisedProtection, adminController.unblockIp);
 router.post('/admin/moderators', requireAuth, requireVerified, requireAdmin, requirePanelPassword('admin'), adminController.createModerator);

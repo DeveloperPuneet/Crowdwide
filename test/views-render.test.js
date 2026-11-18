@@ -244,6 +244,30 @@ test('post cards render co-author credit when a post is collaborative', async ()
   assert.match(html, /Weekly sketch sprint/);
 });
 
+test('admin feed previews show behavior matches without exposing interactive post actions', async () => {
+  const html = await render('pages/admin-user-preview.ejs', {
+    title: 'User feed preview', pagePath: '/admin/users/u2/preview', noIndex: true,
+    user: { _id: 'u2', name: 'Asha', email: 'asha@example.test' },
+    view: 'for-you', page: 1, feed: { note: 'Ranked for you.', hasMore: false },
+    posts: [{
+      ...post(2), author: { _id: 'author-2', name: 'Ravi' }, body: 'A post about music',
+      hashtags: ['music'], likes: [], commentsCount: 0, sharesCount: 0, viewsCount: 0,
+      behaviorMatchPercent: 75
+    }],
+    interestTopics: [{
+      tag: 'music', score: 100,
+      evidence: { likes: 2, reactions: 1, comments: 0, saves: 1, opens: 3 }
+    }],
+    behaviorActivity: { opens: 3, likes: 2, reactions: 1, comments: 0, saves: 1 },
+    viewOptions: [['for-you', 'For you']]
+  });
+  assert.match(html, /Observed preferences/);
+  assert.match(html, /2 likes · 1 reactions/);
+  assert.match(html, /Behavior-interest match: 75%/);
+  assert.doesNotMatch(html, /action="\/posts\/p2\/like"|data-share-open|action="\/posts\/p2\/poll\/vote"/);
+  assert.doesNotMatch(html, /Join Crowdwide to like, comment, and share/);
+});
+
 test('post page: flat actions, send-to-chat share, comment box, no Quote', async () => {
   const html = await render('pages/post-detail.ejs', {
     title: 'p', pagePath: '/posts/p1', comments: [{}], canPinComments: true,
@@ -732,9 +756,8 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
     stats: { users: 0, communities: 0, posts: 0, reports: 0 }
   });
   assert.match(html, /id="admin-panel-maintenance"/);
-  assert.match(html, /<th>Interests<\/th>/);
-  assert.match(html, /#music, #travel/);
-  assert.match(html, /Filter by name, email, or interest/);
+  assert.match(html, /\/admin\/users\/user-interest-1\/preview/);
+  assert.doesNotMatch(html, /#music, #travel/);
   assert.match(html, /data-tab="brand-ambassadors"/);
   assert.match(html, /action="\/admin\/brand-ambassadors\/amb1"/);
   assert.match(html, /Asha Rao/);
