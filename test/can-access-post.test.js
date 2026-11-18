@@ -1,10 +1,84 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Community = require('../src/models/Community');
+const Post = require('../src/models/Post');
 const { canAccessPost } = require('../src/controllers/interactionController');
 
 test('canAccessPost returns false for a null/missing post', async () => {
   assert.equal(await canAccessPost(null, 'u1'), false);
+});
+
+test('postDetail returns 404 for an invalid post ID without querying Post', async (t) => {
+  const findOne = t.mock.method(Post, 'findOne');
+  const response = {
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    render(view, locals) {
+      this.view = view;
+      this.locals = locals;
+      return this;
+    }
+  };
+
+  await require('../src/controllers/interactionController').postDetail(
+    { params: { id: 'null' }, session: {} },
+    response
+  );
+
+  assert.equal(response.statusCode, 404);
+  assert.equal(response.view, 'pages/not-found');
+  assert.equal(findOne.mock.callCount(), 0);
+});
+
+test('post edit and reply pages return 404 for invalid post IDs without querying Post', async (t) => {
+  const findOne = t.mock.method(Post, 'findOne');
+  const findById = t.mock.method(Post, 'findById');
+  const controller = require('../src/controllers/interactionController');
+  const createResponse = () => ({
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    render(view) {
+      this.view = view;
+      return this;
+    }
+  });
+
+  for (const handler of [controller.editPostPage, controller.replyPostPage]) {
+    const response = createResponse();
+    await handler({ params: { id: 'null' }, session: {} }, response);
+    assert.equal(response.statusCode, 404);
+    assert.equal(response.view, 'pages/not-found');
+  }
+
+  assert.equal(findOne.mock.callCount(), 0);
+  assert.equal(findById.mock.callCount(), 0);
+});
+
+test('commentThread returns an empty 404 response for an invalid post ID without querying Post', async (t) => {
+  const findById = t.mock.method(Post, 'findById');
+  const response = {
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    }
+  };
+
+  await require('../src/controllers/interactionController').commentThread(
+    { params: { id: 'null' }, session: {} },
+    response
+  );
+
+  assert.equal(response.statusCode, 404);
+  assert.deepEqual(response.body, { comments: [] });
+  assert.equal(findById.mock.callCount(), 0);
 });
 
 test('canAccessPost allows a published post with no community, without querying Community at all', async (t) => {

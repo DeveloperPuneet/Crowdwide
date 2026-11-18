@@ -207,7 +207,7 @@ exports.admin = async (req, res) => {
   res.locals.surveys = await require('../services/surveys').adminSurveys();
   const partnershipData = await require('./partnershipController').adminData();
   const reengagement = await reengagementReport().catch(() => null);
-  res.render('pages/admin', { reengagement, title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, ...partnershipData, users, communities, posts, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, mongoStorage, formatStorage, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousWavesTransfers, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
+  res.render('pages/admin', { reengagement, title: 'Admin console', pagePath: '/admin', noIndex: true, autoApplied, ...partnershipData, users, communities, posts, pinnedPostIds, openReports, pendingActions, pendingAppeals, moderators, auditLogs, maintenanceRuns, maintenanceTaskLabels: TASK_LABELS, communityCategories: COMMUNITY_CATEGORIES, siteSettings, mongoStorage, formatStorage, suspiciousRewardPairs, wavesEconomy, heldWavesUsers, suspiciousWavesTransfers, stats: { users: await User.countDocuments(), communities: await Community.countDocuments(), posts: await Post.countDocuments(), reports: await Report.countDocuments() } });
 };
 
 exports.runMaintenance = async (req, res) => {

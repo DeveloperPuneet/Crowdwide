@@ -197,6 +197,7 @@ exports.editPost = async (req, res) => {
 };
 
 exports.editPostPage = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id })
     .populate('author', 'name profilePicture')
     .populate('community', 'name slug isPrivate')
@@ -481,6 +482,7 @@ exports.replyPostsPage = async (req, res) => {
 };
 
 exports.replyPostPage = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const sourcePost = await Post.findById(req.params.id)
     .populate('author', 'name profilePicture')
     .populate('community', 'name slug')
@@ -541,6 +543,7 @@ const { shouldCount: shouldCountView } = require('../utils/viewDedupe');
 
 exports.postDetail = async (req, res) => {
   const viewerId = req.session.user?.id;
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const existing = await Post.findOne({ _id: req.params.id, $or: [{ status: 'published' }, { author: viewerId || null }] }).select('author status community').lean();
   if (!(await canAccessPost(existing, viewerId))) return res.status(404).render('pages/not-found', { title: 'Post not found' });
   const countView = shouldCountView('post', String(req.params.id), req) && String(existing.author) !== String(viewerId || '');
@@ -627,6 +630,7 @@ exports.postDetail = async (req, res) => {
 };
 
 exports.commentThread = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ comments: [] });
   const post = await Post.findById(req.params.id).select('author status community').lean();
   if (!(await canAccessPost(post, req.session.user?.id))) return res.status(404).json({ comments: [] });
   const comments = await Comment.find({ post: req.params.id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean();

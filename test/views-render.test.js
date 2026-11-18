@@ -527,7 +527,7 @@ test('community map gives users a usable fallback when map tile access is blocke
   const html = await render('pages/community-map.ejs', {
     title: 'Community Galaxy', description: 'Map communities', pagePath: '/community-map', noIndex: true, includeLeaflet: true,
     mapApiKey: 'test-map-key',
-    mapCommunities: [], categories: []
+    mapCommunities: [], mappedCommunities: [], unmappedCommunities: [], categories: []
   });
   assert.match(html, /data-community-discovery-map/);
   assert.match(html, /data-map-tile-error/);
@@ -685,7 +685,12 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       _id: 'c1', name: 'Sketch Club', owner: null, membersCount: 12,
       isPrivate: false, requireApproval: false, category: 'technology',
       description: 'Draw together', guidelines: '', bannedWords: [],
-    }], posts: [], openReports: [{
+    }], posts: [{
+      _id: 'pinned-post-1', author: { _id: 'author-1', name: 'Asha' },
+      body: 'Pinned announcement', type: 'post', status: 'published',
+      moderationStatus: 'good', moderationScore: 0,
+      community: { _id: 'c1', name: 'Sketch Club' }
+    }], openReports: [{
       _id: 'report-post-1', targetType: 'post', target: 'post-1',
       reason: 'Spam', contextText: 'Reported post',
       reporter: { name: 'Asha' }, createdAt: new Date('2026-04-20T14:00:00Z')
@@ -709,7 +714,7 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
       task: 'chats', status: 'success', scheduled: false, triggeredBy: { name: 'Operator' },
       startedAt: new Date('2026-04-20T12:00:00Z'), results: { directMessages: 2 }
     }],
-    maintenanceTaskLabels: TASK_LABELS, pinnedPostIds: new Set(),
+    maintenanceTaskLabels: TASK_LABELS, pinnedPostIds: new Set(['pinned-post-1']),
     siteSettings: {
       siteName: '', tagline: '', registrationOpen: true, postApprovalDefault: false,
       maintenanceMode: false, maintenanceMessage: '', announcement: '',
@@ -733,6 +738,7 @@ test('admin panel renders MongoDB storage, community categories, and data cleanu
   assert.match(html, /Run all cleanup processes/);
   assert.match(html, /name="communityPromotionEnabled"/);
   assert.match(html, /name="communityPromotionWavesCost"[^>]+value="65"/);
+  assert.match(html, /name="pinToCommunity">[\s\S]*<option value="on" selected>Pinned<\/option>/);
   assert.match(html, /name="communityPromotionDurationHours"[^>]+value="72"/);
   assert.match(html, /Recent cleanup runs/);
   assert.match(html, /Run by Operator/);
