@@ -305,10 +305,10 @@ function diversify(scored, { gap = 2, maxPerAuthor = 3, maxPerCommunity = Infini
 }
 
 // Serendipity: reorders a ranked discovery lane so one slot in every EXPLORE_EVERY is a good post on a topic
-// the viewer has shown no interest in yet. Candidates must clear the quality bar and are picked by how well
-// they convert attention into action, with a nudge for new voices and fresh posts. Everything else keeps its
-// ranked order, and the lane's size never changes, so the 35-40% outside-network share is untouched.
-function injectExploration(lane, { every = EXPLORE_EVERY } = {}) {
+// the viewer has shown no interest in yet (or any topic for a cold-start viewer). Candidates must clear the
+// quality bar and are picked by how well they convert attention into action, with a nudge for new voices and
+// fresh posts. Everything else keeps its ranked order, and the lane's size never changes.
+function injectExploration(lane, { every = EXPLORE_EVERY, source = 'Something different' } = {}) {
   if (lane.length < every) return lane;
   const pool = lane
     .filter((item) => item.parts.interest === 0 && passesQualityBar(item.post))
@@ -323,9 +323,9 @@ function injectExploration(lane, { every = EXPLORE_EVERY } = {}) {
   const picks = Array.from(chosen);
   while (rest.length || picks.length) {
     // positions every-1, 2*every-1, ... (so a page always starts with a relevant post)
-    if (picks.length && out.length % every === every - 1) out.push({ ...picks.shift(), source: 'Something different', explore: true });
+    if (picks.length && out.length % every === every - 1) out.push({ ...picks.shift(), source, explore: true });
     else if (rest.length) out.push(rest.shift());
-    else out.push({ ...picks.shift(), source: 'Something different', explore: true });
+    else out.push({ ...picks.shift(), source, explore: true });
   }
   return out;
 }
@@ -423,8 +423,12 @@ function rankFeed(candidates, ctx, view = 'for-you', { limit = 96 } = {}) {
   // the small, growing ones this lane exists to surface.
   let discoveryLane = diversify(scored.filter((item) => item.lane === 'discovery'), { maxPerCommunity: 3 });
   // Only the personalised tab explores: New and Viral are visible sort orders, and My community is about
-  // communities the viewer chose. A brand-new account with no learned interests simply sees a ranked lane.
-  if (view === 'for-you' && full.interests.size > 0) discoveryLane = injectExploration(discoveryLane);
+  // communities the viewer chose. Cold-start viewers get a quality-checked sample before interest signals exist.
+  if (view === 'for-you') {
+    discoveryLane = injectExploration(discoveryLane, {
+      source: full.interests.size > 0 ? 'Something different' : 'Fresh discovery'
+    });
+  }
   const mixed = mixLanes(networkLane, discoveryLane, { ratio, limit, strict: config.mixing === 'strict' });
   return config.mixing === 'floor' ? sortWithinPages(mixed) : mixed;
 }

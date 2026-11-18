@@ -213,7 +213,11 @@ test('For you reserves a slot in the discovery lane for topics outside the viewe
     assert.equal(item.parts.interest, 0);
     assert.equal(item.source, 'Something different');
   });
-  // no learned interests (brand-new account) -> nothing is reserved
+  // Cold-start accounts also get quality-checked discovery samples without changing the lane ratio.
   const cold = r.rankFeed(candidates, ctx({ following }), 'for-you', { limit: 64 });
-  assert.equal(cold.filter((item) => item.explore).length, 0);
+  assert.ok(cold.filter((item) => item.explore).length >= 3);
+  assert.ok(cold.filter((item) => item.explore).every((item) => item.source === 'Fresh discovery'));
+  for (let page = 0; page < 4; page += 1) {
+    assert.equal(cold.slice(page * 16, page * 16 + 16).filter((item) => item.lane === 'discovery').length, 6);
+  }
 });
