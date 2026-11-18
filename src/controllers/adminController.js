@@ -237,7 +237,8 @@ exports.userFeedPreview = async (req, res) => {
   })).sort((a, b) => b.score - a.score).slice(0, 12);
   const posts = feed.posts.map((post) => ({
     ...post,
-    behaviorMatchPercent: Math.round(feedRanker.interestScore(post.hashtags || [], profile.behaviorInterests) * 100)
+    behaviorMatchPercent: Math.round(feedRanker.interestScore(post.hashtags || [], profile.behaviorInterests) * 100),
+    feedProfileMatchPercent: Math.round(feedRanker.interestScore(post.hashtags || [], profile.interests) * 100)
   }));
 
   res.render('pages/admin-user-preview', {

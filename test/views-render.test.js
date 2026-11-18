@@ -252,7 +252,7 @@ test('admin feed previews show behavior matches without exposing interactive pos
     posts: [{
       ...post(2), author: { _id: 'author-2', name: 'Ravi' }, body: 'A post about music',
       hashtags: ['music'], likes: [], commentsCount: 0, sharesCount: 0, viewsCount: 0,
-      behaviorMatchPercent: 75
+      behaviorMatchPercent: 75, feedProfileMatchPercent: 100
     }],
     interestTopics: [{
       tag: 'music', score: 100,
@@ -262,8 +262,8 @@ test('admin feed previews show behavior matches without exposing interactive pos
     viewOptions: [['for-you', 'For you']]
   });
   assert.match(html, /Observed preferences/);
-  assert.match(html, /2 likes · 1 reactions/);
-  assert.match(html, /Behavior-interest match: 75%/);
+  assert.match(html, /2 liked · 1 reacted to/);
+  assert.match(html, /Observed match: 75% · Feed-profile match: 100%/);
   assert.doesNotMatch(html, /action="\/posts\/p2\/like"|data-share-open|action="\/posts\/p2\/poll\/vote"/);
   assert.doesNotMatch(html, /Join Crowdwide to like, comment, and share/);
 });
