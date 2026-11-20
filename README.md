@@ -11,6 +11,8 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
 
 **Live:** https://www.crowdwide.run.place
 
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/DeveloperPuneet/badge.svg)](https://hub.xerj.org/contributors/DeveloperPuneet)
+
 ## Features
 
 ### Posting and content
