@@ -321,31 +321,6 @@ For the Crowdwide app service, select the Node runtime and use:
 - **Build Command:** `npm ci`
 - **Start Command:** `npm start`
 
-## Crowdwide AI (zero cost)
-
-Crowdwide AI is part of the existing Express app at `/crowdwide-ai`; it uses
-the app's existing session authentication and MongoDB connection. No new
-environment variable, API key, paid inference endpoint, separate model
-server, or database service is required. Conversation, message, memory,
-preference and pending-action collections are created by Mongoose when the
-app starts; their owner-scoped indexes are declared in the models.
-
-Crowdwide AI uses deterministic intent routing and bounded MongoDB search.
-Search only covers published content visible to the signed-in member, excludes
-reported posts and applies the existing private-profile, private-community,
-blocked and muted-user rules. Optional Meilisearch is reused when configured;
-without it, bounded MongoDB queries remain available. No database dump is sent
-to an inference system. Conversation and memory APIs always scope reads and
-writes to the authenticated member.
-
-No language model is downloaded, cached, initialized, or executed. There is no
-paid AI API, hosted inference endpoint, WebGPU/CPU inference worker, or model
-configuration in the application. Unsupported requests are reported honestly
-instead of fabricating an answer or tool result. Publishing, editing, deleting,
-commenting, replying, and sending messages are proposed first; the member must
-explicitly confirm, and the final request uses the existing routes and their
-validation/authorization checks. Pending proposals expire after ten minutes.
-
 ### Deploying on Render
 
 1. Deploy the existing Crowdwide repository as a **Node Web Service**. Use
@@ -354,15 +329,8 @@ validation/authorization checks. Pending proposals expire after ten minutes.
 2. Set `NODE_ENV=production`, `TRUST_PROXY_HOPS=1`, `APP_URL` to the
    deployment's public HTTPS origin, a strong unique `SESSION_SECRET`, and
    `MONGODB_URI` to the MongoDB database already used by Crowdwide.
-3. Keep the existing app database, session store and user authentication;
-   do not create a second application or database for AI. No AI-specific
-   secrets or billing setup are needed.
-4. Deploy. Mongoose creates the AI collection indexes at startup. Verify
-   `/health`, sign in, and open `/crowdwide-ai`.
-5. Test `/crowdwide-ai` after sign-in. Verify conversation persistence, privacy-
-   filtered search, source links, memories, mentions and notifications, and
-   confirmation-based social actions. No model download or GPU/WASM setup is
-   required.
+3. Keep the existing app database, session store and user authentication.
+4. Deploy and verify `/health`, sign in, and the core application routes.
 
 Render's free service can sleep and has limited request CPU/memory, so normal
 MongoDB retrieval remains intentionally small and synchronous. No model
