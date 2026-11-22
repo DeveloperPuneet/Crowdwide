@@ -321,6 +321,71 @@ For the Crowdwide app service, select the Node runtime and use:
 - **Build Command:** `npm ci`
 - **Start Command:** `npm start`
 
+## Crowdwide AI (zero cost)
+
+Crowdwide AI is part of the existing Express app at `/crowdwide-ai`; it uses
+the app's existing session authentication and MongoDB connection. No new
+environment variable, API key, paid inference endpoint, separate model
+server, or database service is required. Conversation, message, memory,
+preference and pending-action collections are created by Mongoose when the
+app starts; their owner-scoped indexes are declared in the models.
+
+The default mode is a bounded MongoDB search-and-cite fallback. It searches
+only published content visible to the signed-in member, excludes reported
+posts and applies the existing private-profile, private-community, blocked
+and muted-user rules. Optional Meilisearch is reused when configured; without
+it, bounded MongoDB queries remain available. No database dump is sent to a
+model. Conversation and memory APIs always scope reads and writes to the
+authenticated member.
+
+Members may explicitly enable local inference in AI settings. On the first
+message after enabling it, the browser loads the open-source WebLLM runtime
+served by Crowdwide and downloads the Llama 3.2 1B 4-bit model files from
+Hugging Face. The model download is roughly 1 GB and is cached by the browser;
+it is not stored on Render. Inference uses the member's WebGPU-capable device, not the
+Crowdwide server. It can be slow or unavailable on older browsers, low-memory
+devices, or unsupported GPUs. If the runtime, WebGPU, or download fails, the
+interface explains the issue and uses the search-based fallback. No paid API
+is used and there is no silent switch to a hosted model. The runtime itself is
+served from the app; the CSP adds only the model asset hosts needed for this
+opt-in feature.
+
+The local model is small and may make mistakes. Crowdwide records are passed
+as untrusted evidence, and responses are prompted to cite retrieved sources;
+the model is not a permission authority. The server independently checks
+visibility and ownership. Publishing, editing, and deleting are proposed
+first; the member must explicitly confirm, and the final request uses the
+existing post routes and their validation/authorization checks. Pending
+proposals expire after ten minutes.
+
+### Deploying on Render
+
+1. Deploy the existing Crowdwide repository as a **Node Web Service**. Use
+   **Build Command** `npm ci` and **Start Command** `npm start`.
+2. Set `NODE_ENV=production`, `TRUST_PROXY_HOPS=1`, `APP_URL` to the
+   deployment's public HTTPS origin, a strong unique `SESSION_SECRET`, and
+   `MONGODB_URI` to the MongoDB database already used by Crowdwide.
+3. Keep the existing app database, session store and user authentication;
+   do not create a second application or database for AI. No AI-specific
+   secrets or billing setup are needed.
+4. Deploy. Mongoose creates the AI collection indexes at startup. Verify
+   `/health`, sign in, and open `/crowdwide-ai`.
+5. Test the default search mode first. To try local inference, open **AI
+   settings**, enable **On-device AI**, and send a prompt. The user's
+   browser must allow WebGPU and outbound HTTPS to Hugging Face's model/CDN
+   hosts and raw.githubusercontent.com for model metadata or assets requested
+   by WebLLM.
+   The initial model download can be large; it does not consume Render
+   compute or disk.
+
+Render's free service can sleep and has limited request CPU/memory, so normal
+MongoDB retrieval remains intentionally small and synchronous. Local model
+initialization and inference never run in the Node service. Conversation and
+memory persistence still depend on a working MongoDB connection, as does the
+rest of Crowdwide. A free-tier host/database's availability and storage limits
+are separate from inference and may change; this feature itself requires no
+paid AI service or subscription.
+
 Remove any `docker run ...` command from Render's Build Command. Build
 commands prepare the app; they are not a place to start long-running
 sidecar daemons. Configure ClamAV and LibreTranslate as separate services

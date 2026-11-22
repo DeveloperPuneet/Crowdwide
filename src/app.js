@@ -65,9 +65,10 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
-        scriptSrc: ["'self'", 'https://www.googletagmanager.com', 'https://cdn.apitiny.net', (req, res) => `'nonce-${res.locals.cspNonce}'`, ...turnstileOrigins],
+        scriptSrc: ["'self'", "'wasm-unsafe-eval'", 'https://www.googletagmanager.com', 'https://cdn.apitiny.net', (req, res) => `'nonce-${res.locals.cspNonce}'`, ...turnstileOrigins],
+        workerSrc: ["'self'", 'blob:'],
         frameSrc: ["'self'", 'https://*.apitiny.net', ...turnstileOrigins],
-        connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', 'https://*.apitiny.net', ...turnstileOrigins],
+        connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', 'https://*.apitiny.net', 'https://huggingface.co', 'https://cdn-lfs.huggingface.co', 'https://*.hf.co', 'https://*.xethub.hf.co', 'https://raw.githubusercontent.com', ...turnstileOrigins],
         mediaSrc: ["'self'", ...mediaOrigins],
         // GIFs come from GIPHY's CDN; blob: lets upload previews render.
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.apitiny.net', 'https://*.giphy.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://api.maptiler.com', 'https://www.google-analytics.com', ...mediaOrigins]
@@ -88,6 +89,10 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   });
   app.use('/vendor/leaflet', express.static(path.join(__dirname, '..', 'node_modules', 'leaflet', 'dist')));
   app.use('/vendor/prism', express.static(path.join(__dirname, '..', 'node_modules', 'prismjs')));
+  app.use('/vendor/web-llm', (req, res, next) => {
+    if (req.query.v === '0.2.87') res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    next();
+  }, express.static(path.join(__dirname, '..', 'node_modules', '@mlc-ai', 'web-llm', 'lib')));
   app.use(assets.serveBundle);
   app.use(assets.cacheHeaders);
   app.use(express.static(path.join(__dirname, '..', 'public')));

@@ -68,6 +68,7 @@
   %>
   <% if (bundles) { %>
   <link rel="stylesheet" href="<%= bundles.base %>">
+  <% if (locals.aiPage) { %><link rel="stylesheet" href="<%= assetUrl('/css/crowdwide-ai.css') %>"><% } %>
   <% if (locals.communityPage) { %><link rel="stylesheet" href="<%= assetUrl('/css/community-workspace.css') %>"><% } %>
   <link rel="stylesheet" href="<%= bundles.polish %>">
   <% } else { %>
@@ -88,6 +89,7 @@
   <link rel="stylesheet" href="/css/polish.css">
   <link rel="stylesheet" href="/css/reading.css">
   <link rel="stylesheet" href="/css/badges.css">
+  <% if (locals.aiPage) { %><link rel="stylesheet" href="/css/crowdwide-ai.css"><% } %>
   <% } %>
   <% if (locals.includeLeaflet) { %>
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">

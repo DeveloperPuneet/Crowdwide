@@ -23,6 +23,7 @@ const { logEvent } = require('../services/accountHistory');
 const countWords = require('../utils/wordCount');
 const { isValidTimezone } = require('../services/newsletterWorker');
 const { removeUserFromCommunities } = require('../services/communityMembership');
+const { deleteAiDataForUser } = require('../services/aiData');
 
 const flash = (req, type, message) => { req.session.flash = { type, message }; };
 
@@ -260,7 +261,8 @@ exports.deleteAccount = async (req, res) => {
     Message.deleteMany({ $or: [{ sender: userId }, { recipient: userId }] }),
     GroupMessage.deleteMany({ sender: userId }),
     GroupConversation.deleteMany({ creator: userId }),
-    GroupConversation.updateMany({ members: userId }, { $pull: { members: userId } })
+    GroupConversation.updateMany({ members: userId }, { $pull: { members: userId } }),
+    deleteAiDataForUser(userId)
   ]);
   req.session.destroy(() => res.redirect('/'));
 };

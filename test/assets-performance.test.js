@@ -15,8 +15,9 @@ test('CSS bundles contain every stylesheet in the original cascade order', () =>
   const urls = assets.cssBundleUrls();
   assert.match(urls.base, /^\/css\/bundle-base\.css\?v=[0-9a-f]{10}$/);
   const head = fs.readFileSync(path.join(root, 'src/views/partials/head.ejs'), 'utf8');
-  const fallback = [...head.matchAll(/href="\/css\/([a-z-]+)\.css"/g)].map((m) => m[1]).filter((n) => n !== 'community-workspace');
+  const fallback = [...head.matchAll(/href="\/css\/([a-z-]+)\.css"/g)].map((m) => m[1]).filter((n) => !['community-workspace', 'crowdwide-ai'].includes(n));
   assert.deepEqual([...assets.BUNDLES.base, ...assets.BUNDLES.polish], fallback);
+  assert.match(head, /if \(locals\.aiPage\)[\s\S]*?crowdwide-ai\.css/);
 });
 
 test('bundles are served compressed with a one-year immutable cache when versioned', async () => {
@@ -37,6 +38,15 @@ test('versioned JS is cached for a year, unversioned static files still revalida
   assert.match(versioned.headers['cache-control'], /max-age=31536000/);
   const plain = await request(app).get('/js/app.js');
   assert.doesNotMatch(plain.headers['cache-control'] || '', /immutable/);
+});
+
+test('the browser WebLLM runtime is served locally, not imported from a runtime CDN', async () => {
+  const app = createApp({ port: 3000 });
+  const res = await request(app).head('/vendor/web-llm/index.js?v=0.2.87');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /javascript/);
+  assert.ok(Number(res.headers['content-length']) > 1000000);
+  assert.match(res.headers['cache-control'], /immutable/);
 });
 
 test('reading stylesheet is part of the polish bundle', () => {

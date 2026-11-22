@@ -79,6 +79,14 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many API requests. Try again shortly.' }
 });
 
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Crowdwide AI is busy. Please wait a moment and try again.' }
+});
+
 // Translation hits a paid/metered external API, so it gets its own tighter
 // limit rather than sharing interactionLimiter's generous 60/min.
 const translateLimiter = rateLimit({
@@ -97,4 +105,4 @@ function csrfProtection(req, res, next) {
   return csrfSynchronisedProtection(req, res, next);
 }
 
-module.exports = { emailLimiter, csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, partnershipLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter };
+module.exports = { emailLimiter, csrfSynchronisedProtection, csrfProtection, generateToken, authLimiter, partnershipLimiter, interactionLimiter, apiLimiter, aiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter };

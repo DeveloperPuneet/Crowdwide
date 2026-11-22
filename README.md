@@ -45,6 +45,12 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
   popular searches. Optional Meilisearch provides typo-tolerant post search;
   see [deployment setup](./DEPLOYMENT.md#meilisearch).
 - Trending hashtags, RSS feeds for the site, profiles and communities.
+- **Crowdwide AI** (`/crowdwide-ai`): private conversation history and
+  editable user memories, privacy-filtered search across public Crowdwide
+  posts/comments/profiles/communities, source links, and confirmed post
+  actions. Search-based answers work without an AI model; optional WebGPU
+  inference runs in the member's browser. See
+  [zero-cost AI setup](./DEPLOYMENT.md#crowdwide-ai-zero-cost).
 
 ### Communities
 - Open or private communities with banners, avatars, hashtags, guidelines,

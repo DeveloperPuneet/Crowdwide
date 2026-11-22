@@ -25,5 +25,6 @@
 <script src="<%= assetUrl('/js/admin-panel.js') %>" defer></script>
 <script src="<%= assetUrl('/js/survey-builder.js') %>" defer></script>
 <script src="<%= assetUrl('/js/push-notifications.js') %>" defer></script>
+<% if (locals.aiPage) { %><script type="module" src="<%= assetUrl('/js/crowdwide-ai.js') %>"></script><% } %>
 </body>
 </html>
