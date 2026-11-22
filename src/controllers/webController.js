@@ -465,6 +465,7 @@ exports.createPost = async (req, res) => {
 	const clientRequestId = /^[A-Za-z0-9_-]{8,64}$/.test(rawRequestId) ? rawRequestId : '';
 	const requestKey = clientRequestId ? `${req.session.user.id}:${clientRequestId}` : '';
 	const replyForExisting = async (existing) => {
+		await completeAiAction(aiAction, existing._id);
 		if (!wantsJson) return res.redirect(backTo);
 		return res.json(await createdPostPayload(existing, req.session.user.id, res, { duplicate: true }));
 	};

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const sourceSchema = new mongoose.Schema({
-  type: { type: String, enum: ['post', 'comment', 'profile', 'community', 'topic', 'statistics', 'message', 'notification'], required: true },
+  type: { type: String, enum: ['post', 'comment', 'profile', 'community', 'topic', 'statistics', 'message', 'notification', 'knowledge'], required: true },
   id: { type: String, required: true, maxlength: 64 },
   title: { type: String, maxlength: 200, default: '' },
   url: { type: String, maxlength: 300, required: true },

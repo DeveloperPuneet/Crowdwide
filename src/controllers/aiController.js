@@ -17,8 +17,11 @@ const { checkPostingRestriction } = require('../utils/postingRestriction');
 const {
   buildFallbackResponse,
   executeCrowdwideTools,
+  getCrowdwideKnowledge,
   getMyChatContext,
+  isDirectReadTool,
   parseActionRequest,
+  selectTool,
   titleFromPrompt
 } = require('../services/crowdwideAi');
 
@@ -124,20 +127,29 @@ async function resolveActionRequest(actionRequest, userId) {
   if (actionRequest.kind === 'reply_comment') {
     let commentId = actionRequest.commentId;
     if (commentId === 'latest_on_my_post') {
-      const latestPost = await Post.findOne({ author: userId, status: 'published' })
-        .sort({ createdAt: -1 }).select('_id').lean();
-      const latestComment = latestPost && await Comment.findOne({ post: latestPost._id, author: { $ne: userId } })
-        .sort({ createdAt: -1 }).select('_id').lean();
+      const ownPostIds = await Post.find({ author: userId, status: 'published' })
+        .sort({ createdAt: -1 }).limit(50).distinct('_id');
+      const latestComment = ownPostIds.length
+        ? await Comment.findOne({ post: { $in: ownPostIds }, author: { $ne: userId } })
+          .sort({ createdAt: -1 }).select('_id').lean()
+        : null;
       commentId = latestComment ? String(latestComment._id) : '';
     } else if (commentId === 'latest_mention') {
       const [viewer, notification] = await Promise.all([
         User.findById(userId).select('username').lean(),
-        Notification.findOne({ recipient: userId, type: { $in: ['mention', 'reply', 'post_reply'] } })
+        Notification.findOne({
+          recipient: userId,
+          type: 'mention',
+          ...(actionRequest.unreadOnly ? { readAt: null } : {})
+        })
           .sort({ createdAt: -1 }).select('post url').lean()
       ]);
       const linkedCommentId = notification?.url?.match(/#comment-([a-f\d]{24})/i)?.[1];
       let mentionedComment = linkedCommentId
-        ? await Comment.findById(linkedCommentId).select('_id post').lean()
+        ? await Comment.findOne({
+          _id: linkedCommentId,
+          ...(notification?.post ? { post: notification.post } : {})
+        }).select('_id post').lean()
         : null;
       if (!mentionedComment && notification?.post && viewer?.username) {
         mentionedComment = await Comment.findOne({
@@ -176,7 +188,7 @@ async function resolveActionRequest(actionRequest, userId) {
     if (!isValidId(commentId)) return { error: 'I could not find a recent comment to reply to. Include its comment ID or open the discussion first.' };
     const comment = await Comment.findById(commentId).select('_id post author body').lean();
     if (!comment) return { error: 'That comment is no longer available.' };
-    const post = await Post.findById(comment.post).select('_id author body status community').lean();
+    const post = await Post.findById(comment.post).select('_id author body status community revision').lean();
     if (!post || !await canAccessPost(post, userId)) return { error: 'That discussion is not available to your account.' };
     resolved.commentId = String(comment._id);
     resolved.postId = String(post._id);
@@ -319,6 +331,7 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
       assistantMessage: publicMessage(assistant, action ? publicAction(action,
         action.post ? `/posts/${action.post}${action.comment ? `#comment-${action.comment}` : ''}` : action.group ? `/groups/${action.group}` : action.recipient ? `/messages/${action.recipient}` : ''
       ) : null),
+      ...(isDirectReadTool(selectTool(userMessage.content)) ? { responseMode: 'retrieval' } : {}),
       localInference: false
     };
   }
@@ -337,6 +350,22 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
       localInference: true
     };
   }
+  const result = await executeCrowdwideTools({ query: userMessage.content, userId });
+  if (result.directResponse) {
+    const assistant = await addAssistant(
+      conversation._id,
+      userId,
+      userMessage._id,
+      result.directResponse,
+      result.sources
+    );
+    return {
+      userMessage: publicMessage(userMessage),
+      assistantMessage: publicMessage(assistant),
+      responseMode: 'retrieval',
+      localInference: false
+    };
+  }
   if (preferences.localInference) {
     return {
       userMessage: publicMessage(userMessage),
@@ -347,7 +376,6 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
       localInference: true
     };
   }
-  const result = await executeCrowdwideTools({ query: userMessage.content, userId });
   const fallbackAssistant = await addAssistant(
     conversation._id,
     userId,
@@ -355,7 +383,11 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
     buildFallbackResponse(result),
     result.sources
   );
-  return { userMessage: publicMessage(userMessage), assistantMessage: publicMessage(fallbackAssistant), localInference: false };
+  return {
+    userMessage: publicMessage(userMessage),
+    assistantMessage: publicMessage(fallbackAssistant),
+    localInference: false
+  };
 }
 
 async function prepareTurn({ userId, conversation, content, clientRequestId }) {

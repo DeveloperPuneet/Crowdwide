@@ -117,6 +117,7 @@ test('Crowdwide AI parses explicit social-action requests without deciding permi
   assert.deepEqual(parseActionRequest('Reply to the latest unread mention: Thanks for sharing'), {
     kind: 'reply_comment',
     commentId: 'latest_mention',
+    unreadOnly: true,
     content: 'Thanks for sharing'
   });
   assert.deepEqual(parseActionRequest('Message to @river: Hello there'), {
@@ -129,8 +130,25 @@ test('Crowdwide AI parses explicit social-action requests without deciding permi
     groupId: '507f1f77bcf86cd799439011',
     content: 'Hello group'
   });
+  assert.deepEqual(parseActionRequest('Message to @river'), {
+    kind: 'send_message',
+    recipient: 'river',
+    draftPrompt: 'Write a friendly, context-aware message for this conversation.'
+  });
+  assert.deepEqual(parseActionRequest('Reply to my latest conversation'), {
+    kind: 'send_message',
+    recipient: 'latest',
+    draftPrompt: 'Write a friendly, context-aware reply to this conversation.'
+  });
   assert.equal(selectTool('Show my unread mentions'), 'mentions');
   assert.equal(selectTool('Summarize my recent messages with @river'), 'chat_messages');
+});
+
+test('completed AI actions are retained for audit rather than expiring with pending drafts', () => {
+  const expiryIndex = AiAction.schema.indexes().find(([keys]) => keys.expiresAt === 1);
+  assert.ok(expiryIndex);
+  assert.deepEqual(expiryIndex[1].partialFilterExpression, { status: 'pending' });
+  assert.equal(expiryIndex[1].expireAfterSeconds, 0);
 });
 
 test('search fallback includes evidence links and clearly identifies its mode', () => {

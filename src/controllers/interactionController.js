@@ -278,7 +278,19 @@ exports.comment = async (req, res) => {
     await completeAiAction(aiAction, existingComment._id);
     return redirectBack(req, res, { ok: true, id: existingComment._id, parent: existingComment.parent, duplicate: true });
   }
-  const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, aiActionId: aiAction?._id, ...(gif ? { gif } : {}) });
+  let comment;
+  try {
+    comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, aiActionId: aiAction?._id, ...(gif ? { gif } : {}) });
+  } catch (error) {
+    if (error?.code === 11000 && aiAction) {
+      const duplicate = await Comment.findOne({ aiActionId: aiAction._id }).select('_id parent').lean();
+      if (duplicate) {
+        await completeAiAction(aiAction, duplicate._id);
+        return redirectBack(req, res, { ok: true, id: duplicate._id, parent: duplicate.parent, duplicate: true });
+      }
+    }
+    throw error;
+  }
   if (String(post.author) !== String(req.session.user.id)) {
     rewardWavesForAction({ userId: req.session.user.id, action: 'comment', referenceType: 'comment', referenceId: comment._id })
       .catch((error) => logger.error('Could not award Waves for comment', error));

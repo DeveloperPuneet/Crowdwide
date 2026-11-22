@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const fs = require('node:fs');
+const path = require('node:path');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Message = require('../models/Message');
@@ -13,6 +15,40 @@ const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 
 const MAX_RESULTS = 5;
 const MAX_QUERY_LENGTH = 160;
+const DIRECT_READ_TOOLS = new Set([
+  'knowledge',
+  'mentions',
+  'notifications',
+  'my_posts',
+  'my_comments',
+  'chats',
+  'chat_messages',
+  'unread_messages',
+  'post_details'
+]);
+
+function parseKnowledgeSections(document) {
+  const sections = new Map();
+  let title = null;
+  let lines = [];
+  for (const line of document.split(/\r?\n/)) {
+    const heading = /^##\s+(.+?)\s*$/.exec(line);
+    if (heading) {
+      if (title) sections.set(title.toLowerCase(), lines.join('\n').trim());
+      title = heading[1];
+      lines = [];
+    } else if (title) {
+      lines.push(line);
+    }
+  }
+  if (title) sections.set(title.toLowerCase(), lines.join('\n').trim());
+  return sections;
+}
+
+const KNOWLEDGE_SECTIONS = parseKnowledgeSections(fs.readFileSync(
+  path.join(__dirname, '../../crowdwide-knowledge.md'),
+  'utf8'
+));
 
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -30,6 +66,10 @@ function titleFromPrompt(prompt) {
 
 function parseActionRequest(prompt) {
   const text = String(prompt || '').trim();
+  const announcement = /^(?:please\s+)?(?:create|write|draft)\s+(?:a|an)\s+announcement\s+(?:about|on|for|introducing)\s+([\s\S]+)$/i.exec(text);
+  if (announcement) return { kind: 'create_post', draftPrompt: `Write an announcement about ${announcement[1].trim()}` };
+  const introducePost = /^(?:please\s+)?(?:create|write|draft)\s+(?:a\s+)?post\s+(?:introducing|introduce)\s+([\s\S]+)$/i.exec(text);
+  if (introducePost) return { kind: 'create_post', draftPrompt: `Introduce ${introducePost[1].trim()}` };
   const createPost = /^(?:please\s+)?(?:create|write|draft|publish|post)\s+(?:(?:a|this|the following)\s+)?post(?:\s+about\s+([\s\S]+?))?\s*:\s*([\s\S]+)$/i.exec(text);
   if (createPost) return { kind: 'create_post', content: createPost[2].trim(), ...(createPost[1] ? { draftPrompt: createPost[1].trim() } : {}) };
   const createPostAbout = /^(?:please\s+)?(?:create|write|draft|publish|post)\s+(?:a\s+)?post\s+about\s+([\s\S]+)$/i.exec(text);
@@ -54,8 +94,13 @@ function parseActionRequest(prompt) {
 
   const replyLatest = /^(?:please\s+)?reply to (?:the )?latest comment on my post(?:\s*:\s*([\s\S]+))?$/i.exec(text);
   if (replyLatest) return { kind: 'reply_comment', commentId: 'latest_on_my_post', ...(replyLatest[1] ? { content: replyLatest[1].trim() } : { draftPrompt: 'Write a relevant, respectful reply to this comment.' }) };
-  const replyMention = /^(?:please\s+)?reply to (?:the )?latest (?:unread )?mention(?:\s*:\s*([\s\S]+))?$/i.exec(text);
-  if (replyMention) return { kind: 'reply_comment', commentId: 'latest_mention', ...(replyMention[1] ? { content: replyMention[1].trim() } : { draftPrompt: 'Write a relevant, respectful reply to this mention.' }) };
+  const replyMention = /^(?:please\s+)?reply to (?:the )?latest (?:(unread)\s+)?mention(?:\s*:\s*([\s\S]+))?$/i.exec(text);
+  if (replyMention) return {
+    kind: 'reply_comment',
+    commentId: 'latest_mention',
+    ...(replyMention[1] ? { unreadOnly: true } : {}),
+    ...(replyMention[2]?.trim() ? { content: replyMention[2].trim() } : { draftPrompt: 'Write a relevant, respectful reply to this mention.' })
+  };
   const replyComment = /^(?:please\s+)?reply to comment ([a-f\d]{24})(?:\s*:\s*([\s\S]+))?$/i.exec(text);
   if (replyComment) return { kind: 'reply_comment', commentId: replyComment[1], ...(replyComment[2] ? { content: replyComment[2].trim() } : { draftPrompt: 'Write a relevant, respectful reply to this comment.' }) };
 
@@ -94,7 +139,7 @@ function parseActionRequest(prompt) {
 
 async function getViewerContext(userId) {
   const viewer = await User.findById(userId)
-    .select('following blockedUsers mutedUsers role')
+    .select('following blockedUsers mutedUsers declinedDmFrom role')
     .lean();
   if (!viewer) {
     const error = new Error('Your account could not be found.');
@@ -164,6 +209,37 @@ function toContext(source) {
     title: source.title,
     text: source.excerpt,
     url: source.url
+  };
+}
+
+function getCrowdwideKnowledge(query) {
+  const normalized = String(query || '').toLowerCase();
+  if (!/\bcrowdwide\b/.test(normalized)) return null;
+  const selected = [];
+  if (/\b(?:feature|capabilit|offer|support|function|what can|how does)\b/.test(normalized)) {
+    selected.push('overview', 'features', 'ai assistant');
+  } else if (/\b(?:architecture|tech(?:nology)? stack|built with|database|server)\b/.test(normalized)) {
+    selected.push('architecture', 'ai assistant');
+  } else if (/\b(?:ai|assistant|model|inference)\b/.test(normalized)) {
+    selected.push('ai assistant', 'architecture');
+  } else if (/\b(?:development|progress|changed|update|release)\b/.test(normalized)) {
+    selected.push('current state and unknowns', 'ai assistant');
+  } else if (/\b(?:what is|who is|about|purpose|mission|vision|introduc|describe|explain)\b/.test(normalized)) {
+    selected.push('overview', 'features');
+  } else {
+    return null;
+  }
+  const excerpts = [...new Set(selected)]
+    .map((section) => KNOWLEDGE_SECTIONS.get(section))
+    .filter(Boolean);
+  if (!excerpts.length) return null;
+  const excerpt = excerpts.join('\n\n').slice(0, 1300);
+  return {
+    type: 'knowledge',
+    id: 'crowdwide-project-knowledge',
+    title: 'Verified Crowdwide project knowledge',
+    url: '/about',
+    excerpt
   };
 }
 
@@ -246,7 +322,7 @@ async function searchUsers(query, viewerContext) {
 function extractSearchQuery(query) {
   return String(query || '')
     .trim()
-    .replace(/^(?:hey\s+)?(?:crowdwide\s+ai[, ]*)?(?:please\s+)?(?:what are (?:users|people) saying about|what are people discussing about|(?:latest|recent|newest)\s+(?:public\s+)?(?:posts?|discussions?|comments?)\s+(?:about|on|for)|search (?:posts|users|comments|communities) (?:for|about|named|called)|find (?:posts|users|comments|communities|profiles|members|people|users?) (?:for|about|named|called|of)|who is|find|search for|look up|show me|show|tell me about|comments about|posts about|discussions about|people named|users named)\s+/i, '')
+    .replace(/^(?:hey\s+)?(?:crowdwide\s+ai[, ]*)?(?:please\s+)?(?:what are (?:users|people) saying about|what are people discussing about|(?:latest|recent|newest)\s+(?:public\s+)?(?:posts?|discussions?|comments?)\s+(?:about|on|for)|search (?:posts|users|comments|communities|discussions) (?:for|about|named|called)|find (?:posts|users|comments|communities|profiles|members|people|users?) (?:for|about|named|called|of)|find discussions? (?:about|on|for)|who is|find|search for|look up|show me|show|tell me about|comments about|posts about|discussions about|people named|users named)\s+/i, '')
     .replace(/[?!]+$/, '')
     .trim()
     .slice(0, MAX_QUERY_LENGTH);
@@ -401,7 +477,11 @@ async function getStatistics(viewerContext) {
 function selectTool(query) {
   const normalized = String(query || '').toLowerCase();
   if (parseActionRequest(query)) return 'action';
-  if (/\b(unread )?(?:mentions?|notifications?)\b/.test(normalized)) return /\bmention/.test(normalized) ? 'mentions' : 'notifications';
+  if (getCrowdwideKnowledge(query)) return 'knowledge';
+  if (/\b(?:unread|new)\s+(?:direct\s+)?messages?\b/.test(normalized)) return 'unread_messages';
+  if (/\bmy\b.*\bposts?\b|\bwhat did i post\b|\bposts? i (?:wrote|published|created)\b/.test(normalized)) return 'my_posts';
+  if (/\bmy\b.*\bcomments?\b|\bcomments? i (?:wrote|posted|made)\b/.test(normalized)) return 'my_comments';
+  if (/\b(?:(?:unread|new)\s+)?(?:mentions?|notifications?)\b|\b(?:who|anyone) mentioned me\b/.test(normalized)) return /\bmention/.test(normalized) ? 'mentions' : 'notifications';
   if (/\b(messages?|chats?|conversations?)\b/.test(normalized)) return /(?:with|from|in)\s+@?[a-z0-9_]{3,24}|\b[a-f\d]{24}\b/.test(normalized) ? 'chat_messages' : 'chats';
   if (/\b(statistics|how many|count of|site stats)\b/.test(normalized)) return 'statistics';
   if (/\b(trending|popular topics|trending topics|hashtags)\b/.test(normalized)) return 'trending';
@@ -410,9 +490,120 @@ function selectTool(query) {
   if (/\b(users|people|members|profiles|who is)\b/.test(normalized) && !/\b(comments?|saying|discussing|feature)\b/.test(normalized)) return 'users';
   if (/\b(comments?|what are users saying|opinions|talking about|discussion replies)\b/.test(normalized) ||
       /\bdiscussions?\s+(?:about|on|for)\s+(?!crowdwide\b)/.test(normalized)) return 'comments';
-  if (/\b(?:summari[sz]e|details|discussion)\b/.test(normalized) && /\b[a-f\d]{24}\b/.test(normalized)) return 'post_details';
+  if (/\b(?:summari[sz]e|details|discussion|this post|that post)\b/.test(normalized) && /(?:\/posts\/)?[a-f\d]{24}\b/i.test(normalized)) return 'post_details';
+  if (/\b(?:summari[sz]e|details|this post|that post)\b/.test(normalized)) return 'post_details';
   if (/\b(latest|recent|newest|happening|discussions|what is going on)\b/.test(normalized)) return 'recent';
   return 'posts';
+}
+
+async function getMyPosts(userId, viewerContext) {
+  const posts = await Post.find({ author: userId, status: 'published' })
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(8)
+    .select('body type hashtags author community createdAt commentsCount')
+    .lean();
+  const visible = [];
+  for (const post of posts) {
+    const accessible = await getPostById(post._id, viewerContext);
+    if (accessible) visible.push(toPostSource(accessible));
+  }
+  return visible;
+}
+
+async function getMyComments(userId, viewerContext) {
+  const comments = await Comment.find({ author: userId })
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(12)
+    .populate('post', '_id body')
+    .select('body post createdAt')
+    .lean();
+  const sources = [];
+  for (const comment of comments) {
+    if (!comment.post) continue;
+    const post = await getPostById(comment.post._id, viewerContext);
+    if (!post) continue;
+    sources.push({
+      type: 'comment',
+      id: String(comment._id),
+      title: 'Your comment',
+      url: `/posts/${post._id}#comment-${comment._id}`,
+      excerpt: `${String(comment.body || '').slice(0, 500)} · On: ${String(post.body || '').slice(0, 500)}`,
+      createdAt: comment.createdAt
+    });
+  }
+  return sources;
+}
+
+async function getUnreadMessages(userId, viewerContext) {
+  const rows = await Message.find({ recipient: userId, readAt: null })
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(12)
+    .select('sender body createdAt')
+    .populate('sender', 'name username isVerified blockedUsers')
+    .lean();
+  const hidden = new Set([
+    ...(viewerContext.viewer.blockedUsers || []),
+    ...(viewerContext.viewer.declinedDmFrom || [])
+  ].map(String));
+  return rows.filter((message) => message.sender?.isVerified &&
+    !hidden.has(String(message.sender._id)) &&
+    !(message.sender.blockedUsers || []).some((id) => String(id) === String(userId)))
+    .map((message) => ({
+      type: 'message',
+      id: String(message._id),
+      title: `Unread direct message from ${message.sender.name || message.sender.username}`,
+      url: `/messages/${message.sender._id}`,
+      excerpt: String(message.body || '').slice(0, 700),
+      createdAt: message.createdAt
+    }));
+}
+
+function buildDirectResponse(tool, sources, query = '') {
+  const unreadOnly = /\b(?:unread|new)\b/i.test(query);
+  if (tool === 'post_details' && !sources.length) {
+    return 'Which post should I summarize? Share its Crowdwide link or 24-character post ID.';
+  }
+  if (tool === 'post_details') {
+    const entries = sources.slice(0, 8).map((source, index) => {
+      const excerpt = String(source.excerpt || '').replace(/\s+/g, ' ').trim();
+      return `${index + 1}. **${source.title}**${excerpt ? ` — ${excerpt}` : ''} [Open](${source.url})`;
+    });
+    return `Here is the post and discussion content I could verify:\n\n${entries.join('\n')}`;
+  }
+  if (tool === 'knowledge') {
+    return sources.length
+      ? `${sources[0].excerpt}\n\n[1](${sources[0].url})`
+      : 'I could not find verified Crowdwide information for that question in the project knowledge source.';
+  }
+  if (tool === 'mentions' && unreadOnly && !sources.length) return 'You have no unread mentions.';
+  if (tool === 'notifications' && unreadOnly && !sources.length) return 'You have no unread notifications.';
+  if (tool === 'unread_messages' && !sources.length) {
+    return 'You have no unread direct messages. Group chats do not expose per-member unread status in Crowdwide’s current data model.';
+  }
+  if (!sources.length) {
+    const empty = {
+      mentions: 'I could not find any recent mentions for your account.',
+      notifications: 'You have no recent notifications.',
+      my_posts: 'I could not find any recent published posts on your account.',
+      my_comments: 'I could not find any recent comments on discussions you can currently access.',
+      chats: 'I could not find any conversations available to your account.',
+      chat_messages: 'I could not find recent messages in a conversation available to your account.'
+    };
+    return empty[tool] || 'I could not retrieve matching Crowdwide data.';
+  }
+  const heading = {
+    mentions: 'Here are your recent mentions and replies:',
+    notifications: 'Here are your recent notifications:',
+    my_posts: 'Here are your latest published posts:',
+    my_comments: 'Here are your latest comments:',
+    chats: 'Here are your recent conversations:',
+    chat_messages: 'Here are the recent messages I could retrieve:'
+  }[tool] || 'Here is the Crowdwide data I retrieved:';
+  const entries = sources.slice(0, 8).map((source, index) => {
+    const excerpt = String(source.excerpt || '').replace(/\s+/g, ' ').trim();
+    return `${index + 1}. **${source.title}**${excerpt ? ` — ${excerpt}` : ''} [Open](${source.url})`;
+  });
+  return `${heading}\n\n${entries.join('\n')}`;
 }
 
 async function executeCrowdwideTools({ query, userId }) {
@@ -422,15 +613,28 @@ async function executeCrowdwideTools({ query, userId }) {
   const tool = selectTool(query);
   let sources = [];
   let summary = '';
-  if (tool === 'mentions' || tool === 'notifications') {
+  if (tool === 'knowledge') {
+    const source = getCrowdwideKnowledge(query);
+    sources = source ? [source] : [];
+    summary = sources.length ? 'This answer is based on verified Crowdwide project information.' : 'I could not verify this information from Crowdwide project sources.';
+  } else if (tool === 'mentions' || tool === 'notifications') {
     sources = await getMyNotifications(userId, {
       mentionsOnly: tool === 'mentions',
-      unreadOnly: /\bunread\b/i.test(query)
+      unreadOnly: /\b(?:unread|new)\b/i.test(query)
     });
     const unreadCount = sources.filter((source) => source.unread).length;
     summary = sources.length
       ? `I found ${sources.length} ${tool === 'mentions' ? 'mention or reply' : 'recent notification'}${sources.length === 1 ? '' : 's'}${unreadCount ? `, including ${unreadCount} unread` : ''}. These are suggestions only; I will not respond unless you ask and confirm a draft.`
       : `You have no ${tool === 'mentions' ? 'recent mentions or replies' : 'recent notifications'} to review.`;
+  } else if (tool === 'my_posts') {
+    sources = await getMyPosts(userId, viewerContext);
+    summary = sources.length ? `I found ${sources.length} recent published post${sources.length === 1 ? '' : 's'} on your account.` : 'No recent published posts were found on your account.';
+  } else if (tool === 'my_comments') {
+    sources = await getMyComments(userId, viewerContext);
+    summary = sources.length ? `I found ${sources.length} recent comment${sources.length === 1 ? '' : 's'} on discussions visible to you.` : 'No recent comments were found on discussions you can currently access.';
+  } else if (tool === 'unread_messages') {
+    sources = await getUnreadMessages(userId, viewerContext);
+    summary = sources.length ? `I found ${sources.length} unread direct message${sources.length === 1 ? '' : 's'}.` : 'You have no unread direct messages.';
   } else if (tool === 'chats' || tool === 'chat_messages') {
     sources = await getMyChatContext(query, userId, { includeMessages: tool === 'chat_messages' });
     summary = sources.length
@@ -462,23 +666,31 @@ async function executeCrowdwideTools({ query, userId }) {
     sources = (await findPosts(extractSearchQuery(query), viewerContext)).map(toPostSource);
   }
   sources = sourceList(sources);
-  if (tool === 'statistics') summary = sources[0]?.excerpt || '';
-  else if (tool === 'trending') summary = sources.length ? `Crowdwide's most-used topics in the last seven days are ${sources.map((source) => `${source.title} (${source.excerpt.split(' · ')[0]})`).join(', ')}.` : 'No public hashtags have enough recent posts to show a trend.';
-  else if (tool === 'recent') summary = sources.length ? 'Here are the newest public posts and replies I could retrieve.' : 'There are no recent public discussions available to show.';
-  else if (tool === 'users') summary = sources.length ? 'Here are matching verified profiles and their public profile details.' : 'I could not find a matching verified profile.';
-  else if (tool === 'communities') summary = sources.length ? 'Here are matching public Crowdwide communities and categories.' : 'I could not find a matching public community or category.';
-  else if (tool === 'user_activity') summary = sources.length > 1 ? `Here is recent activity visible for ${sources[0].title}.` : 'I could not find a matching profile with activity you are allowed to view.';
-  else if (tool === 'comments') summary = sources.length ? 'Here are matching replies from discussions visible to you.' : 'I could not find matching comments in discussions visible to you.';
-  else if (tool === 'post_details') summary = sources.length ? 'Here is the post and relevant discussion content I could retrieve.' : 'That post is unavailable, private, or not visible to your account.';
-  else summary = sources.length ? `I found ${sources.length} relevant public post${sources.length === 1 ? '' : 's'} visible to you.` : 'I could not find a matching public post visible to your account.';
-  return { tool, sources, context: sources.map(toContext), summary };
+  if (!DIRECT_READ_TOOLS.has(tool)) {
+    if (tool === 'statistics') summary = sources[0]?.excerpt || '';
+    else if (tool === 'trending') summary = sources.length ? `Crowdwide's most-used topics in the last seven days are ${sources.map((source) => `${source.title} (${source.excerpt.split(' · ')[0]})`).join(', ')}.` : 'No public hashtags have enough recent posts to show a trend.';
+    else if (tool === 'recent') summary = sources.length ? 'Here are the newest public posts and replies I could retrieve.' : 'There are no recent public discussions available to show.';
+    else if (tool === 'users') summary = sources.length ? 'Here are matching verified profiles and their public profile details.' : 'I could not find a matching verified profile.';
+    else if (tool === 'communities') summary = sources.length ? 'Here are matching public Crowdwide communities and categories.' : 'I could not find a matching public community or category.';
+    else if (tool === 'user_activity') summary = sources.length > 1 ? `Here is recent activity visible for ${sources[0].title}.` : 'I could not find a matching profile with activity you are allowed to view.';
+    else if (tool === 'comments') summary = sources.length ? 'Here are matching replies from discussions visible to you.' : 'I could not find matching comments in discussions visible to you.';
+    else if (tool === 'post_details') summary = sources.length ? 'Here is the post and relevant discussion content I could retrieve.' : 'That post is unavailable, private, or not visible to your account.';
+    else summary = sources.length ? `I found ${sources.length} relevant public post${sources.length === 1 ? '' : 's'} visible to you.` : 'I could not find a matching public post visible to your account.';
+  }
+  return {
+    tool,
+    sources,
+    context: sources.map(toContext),
+    summary,
+    ...(DIRECT_READ_TOOLS.has(tool) ? { directResponse: buildDirectResponse(tool, sources, query) } : {})
+  };
 }
 
 async function getMyNotifications(userId, { mentionsOnly = false, unreadOnly = false } = {}) {
   const user = await User.findById(userId).select('username blockedUsers mutedUsers').lean();
   if (!user) return [];
   const viewerContext = await getViewerContext(userId);
-  const types = mentionsOnly ? ['mention', 'reply', 'post_reply'] : undefined;
+  const types = mentionsOnly ? ['mention'] : undefined;
   const rows = await Notification.find({
     recipient: userId,
     ...(unreadOnly ? { readAt: null } : {}),
@@ -490,17 +702,26 @@ async function getMyNotifications(userId, { mentionsOnly = false, unreadOnly = f
     .populate('post', '_id body author status')
     .lean();
   const hidden = new Set([...(user.blockedUsers || []), ...(user.mutedUsers || [])].map(String));
-  const visibleRows = await Promise.all(rows.map(async (row) => ({
-    row,
-    visible: (!row.actor || !hidden.has(String(row.actor._id))) &&
-      (!row.post || Boolean(await getPostById(row.post._id, viewerContext)))
-  })));
-  return visibleRows.filter(({ visible }) => visible).map(({ row }) => ({
+  const visibleRows = await Promise.all(rows.map(async (row) => {
+    const post = row.post ? await getPostById(row.post._id, viewerContext) : null;
+    const comment = row.post && row.actor
+      ? await Comment.findOne({ post: row.post._id, author: row.actor._id }).sort({ createdAt: -1 })
+        .select('_id body').lean()
+      : null;
+    return {
+      row,
+      post,
+      comment,
+      visible: (!row.actor || !hidden.has(String(row.actor._id))) &&
+        (!row.post || Boolean(post))
+    };
+  }));
+  return visibleRows.filter(({ visible }) => visible).map(({ row, post, comment }) => ({
     type: 'notification',
     id: String(row._id),
     title: `${row.type === 'mention' ? 'Mention' : row.type === 'reply' || row.type === 'post_reply' ? 'Reply' : 'Notification'}${row.actor?.name ? ` from ${row.actor.name}` : ''}`,
-    url: row.url?.startsWith('/') && !row.url.startsWith('//') ? row.url : '/notifications',
-    excerpt: `${row.readAt ? 'Read' : 'Unread'} · ${String(row.message || '').slice(0, 500)}${row.post?.body ? ` · ${String(row.post.body).slice(0, 500)}` : ''}`,
+    url: row.url?.startsWith('/') && !row.url.startsWith('//') ? row.url : post ? `/posts/${post._id}` : '/notifications',
+    excerpt: `${row.readAt ? 'Read' : 'Unread'} · ${String(row.message || '').slice(0, 350)}${post?.body ? ` · Post: ${String(post.body).slice(0, 400)}` : ''}${comment?.body ? ` · Comment: ${String(comment.body).slice(0, 400)}` : ''}`,
     createdAt: row.createdAt,
     unread: !row.readAt
   }));
@@ -580,6 +801,7 @@ async function getMyChatContext(query, userId, { includeMessages = false } = {})
 
 function buildFallbackResponse(result) {
   if (result.action) return result.actionMessage || 'I can prepare that change, but nothing will happen until you confirm it.';
+  if (result.directResponse) return result.directResponse;
   const { summary, sources = [] } = result;
   if (!sources.length) return `${summary}\n\nI only report information I can verify from Crowdwide data; try a different search phrase or ask about a specific post or profile.`;
   const entries = sources.slice(0, 5).map((source, index) => {
@@ -593,8 +815,10 @@ module.exports = {
   MAX_RESULTS,
   buildFallbackResponse,
   executeCrowdwideTools,
+  getCrowdwideKnowledge,
   getMyNotifications,
   getMyChatContext,
+  isDirectReadTool: (tool) => DIRECT_READ_TOOLS.has(tool),
   parseActionRequest,
   extractSearchQuery,
   selectTool,

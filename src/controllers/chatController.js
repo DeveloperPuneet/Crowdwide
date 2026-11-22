@@ -338,6 +338,14 @@ exports.dmSend = async (req, res) => {
     const [item] = await renderMessages(res, [shaped], { group: false, viewerId: userId, reportBaseUrl: `/messages/${recipient._id}` });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
+    if (error?.code === 11000 && req.body?.aiActionId) {
+      const aiAction = await loadConfirmedAiAction(req.body.aiActionId, req.session.user.id, 'send_message');
+      const existing = await Message.findOne({ aiActionId: req.body.aiActionId }).select('_id').lean();
+      if (aiAction && existing) {
+        await completeAiAction(aiAction, existing._id);
+        return res.json({ ok: true, message: { _id: existing._id }, duplicate: true });
+      }
+    }
     logger.error('Sending message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
   }
@@ -547,6 +555,14 @@ exports.groupSend = async (req, res) => {
     const [item] = await renderMessages(res, [shaped], { group: true, viewerId: userId, groupId: String(group._id), reportBaseUrl: `/groups/${group._id}` });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
+    if (error?.code === 11000 && req.body?.aiActionId) {
+      const aiAction = await loadConfirmedAiAction(req.body.aiActionId, req.session.user.id, 'send_message');
+      const existing = await GroupMessage.findOne({ aiActionId: req.body.aiActionId }).select('_id').lean();
+      if (aiAction && existing) {
+        await completeAiAction(aiAction, existing._id);
+        return res.json({ ok: true, message: { _id: existing._id }, duplicate: true });
+      }
+    }
     logger.error('Sending group message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
   }
