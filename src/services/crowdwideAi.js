@@ -222,9 +222,9 @@ function getCrowdwideKnowledge(query) {
     selected.push('architecture', 'ai assistant');
   } else if (/\b(?:ai|assistant|model|inference)\b/.test(normalized)) {
     selected.push('ai assistant', 'architecture');
-  } else if (/\b(?:development|progress|changed|update|release)\b/.test(normalized)) {
+  } else if (/\b(?:latest|recent)\s+developments?\b|\b(?:development|progress|changed|update|release)\b/.test(normalized)) {
     selected.push('current state and unknowns', 'ai assistant');
-  } else if (/\b(?:what is|who is|about|purpose|mission|vision|introduc|describe|explain)\b/.test(normalized)) {
+  } else if (/\b(?:what is|who is)\s+crowdwide\b|\babout crowdwide\b|\b(?:purpose|mission|vision) of crowdwide\b|\bcrowdwide['’]s (?:purpose|mission|vision)\b|\b(?:introduc|describe|explain) crowdwide\b/.test(normalized)) {
     selected.push('overview', 'features');
   } else {
     return null;
@@ -482,7 +482,11 @@ function selectTool(query) {
   if (/\bmy\b.*\bposts?\b|\bwhat did i post\b|\bposts? i (?:wrote|published|created)\b/.test(normalized)) return 'my_posts';
   if (/\bmy\b.*\bcomments?\b|\bcomments? i (?:wrote|posted|made)\b/.test(normalized)) return 'my_comments';
   if (/\b(?:(?:unread|new)\s+)?(?:mentions?|notifications?)\b|\b(?:who|anyone) mentioned me\b/.test(normalized)) return /\bmention/.test(normalized) ? 'mentions' : 'notifications';
-  if (/\b(messages?|chats?|conversations?)\b/.test(normalized)) return /(?:with|from|in)\s+@?[a-z0-9_]{3,24}|\b[a-f\d]{24}\b/.test(normalized) ? 'chat_messages' : 'chats';
+  if (/\b(messages?|chats?|conversations?)\b/.test(normalized)) {
+    return /(?:with|from|in)\s+@?[a-z0-9_]{3,24}|\b[a-f\d]{24}\b|\b(?:summari[sz]e|message history|conversation context)\b/.test(normalized)
+      ? 'chat_messages'
+      : 'chats';
+  }
   if (/\b(statistics|how many|count of|site stats)\b/.test(normalized)) return 'statistics';
   if (/\b(trending|popular topics|trending topics|hashtags)\b/.test(normalized)) return 'trending';
   if (/\b(communities|community|categories|category)\b/.test(normalized)) return 'communities';
@@ -561,7 +565,9 @@ async function getUnreadMessages(userId, viewerContext) {
 function buildDirectResponse(tool, sources, query = '') {
   const unreadOnly = /\b(?:unread|new)\b/i.test(query);
   if (tool === 'post_details' && !sources.length) {
-    return 'Which post should I summarize? Share its Crowdwide link or 24-character post ID.';
+    return /\b[a-f\d]{24}\b/i.test(query)
+      ? 'That post is unavailable, private, or not visible to your account.'
+      : 'Which post should I summarize? Share its Crowdwide link or 24-character post ID.';
   }
   if (tool === 'post_details') {
     const entries = sources.slice(0, 8).map((source, index) => {
@@ -578,7 +584,7 @@ function buildDirectResponse(tool, sources, query = '') {
   if (tool === 'mentions' && unreadOnly && !sources.length) return 'You have no unread mentions.';
   if (tool === 'notifications' && unreadOnly && !sources.length) return 'You have no unread notifications.';
   if (tool === 'unread_messages' && !sources.length) {
-    return 'You have no unread direct messages. Group chats do not expose per-member unread status in Crowdwide’s current data model.';
+    return "You have no unread direct messages. Group chats do not expose per-member unread status in Crowdwide's current data model.";
   }
   if (!sources.length) {
     const empty = {
@@ -603,7 +609,10 @@ function buildDirectResponse(tool, sources, query = '') {
     const excerpt = String(source.excerpt || '').replace(/\s+/g, ' ').trim();
     return `${index + 1}. **${source.title}**${excerpt ? ` — ${excerpt}` : ''} [Open](${source.url})`;
   });
-  return `${heading}\n\n${entries.join('\n')}`;
+  const replyOffer = tool === 'mentions'
+    ? '\n\nI can prepare a reply to a mention you choose. Nothing will be posted until you confirm it.'
+    : '';
+  return `${heading}\n\n${entries.join('\n')}${replyOffer}`;
 }
 
 async function executeCrowdwideTools({ query, userId }) {
@@ -814,6 +823,7 @@ function buildFallbackResponse(result) {
 module.exports = {
   MAX_RESULTS,
   buildFallbackResponse,
+  buildDirectResponse,
   executeCrowdwideTools,
   getCrowdwideKnowledge,
   getMyNotifications,

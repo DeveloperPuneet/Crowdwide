@@ -47,11 +47,13 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
 - Trending hashtags, RSS feeds for the site, profiles and communities.
 - **Crowdwide AI** (`/crowdwide-ai`): private conversation history and
   editable user memories, privacy-filtered search across public Crowdwide
-  posts/comments/profiles/communities, source links, and confirmed post
-  actions. A quantized model runs in a background worker in the member's
-  browser using GPU when available or CPU/WASM otherwise, with
-  privacy-filtered search-based answers as a fallback. See
-  [zero-cost AI setup](./DEPLOYMENT.md#crowdwide-ai-zero-cost).
+  posts/comments/profiles/communities, account-scoped retrieval for mentions,
+  notifications, posts, comments and chats, source links, and confirmed social
+  actions. Crowdwide-specific drafts use the curated
+  [verified project knowledge](./crowdwide-knowledge.md). A quantized model
+  runs in a background worker in the member's browser using GPU when available
+  or CPU/WASM otherwise, with privacy-filtered search-based answers as a
+  fallback. See [zero-cost AI setup](./DEPLOYMENT.md#crowdwide-ai-zero-cost).
 
 ### Communities
 - Open or private communities with banners, avatars, hashtags, guidelines,

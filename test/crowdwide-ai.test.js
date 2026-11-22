@@ -9,8 +9,11 @@ const aiController = require('../src/controllers/aiController');
 const { deleteAiDataForUser } = require('../src/services/aiData');
 const { enableLocalInferenceByDefault } = require('../src/services/aiPreferenceMigration');
 const {
+  buildDirectResponse,
   buildFallbackResponse,
   extractSearchQuery,
+  getCrowdwideKnowledge,
+  isDirectReadTool,
   parseActionRequest,
   selectTool
 } = require('../src/services/crowdwideAi');
@@ -63,6 +66,37 @@ test('Crowdwide AI extracts search topics from conversational requests', () => {
   assert.equal(selectTool('What topics are trending on Crowdwide?'), 'trending');
   assert.equal(selectTool('What are the latest discussions on Crowdwide?'), 'recent');
   assert.equal(selectTool('Summarize this discussion 507f1f77bcf86cd799439011'), 'post_details');
+});
+
+test('Crowdwide AI routes account reads deterministically and answers unread mentions from retrieved data', () => {
+  assert.equal(selectTool('Show my unread mentions'), 'mentions');
+  assert.equal(selectTool('Any new notifications?'), 'notifications');
+  assert.equal(selectTool('Show my latest posts'), 'my_posts');
+  assert.equal(selectTool('Show my comments'), 'my_comments');
+  assert.equal(selectTool('Show my recent conversations'), 'chats');
+  assert.equal(selectTool('Show my unread messages'), 'unread_messages');
+  assert.equal(selectTool('Find discussions about AI'), 'comments');
+  assert.equal(extractSearchQuery('Find discussions about AI'), 'AI');
+  assert.equal(selectTool('Summarize this post'), 'post_details');
+  assert.equal(selectTool('What is trending on Crowdwide?'), 'trending');
+  assert.equal(isDirectReadTool(selectTool('Show my unread mentions')), true);
+  assert.equal(buildDirectResponse('mentions', [], 'Show my unread mentions'), 'You have no unread mentions.');
+});
+
+test('Crowdwide knowledge is grounded in the curated project source and actions get drafts for announcements', () => {
+  const knowledge = getCrowdwideKnowledge('What is Crowdwide?');
+  assert.equal(knowledge.type, 'knowledge');
+  assert.match(knowledge.excerpt, /social discovery platform/);
+  assert.equal(selectTool('What features does Crowdwide offer?'), 'knowledge');
+  assert.equal(selectTool("Summarize Crowdwide's latest developments"), 'knowledge');
+  assert.deepEqual(parseActionRequest('Create a post introducing Crowdwide'), {
+    kind: 'create_post',
+    draftPrompt: 'Introduce Crowdwide'
+  });
+  assert.deepEqual(parseActionRequest('Write an announcement about Crowdwide AI'), {
+    kind: 'create_post',
+    draftPrompt: 'Write an announcement about Crowdwide AI'
+  });
 });
 
 test('account deletion removes all Crowdwide AI data for that account', async (t) => {

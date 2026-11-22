@@ -408,6 +408,18 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
     : [];
   const actionRequest = parseActionRequest(content);
   const resolvedAction = actionRequest ? await resolveActionRequest(actionRequest, userId) : null;
+  const knowledge = actionRequest?.draftPrompt
+    ? getCrowdwideKnowledge(actionRequest.draftPrompt) ||
+      (/\bcrowdwide\b/i.test(actionRequest.draftPrompt) ? getCrowdwideKnowledge('What is Crowdwide?') : null)
+    : null;
+  if (knowledge && resolvedAction && !resolvedAction.error) {
+    resolvedAction.context.push({
+      type: 'knowledge',
+      title: knowledge.title,
+      text: knowledge.excerpt,
+      url: knowledge.url
+    });
+  }
   const actionDraft = resolvedAction && !resolvedAction.error && actionRequest.draftPrompt
     ? {
       kind: resolvedAction.kind,
@@ -483,6 +495,22 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
     return {
       userMessage: publicMessage(userMessage),
       assistantMessage: publicMessage(assistant, proposal.preview || null),
+      localInference: false
+    };
+  }
+
+  if (result.directResponse) {
+    const assistant = await addAssistant(
+      conversation._id,
+      userId,
+      userMessage._id,
+      result.directResponse,
+      result.sources
+    );
+    return {
+      userMessage: publicMessage(userMessage),
+      assistantMessage: publicMessage(assistant),
+      responseMode: 'retrieval',
       localInference: false
     };
   }
@@ -724,6 +752,26 @@ exports.regenerate = async (req, res) => {
       ? await AiMemory.find({ user: ownerId(req) }).sort({ updatedAt: -1 }).limit(10).select('kind text updatedAt').lean()
       : [];
     await AiMessage.updateOne({ _id: userMessage._id, user: ownerId(req) }, { sources: result.sources, context: result.context });
+    if (result.directResponse) {
+      await AiMessage.deleteMany({
+        user: ownerId(req),
+        conversation: conversation._id,
+        role: 'assistant',
+        replyTo: userMessage._id
+      });
+      const assistant = await addAssistant(
+        conversation._id,
+        ownerId(req),
+        userMessage._id,
+        result.directResponse,
+        result.sources
+      );
+      return res.json({
+        assistantMessage: publicMessage(assistant),
+        responseMode: 'retrieval',
+        localInference: false
+      });
+    }
     if (preferences.localInference) {
       return res.json({
         turnId: String(userMessage._id),
@@ -746,7 +794,11 @@ exports.regenerate = async (req, res) => {
       buildFallbackResponse(result),
       result.sources
     );
-    return res.json({ assistantMessage: publicMessage(assistant), localInference: false });
+    return res.json({
+      assistantMessage: publicMessage(assistant),
+      ...(result.directResponse ? { responseMode: 'retrieval' } : {}),
+      localInference: false
+    });
   } catch (error) {
     return sendError(res, error, 'Could not regenerate Crowdwide AI response');
   }
@@ -776,7 +828,11 @@ exports.fallbackTurn = async (req, res) => {
       buildFallbackResponse(result),
       result.sources
     );
-    return res.json({ assistantMessage: publicMessage(assistant), localInference: false });
+    return res.json({
+      assistantMessage: publicMessage(assistant),
+      ...(result.directResponse ? { responseMode: 'retrieval' } : {}),
+      localInference: false
+    });
   } catch (error) {
     return sendError(res, error, 'Could not create Crowdwide AI fallback response');
   }
@@ -788,8 +844,11 @@ exports.saveLocalAnswer = async (req, res) => {
     const content = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
     if (!content || content.length > 12000) return res.status(400).json({ error: 'Responses must be 1–12,000 characters.' });
     const userMessage = await AiMessage.findOne({ _id: req.params.id, user: ownerId(req), role: 'user' })
-      .select('conversation sources');
+      .select('conversation sources content');
     if (!userMessage) return res.status(404).json({ error: 'Message not found.' });
+    if (isDirectReadTool(selectTool(userMessage.content))) {
+      return res.status(409).json({ error: 'This request is answered directly from verified Crowdwide data.' });
+    }
     const conversation = await AiConversation.exists({ _id: userMessage.conversation, user: ownerId(req) });
     if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
     await AiMessage.deleteMany({
