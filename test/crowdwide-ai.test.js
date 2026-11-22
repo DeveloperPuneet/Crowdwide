@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const AiConversation = require('../src/models/AiConversation');
 const AiMessage = require('../src/models/AiMessage');
 const AiAction = require('../src/models/AiAction');
+const AiPreference = require('../src/models/AiPreference');
 const AiMemory = require('../src/models/AiMemory');
 const aiController = require('../src/controllers/aiController');
 const { deleteAiDataForUser } = require('../src/services/aiData');
