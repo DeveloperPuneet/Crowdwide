@@ -20,6 +20,26 @@
   --ai-accent: #6554ce;
   --ai-accent-2: #008e91;
 }
+.crowdwide-ai-page[data-ai-theme="violet"] {
+  --ai-bg: #100d1c;
+  --ai-panel: #191427;
+  --ai-panel-2: #241d36;
+  --ai-border: rgba(195, 175, 255, .18);
+  --ai-text: #f5f0ff;
+  --ai-muted: #b4a9cc;
+  --ai-accent: #bb9cff;
+  --ai-accent-2: #df8bd4;
+}
+.crowdwide-ai-page[data-ai-theme="pink"] {
+  --ai-bg: #fff5f8;
+  --ai-panel: #fffafd;
+  --ai-panel-2: #f8e9ef;
+  --ai-border: rgba(122, 49, 79, .16);
+  --ai-text: #35212b;
+  --ai-muted: #765a68;
+  --ai-accent: #bb477b;
+  --ai-accent-2: #8d5ac7;
+}
 .cw-ai, .cw-ai * { box-sizing: border-box; }
 .cw-ai {
   display: grid;
@@ -137,10 +157,9 @@
 .cw-ai-message-body ul, .cw-ai-message-body ol { padding-left: 22px; }
 .cw-ai-message-body li { margin: 3px 0; }
 .cw-ai-message-body blockquote { padding: 2px 0 2px 12px; border-left: 2px solid var(--ai-accent); color: var(--ai-muted); }
-.cw-ai-message-body a { color: color-mix(in srgb, var(--ai-accent) 70%, #b8e4ff); text-decoration: underline; text-underline-offset: 3px; }
+.cw-ai-message-body a { color: color-mix(in srgb, var(--ai-accent) 78%, var(--ai-text)); text-decoration: underline; text-underline-offset: 3px; }
 .cw-ai-message-body code { padding: 2px 5px; border: 1px solid var(--ai-border); border-radius: 5px; background: var(--ai-panel-2); font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.cw-ai-message-body pre { max-width: 100%; margin: 10px 0; padding: 13px; overflow-x: auto; border: 1px solid var(--ai-border); border-radius: 11px; background: #080a12; color: #e7eaff; }
-.crowdwide-ai-page[data-ai-theme="light"] .cw-ai-message-body pre { background: #202538; }
+.cw-ai-message-body pre { max-width: 100%; margin: 10px 0; padding: 13px; overflow-x: auto; border: 1px solid var(--ai-border); border-radius: 11px; background: color-mix(in srgb, var(--ai-bg) 84%, var(--ai-text)); color: var(--ai-text); }
 .cw-ai-message-body pre code { padding: 0; border: 0; background: transparent; color: inherit; white-space: pre; }
 .cw-ai-message-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .cw-ai-message-tools button { display: inline-flex; align-items: center; gap: 5px; min-height: 29px; padding: 4px 7px; border: 0; border-radius: 7px; background: transparent; color: var(--ai-muted); font: 500 10px 'DM Sans', sans-serif; cursor: pointer; }

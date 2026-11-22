@@ -29,6 +29,7 @@ const { recordContribution } = require('../services/streaks');
 const { handleReplyReceived } = require('../services/lifecycle');
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
 const { attachPollVoters } = require('../services/pollVoters');
+const { loadConfirmedAiAction, completeAiAction } = require('../services/aiActions');
 
 const MAX_REPLY_POST_WORDS = 50;
 
@@ -156,7 +157,12 @@ const parseRevision = (value) => {
 
 exports.editPost = async (req, res) => {
   const wantsJson = req.get('X-Requested-With') === 'XMLHttpRequest';
-  const body = req.body.body?.trim();
+  const aiAction = await loadConfirmedAiAction(req.body?.aiActionId, req.session.user.id, 'edit_post');
+  if (req.body?.aiActionId && (!aiAction || String(aiAction.post) !== String(req.params.id))) {
+    return redirectBack(req, res, { ok: false, error: 'That confirmed AI edit is no longer available.' });
+  }
+  if (aiAction?.status === 'completed') return redirectBack(req, res, { ok: true, edited: true, alreadySaved: true });
+  const body = (aiAction ? aiAction.content : req.body.body)?.trim();
   const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id });
   if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
   const wordLimits = await getWordLimits();
@@ -170,13 +176,14 @@ exports.editPost = async (req, res) => {
   }
   // Compare-and-set on the revision: the text is only written if nobody saved in between.
   const currentRevision = post.revision || 0;
-  const submittedRevision = parseRevision(req.body.revision);
+  const submittedRevision = aiAction ? aiAction.revision : parseRevision(req.body.revision);
   const conflict = async () => {
     // If the text already stored is exactly what was sent, an earlier try of this same save got through (the
     // reply was lost, or the person retried after a timeout): that is a success, not a conflict.
     const latest = await Post.findById(post._id).select('body revision').lean();
     const latestRevision = latest ? (latest.revision || 0) : currentRevision;
     if (latest && latest.body === body) {
+      await completeAiAction(aiAction, post._id);
       if (wantsJson) return res.json({ ok: true, edited: true, revision: latestRevision, alreadySaved: true });
       return res.redirect(`/posts/${post._id}`);
     }
@@ -192,6 +199,7 @@ exports.editPost = async (req, res) => {
     { new: true }
   ).select('revision');
   if (!updated) return conflict();
+  await completeAiAction(aiAction, post._id);
   if (wantsJson) return res.json({ ok: true, edited: true, revision: updated.revision });
   return res.redirect(`/posts/${post._id}`);
 };
@@ -219,9 +227,15 @@ exports.editPostPage = async (req, res) => {
 };
 
 exports.deletePost = async (req, res) => {
+  const aiAction = await loadConfirmedAiAction(req.body?.aiActionId, req.session.user.id, 'delete_post');
+  if (req.body?.aiActionId && (!aiAction || String(aiAction.post) !== String(req.params.id))) {
+    return redirectBack(req, res, { ok: false, error: 'That confirmed AI deletion is no longer available.' });
+  }
+  if (aiAction?.status === 'completed') return redirectBack(req, res, { deleted: String(aiAction.resultId) === String(req.params.id) });
   const post = await Post.findOneAndDelete({ _id: req.params.id, author: req.session.user.id });
   if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
   await Comment.deleteMany({ post: post._id });
+  await completeAiAction(aiAction, post._id);
   return redirectBack(req, res, { deleted: true });
 };
 
@@ -230,24 +244,41 @@ function renderPartial(res, view, data) {
 }
 
 exports.comment = async (req, res) => {
+  const aiActionId = req.body?.aiActionId;
+  const aiAction = await loadConfirmedAiAction(aiActionId, req.session.user.id, req.body?.parent ? 'reply_comment' : 'create_comment');
+  if (aiActionId && (!aiAction || String(aiAction.post) !== String(req.params.id))) {
+    return redirectBack(req, res, { ok: false, error: 'That confirmed AI comment is no longer available.' });
+  }
+  if (aiAction?.status === 'completed') {
+    const existing = await Comment.findOne({ aiActionId: aiAction._id }).select('_id parent').lean();
+    return existing
+      ? redirectBack(req, res, { ok: true, id: existing._id, parent: existing.parent, duplicate: true })
+      : redirectBack(req, res, { ok: false, error: 'The confirmed AI comment result is no longer available.' });
+  }
   const restriction = await checkPostingRestriction(req.session.user.id);
   if (restriction) return redirectBack(req, res, { ok: false, error: restriction });
-  const body = String(req.body.body || '').trim();
+  const body = String(aiAction ? aiAction.content : req.body.body || '').trim();
   const gif = gifFromBody(req.body);
   const post = await Post.findById(req.params.id);
   if (!(await canAccessPost(post, req.session.user.id)) || (!body && !gif) || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Add a comment (up to 2,000 characters) or pick a GIF.' });
   let parent = null;
   let replyRecipient = null;
-  if (req.body.parent) {
+  const requestedParent = aiAction?.comment || req.body.parent;
+  if (requestedParent) {
     // A reply's parent must be a comment on this same post.
-    const parentComment = /^[a-f\d]{24}$/i.test(String(req.body.parent))
-      ? await Comment.findOne({ _id: req.body.parent, post: post._id }).select('author').lean()
+    const parentComment = /^[a-f\d]{24}$/i.test(String(requestedParent))
+      ? await Comment.findOne({ _id: requestedParent, post: post._id }).select('author').lean()
       : null;
     if (!parentComment) return redirectBack(req, res, { ok: false, error: 'That comment is no longer available.' });
-    parent = req.body.parent;
+    parent = requestedParent;
     replyRecipient = parentComment.author;
   }
-  const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, ...(gif ? { gif } : {}) });
+  const existingComment = aiAction && await Comment.findOne({ aiActionId: aiAction._id });
+  if (existingComment) {
+    await completeAiAction(aiAction, existingComment._id);
+    return redirectBack(req, res, { ok: true, id: existingComment._id, parent: existingComment.parent, duplicate: true });
+  }
+  const comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, aiActionId: aiAction?._id, ...(gif ? { gif } : {}) });
   if (String(post.author) !== String(req.session.user.id)) {
     rewardWavesForAction({ userId: req.session.user.id, action: 'comment', referenceType: 'comment', referenceId: comment._id })
       .catch((error) => logger.error('Could not award Waves for comment', error));
@@ -261,6 +292,7 @@ exports.comment = async (req, res) => {
   refreshPersonalization(req.session.user.id);
   await notify(replyRecipient || post.author, req.session.user.id, parent ? 'reply' : 'comment', parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
   if (body) await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
+  await completeAiAction(aiAction, comment._id);
   // Streak/badges for the commenter, and the one-time "first reply" email for the post's author.
   recordContribution(req.session.user.id, { kind: 'comment' });
   handleReplyReceived({ postId: post._id, postAuthorId: post.author, replierId: req.session.user.id, replierName: req.session.user.name, replyText: body });

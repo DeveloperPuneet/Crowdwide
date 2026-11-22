@@ -38,12 +38,13 @@
         <div class="cw-ai-orbit" aria-hidden="true"><span><%- icon('sparkles', { size: 30 }) %></span><i></i><b></b></div>
         <p class="cw-ai-eyebrow">YOUR CROWDWIDE SIDEKICK</p>
         <h2>Curious about your community?</h2>
-        <p class="cw-ai-welcome-copy">I can search public posts, discussions, profiles, communities and trends. I’ll show my sources—and I won’t pretend a search result is a fact it doesn’t contain.</p>
+        <p class="cw-ai-welcome-copy">I can answer from your device, search Crowdwide, review your notifications and conversations, and prepare posts, comments, replies or messages. Nothing is published or sent until you review and confirm it.</p>
         <div class="cw-ai-suggestions" data-ai-suggestions>
           <button type="button" data-prompt="What are the latest discussions on Crowdwide?">What’s being discussed lately?</button>
           <button type="button" data-prompt="Find posts about community building">Find posts about a topic</button>
           <button type="button" data-prompt="What topics are trending on Crowdwide?">What’s trending?</button>
-          <button type="button" data-prompt="Find public communities about art">Find a community</button>
+          <button type="button" data-prompt="Show my unread mentions">Review my mentions</button>
+          <button type="button" data-prompt="Create a post about today's progress on Crowdwide AI">Draft a post</button>
         </div>
       </section>
       <div class="cw-ai-messages" data-ai-messages></div>
@@ -53,7 +54,7 @@
       <p class="cw-ai-live-status" role="status" aria-live="polite" data-ai-status></p>
       <form class="cw-ai-composer" data-ai-form>
         <label class="visually-hidden" for="cw-ai-input">Message Crowdwide AI</label>
-        <textarea id="cw-ai-input" rows="1" maxlength="4000" placeholder="Ask about posts, people, communities…" data-ai-input required></textarea>
+        <textarea id="cw-ai-input" rows="1" maxlength="4000" placeholder="Ask Crowdwide, review a mention, or draft an action…" data-ai-input required></textarea>
         <div class="cw-ai-composer-bottom">
           <span class="cw-ai-composer-hint"><%- icon('shield', { size: 13 }) %> Crowdwide data only · no paid AI API</span>
           <div class="cw-ai-composer-actions">

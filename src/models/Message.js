@@ -7,6 +7,7 @@ const messageSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   body: { type: String, trim: true, maxlength: 2000, default: '' },
+  aiActionId: { type: mongoose.Schema.Types.ObjectId, ref: 'AiAction' },
   gif: { url: String, preview: String, title: String, width: Number, height: Number },
   attachment: {
     filename: { type: String, maxlength: 180 },
@@ -27,6 +28,7 @@ messageSchema.pre('validate', function requireContent(next) {
 
 messageSchema.index({ sender: 1, recipient: 1, createdAt: -1 });
 messageSchema.index({ recipient: 1, sender: 1, readAt: 1 });
+messageSchema.index({ aiActionId: 1 }, { unique: true, partialFilterExpression: { aiActionId: { $type: 'objectId' } } });
 messageSchema.index({ createdAt: 1 }, { expireAfterSeconds: RETENTION_SECONDS });
 
 module.exports = mongoose.model('Message', messageSchema);

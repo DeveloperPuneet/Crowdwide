@@ -39,6 +39,7 @@ const surveyService = require('../services/surveys');
 const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_SECTION } = require('../utils/partnershipPages');
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
 const { attachPollVoters } = require('../services/pollVoters');
+const { loadConfirmedAiAction, completeAiAction } = require('../services/aiActions');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -452,6 +453,13 @@ exports.createPost = async (req, res) => {
 		req.session.flash = { type: 'error', message };
 		return res.redirect(backTo);
 	};
+	const aiAction = await loadConfirmedAiAction(req.body?.aiActionId, req.session.user.id, 'create_post');
+	if (req.body?.aiActionId && !aiAction) return fail('That confirmed AI post action is no longer available.');
+	if (aiAction) {
+		req.body.body = aiAction.content;
+		req.body.type = 'post';
+		req.body.clientRequestId = `ai-${aiAction._id}`;
+	}
 	// A retry of the same composer attempt (double tap, timeout, flaky connection) must not create a second post.
 	const rawRequestId = typeof req.body?.clientRequestId === 'string' ? req.body.clientRequestId.trim() : '';
 	const clientRequestId = /^[A-Za-z0-9_-]{8,64}$/.test(rawRequestId) ? rawRequestId : '';
@@ -460,6 +468,11 @@ exports.createPost = async (req, res) => {
 		if (!wantsJson) return res.redirect(backTo);
 		return res.json(await createdPostPayload(existing, req.session.user.id, res, { duplicate: true }));
 	};
+	if (aiAction?.status === 'completed') {
+		const existing = await Post.findOne({ aiActionId: aiAction._id, author: req.session.user.id }).lean();
+		if (existing) return replyForExisting(existing);
+		return fail('The confirmed AI post result is no longer available.');
+	}
 	if (clientRequestId) {
 		const existing = await Post.findOne({ author: req.session.user.id, clientRequestId }).lean();
 		if (existing) return replyForExisting(existing);
@@ -556,7 +569,7 @@ exports.createPost = async (req, res) => {
 	const isDraft = req.body.saveAsDraft === 'on';
 	let createdPost;
 	try {
-		createdPost = await Post.create({ clientRequestId: clientRequestId || undefined, author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+		createdPost = await Post.create({ clientRequestId: clientRequestId || undefined, aiActionId: aiAction?._id, author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	} catch (error) {
 		// Two copies of the same attempt reached the database at once (another server, a very fast double tap):
 		// the unique (author, clientRequestId) index let only one through, so hand back that one.
@@ -583,6 +596,7 @@ exports.createPost = async (req, res) => {
 				.catch((error) => logger.error('Link preview update failed', error));
 		}
 	}
+	await completeAiAction(aiAction, createdPost._id);
 	if (wantsJson) return res.json(await createdPostPayload(createdPost.toObject(), req.session.user.id, res));
 	if (isDraft) {
 		req.session.flash = { type: 'success', message: 'Draft saved. It is visible only to you.' };

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const sourceSchema = new mongoose.Schema({
-  type: { type: String, enum: ['post', 'comment', 'profile', 'community', 'topic', 'statistics'], required: true },
+  type: { type: String, enum: ['post', 'comment', 'profile', 'community', 'topic', 'statistics', 'message', 'notification'], required: true },
   id: { type: String, required: true, maxlength: 64 },
   title: { type: String, maxlength: 200, default: '' },
   url: { type: String, maxlength: 300, required: true },
@@ -21,15 +21,21 @@ const aiMessageSchema = new mongoose.Schema({
   conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'AiConversation', required: true },
   role: { type: String, enum: ['user', 'assistant'], required: true },
   replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'AiMessage', default: null },
+  clientRequestId: { type: String, maxlength: 64 },
   content: { type: String, required: true, maxlength: 12000 },
   sources: { type: [sourceSchema], default: [] },
   context: { type: [contextSchema], default: [] },
+  actionDraft: { type: mongoose.Schema.Types.Mixed, default: null },
   actionId: { type: mongoose.Schema.Types.ObjectId, ref: 'AiAction', default: null },
   feedback: { type: String, enum: ['helpful', 'unhelpful', null], default: null }
 }, { timestamps: true });
 
 aiMessageSchema.index({ user: 1, conversation: 1, createdAt: 1 });
 aiMessageSchema.index({ user: 1, conversation: 1, replyTo: 1 });
+aiMessageSchema.index(
+  { user: 1, clientRequestId: 1 },
+  { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } }
+);
 aiMessageSchema.index({ user: 1, content: 'text' }, { name: 'ai_user_message_search' });
 
 module.exports = mongoose.model('AiMessage', aiMessageSchema);

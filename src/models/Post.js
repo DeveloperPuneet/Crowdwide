@@ -82,7 +82,8 @@ const postSchema = new mongoose.Schema({
   revision: { type: Number, default: 0, min: 0 },
   // Sent by the composer so a retry (after a timeout, a double tap, a flaky connection) returns the post
   // that was already created instead of creating a second one.
-  clientRequestId: { type: String, trim: true, maxlength: 64 }
+  clientRequestId: { type: String, trim: true, maxlength: 64 },
+  aiActionId: { type: mongoose.Schema.Types.ObjectId, ref: 'AiAction' }
 }, { timestamps: true });
 
 postSchema.index({ status: 1, createdAt: -1 });
@@ -94,6 +95,7 @@ postSchema.index({ hashtags: 1, status: 1, createdAt: -1 });
 postSchema.index({ likes: 1, createdAt: -1 });
 // One post per (author, composer attempt). Posts without a request id are not part of the index.
 postSchema.index({ author: 1, clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } });
+postSchema.index({ aiActionId: 1 }, { unique: true, partialFilterExpression: { aiActionId: { $type: 'objectId' } } });
 
 postSchema.post('save', (post) => queuePostIndex(post));
 postSchema.post('findOneAndDelete', (post) => {
