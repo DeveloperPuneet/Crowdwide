@@ -159,6 +159,7 @@ exports.publicPosts = async (req, res) => {
 				post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
 			});
 		}
+		const thirdPartyFeedAdAfter = posts.length >= 14 && !isAdFree(res.locals.currentUser) ? crypto.randomInt(14, 20) : 0;
 		const pagePath = `/posts${type ? `?type=${type}` : ''}`;
 		const title = type === 'article' ? 'Articles on Crowdwide'
 			: type === 'poll' ? 'Polls on Crowdwide'
@@ -176,6 +177,7 @@ exports.publicPosts = async (req, res) => {
 			noIndex: page > 1,
 			type,
 			posts,
+			thirdPartyFeedAdAfter,
 			page,
 			hasMore,
 			total,

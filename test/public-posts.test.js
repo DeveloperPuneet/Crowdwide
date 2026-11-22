@@ -66,10 +66,15 @@ test('public post listing filters by type, pages results, and provides collectio
   assert.equal(postQuery.limitValue, 21);
   assert.equal(response.view, 'pages/public-posts');
   assert.equal(response.data.posts.length, 20);
+  assert.ok(response.data.thirdPartyFeedAdAfter >= 14 && response.data.thirdPartyFeedAdAfter <= 19);
   assert.equal(response.data.total, 37);
   assert.equal(response.data.noIndex, true);
   assert.equal(response.data.canonicalUrl, 'https://crowdwide.example/posts?type=article');
   assert.equal(response.data.structuredData.mainEntity.itemListElement[0].url, 'https://crowdwide.example/posts/post-0');
+
+  response.locals.currentUser = { adFreeUntil: new Date(Date.now() + 60_000) };
+  await controller.publicPosts({ query: { type: 'article', page: '2' }, session: {} }, response);
+  assert.equal(response.data.thirdPartyFeedAdAfter, 0);
 });
 
 test('sitemap includes public post URLs but excludes private community posts at query time', async (t) => {

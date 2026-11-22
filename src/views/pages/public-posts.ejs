@@ -22,7 +22,7 @@
 	</nav>
 	<section class="public-post-feed" aria-label="<%= type ? `${type} posts` : 'Public posts' %>">
 		<% if (posts.length) { %>
-			<% posts.forEach((post) => { %><%- include('../partials/post-card', { post }) %><% }) %>
+			<% posts.forEach((post, index) => { %><%- include('../partials/post-card', { post }) %><% if (locals.thirdPartyFeedAdAfter && index + 1 === locals.thirdPartyFeedAdAfter) { %><div ta-ad-container></div><% } %><% }) %>
 		<% } else { %>
 			<div class="public-post-empty"><h2>No public posts here yet</h2><p>Try another filter or come back when the community has shared more.</p></div>
 		<% } %>

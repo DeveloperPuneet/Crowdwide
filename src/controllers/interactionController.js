@@ -621,6 +621,7 @@ exports.postDetail = async (req, res) => {
     structuredData,
     noIndex: false,
     post,
+    showPostAd: !viewerAdFree,
     showThirdPartyAds: comments.length >= 30 && !viewerAdFree,
     comments,
     commentTree,

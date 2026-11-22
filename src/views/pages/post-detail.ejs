@@ -111,6 +111,7 @@
 		</div>
 		<% } %>
 	</article>
+	<% if (locals.showPostAd) { %><div class="post-detail-ad" ta-ad-container></div><% } %>
 
 	<section class="replies-section" id="replies">
 		<div class="panel-heading"><h2>Comments</h2><span data-comment-total><%= comments.length %></span></div>

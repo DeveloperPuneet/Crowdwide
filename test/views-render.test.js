@@ -270,7 +270,7 @@ test('admin feed previews show behavior matches without exposing interactive pos
 
 test('post page: flat actions, send-to-chat share, comment box, no Quote', async () => {
   const html = await render('pages/post-detail.ejs', {
-    title: 'p', pagePath: '/posts/p1', comments: [{}], canPinComments: true,
+    title: 'p', pagePath: '/posts/p1', comments: [{}], canPinComments: true, showPostAd: true,
     post: { ...post(1), body: 'Hi,\nhow are you?\nwassup', liked: true, bookmarked: false, poll: null, quotedPost: null, replyTo: null, questTitle: 'Weekly sketch sprint' },
     commentTree: [{ _id: 'c1', author: { _id: 'a2', name: 'B' }, body: 'hi', gif: { url: 'https://media.giphy.com/c.gif' }, createdAt: new Date(), likes: [], children: [] }]
   });
@@ -288,6 +288,9 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
   assert.match(html, /action="\/comments\/c1\/report"/);
   assert.match(html, /class="comment-pin-form" data-async-interaction method="post" action="\/comments\/c1\/pin"/);
   assert.match(html, /Choose a reason/);
+  assert.equal((html.match(/ta-ad-container/g) || []).length, 1);
+  assert.ok(html.indexOf('</article>') < html.indexOf('ta-ad-container'));
+  assert.ok(html.indexOf('ta-ad-container') < html.indexOf('id="replies"'));
 });
 
 test('third-party comment ads appear after each thirty-comment threshold', async () => {
@@ -843,6 +846,7 @@ test('public post listing renders guest-readable posts with account-gated intera
       type: 'poll',
       poll: { question: 'What should we build next?', options: [{ label: 'Better discovery', votes: ['u1'] }] }
     })],
+    thirdPartyFeedAdAfter: 1,
     page: 1,
     hasMore: false,
     total: 1
@@ -855,6 +859,8 @@ test('public post listing renders guest-readable posts with account-gated intera
   assert.match(html, /https:\/\/crowdwide\.example\/posts\?type=poll/);
   assert.match(html, /application\/ld\+json/);
   assert.doesNotMatch(html, /<form[^>]+action="\/posts\/p101\/(?:like|poll\/vote)"/);
+  assert.equal((html.match(/ta-ad-container/g) || []).length, 1);
+  assert.ok(html.indexOf('data-post-url="/posts/p101"') < html.indexOf('ta-ad-container'));
 });
 
 test('guests can read comment threads but only see account-gated comment actions', async () => {
