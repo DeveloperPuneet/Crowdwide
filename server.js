@@ -20,6 +20,7 @@ process.on('unhandledRejection', (reason) => logger.error('Unhandled promise rej
 async function start() {
   await connectDatabase();
   await require('./src/services/legacyCleanup').removeWideWaveData();
+  await require('./src/services/aiActionMigration').preserveAiActionAuditTrail();
   await require('./src/services/aiPreferenceMigration').enableLocalInferenceByDefault();
   require('./src/middleware/botGuard').init();
   startPostSearchIndexing();

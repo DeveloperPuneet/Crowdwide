@@ -99,6 +99,40 @@ test('Crowdwide AI only treats explicit, fully specified post requests as action
   assert.equal(parseActionRequest('I might want to delete my post later.'), null);
 });
 
+test('Crowdwide AI parses explicit social-action requests without deciding permissions', () => {
+  assert.deepEqual(parseActionRequest("Create a post about today's progress on Crowdwide AI"), {
+    kind: 'create_post',
+    draftPrompt: "today's progress on Crowdwide AI"
+  });
+  assert.deepEqual(parseActionRequest('Comment on my latest post: Great update'), {
+    kind: 'create_comment',
+    postId: 'latest',
+    content: 'Great update'
+  });
+  assert.deepEqual(parseActionRequest('Reply to the latest comment on my post'), {
+    kind: 'reply_comment',
+    commentId: 'latest_on_my_post',
+    draftPrompt: 'Write a relevant, respectful reply to this comment.'
+  });
+  assert.deepEqual(parseActionRequest('Reply to the latest unread mention: Thanks for sharing'), {
+    kind: 'reply_comment',
+    commentId: 'latest_mention',
+    content: 'Thanks for sharing'
+  });
+  assert.deepEqual(parseActionRequest('Message to @river: Hello there'), {
+    kind: 'send_message',
+    recipient: 'river',
+    content: 'Hello there'
+  });
+  assert.deepEqual(parseActionRequest('Message in group 507f1f77bcf86cd799439011: Hello group'), {
+    kind: 'send_message',
+    groupId: '507f1f77bcf86cd799439011',
+    content: 'Hello group'
+  });
+  assert.equal(selectTool('Show my unread mentions'), 'mentions');
+  assert.equal(selectTool('Summarize my recent messages with @river'), 'chat_messages');
+});
+
 test('search fallback includes evidence links and clearly identifies its mode', () => {
   const answer = buildFallbackResponse({
     summary: 'I found one relevant public post visible to you.',

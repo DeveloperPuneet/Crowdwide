@@ -146,7 +146,32 @@ async function resolveActionRequest(actionRequest, userId) {
           body: new RegExp(`@${escapedRegex(viewer.username)}\\b`, 'i')
         }).sort({ createdAt: -1 }).select('_id post').lean();
       }
-      commentId = mentionedComment ? String(mentionedComment._id) : '';
+      if (mentionedComment) {
+        commentId = String(mentionedComment._id);
+      } else if (notification?.post && viewer?.username) {
+        const mentionedPost = await Post.findOne({
+          _id: notification.post,
+          body: new RegExp(`@${escapedRegex(viewer.username)}\\b`, 'i')
+        }).select('_id author body status community revision').lean();
+        if (mentionedPost && await canAccessPost(mentionedPost, userId)) {
+          resolved.kind = 'create_comment';
+          resolved.post = mentionedPost;
+          resolved.postId = String(mentionedPost._id);
+          resolved.postPreview = String(mentionedPost.body || '').slice(0, 180);
+          resolved.targetLabel = `Comment on post: ${resolved.postPreview}`;
+          resolved.targetUrl = `/posts/${mentionedPost._id}`;
+          resolved.context.push({
+            type: 'post',
+            title: 'Post that mentioned you',
+            text: String(mentionedPost.body || '').slice(0, 1200),
+            url: resolved.targetUrl
+          });
+          return resolved;
+        }
+        return { error: 'I could not find a recent post mention that is available to your account.' };
+      } else {
+        commentId = '';
+      }
     }
     if (!isValidId(commentId)) return { error: 'I could not find a recent comment to reply to. Include its comment ID or open the discussion first.' };
     const comment = await Comment.findById(commentId).select('_id post author body').lean();
@@ -336,7 +361,14 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
 async function prepareTurn({ userId, conversation, content, clientRequestId }) {
   if (clientRequestId) {
     const existing = await AiMessage.findOne({ user: userId, clientRequestId });
-    if (existing) return resumeExistingTurn(existing, { userId, conversation });
+    if (existing) {
+      if (String(existing.conversation) !== String(conversation._id) || existing.content !== content) {
+        const conflict = new Error('That request identifier was already used for a different message.');
+        conflict.status = 409;
+        throw conflict;
+      }
+      return resumeExistingTurn(existing, { userId, conversation });
+    }
   }
   const preferences = await getPreferences(userId);
   const memories = preferences.localInference
@@ -346,7 +378,7 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
   const resolvedAction = actionRequest ? await resolveActionRequest(actionRequest, userId) : null;
   const actionDraft = resolvedAction && !resolvedAction.error && actionRequest.draftPrompt
     ? {
-      kind: actionRequest.kind,
+      kind: resolvedAction.kind,
       postId: resolvedAction.postId || null,
       commentId: resolvedAction.commentId || null,
       recipientId: resolvedAction.recipientId || null,
@@ -376,7 +408,10 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
   } catch (error) {
     if (error?.code === 11000 && clientRequestId) {
       const existing = await AiMessage.findOne({ user: userId, clientRequestId });
-      if (existing) return resumeExistingTurn(existing, { userId, conversation });
+      if (existing) {
+        if (String(existing.conversation) !== String(conversation._id) || existing.content !== content) throw error;
+        return resumeExistingTurn(existing, { userId, conversation });
+      }
     }
     throw error;
   }
@@ -947,6 +982,15 @@ exports.completeAction = async (req, res) => {
     if (!action) return res.status(404).json({ error: 'Confirmed action not found.' });
     if (action.status === 'completed') return res.json({ status: action.status, resultId: action.resultId });
     if (action.status !== 'confirmed') return res.status(409).json({ error: 'That action is not awaiting completion.' });
+    if (req.body.success === false) {
+      const failed = await AiAction.findOneAndUpdate(
+        { _id: action._id, user: ownerId(req), status: 'confirmed' },
+        { $set: { status: 'failed', failureReason: String(req.body.error || 'The platform action did not complete.').trim().slice(0, 300) } },
+        { new: true }
+      ).select('status');
+      if (!failed) return res.status(409).json({ error: 'That action result was already recorded.' });
+      return res.json({ status: failed.status });
+    }
     return res.status(409).json({ error: 'The platform action did not record a completed result.' });
   } catch (error) {
     return sendError(res, error, 'Could not record Crowdwide AI action result');

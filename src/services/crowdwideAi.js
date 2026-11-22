@@ -31,7 +31,7 @@ function titleFromPrompt(prompt) {
 function parseActionRequest(prompt) {
   const text = String(prompt || '').trim();
   const createPost = /^(?:please\s+)?(?:create|write|draft|publish|post)\s+(?:(?:a|this|the following)\s+)?post(?:\s+about\s+([\s\S]+?))?\s*:\s*([\s\S]+)$/i.exec(text);
-  if (createPost) return { kind: 'create_post', content: createPost[2].trim(), draftPrompt: createPost[1] || '' };
+  if (createPost) return { kind: 'create_post', content: createPost[2].trim(), ...(createPost[1] ? { draftPrompt: createPost[1].trim() } : {}) };
   const createPostAbout = /^(?:please\s+)?(?:create|write|draft|publish|post)\s+(?:a\s+)?post\s+about\s+([\s\S]+)$/i.exec(text);
   if (createPostAbout) return { kind: 'create_post', draftPrompt: createPostAbout[1].replace(/[.?!]+$/, '').trim() };
   const createPostSimple = /^(?:please\s+)?(?:create|write|draft|publish|post)\s+(?:a\s+)?post\s*:\s*([\s\S]+)$/i.exec(text);
@@ -59,14 +59,36 @@ function parseActionRequest(prompt) {
   const replyComment = /^(?:please\s+)?reply to comment ([a-f\d]{24})(?:\s*:\s*([\s\S]+))?$/i.exec(text);
   if (replyComment) return { kind: 'reply_comment', commentId: replyComment[1], ...(replyComment[2] ? { content: replyComment[2].trim() } : { draftPrompt: 'Write a relevant, respectful reply to this comment.' }) };
 
-  const sendMessage = /^(?:please\s+)?(?:send )?message (?:to )(@?[a-z0-9_]{3,24}|[a-f\d]{24})(?:\s*:\s*([\s\S]+))$/i.exec(text);
-  if (sendMessage) return { kind: 'send_message', recipient: sendMessage[1].replace(/^@/, ''), content: sendMessage[2].trim() };
-  const sendGroupMessage = /^(?:please\s+)?(?:send )?message in group ([a-f\d]{24})(?:\s*:\s*([\s\S]+))$/i.exec(text);
-  if (sendGroupMessage) return { kind: 'send_message', groupId: sendGroupMessage[1].toLowerCase(), content: sendGroupMessage[2].trim() };
-  const replyGroup = /^(?:please\s+)?(?:reply to|message in) (?:my )?(?:latest|most recent) group conversation(?:\s*:\s*([\s\S]+))$/i.exec(text);
-  if (replyGroup) return { kind: 'send_message', groupId: 'latest', content: replyGroup[1].trim() };
-  const sendLatestConversation = /^(?:please\s+)?(?:reply to|message in) (?:my )?(?:latest|most recent) conversation(?:\s*:\s*([\s\S]+))$/i.exec(text);
-  if (sendLatestConversation) return { kind: 'send_message', recipient: 'latest', content: sendLatestConversation[1].trim() };
+  const sendMessage = /^(?:please\s+)?(?:(?:send|write|draft)\s+(?:a\s+)?)?message (?:to )(@?[a-z0-9_]{3,24}|[a-f\d]{24})(?:\s*:\s*([\s\S]+))?$/i.exec(text);
+  if (sendMessage) return {
+    kind: 'send_message',
+    recipient: sendMessage[1].replace(/^@/, ''),
+    ...(sendMessage[2]?.trim() ? { content: sendMessage[2].trim() } : { draftPrompt: 'Write a friendly, context-aware message for this conversation.' })
+  };
+  const sendGroupMessage = /^(?:please\s+)?(?:(?:send|write|draft)\s+(?:a\s+)?)?message in group ([a-f\d]{24})(?:\s*:\s*([\s\S]+))?$/i.exec(text);
+  if (sendGroupMessage) return {
+    kind: 'send_message',
+    groupId: sendGroupMessage[1].toLowerCase(),
+    ...(sendGroupMessage[2]?.trim() ? { content: sendGroupMessage[2].trim() } : { draftPrompt: 'Write a friendly, context-aware message for this group.' })
+  };
+  const replyGroup = /^(?:please\s+)?(?:reply to|message in) (?:my )?(?:latest|most recent) group conversation(?:\s*:\s*([\s\S]+))?$/i.exec(text);
+  if (replyGroup) return {
+    kind: 'send_message',
+    groupId: 'latest',
+    ...(replyGroup[1]?.trim() ? { content: replyGroup[1].trim() } : { draftPrompt: 'Write a friendly, context-aware reply to this group conversation.' })
+  };
+  const sendLatestConversation = /^(?:please\s+)?(?:reply to|message in) (?:my )?(?:latest|most recent) conversation(?:\s*:\s*([\s\S]+))?$/i.exec(text);
+  if (sendLatestConversation) return {
+    kind: 'send_message',
+    recipient: 'latest',
+    ...(sendLatestConversation[1]?.trim() ? { content: sendLatestConversation[1].trim() } : { draftPrompt: 'Write a friendly, context-aware reply to this conversation.' })
+  };
+  const replyToConversation = /^(?:please\s+)?(?:reply to|message in) (?:my )?conversation with @?([a-z0-9_]{3,24})(?:\s*:\s*([\s\S]+))?$/i.exec(text);
+  if (replyToConversation) return {
+    kind: 'send_message',
+    recipient: replyToConversation[1],
+    ...(replyToConversation[2]?.trim() ? { content: replyToConversation[2].trim() } : { draftPrompt: 'Write a friendly, context-aware reply to this conversation.' })
+  };
   return null;
 }
 
@@ -401,7 +423,10 @@ async function executeCrowdwideTools({ query, userId }) {
   let sources = [];
   let summary = '';
   if (tool === 'mentions' || tool === 'notifications') {
-    sources = await getMyNotifications(userId, { mentionsOnly: tool === 'mentions' });
+    sources = await getMyNotifications(userId, {
+      mentionsOnly: tool === 'mentions',
+      unreadOnly: /\bunread\b/i.test(query)
+    });
     const unreadCount = sources.filter((source) => source.unread).length;
     summary = sources.length
       ? `I found ${sources.length} ${tool === 'mentions' ? 'mention or reply' : 'recent notification'}${sources.length === 1 ? '' : 's'}${unreadCount ? `, including ${unreadCount} unread` : ''}. These are suggestions only; I will not respond unless you ask and confirm a draft.`
@@ -449,12 +474,14 @@ async function executeCrowdwideTools({ query, userId }) {
   return { tool, sources, context: sources.map(toContext), summary };
 }
 
-async function getMyNotifications(userId, { mentionsOnly = false } = {}) {
+async function getMyNotifications(userId, { mentionsOnly = false, unreadOnly = false } = {}) {
   const user = await User.findById(userId).select('username blockedUsers mutedUsers').lean();
   if (!user) return [];
+  const viewerContext = await getViewerContext(userId);
   const types = mentionsOnly ? ['mention', 'reply', 'post_reply'] : undefined;
   const rows = await Notification.find({
     recipient: userId,
+    ...(unreadOnly ? { readAt: null } : {}),
     ...(types ? { type: { $in: types } } : {})
   })
     .sort({ createdAt: -1 })
@@ -463,7 +490,12 @@ async function getMyNotifications(userId, { mentionsOnly = false } = {}) {
     .populate('post', '_id body author status')
     .lean();
   const hidden = new Set([...(user.blockedUsers || []), ...(user.mutedUsers || [])].map(String));
-  return rows.filter((row) => !row.actor || !hidden.has(String(row.actor._id))).map((row) => ({
+  const visibleRows = await Promise.all(rows.map(async (row) => ({
+    row,
+    visible: (!row.actor || !hidden.has(String(row.actor._id))) &&
+      (!row.post || Boolean(await getPostById(row.post._id, viewerContext)))
+  })));
+  return visibleRows.filter(({ visible }) => visible).map(({ row }) => ({
     type: 'notification',
     id: String(row._id),
     title: `${row.type === 'mention' ? 'Mention' : row.type === 'reply' || row.type === 'post_reply' ? 'Reply' : 'Notification'}${row.actor?.name ? ` from ${row.actor.name}` : ''}`,
@@ -481,8 +513,8 @@ async function getMyChatContext(query, userId, { includeMessages = false } = {})
       .sort({ createdAt: -1 })
       .limit(40)
       .select('sender recipient body createdAt')
-      .populate('sender', 'name username')
-      .populate('recipient', 'name username')
+      .populate('sender', 'name username blockedUsers')
+      .populate('recipient', 'name username blockedUsers')
       .lean()
   ]);
   if (!user) return [];
@@ -491,7 +523,9 @@ async function getMyChatContext(query, userId, { includeMessages = false } = {})
   for (const message of recent) {
     const senderId = String(message.sender?._id || message.sender);
     const other = senderId === String(userId) ? message.recipient : message.sender;
-    if (!other?._id || hidden.has(String(other._id)) || grouped.has(String(other._id))) continue;
+    if (!other?._id || hidden.has(String(other._id)) ||
+        (other.blockedUsers || []).some((id) => String(id) === String(userId)) ||
+        grouped.has(String(other._id))) continue;
     grouped.set(String(other._id), { other, message });
   }
   const targetMatch = /(?:with|from|to)\s+@?([a-z0-9_]{3,24})/i.exec(query);
@@ -500,16 +534,25 @@ async function getMyChatContext(query, userId, { includeMessages = false } = {})
     const target = targetMatch[1].toLowerCase();
     selected = selected.filter(({ other }) => String(other._id) === target || other.username === target);
   }
-  const sources = selected.map(({ other, message }) => ({
-    type: 'message',
-    id: String(message._id),
-    title: `Direct conversation with ${other.name || other.username || 'member'}`,
-    url: `/messages/${other._id}`,
-    excerpt: includeMessages
-      ? `${message.sender?.name || 'Member'}: ${String(message.body || '').slice(0, 700)}`
-      : `${message.sender?.name || 'Member'}: ${String(message.body || '').slice(0, 220)}`,
-    createdAt: message.createdAt
-  }));
+  const sources = (await Promise.all(selected.map(async ({ other, message }) => {
+    const conversationMessages = includeMessages
+      ? await Message.find({
+        $or: [
+          { sender: userId, recipient: other._id },
+          { sender: other._id, recipient: userId }
+        ]
+      }).sort({ createdAt: -1 }).limit(8).select('sender body createdAt')
+        .populate('sender', 'name').lean()
+      : [message];
+    return conversationMessages.reverse().map((entry) => ({
+      type: 'message',
+      id: String(entry._id),
+      title: `Direct conversation with ${other.name || other.username || 'member'}`,
+      url: `/messages/${other._id}`,
+      excerpt: `${entry.sender?.name || 'Member'}: ${String(entry.body || '').slice(0, includeMessages ? 700 : 220)}`,
+      createdAt: entry.createdAt
+    }));
+  }))).flat();
   const targetGroupId = (String(query).match(/\b[a-f\d]{24}\b/i) || [])[0];
   const includeGroups = !targetMatch || /\bgroup\b/i.test(query) || targetGroupId;
   const groups = includeGroups ? await GroupConversation.find({

@@ -9,6 +9,8 @@ if (root) {
   const form = $('[data-ai-form]');
   const input = $('[data-ai-input]');
   const sendButton = $('[data-ai-send]');
+  const sendIcon = $('[data-ai-send-icon]', sendButton);
+  const sendSpinner = $('[data-ai-send-spinner]', sendButton);
   const stopButton = $('[data-ai-stop]');
   const statusNode = $('[data-ai-status]');
   const sidebar = $('[data-ai-conversations]');
@@ -44,6 +46,9 @@ if (root) {
   function setBusy(value) {
     busy = value;
     sendButton.disabled = value;
+    sendButton.setAttribute('aria-label', value ? 'Generating response' : 'Send message');
+    sendIcon.hidden = value;
+    sendSpinner.hidden = !value;
     input.disabled = value;
     root.setAttribute('aria-busy', String(value));
   }
@@ -694,11 +699,13 @@ if (root) {
     if (action.kind === 'delete_post' && !window.confirm('Delete this post? This cannot be undone.')) return;
     button.disabled = true;
     setStatus('Checking permissions and preparing the confirmed action…');
+    let confirmed = false;
     try {
       const confirmation = await request(`/api/ai/actions/${encodeURIComponent(actionId)}/confirm`, {
         method: 'POST',
         body: { confirm: true }
       });
+      confirmed = true;
       const approved = confirmation.action;
       const headers = {
         'X-CSRF-Token': csrf(),
@@ -781,7 +788,20 @@ if (root) {
       updateTheme(preferences.theme);
       updateAiMode();
     } catch (error) {
-      setStatus(error.message);
+      let message = error.message;
+      if (confirmed) {
+        try {
+          await request(`/api/ai/actions/${encodeURIComponent(actionId)}/complete`, {
+            method: 'POST',
+            body: { success: false, error: error.message }
+          });
+          action.status = 'failed';
+          renderAllMessages();
+        } catch (auditError) {
+          message = `${message} The action result could not be recorded: ${auditError.message}`;
+        }
+      }
+      setStatus(message);
     }
   }
 

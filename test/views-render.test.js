@@ -59,6 +59,17 @@ test('chat attachment responses render previewable media inline and keep downloa
   assert.equal(videoResponse.data.toString(), 'bcd');
 });
 
+test('Crowdwide AI send and stop controls use registered icons', async () => {
+  assert.match(icon('arrow-up'), /<svg/);
+  assert.match(icon('square'), /<svg/);
+  const html = await render('pages/crowdwide-ai.ejs', {
+    title: 'Crowdwide AI', pagePath: '/crowdwide-ai', noIndex: true, aiPage: true,
+    currentUser, bodyClass: 'crowdwide-ai-page'
+  });
+  assert.match(html, /data-ai-send[^>]*aria-label="Send message"[^>]*>[\s\S]*<svg/);
+  assert.match(html, /data-ai-stop hidden[^>]*>[\s\S]*<svg/);
+});
+
 test('search results clamp long text and use responsive result classes', async () => {
   const html = await render('pages/search.ejs', {
     title: 'Search', pagePath: '/search', noIndex: true, query: 'react hooks',

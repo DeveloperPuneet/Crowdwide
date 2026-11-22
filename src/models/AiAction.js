@@ -17,10 +17,13 @@ const aiActionSchema = new mongoose.Schema({
   resultId: { type: mongoose.Schema.Types.ObjectId, default: null },
   failureReason: { type: String, maxlength: 300, default: '' },
   expiresAt: { type: Date, required: true }
-}, { timestamps: true });
+}, { timestamps: true, autoIndex: false });
 
 aiActionSchema.index({ user: 1, conversation: 1 });
 aiActionSchema.index({ sourceMessage: 1 }, { unique: true, partialFilterExpression: { sourceMessage: { $type: 'objectId' } } });
-aiActionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+aiActionSchema.index(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 0, partialFilterExpression: { status: 'pending' }, name: 'pending_ai_action_expiry' }
+);
 
 module.exports = mongoose.model('AiAction', aiActionSchema);

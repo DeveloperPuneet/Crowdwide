@@ -176,8 +176,8 @@
 .cw-ai-action-buttons button[data-confirm-action]:disabled { opacity: .55; cursor: wait; }
 .cw-ai-composer-wrap { flex: none; width: min(100% - 36px, 760px); margin: 0 auto; padding: 0 0 max(12px, env(safe-area-inset-bottom)); }
 .cw-ai-live-status { min-height: 17px; margin: 0 0 6px; color: var(--ai-muted); font-size: 10px; }
-.cw-ai-composer { padding: 9px 10px 8px 15px; border: 1px solid color-mix(in srgb, var(--ai-accent) 25%, var(--ai-border)); border-radius: 17px; background: var(--ai-panel); box-shadow: 0 12px 40px rgba(0, 0, 0, .17); }
-.cw-ai-composer:focus-within { border-color: color-mix(in srgb, var(--ai-accent) 65%, var(--ai-border)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ai-accent) 10%, transparent), 0 12px 40px rgba(0, 0, 0, .17); }
+.cw-ai-composer { padding: 9px 10px 8px 15px; border: 1px solid color-mix(in srgb, var(--ai-accent) 25%, var(--ai-border)); border-radius: 17px; background: var(--ai-panel); box-shadow: 0 12px 40px color-mix(in srgb, var(--ai-text) 17%, transparent); }
+.cw-ai-composer:focus-within { border-color: color-mix(in srgb, var(--ai-accent) 65%, var(--ai-border)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ai-accent) 10%, transparent), 0 12px 40px color-mix(in srgb, var(--ai-text) 17%, transparent); }
 .cw-ai-composer textarea { display: block; width: 100%; max-height: 180px; min-height: 26px; padding: 5px 0; resize: none; border: 0; outline: 0; background: transparent; color: var(--ai-text); font: 13px/1.55 'DM Sans', sans-serif; }
 .cw-ai-composer textarea::placeholder { color: var(--ai-muted); }
 .cw-ai-composer-bottom { justify-content: space-between; gap: 8px; }
@@ -189,9 +189,12 @@
 .cw-ai-stop[hidden] { display: none; }
 .cw-ai-send { width: 33px; height: 33px; border-radius: 11px; background: linear-gradient(140deg, var(--ai-accent), color-mix(in srgb, var(--ai-accent) 70%, var(--ai-accent-2))); color: #fff; }
 .cw-ai-send:disabled { opacity: .48; cursor: wait; }
+.cw-ai-send-spinner { width: 15px; height: 15px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: cw-ai-spin .7s linear infinite; }
+.cw-ai-send-spinner[hidden] { display: none; }
+@keyframes cw-ai-spin { to { transform: rotate(360deg); } }
 .cw-ai-disclaimer { margin: 6px 0 0; color: var(--ai-muted); font-size: 9px; line-height: 1.45; text-align: center; }
-.cw-ai-dialog { width: min(92vw, 510px); max-height: min(84vh, 720px); padding: 0; overflow: hidden; border: 1px solid var(--ai-border); border-radius: 18px; background: var(--ai-panel); color: var(--ai-text); box-shadow: 0 24px 90px rgba(0, 0, 0, .5); }
-.cw-ai-dialog::backdrop { background: rgba(4, 6, 14, .7); backdrop-filter: blur(4px); }
+.cw-ai-dialog { width: min(92vw, 510px); max-height: min(84vh, 720px); padding: 0; overflow: hidden; border: 1px solid var(--ai-border); border-radius: 18px; background: var(--ai-panel); color: var(--ai-text); box-shadow: 0 24px 90px color-mix(in srgb, var(--ai-text) 34%, transparent); }
+.cw-ai-dialog::backdrop { background: color-mix(in srgb, var(--ai-bg) 78%, transparent); backdrop-filter: blur(4px); }
 .cw-ai-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 21px 14px; border-bottom: 1px solid var(--ai-border); }
 .cw-ai-dialog-head .cw-ai-eyebrow { margin-bottom: 5px; }
 .cw-ai-dialog-head h2 { margin: 0; font: 650 20px 'Space Grotesk', sans-serif; }
@@ -220,9 +223,9 @@
 
 @media (max-width: 760px) {
   .cw-ai { position: relative; grid-template-columns: minmax(0, 1fr); height: calc(100dvh - var(--header-h, 60px)); min-height: 480px; }
-  .cw-ai-sidebar { position: absolute; inset: 0 auto 0 0; z-index: 12; width: min(84vw, 310px); transform: translateX(-105%); transition: transform .2s ease; box-shadow: 18px 0 50px rgba(0, 0, 0, .28); }
+  .cw-ai-sidebar { position: absolute; inset: 0 auto 0 0; z-index: 12; width: min(84vw, 310px); transform: translateX(-105%); transition: transform .2s ease; box-shadow: 18px 0 50px color-mix(in srgb, var(--ai-text) 26%, transparent); }
   .cw-ai.is-sidebar-open .cw-ai-sidebar { transform: none; }
-  .cw-ai.is-sidebar-open .cw-ai-sidebar-backdrop { position: absolute; inset: 0; z-index: 11; display: block; width: 100%; border: 0; background: rgba(0, 0, 0, .4); }
+  .cw-ai.is-sidebar-open .cw-ai-sidebar-backdrop { position: absolute; inset: 0; z-index: 11; display: block; width: 100%; border: 0; background: color-mix(in srgb, var(--ai-bg) 64%, transparent); }
   .cw-ai-sidebar-backdrop[hidden] { display: none; }
   .cw-ai-mobile-settings, .cw-ai-sidebar-toggle { display: grid; }
   .cw-ai-topbar { min-height: 57px; padding: 7px 13px; }
