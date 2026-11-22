@@ -35,7 +35,6 @@ router.patch('/api/ai/conversations/:id', requireAuth, requireVerified, interact
 router.delete('/api/ai/conversations/:id', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.deleteConversation);
 router.post('/api/ai/turns/:id/regenerate', requireAuth, requireVerified, aiLimiter, csrfSynchronisedProtection, aiController.regenerate);
 router.post('/api/ai/turns/:id/fallback', requireAuth, requireVerified, aiLimiter, csrfSynchronisedProtection, aiController.fallbackTurn);
-router.post('/api/ai/turns/:id/answer', requireAuth, requireVerified, aiLimiter, csrfSynchronisedProtection, aiController.saveLocalAnswer);
 router.post('/api/ai/turns/:id/prepare-action', requireAuth, requireVerified, aiLimiter, csrfSynchronisedProtection, aiController.prepareActionDraft);
 router.get('/api/ai/preferences', requireAuth, requireVerified, aiLimiter, aiController.getPreferences);
 router.patch('/api/ai/preferences', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.updatePreferences);

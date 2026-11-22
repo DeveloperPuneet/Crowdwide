@@ -67,16 +67,14 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
       directives: {
         scriptSrc: [
           "'self'",
-          "'wasm-unsafe-eval'",
           'https://www.googletagmanager.com',
           'https://cdn.apitiny.net',
-          (req) => req.path === '/js/crowdwide-ai-worker.bundle.js' ? 'blob:' : "'self'",
           (req, res) => `'nonce-${res.locals.cspNonce}'`,
           ...turnstileOrigins
         ],
-        workerSrc: ["'self'", 'blob:'],
+        workerSrc: ["'self'"],
         frameSrc: ["'self'", 'https://*.apitiny.net', ...turnstileOrigins],
-        connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', 'https://*.apitiny.net', 'https://huggingface.co', 'https://cdn-lfs.huggingface.co', 'https://*.hf.co', 'https://*.xethub.hf.co', 'https://raw.githubusercontent.com', ...turnstileOrigins],
+        connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', 'https://*.apitiny.net', ...turnstileOrigins],
         mediaSrc: ["'self'", ...mediaOrigins],
         // GIFs come from GIPHY's CDN; blob: lets upload previews render.
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.apitiny.net', 'https://*.giphy.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://api.maptiler.com', 'https://www.google-analytics.com', ...mediaOrigins]
@@ -97,10 +95,6 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   });
   app.use('/vendor/leaflet', express.static(path.join(__dirname, '..', 'node_modules', 'leaflet', 'dist')));
   app.use('/vendor/prism', express.static(path.join(__dirname, '..', 'node_modules', 'prismjs')));
-  app.use('/vendor/onnxruntime-web', express.static(
-    path.join(__dirname, '..', 'node_modules', 'onnxruntime-web', 'dist'),
-    { maxAge: '1y', immutable: true }
-  ));
   app.use(assets.serveBundle);
   app.use(assets.cacheHeaders);
   app.use(express.static(path.join(__dirname, '..', 'public')));

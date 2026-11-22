@@ -331,14 +331,10 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
       assistantMessage: publicMessage(assistant, action ? publicAction(action,
         action.post ? `/posts/${action.post}${action.comment ? `#comment-${action.comment}` : ''}` : action.group ? `/groups/${action.group}` : action.recipient ? `/messages/${action.recipient}` : ''
       ) : null),
-      ...(isDirectReadTool(selectTool(userMessage.content)) ? { responseMode: 'retrieval' } : {}),
-      localInference: false
+      ...(isDirectReadTool(selectTool(userMessage.content)) ? { responseMode: 'retrieval' } : {})
     };
   }
-  const preferences = await getPreferences(userId);
-  const memories = preferences.localInference
-    ? await AiMemory.find({ user: userId }).sort({ updatedAt: -1 }).limit(10).select('kind text updatedAt').lean()
-    : [];
+  const memories = await AiMemory.find({ user: userId }).sort({ updatedAt: -1 }).limit(10).select('kind text updatedAt').lean();
   if (userMessage.actionDraft) {
     return {
       userMessage: publicMessage(userMessage),
@@ -346,8 +342,7 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
       context: userMessage.context || [],
       sources: userMessage.sources || [],
       memories,
-      actionDraft: userMessage.actionDraft,
-      localInference: true
+      actionDraft: userMessage.actionDraft
     };
   }
   const result = await executeCrowdwideTools({ query: userMessage.content, userId });
@@ -362,18 +357,7 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
     return {
       userMessage: publicMessage(userMessage),
       assistantMessage: publicMessage(assistant),
-      responseMode: 'retrieval',
-      localInference: false
-    };
-  }
-  if (preferences.localInference) {
-    return {
-      userMessage: publicMessage(userMessage),
-      turnId: String(userMessage._id),
-      context: userMessage.context || [],
-      sources: userMessage.sources || [],
-      memories,
-      localInference: true
+      responseMode: 'retrieval'
     };
   }
   const fallbackAssistant = await addAssistant(
@@ -385,8 +369,7 @@ async function resumeExistingTurn(userMessage, { userId, conversation }) {
   );
   return {
     userMessage: publicMessage(userMessage),
-    assistantMessage: publicMessage(fallbackAssistant),
-    localInference: false
+    assistantMessage: publicMessage(fallbackAssistant)
   };
 }
 
@@ -402,10 +385,7 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
       return resumeExistingTurn(existing, { userId, conversation });
     }
   }
-  const preferences = await getPreferences(userId);
-  const memories = preferences.localInference
-    ? await AiMemory.find({ user: userId }).sort({ updatedAt: -1 }).limit(10).select('kind text updatedAt').lean()
-    : [];
+  const memories = await AiMemory.find({ user: userId }).sort({ updatedAt: -1 }).limit(10).select('kind text updatedAt').lean();
   const actionRequest = parseActionRequest(content);
   const resolvedAction = actionRequest ? await resolveActionRequest(actionRequest, userId) : null;
   const knowledge = actionRequest?.draftPrompt
@@ -466,22 +446,16 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
   if (actionRequest) {
     if (resolvedAction?.error) {
       const assistant = await addAssistant(conversation._id, userId, userMessage._id, `I couldn't prepare that action: ${resolvedAction.error}`);
-      return { userMessage: publicMessage(userMessage), assistantMessage: publicMessage(assistant), localInference: false };
+      return { userMessage: publicMessage(userMessage), assistantMessage: publicMessage(assistant) };
     }
-    if (actionDraft && preferences.localInference) {
-      return {
-        userMessage: publicMessage(userMessage),
-        turnId: String(userMessage._id),
-        context: result.context,
-        sources: [],
-        memories,
-        actionDraft,
-        localInference: true
-      };
-    }
-    if (actionDraft && !preferences.localInference) {
-      const assistant = await addAssistant(conversation._id, userId, userMessage._id, 'Turn on on-device AI to generate a draft, or include the exact text after a colon.');
-      return { userMessage: publicMessage(userMessage), assistantMessage: publicMessage(assistant), localInference: false };
+    if (actionDraft) {
+      const assistant = await addAssistant(
+        conversation._id,
+        userId,
+        userMessage._id,
+        'This interface does not generate language-model text. Include the exact text after a colon, for example: `Publish this post: Hello Crowdwide`. No action has been prepared or executed.'
+      );
+      return { userMessage: publicMessage(userMessage), assistantMessage: publicMessage(assistant) };
     }
     const proposal = await createActionProposal(resolvedAction, {
       userId,
@@ -494,8 +468,7 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
     const assistant = await addAssistant(conversation._id, userId, userMessage._id, text, [], proposal.action?._id || null);
     return {
       userMessage: publicMessage(userMessage),
-      assistantMessage: publicMessage(assistant, proposal.preview || null),
-      localInference: false
+      assistantMessage: publicMessage(assistant, proposal.preview || null)
     };
   }
 
@@ -510,19 +483,7 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
     return {
       userMessage: publicMessage(userMessage),
       assistantMessage: publicMessage(assistant),
-      responseMode: 'retrieval',
-      localInference: false
-    };
-  }
-
-  if (preferences.localInference) {
-    return {
-      userMessage: publicMessage(userMessage),
-      turnId: String(userMessage._id),
-      context: result.context,
-      sources: result.sources,
-      memories,
-      localInference: true
+      responseMode: 'retrieval'
     };
   }
 
@@ -535,8 +496,7 @@ async function prepareTurn({ userId, conversation, content, clientRequestId }) {
   );
   return {
     userMessage: publicMessage(userMessage),
-    assistantMessage: publicMessage(assistant),
-    localInference: false
+    assistantMessage: publicMessage(assistant)
   };
 }
 
@@ -744,13 +704,7 @@ exports.regenerate = async (req, res) => {
     if (parseActionRequest(userMessage.content)) return res.status(400).json({ error: 'Action proposals cannot be regenerated.' });
     const conversation = await AiConversation.findOne({ _id: userMessage.conversation, user: ownerId(req) });
     if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
-    const [preferences, result] = await Promise.all([
-      getPreferences(ownerId(req)),
-      executeCrowdwideTools({ query: userMessage.content, userId: ownerId(req) })
-    ]);
-    const memories = preferences.localInference
-      ? await AiMemory.find({ user: ownerId(req) }).sort({ updatedAt: -1 }).limit(10).select('kind text updatedAt').lean()
-      : [];
+    const result = await executeCrowdwideTools({ query: userMessage.content, userId: ownerId(req) });
     await AiMessage.updateOne({ _id: userMessage._id, user: ownerId(req) }, { sources: result.sources, context: result.context });
     if (result.directResponse) {
       await AiMessage.deleteMany({
@@ -768,17 +722,7 @@ exports.regenerate = async (req, res) => {
       );
       return res.json({
         assistantMessage: publicMessage(assistant),
-        responseMode: 'retrieval',
-        localInference: false
-      });
-    }
-    if (preferences.localInference) {
-      return res.json({
-        turnId: String(userMessage._id),
-        context: result.context,
-        sources: result.sources,
-        memories,
-        localInference: true
+        responseMode: 'retrieval'
       });
     }
     await AiMessage.deleteMany({
@@ -796,8 +740,7 @@ exports.regenerate = async (req, res) => {
     );
     return res.json({
       assistantMessage: publicMessage(assistant),
-      ...(result.directResponse ? { responseMode: 'retrieval' } : {}),
-      localInference: false
+      ...(result.directResponse ? { responseMode: 'retrieval' } : {})
     });
   } catch (error) {
     return sendError(res, error, 'Could not regenerate Crowdwide AI response');
@@ -830,43 +773,10 @@ exports.fallbackTurn = async (req, res) => {
     );
     return res.json({
       assistantMessage: publicMessage(assistant),
-      ...(result.directResponse ? { responseMode: 'retrieval' } : {}),
-      localInference: false
+      ...(result.directResponse ? { responseMode: 'retrieval' } : {})
     });
   } catch (error) {
     return sendError(res, error, 'Could not create Crowdwide AI fallback response');
-  }
-};
-
-exports.saveLocalAnswer = async (req, res) => {
-  try {
-    if (!isValidId(req.params.id)) return res.status(404).json({ error: 'Message not found.' });
-    const content = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
-    if (!content || content.length > 12000) return res.status(400).json({ error: 'Responses must be 1–12,000 characters.' });
-    const userMessage = await AiMessage.findOne({ _id: req.params.id, user: ownerId(req), role: 'user' })
-      .select('conversation sources content');
-    if (!userMessage) return res.status(404).json({ error: 'Message not found.' });
-    if (isDirectReadTool(selectTool(userMessage.content))) {
-      return res.status(409).json({ error: 'This request is answered directly from verified Crowdwide data.' });
-    }
-    const conversation = await AiConversation.exists({ _id: userMessage.conversation, user: ownerId(req) });
-    if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
-    await AiMessage.deleteMany({
-      user: ownerId(req),
-      conversation: userMessage.conversation,
-      role: 'assistant',
-      replyTo: userMessage._id
-    });
-    const assistant = await addAssistant(
-      userMessage.conversation,
-      ownerId(req),
-      userMessage._id,
-      content,
-      userMessage.sources
-    );
-    return res.status(201).json({ assistantMessage: publicMessage(assistant) });
-  } catch (error) {
-    return sendError(res, error, 'Could not save local Crowdwide AI response');
   }
 };
 
@@ -874,8 +784,6 @@ exports.getPreferences = async (req, res) => {
   try {
     const preferences = await getPreferences(ownerId(req));
     return res.json({ preferences: {
-      localInference: preferences.localInference,
-      inferenceDevice: preferences.inferenceDevice || 'auto',
       theme: preferences.theme
     } });
   } catch (error) {
@@ -886,11 +794,6 @@ exports.getPreferences = async (req, res) => {
 exports.updatePreferences = async (req, res) => {
   try {
     const update = {};
-    if (typeof req.body?.localInference === 'boolean') {
-      update.localInference = req.body.localInference;
-      update.localInferenceDefaultMigrated = true;
-    }
-    if (['auto', 'cpu', 'gpu'].includes(req.body?.inferenceDevice)) update.inferenceDevice = req.body.inferenceDevice;
     if (['auto', 'light', 'dark'].includes(req.body?.theme)) update.theme = req.body.theme;
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Choose a supported AI setting to update.' });
     const preferences = await AiPreference.findOneAndUpdate(
@@ -899,8 +802,6 @@ exports.updatePreferences = async (req, res) => {
       { upsert: true, new: true, runValidators: true }
     ).lean();
     return res.json({ preferences: {
-      localInference: preferences.localInference,
-      inferenceDevice: preferences.inferenceDevice || 'auto',
       theme: preferences.theme
     } });
   } catch (error) {

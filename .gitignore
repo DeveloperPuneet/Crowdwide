@@ -1,5 +1,4 @@
 node_modules
-/public/js/crowdwide-ai-worker.bundle.js
 *.env
 .env
 *.mmm
