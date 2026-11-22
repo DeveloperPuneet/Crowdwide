@@ -31,7 +31,13 @@
   <section class="recap-panel wallet-adfree" id="ad-free">
     <div class="recap-section-heading"><div><p class="eyebrow">Waves premium</p><h2>Go Ad-Free</h2></div>
       <% if (adFreeInfo.active) { %><span class="wallet-adfree-status is-active"><%- icon('check', { size: 13 }) %> Active until <%= new Date(adFreeInfo.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span><% } %></div>
-    <p class="recap-muted">Hide TinyAds advertisements across Crowdwide. Buying again while active adds time to your plan.</p>
+    <p class="recap-muted">Hide TinyAds advertisements across Crowdwide. Buying again while active adds time to your plan. Cancel anytime to end Ad-Free and get Waves back for unused time.</p>
+    <% if (adFreeInfo.active) { %>
+    <form method="post" action="/wallet/ad-free/cancel" data-confirm="Cancel Ad-Free now? It will end immediately, and Waves for unused time will be refunded.">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="button button-danger button-small" type="submit">Cancel Ad-Free and refund unused Waves</button>
+    </form>
+    <% } %>
     <% if (adFreeInfo.enabled) { %>
     <div class="wallet-plan-grid">
       <% adFreeInfo.plans.forEach((plan) => { %>

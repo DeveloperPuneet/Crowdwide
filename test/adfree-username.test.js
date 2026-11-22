@@ -3,7 +3,9 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const ejs = require('ejs');
 const { icon } = require('../src/utils/icons');
-const { isAdFree, addMonths, PLAN_DEFS } = require('../src/services/adFree');
+const User = require('../src/models/User');
+const WavesLedgerEntry = require('../src/models/WavesLedgerEntry');
+const { isAdFree, addMonths, PLAN_DEFS, cancelAdFree, calculateAdFreeRefund } = require('../src/services/adFree');
 const { normalizeUsername, validateUsername } = require('../src/services/username');
 
 const views = path.join(__dirname, '..', 'src', 'views');
@@ -34,6 +36,73 @@ test('addMonths uses calendar months and clamps month ends', () => {
   assert.deepEqual(PLAN_DEFS.map((p) => p.months), [1, 4, 12]);
 });
 
+test('Ad-Free cancellation refunds only the unused Waves across stacked plans', () => {
+  const entries = [
+    { type: 'spend', referenceType: 'ad-free', description: 'Ad-Free plan (1 month)', amount: -100, createdAt: new Date('2026-01-01T00:00:00Z') },
+    { type: 'spend', referenceType: 'ad-free', description: 'Ad-Free plan (4 months)', amount: -360, createdAt: new Date('2026-01-10T00:00:00Z') }
+  ];
+  const now = new Date('2026-01-16T00:00:00Z');
+  const activeUntil = addMonths(addMonths(entries[0].createdAt, 1), 4);
+  const expected = 100 * (addMonths(entries[0].createdAt, 1) - now) / (addMonths(entries[0].createdAt, 1) - entries[0].createdAt) + 360;
+
+  assert.equal(calculateAdFreeRefund(entries, now, activeUntil), Number(expected.toFixed(6)));
+});
+
+test('Ad-Free refund calculation resets after a previous cancellation', () => {
+  const entries = [
+    { type: 'spend', referenceType: 'ad-free', description: 'Ad-Free plan (4 months)', amount: -360, createdAt: new Date('2026-01-01T00:00:00Z') },
+    { type: 'refund', referenceType: 'ad-free-cancellation', amount: 300, createdAt: new Date('2026-02-01T00:00:00Z') },
+    { type: 'spend', referenceType: 'ad-free', description: 'Ad-Free plan (1 month)', amount: -100, createdAt: new Date('2026-02-01T00:00:01Z') }
+  ];
+
+  assert.equal(calculateAdFreeRefund(entries, new Date('2026-02-15T00:00:01Z'), new Date('2026-03-01T00:00:01Z')), 50);
+});
+
+test('cancelAdFree atomically ends access and posts the unused-Waves refund', async (t) => {
+  const now = new Date('2026-01-16T00:00:00Z');
+  const activeUntil = new Date('2026-02-01T00:00:00Z');
+  const purchase = { referenceType: 'ad-free', description: 'Ad-Free plan (1 month)', amount: -100, createdAt: new Date('2026-01-01T00:00:00Z') };
+  const ledger = { async save() { return this; } };
+  let update;
+  t.mock.method(User, 'findById', () => ({ select() { return this; }, lean: async () => ({ adFreeUntil: activeUntil }) }));
+  t.mock.method(WavesLedgerEntry, 'find', () => ({
+    sort() { return this; }, select() { return this; }, lean: async () => [purchase]
+  }));
+  const createLedger = t.mock.method(WavesLedgerEntry, 'create', async (entry) => Object.assign(ledger, entry));
+  t.mock.method(User, 'findOneAndUpdate', (filter, changes) => {
+    update = { filter, changes };
+    return { select: async () => ({ wavesBalance: 75 }) };
+  });
+
+  const result = await cancelAdFree({ userId: 'u1', now });
+
+  assert.equal(result.refund, Number((100 * 16 / 31).toFixed(6)));
+  assert.equal(result.balance, 75);
+  assert.equal(update.filter.adFreeUntil, activeUntil);
+  assert.equal(update.changes.$set.adFreeUntil, null);
+  assert.equal(update.changes.$inc.wavesBalance, result.refund);
+  assert.equal(update.changes.$inc.wavesTotalSpent, -result.refund);
+  assert.equal(createLedger.mock.callCount(), 1);
+  assert.equal(ledger.type, 'refund');
+  assert.equal(ledger.status, 'posted');
+  assert.equal(ledger.balanceAfter, 75);
+});
+
+test('a concurrent Ad-Free cancellation cannot post a second refund', async (t) => {
+  const activeUntil = new Date('2026-02-01T00:00:00Z');
+  const ledger = { async save() { return this; } };
+  t.mock.method(User, 'findById', () => ({ select() { return this; }, lean: async () => ({ adFreeUntil: activeUntil }) }));
+  t.mock.method(WavesLedgerEntry, 'find', () => ({
+    sort() { return this; }, select() { return this; }, lean: async () => []
+  }));
+  t.mock.method(WavesLedgerEntry, 'create', async (entry) => Object.assign(ledger, entry));
+  t.mock.method(User, 'findOneAndUpdate', () => ({ select: async () => null }));
+
+  await assert.rejects(() => cancelAdFree({ userId: 'u1', now: new Date('2026-01-16T00:00:00Z') }), /plan changed before cancellation/i);
+  assert.equal(ledger.status, 'reversed');
+  assert.match(ledger.reason, /cancellation was not applied/);
+});
+
 test('usernames are normalised and validated', () => {
   assert.equal(normalizeUsername('  @Some_One '), 'some_one');
   assert.equal(validateUsername('ab').ok, false);
@@ -60,6 +129,8 @@ test('wallet disables plans the user cannot afford and shows active status', asy
   });
   assert.match(html, /Not enough Waves/);
   assert.match(html, /Active until/);
+  assert.match(html, /wallet\/ad-free\/cancel/);
+  assert.match(html, /unused time will be refunded/);
 });
 
 test('bottom menu renders for signed-in users except on chat threads', async () => {

@@ -2,7 +2,7 @@ const WavesLedgerEntry = require('../models/WavesLedgerEntry');
 const User = require('../models/User');
 const logger = require('../services/logger');
 const { getWalletSummary, transferWaves, getEarnGuide } = require('../services/waves');
-const { getAdFreePlans, purchaseAdFree, isAdFree } = require('../services/adFree');
+const { getAdFreePlans, purchaseAdFree, cancelAdFree, isAdFree } = require('../services/adFree');
 const { ensureUsername, normalizeUsername, USERNAME_PATTERN } = require('../services/username');
 
 exports.wallet = async (req, res) => {
@@ -77,6 +77,19 @@ exports.buyAdFree = async (req, res) => {
     logger.warn('Ad-Free purchase could not be completed', { userId: req.session.user.id, error });
     const expected = /not available|insufficient|not found|temporarily/i.test(error.message);
     req.session.flash = { type: 'error', message: expected ? error.message : 'The purchase could not be completed. Please try again later.' };
+  }
+  return res.redirect('/wallet');
+};
+
+exports.cancelAdFree = async (req, res) => {
+  try {
+    const result = await cancelAdFree({ userId: req.session.user.id });
+    const refundText = result.refund.toLocaleString('en', { maximumFractionDigits: 6 });
+    req.session.flash = { type: 'success', message: `Ad-Free has been cancelled. ${refundText} Waves were refunded for unused time.` };
+  } catch (error) {
+    logger.warn('Ad-Free cancellation could not be completed', { userId: req.session.user.id, error });
+    const expected = /account was not found|do not have an active|changed before cancellation|purchase history could not be calculated/i.test(error.message);
+    req.session.flash = { type: 'error', message: expected ? error.message : 'Ad-Free could not be cancelled. Please try again later.' };
   }
   return res.redirect('/wallet');
 };

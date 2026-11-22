@@ -44,6 +44,7 @@ router.get('/badges', requireAuth, requireVerified, badgeController.badgesPage);
 router.post('/setup/dismiss', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, badgeController.dismissSetup);
 router.get('/wallet', requireAuth, requireVerified, wavesController.wallet);
 router.post('/wallet/ad-free', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.buyAdFree);
+router.post('/wallet/ad-free/cancel', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.cancelAdFree);
 router.post('/wallet/transfer', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, wavesController.transfer);
 router.get('/partnerships', partnershipController.overview);
 router.get('/partnerships/apply', partnershipController.applyPage);

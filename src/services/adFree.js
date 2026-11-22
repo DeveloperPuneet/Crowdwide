@@ -41,6 +41,36 @@ function addMonths(date, months) {
   return result;
 }
 
+function calculateAdFreeRefund(entries, now, activeUntil) {
+  let segmentEnd = null;
+  let refundableWaves = 0;
+  const until = new Date(activeUntil).getTime();
+
+  for (const entry of entries) {
+    if (entry.referenceType === 'ad-free-cancellation') {
+      segmentEnd = null;
+      refundableWaves = 0;
+      continue;
+    }
+
+    const plan = PLAN_DEFS.find((item) => entry.description === `Ad-Free plan (${item.label})`);
+    const purchaseDate = new Date(entry.createdAt);
+    const paidWaves = Math.abs(Number(entry.amount));
+    if (!plan || !Number.isFinite(purchaseDate.getTime()) || !Number.isFinite(paidWaves)) {
+      throw new Error('Your Ad-Free purchase history could not be calculated. Please contact support.');
+    }
+
+    const startsAt = new Date(Math.max(purchaseDate.getTime(), segmentEnd?.getTime() || 0));
+    const endsAt = addMonths(startsAt, plan.months);
+    const durationMs = endsAt.getTime() - startsAt.getTime();
+    const remainingMs = Math.max(0, Math.min(endsAt.getTime(), until) - Math.max(now.getTime(), startsAt.getTime()));
+    if (durationMs > 0 && remainingMs > 0) refundableWaves += paidWaves * remainingMs / durationMs;
+    segmentEnd = endsAt;
+  }
+
+  return Number(refundableWaves.toFixed(6));
+}
+
 async function purchaseAdFree({ userId, planId, now = new Date() }) {
   const { enabled, plans } = await getAdFreePlans();
   const plan = plans.find((item) => item.id === planId);
@@ -85,4 +115,62 @@ async function purchaseAdFree({ userId, planId, now = new Date() }) {
   return { plan, adFreeUntil: charged.adFreeUntil, balance: charged.wavesBalance };
 }
 
-module.exports = { PLAN_DEFS, isAdFree, getAdFreePlans, purchaseAdFree, addMonths };
+async function cancelAdFree({ userId, now = new Date() }) {
+  const current = await User.findById(userId).select('adFreeUntil').lean();
+  const activeUntil = current?.adFreeUntil && new Date(current.adFreeUntil);
+  if (!current) throw new Error('Your account was not found.');
+  if (!activeUntil || !Number.isFinite(activeUntil.getTime()) || activeUntil <= now) {
+    throw new Error('You do not have an active Ad-Free plan to cancel.');
+  }
+
+  const entries = await WavesLedgerEntry.find({
+    user: userId,
+    status: 'posted',
+    $or: [
+      { type: 'spend', referenceType: 'ad-free' },
+      { type: 'refund', referenceType: 'ad-free-cancellation' }
+    ]
+  }).sort({ createdAt: 1, _id: 1 }).select('amount description referenceType createdAt').lean();
+  const refund = calculateAdFreeRefund(entries, now, activeUntil);
+  const ledger = await WavesLedgerEntry.create({
+    user: userId,
+    amount: refund,
+    balanceAfter: 0,
+    type: 'refund',
+    status: 'pending',
+    description: 'Ad-Free cancellation refund',
+    reason: `${refund} Waves refunded for unused Ad-Free time.`,
+    actor: userId,
+    referenceType: 'ad-free-cancellation',
+    rewardKey: `ad-free-cancellation:${randomUUID()}`
+  });
+
+  let cancelled;
+  try {
+    cancelled = await User.findOneAndUpdate({
+      _id: userId,
+      adFreeUntil: current.adFreeUntil
+    }, {
+      $set: { adFreeUntil: null },
+      $inc: { wavesBalance: refund, wavesTotalSpent: -refund }
+    }, { new: true }).select('wavesBalance');
+  } catch (error) {
+    ledger.status = 'reversed';
+    await ledger.save().catch((saveError) => logger.error('Ad-Free cancellation ledger reversal failed', saveError));
+    throw error;
+  }
+
+  if (!cancelled) {
+    ledger.status = 'reversed';
+    ledger.reason = 'Ad-Free cancellation was not applied because the plan changed.';
+    await ledger.save();
+    throw new Error('Your Ad-Free plan changed before cancellation. Please try again.');
+  }
+
+  ledger.balanceAfter = cancelled.wavesBalance;
+  ledger.status = 'posted';
+  await ledger.save();
+  return { refund, balance: cancelled.wavesBalance };
+}
+
+module.exports = { PLAN_DEFS, isAdFree, getAdFreePlans, purchaseAdFree, cancelAdFree, addMonths, calculateAdFreeRefund };
