@@ -89,10 +89,10 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
   });
   app.use('/vendor/leaflet', express.static(path.join(__dirname, '..', 'node_modules', 'leaflet', 'dist')));
   app.use('/vendor/prism', express.static(path.join(__dirname, '..', 'node_modules', 'prismjs')));
-  app.use('/vendor/web-llm', (req, res, next) => {
-    if (req.query.v === '0.2.87') res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    next();
-  }, express.static(path.join(__dirname, '..', 'node_modules', '@mlc-ai', 'web-llm', 'lib')));
+  app.use('/vendor/onnxruntime-web', express.static(
+    path.join(__dirname, '..', 'node_modules', 'onnxruntime-web', 'dist'),
+    { maxAge: '1y', immutable: true }
+  ));
   app.use(assets.serveBundle);
   app.use(assets.cacheHeaders);
   app.use(express.static(path.join(__dirname, '..', 'public')));

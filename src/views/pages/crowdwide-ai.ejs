@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'crowdwide-ai-page', pagePath, noIndex, aiPage: true }) %>
 <%- include('../partials/app-nav', { active: 'ai', currentUser, sideNav: true, hideBottomNav: true }) %>
-<main class="cw-ai" id="crowdwide-ai" data-model="Llama-3.2-1B-Instruct-q4f16_1-MLC">
+<main class="cw-ai" id="crowdwide-ai" data-model="HuggingFaceTB/SmolLM2-360M-Instruct">
   <button class="cw-ai-sidebar-backdrop" type="button" aria-label="Close conversation list" data-ai-sidebar-backdrop hidden></button>
   <aside class="cw-ai-sidebar" aria-label="Crowdwide AI conversations">
     <div class="cw-ai-sidebar-top">
@@ -62,7 +62,7 @@
           </div>
         </div>
       </form>
-      <p class="cw-ai-disclaimer">On-device AI is tried first and needs WebGPU plus a large first download. If it is unavailable, I’ll use verified search-based answers instead.</p>
+      <p class="cw-ai-disclaimer">On-device AI runs on your device. It prefers GPU when available and otherwise uses CPU; verified search answers are the fallback if inference is unavailable.</p>
     </div>
   </section>
 </main>
@@ -78,10 +78,17 @@
       <input type="checkbox" data-ai-local-toggle checked>
     </label>
     <div class="cw-ai-model-note">
-      <strong>Llama 3.2 · 1B · 4-bit</strong>
-      <p>Downloads about 1 GB of model files from Hugging Face on first use and caches them in this browser. The open-source runtime is served by Crowdwide. Requires a modern WebGPU browser, a compatible GPU and several GB of available memory. Download size and speed vary; mobile devices may struggle.</p>
-      <p>No model runs on Crowdwide’s Render server. If WebGPU or the download is unavailable, verified search results remain available.</p>
+      <strong>SmolLM2 · 360M · 4-bit</strong>
+      <p>Downloads about 388 MB of model weights from Hugging Face on first use and caches them in this browser. It uses CPU/WASM in a background worker on all supported browsers, and can use WebGPU when selected and available. Allow roughly 1–2 GB of free memory while it runs; speed depends on your device.</p>
+      <p>No model runs on Crowdwide’s Render server. If the browser, memory, download or inference is unsupported, verified search results remain available. This model is Apache-2.0 licensed.</p>
     </div>
+    <label class="cw-ai-setting-field">Inference device
+      <select data-ai-device-select>
+        <option value="auto">Automatic (GPU, then CPU)</option>
+        <option value="cpu">CPU (WASM)</option>
+        <option value="gpu">GPU (fallback to CPU)</option>
+      </select>
+    </label>
     <label class="cw-ai-setting-field">AI appearance
       <select data-ai-theme-select>
         <option value="auto">Match Crowdwide</option>

@@ -19,12 +19,16 @@ if (root) {
   const memoryStatus = $('[data-ai-memory-status]');
   const memoryList = $('[data-ai-memory-list]');
   const localToggle = $('[data-ai-local-toggle]');
+  const deviceSelect = $('[data-ai-device-select]');
   const themeSelect = $('[data-ai-theme-select]');
   const modelId = root.dataset.model;
+  const workerVersion = '4.3.2';
   let activeConversation = null;
   let messages = [];
-  let preferences = { localInference: true, theme: 'auto' };
-  let engine = null;
+  let preferences = { localInference: true, inferenceDevice: 'auto', theme: 'auto' };
+  let inferenceWorker = null;
+  let activeInference = null;
+  let inferenceRequestId = 0;
   let busy = false;
   let stopRequested = false;
   let activeTurnId = null;
@@ -115,6 +119,16 @@ if (root) {
       ? (['light', 'pink'].includes(document.body.dataset.theme) ? 'light' : 'dark')
       : selected;
     document.body.dataset.aiTheme = resolved;
+  }
+
+  function updateAiMode() {
+    const device = preferences.inferenceDevice || 'auto';
+    const deviceText = device === 'cpu' ? 'CPU/WASM'
+      : device === 'gpu' ? 'GPU preferred'
+        : 'GPU when available, otherwise CPU';
+    $('[data-ai-mode]').textContent = preferences.localInference
+      ? `On-device AI · ${deviceText} · Crowdwide sources`
+      : 'Grounded in public Crowdwide discussions';
   }
 
   function scrollToLatest() {
@@ -352,17 +366,48 @@ if (root) {
     messages = messages.filter((message) => message.id !== turnId && message.replyTo !== turnId);
   }
 
-  async function loadModel() {
-    if (!navigator.gpu) throw new Error('WebGPU is not available in this browser.');
-    if (engine) return engine;
-    setStatus('Loading the local AI runtime…');
-    const webllm = await import('/vendor/web-llm/index.js?v=0.2.87');
-    engine = await webllm.CreateMLCEngine(modelId, {
-      initProgressCallback: (progress) => {
-        if (progress?.text) setStatus(progress.text);
+  function getInferenceWorker() {
+    if (inferenceWorker) return inferenceWorker;
+    inferenceWorker = new Worker(`/js/crowdwide-ai-worker.bundle.js?v=${workerVersion}`, { type: 'module' });
+    inferenceWorker.addEventListener('message', ({ data }) => {
+      if (!activeInference || data.id !== activeInference.id) return;
+      if (data.type === 'progress') {
+        const progress = Number.isFinite(data.progress) ? ` ${Math.round(data.progress)}%` : '';
+        setStatus(`${data.message || 'Loading the on-device model…'}${progress}`);
+      } else if (data.type === 'device') {
+        setStatus(data.device === 'webgpu' ? 'Generating on this device with GPU…' : 'Generating on this device with CPU (WASM)…');
+      } else if (data.type === 'fallback') {
+        setStatus(`${data.message} Retrying with CPU (WASM)…`);
+      } else if (data.type === 'retry') {
+        activeInference.tokens = 0;
+        setStatus(data.message);
+      } else if (data.type === 'token') {
+        activeInference.tokens += 1;
+        if (activeInference.tokens % 12 === 0) {
+          setStatus(`Generating on ${data.device === 'webgpu' ? 'GPU' : 'CPU (WASM)'}… ${activeInference.tokens} tokens`);
+        }
+      } else if (data.type === 'done') {
+        const { resolve } = activeInference;
+        activeInference = null;
+        resolve(data.answer);
+      } else if (data.type === 'error') {
+        const { reject } = activeInference;
+        activeInference = null;
+        inferenceWorker?.terminate();
+        inferenceWorker = null;
+        reject(new Error(data.message || 'On-device inference failed.'));
       }
     });
-    return engine;
+    inferenceWorker.addEventListener('error', (event) => {
+      event.preventDefault();
+      if (!activeInference) return;
+      const { reject } = activeInference;
+      activeInference = null;
+      inferenceWorker?.terminate();
+      inferenceWorker = null;
+      reject(new Error('The on-device AI worker failed to start.'));
+    });
+    return inferenceWorker;
   }
 
   function localPrompt(turn, priorMessages) {
@@ -396,26 +441,21 @@ if (root) {
   }
 
   async function generateLocal(turn, priorMessages) {
-    const activeEngine = await loadModel();
     if (stopRequested) return '';
-    setStatus('Crowdwide AI is thinking on this device…');
+    const worker = getInferenceWorker();
+    const id = ++inferenceRequestId;
+    setStatus('Starting the on-device model…');
     stopButton.hidden = false;
-    const stream = await activeEngine.chat.completions.create({
-      messages: localPrompt(turn, priorMessages),
-      temperature: 0.35,
-      max_tokens: 700,
-      stream: true
+    return new Promise((resolve, reject) => {
+      activeInference = { id, resolve, reject, tokens: 0 };
+      worker.postMessage({
+        type: 'generate',
+        id,
+        model: modelId,
+        device: preferences.inferenceDevice || 'auto',
+        messages: localPrompt(turn, priorMessages)
+      });
     });
-    let text = '';
-    for await (const chunk of stream) {
-      if (stopRequested) {
-        activeEngine.interruptGenerate();
-        break;
-      }
-      text += chunk.choices?.[0]?.delta?.content || '';
-      setStatus('Crowdwide AI is writing on this device…');
-    }
-    return text.trim();
   }
 
   async function showFallback(turnId, reason = '') {
@@ -587,11 +627,10 @@ if (root) {
       const data = await request('/api/ai/preferences');
       preferences = data.preferences;
       localToggle.checked = preferences.localInference;
+      deviceSelect.value = preferences.inferenceDevice || 'auto';
       themeSelect.value = preferences.theme;
       updateTheme(preferences.theme);
-      $('[data-ai-mode]').textContent = preferences.localInference
-        ? 'On-device AI enabled · Crowdwide search supplies the sources'
-        : 'Grounded in public Crowdwide discussions';
+      updateAiMode();
     } catch (error) {
       setStatus(error.message);
     }
@@ -602,13 +641,15 @@ if (root) {
     try {
       const data = await request('/api/ai/preferences', {
         method: 'PATCH',
-        body: { localInference: localToggle.checked, theme: themeSelect.value }
+        body: {
+          localInference: localToggle.checked,
+          inferenceDevice: deviceSelect.value,
+          theme: themeSelect.value
+        }
       });
       preferences = data.preferences;
       updateTheme(preferences.theme);
-      $('[data-ai-mode]').textContent = preferences.localInference
-        ? 'On-device AI enabled · Crowdwide search supplies the sources'
-        : 'Grounded in public Crowdwide discussions';
+      updateAiMode();
       settingsStatus.textContent = 'Settings saved.';
     } catch (error) {
       settingsStatus.textContent = error.message;
@@ -759,8 +800,14 @@ if (root) {
   });
   stopButton.addEventListener('click', () => {
     stopRequested = true;
-    if (engine?.interruptGenerate) engine.interruptGenerate();
-    setStatus(engine ? 'Stopping generation…' : 'The model is still loading. Its download cannot be interrupted; search fallback will be shown when loading finishes.');
+    if (activeInference) {
+      inferenceWorker?.terminate();
+      inferenceWorker = null;
+      const { reject } = activeInference;
+      activeInference = null;
+      reject(new Error('Generation stopped.'));
+    }
+    setStatus('Stopping generation…');
   });
   $$('[data-ai-settings-open]').forEach((button) => button.addEventListener('click', async () => {
     await loadPreferences();

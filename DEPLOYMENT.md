@@ -338,16 +338,18 @@ reused when configured; without it, bounded MongoDB queries remain available.
 No database dump is sent to a model. Conversation and memory APIs always scope
 reads and writes to the authenticated member.
 
-On the first message, the browser loads the open-source WebLLM runtime served
-by Crowdwide and downloads the Llama 3.2 1B 4-bit model files from Hugging Face.
-The model download is roughly 1 GB and is cached by the browser; it is not
-stored on Render. Inference uses the member's WebGPU-capable device, not the
-Crowdwide server. It can be slow or unavailable on older browsers, low-memory
-devices, or unsupported GPUs. If the runtime, WebGPU, or download fails, the
-interface explains the issue and uses the search-based fallback. No paid API
-is used and there is no silent switch to a hosted model. The runtime itself is
-served from the app; the CSP allows the model asset hosts needed for this
-feature. Members can turn local inference off in AI settings.
+On the first message, the browser loads the locally served Transformers.js and
+ONNX Runtime Web code and downloads the Apache-2.0 SmolLM2 360M instruction
+model's 4-bit ONNX weights from Hugging Face. The model file is about 388 MB
+and is cached by the browser; it is not stored on Render. Inference runs in a
+background worker on the member's device. CPU/WASM is supported without
+WebGPU; automatic mode tries WebGPU when the browser exposes a usable adapter
+and retries on CPU if GPU setup or inference fails. The CPU model can use over
+1 GB of browser memory and may be slow on low-end devices. If model download,
+memory allocation, or inference fails, the interface explains the issue and
+uses the search-based fallback. No paid API or hosted inference is used.
+Members can select automatic, CPU, or GPU (with CPU fallback), or turn local
+inference off in AI settings.
 
 The local model is small and may make mistakes. Crowdwide records are passed
 as untrusted evidence, and responses are prompted to cite retrieved sources;
@@ -360,7 +362,8 @@ proposals expire after ten minutes.
 ### Deploying on Render
 
 1. Deploy the existing Crowdwide repository as a **Node Web Service**. Use
-   **Build Command** `npm ci` and **Start Command** `npm start`.
+   **Build Command** `npm ci` and **Start Command** `npm start`. The start
+   script bundles the browser inference worker before starting Express.
 2. Set `NODE_ENV=production`, `TRUST_PROXY_HOPS=1`, `APP_URL` to the
    deployment's public HTTPS origin, a strong unique `SESSION_SECRET`, and
    `MONGODB_URI` to the MongoDB database already used by Crowdwide.
@@ -369,12 +372,10 @@ proposals expire after ten minutes.
    secrets or billing setup are needed.
 4. Deploy. Mongoose creates the AI collection indexes at startup. Verify
    `/health`, sign in, and open `/crowdwide-ai`.
-5. Test the default on-device AI mode. The user's browser must allow WebGPU
-   and outbound HTTPS to Hugging Face's model/CDN
-   hosts and raw.githubusercontent.com for model metadata or assets requested
-   by WebLLM.
-   The initial model download can be large; it does not consume Render
-   compute or disk.
+5. Test the default on-device AI mode. The browser needs WebAssembly support
+   and outbound HTTPS to Hugging Face's model/CDN hosts. WebGPU is optional.
+   The initial model download is about 388 MB; it does not consume Render
+   inference compute or model storage.
 
 Render's free service can sleep and has limited request CPU/memory, so normal
 MongoDB retrieval remains intentionally small and synchronous. Local model

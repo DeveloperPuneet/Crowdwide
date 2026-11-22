@@ -392,7 +392,11 @@ exports.saveLocalAnswer = async (req, res) => {
 exports.getPreferences = async (req, res) => {
   try {
     const preferences = await getPreferences(ownerId(req));
-    return res.json({ preferences: { localInference: preferences.localInference, theme: preferences.theme } });
+    return res.json({ preferences: {
+      localInference: preferences.localInference,
+      inferenceDevice: preferences.inferenceDevice || 'auto',
+      theme: preferences.theme
+    } });
   } catch (error) {
     return sendError(res, error, 'Could not load Crowdwide AI settings');
   }
@@ -405,6 +409,7 @@ exports.updatePreferences = async (req, res) => {
       update.localInference = req.body.localInference;
       update.localInferenceDefaultMigrated = true;
     }
+    if (['auto', 'cpu', 'gpu'].includes(req.body?.inferenceDevice)) update.inferenceDevice = req.body.inferenceDevice;
     if (['auto', 'light', 'dark'].includes(req.body?.theme)) update.theme = req.body.theme;
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Choose a supported AI setting to update.' });
     const preferences = await AiPreference.findOneAndUpdate(
@@ -412,7 +417,11 @@ exports.updatePreferences = async (req, res) => {
       { $set: update, $setOnInsert: { user: ownerId(req) } },
       { upsert: true, new: true, runValidators: true }
     ).lean();
-    return res.json({ preferences: { localInference: preferences.localInference, theme: preferences.theme } });
+    return res.json({ preferences: {
+      localInference: preferences.localInference,
+      inferenceDevice: preferences.inferenceDevice || 'auto',
+      theme: preferences.theme
+    } });
   } catch (error) {
     return sendError(res, error, 'Could not save Crowdwide AI settings');
   }

@@ -24,6 +24,7 @@ function fakeRes() {
 
 test('on-device AI is enabled by default and existing preferences are migrated once', async (t) => {
   assert.equal(AiPreference.schema.path('localInference').defaultValue, true);
+  assert.equal(AiPreference.schema.path('inferenceDevice').defaultValue, 'auto');
   const migration = t.mock.method(AiPreference, 'updateMany', async () => ({ modifiedCount: 1 }));
 
   await enableLocalInferenceByDefault();
@@ -39,17 +40,18 @@ test('saving an AI opt-out marks it as an intentional preference', async (t) => 
   let update;
   t.mock.method(AiPreference, 'findOneAndUpdate', (_filter, changes) => {
     update = changes.$set;
-    return { lean: async () => ({ localInference: false, theme: 'auto' }) };
+    return { lean: async () => ({ localInference: false, inferenceDevice: 'cpu', theme: 'auto' }) };
   });
   const res = fakeRes();
 
   await aiController.updatePreferences({
-    body: { localInference: false },
+    body: { localInference: false, inferenceDevice: 'cpu' },
     session: { user: { id: userId } }
   }, res);
 
-  assert.deepEqual(update, { localInference: false, localInferenceDefaultMigrated: true });
+  assert.deepEqual(update, { localInference: false, localInferenceDefaultMigrated: true, inferenceDevice: 'cpu' });
   assert.equal(res.body.preferences.localInference, false);
+  assert.equal(res.body.preferences.inferenceDevice, 'cpu');
 });
 
 test('Crowdwide AI extracts search topics from conversational requests', () => {
