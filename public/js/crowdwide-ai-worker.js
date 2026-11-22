@@ -83,6 +83,7 @@ async function runGeneration(id, messages) {
     skip_prompt: true,
     callback_function: (text) => {
       streamedText += text;
+      if (text) send(id, 'text', { text });
     },
     token_callback_function: () => {
       tokenCount += 1;
@@ -90,7 +91,7 @@ async function runGeneration(id, messages) {
     }
   });
   const result = await generator(messages, {
-    max_new_tokens: 256,
+    max_new_tokens: 128,
     do_sample: true,
     temperature: 0.4,
     top_p: 0.9,

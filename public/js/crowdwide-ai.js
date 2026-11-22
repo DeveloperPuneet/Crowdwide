@@ -22,7 +22,7 @@ if (root) {
   const deviceSelect = $('[data-ai-device-select]');
   const themeSelect = $('[data-ai-theme-select]');
   const modelId = root.dataset.model;
-  const workerVersion = '4.3.2';
+  const workerVersion = '4.3.2-streaming';
   let activeConversation = null;
   let messages = [];
   let preferences = { localInference: true, inferenceDevice: 'auto', theme: 'auto' };
@@ -381,6 +381,8 @@ if (root) {
       } else if (data.type === 'retry') {
         activeInference.tokens = 0;
         setStatus(data.message);
+      } else if (data.type === 'text') {
+        activeInference.onText(data.text);
       } else if (data.type === 'token') {
         activeInference.tokens += 1;
         if (activeInference.tokens % 12 === 0) {
@@ -440,14 +442,14 @@ if (root) {
     ];
   }
 
-  async function generateLocal(turn, priorMessages) {
+  async function generateLocal(turn, priorMessages, onText) {
     if (stopRequested) return '';
     const worker = getInferenceWorker();
     const id = ++inferenceRequestId;
     setStatus('Starting the on-device model…');
     stopButton.hidden = false;
     return new Promise((resolve, reject) => {
-      activeInference = { id, resolve, reject, tokens: 0 };
+      activeInference = { id, resolve, reject, tokens: 0, onText };
       worker.postMessage({
         type: 'generate',
         id,
@@ -456,6 +458,59 @@ if (root) {
         messages: localPrompt(turn, priorMessages)
       });
     });
+  }
+
+  function createStreamingMessage(id) {
+    const article = renderMessage({ id: `streaming-${id}`, role: 'assistant', content: '' });
+    article.querySelector('.cw-ai-message-tools')?.remove();
+    article.setAttribute('aria-live', 'off');
+    const body = article.querySelector('.cw-ai-message-body');
+    body.textContent = '…';
+    messagesNode.append(article);
+    welcome.hidden = true;
+    scrollToLatest();
+
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let fullText = '';
+    let displayedText = '';
+    let queuedCharacters = [];
+    let timer = null;
+    const showNextCharacter = () => {
+      if (!queuedCharacters.length) {
+        timer = null;
+        return;
+      }
+      displayedText += queuedCharacters.shift();
+      body.textContent = displayedText;
+      scrollToLatest();
+      timer = setTimeout(showNextCharacter, 12);
+    };
+
+    return {
+      article,
+      append(text) {
+        fullText += text;
+        if (prefersReducedMotion) {
+          displayedText = fullText;
+          body.textContent = displayedText;
+          scrollToLatest();
+          return;
+        }
+        queuedCharacters.push(...Array.from(text));
+        if (timer === null) showNextCharacter();
+      },
+      finish() {
+        if (timer !== null) clearTimeout(timer);
+        timer = null;
+        queuedCharacters = [];
+        body.textContent = fullText;
+      },
+      cancel() {
+        if (timer !== null) clearTimeout(timer);
+        timer = null;
+        queuedCharacters = [];
+      }
+    };
   }
 
   async function showFallback(turnId, reason = '') {
@@ -472,12 +527,20 @@ if (root) {
     activeTurnId = turn.turnId;
     stopRequested = false;
     stopButton.hidden = false;
+    let streamingMessage = null;
     const prior = messages.filter((message) => message.id !== turn.turnId && message.replyTo !== turn.turnId);
     const userMessage = messages.find((message) => message.id === turn.turnId);
     try {
       if (!userMessage) throw new Error('The saved message could not be loaded.');
-      const answer = await generateLocal({ ...turn, content: userMessage.content }, prior);
+      streamingMessage = createStreamingMessage(inferenceRequestId + 1);
+      const answer = await generateLocal(
+        { ...turn, content: userMessage.content },
+        prior,
+        (text) => streamingMessage.append(text)
+      );
+      streamingMessage.finish();
       if (!answer) {
+        streamingMessage.article.remove();
         await showFallback(turn.turnId, stopRequested ? 'Generation stopped.' : 'The local model did not return a response.');
         return;
       }
@@ -486,10 +549,13 @@ if (root) {
         method: 'POST',
         body: { content: answer }
       });
+      streamingMessage.article.remove();
       data.assistantMessage.replyTo = turn.turnId;
       appendMessage(data.assistantMessage);
       setStatus(stopRequested ? 'Generation stopped. Partial answer saved.' : 'Generated locally on this device.');
     } catch (error) {
+      streamingMessage?.cancel();
+      streamingMessage?.article.remove();
       await showFallback(turn.turnId, error.message);
     } finally {
       activeTurnId = null;
