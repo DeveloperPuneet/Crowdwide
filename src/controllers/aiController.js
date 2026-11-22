@@ -401,7 +401,10 @@ exports.getPreferences = async (req, res) => {
 exports.updatePreferences = async (req, res) => {
   try {
     const update = {};
-    if (typeof req.body?.localInference === 'boolean') update.localInference = req.body.localInference;
+    if (typeof req.body?.localInference === 'boolean') {
+      update.localInference = req.body.localInference;
+      update.localInferenceDefaultMigrated = true;
+    }
     if (['auto', 'light', 'dark'].includes(req.body?.theme)) update.theme = req.body.theme;
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Choose a supported AI setting to update.' });
     const preferences = await AiPreference.findOneAndUpdate(

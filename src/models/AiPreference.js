@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const aiPreferenceSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-  localInference: { type: Boolean, default: false },
+  localInference: { type: Boolean, default: true },
+  localInferenceDefaultMigrated: { type: Boolean, default: true, select: false },
   theme: { type: String, enum: ['auto', 'light', 'dark'], default: 'auto' }
 }, { timestamps: true });
 

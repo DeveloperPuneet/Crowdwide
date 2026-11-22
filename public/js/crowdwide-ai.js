@@ -23,7 +23,7 @@ if (root) {
   const modelId = root.dataset.model;
   let activeConversation = null;
   let messages = [];
-  let preferences = { localInference: false, theme: 'auto' };
+  let preferences = { localInference: true, theme: 'auto' };
   let engine = null;
   let busy = false;
   let stopRequested = false;
@@ -479,7 +479,7 @@ if (root) {
         appendMessage(data.assistantMessage);
         const actionStatus = data.assistantMessage.action?.status;
         setStatus(actionStatus === 'pending' ? 'Waiting for your confirmation before changing anything.' : 'Search-based answer · no language model was used.');
-      } else if (data.localInference && preferences.localInference) {
+      } else if (data.localInference) {
         await runLocalTurn({ ...data, content: content.trim() });
       }
       await loadConversationList(conversationSearch.value.trim());

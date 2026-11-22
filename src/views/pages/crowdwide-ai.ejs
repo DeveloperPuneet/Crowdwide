@@ -28,7 +28,7 @@
       <div class="cw-ai-topbar-title">
         <button class="cw-ai-icon-button cw-ai-sidebar-toggle" type="button" data-ai-sidebar-toggle aria-label="Open conversation list"><%- icon('menu', { size: 19 }) %></button>
         <span class="cw-ai-mark cw-ai-mark-small" aria-hidden="true"><%- icon('sparkles', { size: 16 }) %></span>
-        <div><h1 data-ai-title>Crowdwide AI</h1><p data-ai-mode>Grounded in public Crowdwide discussions</p></div>
+        <div><h1 data-ai-title>Crowdwide AI</h1><p data-ai-mode>On-device AI · grounded in public Crowdwide discussions</p></div>
       </div>
       <button class="cw-ai-icon-button cw-ai-mobile-settings" type="button" data-ai-settings-open aria-label="AI settings"><%- icon('settings', { size: 18 }) %></button>
     </header>
@@ -62,7 +62,7 @@
           </div>
         </div>
       </form>
-      <p class="cw-ai-disclaimer">Search-based answers work everywhere. Optional on-device AI needs WebGPU and a large first download; it can be slow on some devices.</p>
+      <p class="cw-ai-disclaimer">On-device AI is tried first and needs WebGPU plus a large first download. If it is unavailable, I’ll use verified search-based answers instead.</p>
     </div>
   </section>
 </main>
@@ -75,7 +75,7 @@
   <div class="cw-ai-dialog-content">
     <label class="cw-ai-setting-row">
       <span><strong>On-device AI</strong><small>Run an open model on this device. Your prompt and retrieved Crowdwide text are processed locally after they load in your browser.</small></span>
-      <input type="checkbox" data-ai-local-toggle>
+      <input type="checkbox" data-ai-local-toggle checked>
     </label>
     <div class="cw-ai-model-note">
       <strong>Llama 3.2 · 1B · 4-bit</strong>

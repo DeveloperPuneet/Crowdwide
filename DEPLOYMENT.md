@@ -330,25 +330,24 @@ server, or database service is required. Conversation, message, memory,
 preference and pending-action collections are created by Mongoose when the
 app starts; their owner-scoped indexes are declared in the models.
 
-The default mode is a bounded MongoDB search-and-cite fallback. It searches
-only published content visible to the signed-in member, excludes reported
-posts and applies the existing private-profile, private-community, blocked
-and muted-user rules. Optional Meilisearch is reused when configured; without
-it, bounded MongoDB queries remain available. No database dump is sent to a
-model. Conversation and memory APIs always scope reads and writes to the
-authenticated member.
+The default mode tries local inference first and uses bounded MongoDB search as
+a fallback. Search only covers published content visible to the signed-in
+member, excludes reported posts and applies the existing private-profile,
+private-community, blocked and muted-user rules. Optional Meilisearch is
+reused when configured; without it, bounded MongoDB queries remain available.
+No database dump is sent to a model. Conversation and memory APIs always scope
+reads and writes to the authenticated member.
 
-Members may explicitly enable local inference in AI settings. On the first
-message after enabling it, the browser loads the open-source WebLLM runtime
-served by Crowdwide and downloads the Llama 3.2 1B 4-bit model files from
-Hugging Face. The model download is roughly 1 GB and is cached by the browser;
-it is not stored on Render. Inference uses the member's WebGPU-capable device, not the
+On the first message, the browser loads the open-source WebLLM runtime served
+by Crowdwide and downloads the Llama 3.2 1B 4-bit model files from Hugging Face.
+The model download is roughly 1 GB and is cached by the browser; it is not
+stored on Render. Inference uses the member's WebGPU-capable device, not the
 Crowdwide server. It can be slow or unavailable on older browsers, low-memory
 devices, or unsupported GPUs. If the runtime, WebGPU, or download fails, the
 interface explains the issue and uses the search-based fallback. No paid API
 is used and there is no silent switch to a hosted model. The runtime itself is
-served from the app; the CSP adds only the model asset hosts needed for this
-opt-in feature.
+served from the app; the CSP allows the model asset hosts needed for this
+feature. Members can turn local inference off in AI settings.
 
 The local model is small and may make mistakes. Crowdwide records are passed
 as untrusted evidence, and responses are prompted to cite retrieved sources;
@@ -370,9 +369,8 @@ proposals expire after ten minutes.
    secrets or billing setup are needed.
 4. Deploy. Mongoose creates the AI collection indexes at startup. Verify
    `/health`, sign in, and open `/crowdwide-ai`.
-5. Test the default search mode first. To try local inference, open **AI
-   settings**, enable **On-device AI**, and send a prompt. The user's
-   browser must allow WebGPU and outbound HTTPS to Hugging Face's model/CDN
+5. Test the default on-device AI mode. The user's browser must allow WebGPU
+   and outbound HTTPS to Hugging Face's model/CDN
    hosts and raw.githubusercontent.com for model metadata or assets requested
    by WebLLM.
    The initial model download can be large; it does not consume Render

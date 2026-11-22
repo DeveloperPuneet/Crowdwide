@@ -48,8 +48,8 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
 - **Crowdwide AI** (`/crowdwide-ai`): private conversation history and
   editable user memories, privacy-filtered search across public Crowdwide
   posts/comments/profiles/communities, source links, and confirmed post
-  actions. Search-based answers work without an AI model; optional WebGPU
-  inference runs in the member's browser. See
+  actions. WebGPU inference runs in the member's browser by default, with
+  privacy-filtered search-based answers as a fallback. See
   [zero-cost AI setup](./DEPLOYMENT.md#crowdwide-ai-zero-cost).
 
 ### Communities

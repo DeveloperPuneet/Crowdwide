@@ -7,6 +7,7 @@ const AiMemory = require('../src/models/AiMemory');
 const AiPreference = require('../src/models/AiPreference');
 const aiController = require('../src/controllers/aiController');
 const { deleteAiDataForUser } = require('../src/services/aiData');
+const { enableLocalInferenceByDefault } = require('../src/services/aiPreferenceMigration');
 const {
   buildFallbackResponse,
   extractSearchQuery,
@@ -20,6 +21,36 @@ function fakeRes() {
   res.json = (body) => { res.body = body; return res; };
   return res;
 }
+
+test('on-device AI is enabled by default and existing preferences are migrated once', async (t) => {
+  assert.equal(AiPreference.schema.path('localInference').defaultValue, true);
+  const migration = t.mock.method(AiPreference, 'updateMany', async () => ({ modifiedCount: 1 }));
+
+  await enableLocalInferenceByDefault();
+
+  assert.deepEqual(migration.mock.calls[0].arguments, [
+    { localInferenceDefaultMigrated: { $ne: true } },
+    { $set: { localInference: true, localInferenceDefaultMigrated: true } }
+  ]);
+});
+
+test('saving an AI opt-out marks it as an intentional preference', async (t) => {
+  const userId = '507f1f77bcf86cd799439012';
+  let update;
+  t.mock.method(AiPreference, 'findOneAndUpdate', (_filter, changes) => {
+    update = changes.$set;
+    return { lean: async () => ({ localInference: false, theme: 'auto' }) };
+  });
+  const res = fakeRes();
+
+  await aiController.updatePreferences({
+    body: { localInference: false },
+    session: { user: { id: userId } }
+  }, res);
+
+  assert.deepEqual(update, { localInference: false, localInferenceDefaultMigrated: true });
+  assert.equal(res.body.preferences.localInference, false);
+});
 
 test('Crowdwide AI extracts search topics from conversational requests', () => {
   assert.equal(extractSearchQuery('Find posts about community building'), 'community building');
