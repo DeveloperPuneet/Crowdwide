@@ -24,7 +24,6 @@ const { parseRange } = require('../services/storageCluster');
 const { renderInlineText, notifyMentionedUsers } = require('../services/mentions');
 const { notify } = require('./interactionController');
 const { toggleReaction } = require('../utils/reactions');
-const { loadConfirmedAiAction, completeAiAction } = require('../services/aiActions');
 
 const NOTIFY_QUIET_MS = 10 * 60 * 1000;
 const isXhr = (req) => req.get('X-Requested-With') === 'XMLHttpRequest';
@@ -297,19 +296,8 @@ exports.dmSend = async (req, res) => {
   const fallback = `/messages/${req.params.id}`;
   try {
     const userId = req.session.user.id;
-    const aiAction = await loadConfirmedAiAction(req.body?.aiActionId, userId, 'send_message');
-    if (req.body?.aiActionId && (!aiAction || String(aiAction.recipient) !== String(req.params.id))) {
-      return sendFailure(req, res, 403, 'That confirmed AI message is no longer available.', fallback);
-    }
-    if (aiAction) {
-      const existing = await Message.findOne({ aiActionId: aiAction._id }).select('_id').lean();
-      if (existing) {
-        await completeAiAction(aiAction, existing._id);
-        return res.json({ ok: true, message: { _id: existing._id }, duplicate: true });
-      }
-    }
     const { body: submittedBody, gif, attachment } = sanitizedContent(req);
-    const body = aiAction ? aiAction.content : submittedBody;
+    const body = submittedBody;
     if ((!body && !gif && !attachment) || body.length > 2000) return sendFailure(req, res, 400, 'Write a message, attach a file, or pick a GIF. Text is limited to 2,000 characters.', fallback);
     const recipient = await User.findById(req.params.id).select('_id isVerified blockedUsers').lean();
     const viewer = await User.findById(userId).select('blockedUsers acceptedDmFrom').lean();
@@ -323,7 +311,7 @@ exports.dmSend = async (req, res) => {
     if (!everMessagedBefore && await tooManyNewDmRequests(Message, userId)) {
       return sendFailure(req, res, 429, "You've started a lot of new conversations recently. Try again later.", fallback);
     }
-    const message = await Message.create({ sender: userId, recipient: recipient._id, body, aiActionId: aiAction?._id, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}), ...(replyTo ? { replyTo: replyTo._id } : {}) });
+    const message = await Message.create({ sender: userId, recipient: recipient._id, body, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}), ...(replyTo ? { replyTo: replyTo._id } : {}) });
     // Replying to someone (including replying to a pending request from
     // them) is an explicit signal of acceptance - no separate click needed.
     const alreadyAccepted = (viewer?.acceptedDmFrom || []).some((id) => String(id) === String(recipient._id));
@@ -332,20 +320,11 @@ exports.dmSend = async (req, res) => {
     }
     notifyMessage({ recipient: recipient._id, actor: userId, text: attachment && !body && !gif ? 'sent you an attachment.' : gif && !body ? 'sent you a GIF.' : 'sent you a message.', actorName: req.session.user.name, url: `/messages/${userId}` })
       .catch((error) => logger.error('Message notification failed', error));
-    await completeAiAction(aiAction, message._id);
     if (!isXhr(req)) return res.redirect(fallback);
     const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture }, ...(replyTo ? { replyTo } : {}) };
     const [item] = await renderMessages(res, [shaped], { group: false, viewerId: userId, reportBaseUrl: `/messages/${recipient._id}` });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
-    if (error?.code === 11000 && req.body?.aiActionId) {
-      const aiAction = await loadConfirmedAiAction(req.body.aiActionId, req.session.user.id, 'send_message');
-      const existing = await Message.findOne({ aiActionId: req.body.aiActionId }).select('_id').lean();
-      if (aiAction && existing) {
-        await completeAiAction(aiAction, existing._id);
-        return res.json({ ok: true, message: { _id: existing._id }, duplicate: true });
-      }
-    }
     logger.error('Sending message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
   }
@@ -523,24 +502,13 @@ exports.groupSend = async (req, res) => {
   try {
     const userId = req.session.user.id;
     const group = await GroupConversation.findById(req.params.id).select('members name');
-    const aiAction = await loadConfirmedAiAction(req.body?.aiActionId, userId, 'send_message');
-    if (req.body?.aiActionId && (!aiAction || String(aiAction.group) !== String(req.params.id))) {
-      return sendFailure(req, res, 403, 'That confirmed AI group message is no longer available.', fallback);
-    }
-    if (aiAction) {
-      const existing = await GroupMessage.findOne({ aiActionId: aiAction._id }).select('_id').lean();
-      if (existing) {
-        await completeAiAction(aiAction, existing._id);
-        return res.json({ ok: true, message: { _id: existing._id }, duplicate: true });
-      }
-    }
     const { body: submittedBody, gif, attachment } = sanitizedContent(req);
-    const body = aiAction ? aiAction.content : submittedBody;
+    const body = submittedBody;
     if (!memberOf(group, userId)) return sendFailure(req, res, 403, 'That message could not be sent.', '/groups');
     if ((!body && !gif && !attachment) || body.length > 2000) return sendFailure(req, res, 400, 'Write a message, attach a file, or pick a GIF. Text is limited to 2,000 characters.', fallback);
     const replyTo = await findReplyTarget(GroupMessage, { group: group._id }, req.body.replyTo);
     if (replyTo === false) return sendFailure(req, res, 400, 'That reply could not be sent because the message was not found in this group.', fallback);
-    const message = await GroupMessage.create({ group: group._id, sender: userId, body, aiActionId: aiAction?._id, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}), ...(replyTo ? { replyTo: replyTo._id } : {}) });
+    const message = await GroupMessage.create({ group: group._id, sender: userId, body, ...(gif ? { gif } : {}), ...(attachment ? { attachment } : {}), ...(replyTo ? { replyTo: replyTo._id } : {}) });
     await GroupConversation.updateOne({ _id: group._id }, { updatedAt: new Date() });
     const others = group.members.filter((id) => String(id) !== String(userId));
     Promise.all(others.map((memberId) => notifyMessage({ recipient: memberId, actor: userId, text: attachment && !body && !gif ? `sent an attachment in ${group.name}.` : `sent a message in ${group.name}.`, actorName: req.session.user.name, url: `/groups/${group._id}` })))
@@ -549,20 +517,11 @@ exports.groupSend = async (req, res) => {
       allowedUserIds: group.members,
       url: `/groups/${group._id}`
     }).catch((error) => logger.error('Group mention notification failed', error));
-    await completeAiAction(aiAction, message._id);
     if (!isXhr(req)) return res.redirect(fallback);
     const shaped = { ...message.toObject(), sender: { _id: userId, name: req.session.user.name, profilePicture: req.session.user.profilePicture }, ...(replyTo ? { replyTo } : {}) };
     const [item] = await renderMessages(res, [shaped], { group: true, viewerId: userId, groupId: String(group._id), reportBaseUrl: `/groups/${group._id}` });
     res.json({ ok: true, message: item, clientId: req.body.clientId || null });
   } catch (error) {
-    if (error?.code === 11000 && req.body?.aiActionId) {
-      const aiAction = await loadConfirmedAiAction(req.body.aiActionId, req.session.user.id, 'send_message');
-      const existing = await GroupMessage.findOne({ aiActionId: req.body.aiActionId }).select('_id').lean();
-      if (aiAction && existing) {
-        await completeAiAction(aiAction, existing._id);
-        return res.json({ ok: true, message: { _id: existing._id }, duplicate: true });
-      }
-    }
     logger.error('Sending group message failed', error);
     sendFailure(req, res, 500, 'That message could not be sent.', fallback);
   }

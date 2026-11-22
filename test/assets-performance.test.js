@@ -15,9 +15,8 @@ test('CSS bundles contain every stylesheet in the original cascade order', () =>
   const urls = assets.cssBundleUrls();
   assert.match(urls.base, /^\/css\/bundle-base\.css\?v=[0-9a-f]{10}$/);
   const head = fs.readFileSync(path.join(root, 'src/views/partials/head.ejs'), 'utf8');
-  const fallback = [...head.matchAll(/href="\/css\/([a-z-]+)\.css"/g)].map((m) => m[1]).filter((n) => !['community-workspace', 'crowdwide-ai'].includes(n));
+  const fallback = [...head.matchAll(/href="\/css\/([a-z-]+)\.css"/g)].map((m) => m[1]).filter((n) => n !== 'community-workspace');
   assert.deepEqual([...assets.BUNDLES.base, ...assets.BUNDLES.polish], fallback);
-  assert.match(head, /if \(locals\.aiPage\)[\s\S]*?crowdwide-ai\.css/);
 });
 
 test('bundles are served compressed with a one-year immutable cache when versioned', async () => {

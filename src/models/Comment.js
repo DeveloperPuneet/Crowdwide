@@ -4,7 +4,6 @@ const commentSchema = new mongoose.Schema({
   post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true, index: true },
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   body: { type: String, trim: true, maxlength: 2000, default: '' },
-  aiActionId: { type: mongoose.Schema.Types.ObjectId, ref: 'AiAction' },
   gif: { url: String, preview: String, title: String, width: Number, height: Number },
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
@@ -20,6 +19,5 @@ commentSchema.pre('validate', function requireContent(next) {
 });
 
 commentSchema.index({ author: 1, createdAt: -1 });
-commentSchema.index({ aiActionId: 1 }, { unique: true, partialFilterExpression: { aiActionId: { $type: 'objectId' } } });
 
 module.exports = mongoose.model('Comment', commentSchema);

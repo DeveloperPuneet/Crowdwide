@@ -39,7 +39,6 @@ const surveyService = require('../services/surveys');
 const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_SECTION } = require('../utils/partnershipPages');
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
 const { attachPollVoters } = require('../services/pollVoters');
-const { loadConfirmedAiAction, completeAiAction } = require('../services/aiActions');
 
 async function getLiveStats() {
 	if (!User.db.readyState) {
@@ -453,27 +452,14 @@ exports.createPost = async (req, res) => {
 		req.session.flash = { type: 'error', message };
 		return res.redirect(backTo);
 	};
-	const aiAction = await loadConfirmedAiAction(req.body?.aiActionId, req.session.user.id, 'create_post');
-	if (req.body?.aiActionId && !aiAction) return fail('That confirmed AI post action is no longer available.');
-	if (aiAction) {
-		req.body.body = aiAction.content;
-		req.body.type = 'post';
-		req.body.clientRequestId = `ai-${aiAction._id}`;
-	}
 	// A retry of the same composer attempt (double tap, timeout, flaky connection) must not create a second post.
 	const rawRequestId = typeof req.body?.clientRequestId === 'string' ? req.body.clientRequestId.trim() : '';
 	const clientRequestId = /^[A-Za-z0-9_-]{8,64}$/.test(rawRequestId) ? rawRequestId : '';
 	const requestKey = clientRequestId ? `${req.session.user.id}:${clientRequestId}` : '';
 	const replyForExisting = async (existing) => {
-		await completeAiAction(aiAction, existing._id);
 		if (!wantsJson) return res.redirect(backTo);
 		return res.json(await createdPostPayload(existing, req.session.user.id, res, { duplicate: true }));
 	};
-	if (aiAction?.status === 'completed') {
-		const existing = await Post.findOne({ aiActionId: aiAction._id, author: req.session.user.id }).lean();
-		if (existing) return replyForExisting(existing);
-		return fail('The confirmed AI post result is no longer available.');
-	}
 	if (clientRequestId) {
 		const existing = await Post.findOne({ author: req.session.user.id, clientRequestId }).lean();
 		if (existing) return replyForExisting(existing);
@@ -570,7 +556,7 @@ exports.createPost = async (req, res) => {
 	const isDraft = req.body.saveAsDraft === 'on';
 	let createdPost;
 	try {
-		createdPost = await Post.create({ clientRequestId: clientRequestId || undefined, aiActionId: aiAction?._id, author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
+		createdPost = await Post.create({ clientRequestId: clientRequestId || undefined, author: req.session.user.id, coAuthors: coAuthorList, body, contentWarning: req.body.contentWarning?.trim().slice(0, 120) || '', type, community: communityId || undefined, quest: quest?._id, questTitle: quest?.title || '', media, hashtags: extractHashtags(body), poll: type === 'poll' ? { question: pollQuestion, options: pollOptions.map((label) => ({ label, votes: [] })) } : undefined, status: isDraft ? 'draft' : status, scheduledAt: isDraft ? undefined : scheduledAt });
 	} catch (error) {
 		// Two copies of the same attempt reached the database at once (another server, a very fast double tap):
 		// the unique (author, clientRequestId) index let only one through, so hand back that one.
@@ -597,7 +583,6 @@ exports.createPost = async (req, res) => {
 				.catch((error) => logger.error('Link preview update failed', error));
 		}
 	}
-	await completeAiAction(aiAction, createdPost._id);
 	if (wantsJson) return res.json(await createdPostPayload(createdPost.toObject(), req.session.user.id, res));
 	if (isDraft) {
 		req.session.flash = { type: 'success', message: 'Draft saved. It is visible only to you.' };
@@ -1101,7 +1086,6 @@ exports.infoPage = async (req, res) => {
 			sections: [
 				['What we collect', 'Account details you provide (name, email, password hash, bio, links), content you create (posts, comments, communities, hashtags), media you upload (images, video, audio, avatars, banners), your social graph (who you follow, block, and which communities/groups you join), messages you send in direct messages and group chats, and limited technical information such as IP address, device/browser identifiers, and session activity used to keep accounts secure.'],
 				['How we use it', 'We use this information to authenticate accounts, deliver verification and security emails, operate core features like feeds, search, notifications, and messaging, rank and personalize your "For you" feed, prevent abuse and spam, enforce our Terms and Community Guidelines, and improve the product over time. We do not sell your data. TinyAds may display third-party ads on eligible pages. An active Waves Ad-Free plan suppresses TinyAds ads for the duration of the plan.'],
-				['Crowdwide AI', 'If you use Crowdwide AI, your prompts, retrieved Crowdwide sources, responses, and any memories you add are stored in MongoDB with your account and are visible only to you through the app. You can delete conversations and memories from the AI interface; deleting your account also deletes its AI conversations, messages, memories, settings, and pending actions. Answers are produced from Crowdwide search and retrieval without language-model inference or any paid AI API.'],
 				['Where it is stored', 'Account data, posts, comments, communities, and messages are stored in MongoDB. Media (images, video, audio, avatars, and community banners) is stored in MongoDB GridFS - optionally distributed across multiple MongoDB clusters for extra capacity - or, on deployments configured to use it, in a Google Cloud Storage bucket served through a CDN URL. Your session is tracked server-side via connect-mongo so signing out or expiring a session invalidates it immediately.'],
 				['Third-party services we use', 'Crowdwide relies on a small number of outside services to operate, and only sends them what each feature needs: <strong>Google (Gmail API or SMTP, via Nodemailer)</strong> to deliver verification, password-reset, login-alert, and security emails to your inbox, plus the optional weekly digest and come-back reminders (a question to answer after a day away, a discussion worth reading after three days, and one last "what you missed" note after a week - at most one every two days, only if you have not visited, with a one-click unsubscribe and a switch in Settings); <strong>Google Cloud Storage</strong>, on deployments that enable it, to host uploaded media; <strong>GIPHY</strong> to power GIF search in chats and comments, when a deployment enables it - your search text is sent to GIPHY the way it would be on giphy.com; <strong>a self-hosted ClamAV virus scanner</strong>, on deployments that enable it, to scan uploaded files for malware before they are stored, entirely on infrastructure we control; <strong>web push (VAPID)</strong> to deliver browser push notifications to devices where you have explicitly turned them on in Settings; and <strong>TinyAds</strong> to provide ads on eligible pages. If you choose <strong>Continue with Google</strong> or <strong>Continue with GitHub</strong> (when a deployment enables them), that provider confirms your identity and shares only your name and verified email address with us; we store your name, that email, and the provider\'s account id so you can sign in again, and we never receive your Google or GitHub password.'],
 				['Link previews', 'When you post a link, Crowdwide\'s server fetches a small amount of publicly available metadata (title, description, preview image) from that page to build a preview card. This is a short, size-limited request made from our server, guarded against reaching private/internal addresses, and does not send it any of your account information.'],

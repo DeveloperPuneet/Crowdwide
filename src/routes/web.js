@@ -8,7 +8,7 @@ const onboardingController = require('../controllers/onboardingController');
 const { postUpload, profileUpload, communityUpload, reportUpload, groupUpload, partnerLogoUpload, validatePartnerLogo, brandAmbassadorPhotoUpload, validateBrandAmbassadorPhoto, chatAttachmentUpload, validateChatAttachment, validateGroupUpload, validatePostUpload, validateProfileUpload, validateCommunityUpload, validateReportUpload, scanUploadsForViruses, handleUploadError } = require('../middleware/uploads');
 const interactionController = require('../controllers/interactionController');
 const groupController = require('../controllers/groupController');
-const { partnershipLimiter, interactionLimiter, apiLimiter, aiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter, csrfSynchronisedProtection } = require('../middleware/security');
+const { partnershipLimiter, interactionLimiter, apiLimiter, pollLimiter, messageSearchLimiter, gifLimiter, translateLimiter, csrfSynchronisedProtection } = require('../middleware/security');
 const chatController = require('../controllers/chatController');
 const shareController = require('../controllers/shareController');
 const gifController = require('../controllers/gifController');
@@ -23,29 +23,7 @@ const { requireAdmin, requireModerator, requirePanelPassword } = require('../mid
 
 const growthController = require('../controllers/growthController');
 const badgeController = require('../controllers/badgeController');
-const aiController = require('../controllers/aiController');
-
 router.get('/', controller.home);
-router.get('/crowdwide-ai', requireAuth, requireVerified, aiController.page);
-router.get('/api/ai/conversations', requireAuth, requireVerified, aiLimiter, aiController.listConversations);
-router.post('/api/ai/conversations', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.createConversation);
-router.get('/api/ai/conversations/:id/messages', requireAuth, requireVerified, aiLimiter, aiController.listMessages);
-router.post('/api/ai/conversations/:id/messages', requireAuth, requireVerified, aiLimiter, csrfSynchronisedProtection, aiController.sendMessage);
-router.patch('/api/ai/conversations/:id', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.renameConversation);
-router.delete('/api/ai/conversations/:id', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.deleteConversation);
-router.post('/api/ai/turns/:id/regenerate', requireAuth, requireVerified, aiLimiter, csrfSynchronisedProtection, aiController.regenerate);
-router.post('/api/ai/turns/:id/fallback', requireAuth, requireVerified, aiLimiter, csrfSynchronisedProtection, aiController.fallbackTurn);
-router.post('/api/ai/turns/:id/prepare-action', requireAuth, requireVerified, aiLimiter, csrfSynchronisedProtection, aiController.prepareActionDraft);
-router.get('/api/ai/preferences', requireAuth, requireVerified, aiLimiter, aiController.getPreferences);
-router.patch('/api/ai/preferences', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.updatePreferences);
-router.get('/api/ai/memories', requireAuth, requireVerified, aiLimiter, aiController.listMemories);
-router.post('/api/ai/memories', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.createMemory);
-router.patch('/api/ai/memories/:id', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.updateMemory);
-router.delete('/api/ai/memories/:id', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.deleteMemory);
-router.post('/api/ai/messages/:id/feedback', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.feedback);
-router.post('/api/ai/actions/:id/confirm', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.confirmAction);
-router.post('/api/ai/actions/:id/cancel', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.cancelAction);
-router.post('/api/ai/actions/:id/complete', requireAuth, requireVerified, interactionLimiter, csrfSynchronisedProtection, aiController.completeAction);
 router.get('/question', growthController.questionPage);
 router.get('/top', growthController.weeklyTopPage);
 router.get('/unsubscribe/:kind(reminders|welcome)/:id/:token', growthController.unsubscribePage);

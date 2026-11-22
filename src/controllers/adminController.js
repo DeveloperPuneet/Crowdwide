@@ -24,7 +24,6 @@ const { getMongoStorage, formatStorage } = require('../services/mongoStorage');
 const { adjustWaves, getReciprocalRewardSignals } = require('../services/waves');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
 const { removeUserFromCommunities } = require('../services/communityMembership');
-const { deleteAiDataForUser } = require('../services/aiData');
 const { uploadBuffer, mediaUrl, deleteFile } = require('../services/storageCluster');
 const logger = require('../services/logger');
 
@@ -394,8 +393,7 @@ exports.deleteUser = async (req, res) => {
     await Promise.all([
       User.deleteOne({ _id: user._id }),
       Post.deleteMany({ author: user._id }),
-      removeUserFromCommunities(user._id),
-      deleteAiDataForUser(user._id)
+      removeUserFromCommunities(user._id)
     ]);
     await audit(req, 'delete-user', 'user', user._id, { email: user.email });
   }
