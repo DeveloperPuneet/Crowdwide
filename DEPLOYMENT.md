@@ -339,15 +339,17 @@ No database dump is sent to a model. Conversation and memory APIs always scope
 reads and writes to the authenticated member.
 
 On the first message, the browser loads the locally served Transformers.js and
-ONNX Runtime Web code and downloads the Apache-2.0 SmolLM2 360M instruction
-model's 4-bit ONNX weights from Hugging Face. The model file is about 388 MB
-and is cached by the browser; it is not stored on Render. Inference runs in a
-background worker on the member's device. CPU/WASM is supported without
-WebGPU; automatic mode tries WebGPU when the browser exposes a usable adapter
-and retries on CPU if GPU setup or inference fails. The CPU model can use over
-1 GB of browser memory and may be slow on low-end devices. If model download,
-memory allocation, or inference fails, the interface explains the issue and
-uses the search-based fallback. No paid API or hosted inference is used.
+ONNX Runtime Web code and downloads the Apache-2.0 SmolLM2 135M instruction
+model's 4-bit ONNX weights from Hugging Face. The CPU/WASM file is about 182 MB;
+the GPU q4f16 file is about 118 MB. Files are cached by the browser, not stored
+on Render. Inference runs in a background worker on the member's device. CPU/WASM
+is supported without WebGPU; automatic mode tries WebGPU when the browser
+exposes a usable adapter and retries on CPU if GPU setup or inference fails.
+Allow roughly 0.5–1 GB of free memory for CPU inference; generation may be slow
+on low-end devices. A GPU fallback may download both variants. If model
+download, memory allocation, or inference fails, the interface explains the
+issue and uses the search-based fallback. No paid API or hosted inference is
+used.
 Members can select automatic, CPU, or GPU (with CPU fallback), or turn local
 inference off in AI settings.
 
@@ -374,7 +376,8 @@ proposals expire after ten minutes.
    `/health`, sign in, and open `/crowdwide-ai`.
 5. Test the default on-device AI mode. The browser needs WebAssembly support
    and outbound HTTPS to Hugging Face's model/CDN hosts. WebGPU is optional.
-   The initial model download is about 388 MB; it does not consume Render
+   The initial model download is about 118 MB for WebGPU or 182 MB for
+   CPU/WASM; a fallback may download both variants. It does not consume Render
    inference compute or model storage.
 
 Render's free service can sleep and has limited request CPU/memory, so normal

@@ -38,7 +38,7 @@ async function loadPipeline(id, device) {
   send(id, 'progress', { message: `Loading the ${device === 'webgpu' ? 'GPU' : 'CPU/WASM'} runtime…` });
   return pipeline('text-generation', MODEL_ID, {
     device,
-    dtype: 'q4',
+    dtype: device === 'webgpu' ? 'q4f16' : 'q4',
     progress_callback: (info) => progressCallback(id, info)
   });
 }

@@ -65,7 +65,15 @@ function createApp({ port = process.env.PORT || 3000 } = {}) {
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
-        scriptSrc: ["'self'", "'wasm-unsafe-eval'", 'https://www.googletagmanager.com', 'https://cdn.apitiny.net', (req, res) => `'nonce-${res.locals.cspNonce}'`, ...turnstileOrigins],
+        scriptSrc: [
+          "'self'",
+          "'wasm-unsafe-eval'",
+          'https://www.googletagmanager.com',
+          'https://cdn.apitiny.net',
+          (req) => req.path === '/js/crowdwide-ai-worker.bundle.js' ? 'blob:' : "'self'",
+          (req, res) => `'nonce-${res.locals.cspNonce}'`,
+          ...turnstileOrigins
+        ],
         workerSrc: ["'self'", 'blob:'],
         frameSrc: ["'self'", 'https://*.apitiny.net', ...turnstileOrigins],
         connectSrc: ["'self'", 'https://api.maptiler.com', 'https://www.google-analytics.com', 'https://analytics.google.com', 'https://*.apitiny.net', 'https://huggingface.co', 'https://cdn-lfs.huggingface.co', 'https://*.hf.co', 'https://*.xethub.hf.co', 'https://raw.githubusercontent.com', ...turnstileOrigins],
