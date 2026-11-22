@@ -40,21 +40,6 @@ test('versioned JS is cached for a year, unversioned static files still revalida
   assert.doesNotMatch(plain.headers['cache-control'] || '', /immutable/);
 });
 
-test('the browser ONNX WASM runtime is served locally, not imported from a runtime CDN', async () => {
-  const app = createApp({ port: 3000 });
-  const [runtime, wasm] = await Promise.all([
-    request(app).head('/vendor/onnxruntime-web/ort-wasm-simd-threaded.jsep.mjs?v=1.31.0'),
-    request(app).head('/vendor/onnxruntime-web/ort-wasm-simd-threaded.jsep.wasm?v=1.31.0')
-  ]);
-  assert.equal(runtime.status, 200);
-  assert.match(runtime.headers['content-type'], /javascript/);
-  assert.ok(Number(runtime.headers['content-length']) > 0);
-  assert.match(runtime.headers['cache-control'], /immutable/);
-  assert.equal(wasm.status, 200);
-  assert.match(wasm.headers['content-type'], /wasm/);
-  assert.ok(Number(wasm.headers['content-length']) > 0);
-  assert.match(wasm.headers['cache-control'], /immutable/);
-});
 
 test('reading stylesheet is part of the polish bundle', () => {
   assert.ok(assets.BUNDLES.polish.includes('reading'));

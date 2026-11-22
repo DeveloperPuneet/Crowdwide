@@ -330,42 +330,27 @@ server, or database service is required. Conversation, message, memory,
 preference and pending-action collections are created by Mongoose when the
 app starts; their owner-scoped indexes are declared in the models.
 
-The default mode tries local inference first and uses bounded MongoDB search as
-a fallback. Search only covers published content visible to the signed-in
-member, excludes reported posts and applies the existing private-profile,
-private-community, blocked and muted-user rules. Optional Meilisearch is
-reused when configured; without it, bounded MongoDB queries remain available.
-No database dump is sent to a model. Conversation and memory APIs always scope
-reads and writes to the authenticated member.
+Crowdwide AI uses deterministic intent routing and bounded MongoDB search.
+Search only covers published content visible to the signed-in member, excludes
+reported posts and applies the existing private-profile, private-community,
+blocked and muted-user rules. Optional Meilisearch is reused when configured;
+without it, bounded MongoDB queries remain available. No database dump is sent
+to an inference system. Conversation and memory APIs always scope reads and
+writes to the authenticated member.
 
-On the first message, the browser loads the locally served Transformers.js and
-ONNX Runtime Web code and downloads the Apache-2.0 SmolLM2 135M instruction
-model's 4-bit ONNX weights from Hugging Face. The CPU/WASM file is about 182 MB;
-the GPU q4f16 file is about 118 MB. Files are cached by the browser, not stored
-on Render. Inference runs in a background worker on the member's device. CPU/WASM
-is supported without WebGPU; automatic mode tries WebGPU when the browser
-exposes a usable adapter and retries on CPU if GPU setup or inference fails.
-Allow roughly 0.5–1 GB of free memory for CPU inference; generation may be slow
-on low-end devices. A GPU fallback may download both variants. If model
-download, memory allocation, or inference fails, the interface explains the
-issue and uses the search-based fallback. No paid API or hosted inference is
-used.
-Members can select automatic, CPU, or GPU (with CPU fallback), or turn local
-inference off in AI settings.
-
-The local model is small and may make mistakes. Crowdwide records are passed
-as untrusted evidence, and responses are prompted to cite retrieved sources;
-the model is not a permission authority. The server independently checks
-visibility and ownership. Publishing, editing, and deleting are proposed
-first; the member must explicitly confirm, and the final request uses the
-existing post routes and their validation/authorization checks. Pending
-proposals expire after ten minutes.
+No language model is downloaded, cached, initialized, or executed. There is no
+paid AI API, hosted inference endpoint, WebGPU/CPU inference worker, or model
+configuration in the application. Unsupported requests are reported honestly
+instead of fabricating an answer or tool result. Publishing, editing, deleting,
+commenting, replying, and sending messages are proposed first; the member must
+explicitly confirm, and the final request uses the existing routes and their
+validation/authorization checks. Pending proposals expire after ten minutes.
 
 ### Deploying on Render
 
 1. Deploy the existing Crowdwide repository as a **Node Web Service**. Use
    **Build Command** `npm ci` and **Start Command** `npm start`. The start
-   script bundles the browser inference worker before starting Express.
+   command starts Express.
 2. Set `NODE_ENV=production`, `TRUST_PROXY_HOPS=1`, `APP_URL` to the
    deployment's public HTTPS origin, a strong unique `SESSION_SECRET`, and
    `MONGODB_URI` to the MongoDB database already used by Crowdwide.
@@ -374,15 +359,14 @@ proposals expire after ten minutes.
    secrets or billing setup are needed.
 4. Deploy. Mongoose creates the AI collection indexes at startup. Verify
    `/health`, sign in, and open `/crowdwide-ai`.
-5. Test the default on-device AI mode. The browser needs WebAssembly support
-   and outbound HTTPS to Hugging Face's model/CDN hosts. WebGPU is optional.
-   The initial model download is about 118 MB for WebGPU or 182 MB for
-   CPU/WASM; a fallback may download both variants. It does not consume Render
-   inference compute or model storage.
+5. Test `/crowdwide-ai` after sign-in. Verify conversation persistence, privacy-
+   filtered search, source links, memories, mentions and notifications, and
+   confirmation-based social actions. No model download or GPU/WASM setup is
+   required.
 
 Render's free service can sleep and has limited request CPU/memory, so normal
-MongoDB retrieval remains intentionally small and synchronous. Local model
-initialization and inference never run in the Node service. Conversation and
+MongoDB retrieval remains intentionally small and synchronous. No model
+initialization or inference runs in the Node service. Conversation and
 memory persistence still depend on a working MongoDB connection, as does the
 rest of Crowdwide. A free-tier host/database's availability and storage limits
 are separate from inference and may change; this feature itself requires no

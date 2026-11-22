@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'crowdwide-ai-page', pagePath, noIndex, aiPage: true }) %>
 <%- include('../partials/app-nav', { active: 'ai', currentUser, sideNav: true, hideBottomNav: true }) %>
-<main class="cw-ai" id="crowdwide-ai" data-model="HuggingFaceTB/SmolLM2-135M-Instruct">
+<main class="cw-ai" id="crowdwide-ai">
   <button class="cw-ai-sidebar-backdrop" type="button" aria-label="Close conversation list" data-ai-sidebar-backdrop hidden></button>
   <aside class="cw-ai-sidebar" aria-label="Crowdwide AI conversations">
     <div class="cw-ai-sidebar-top">
@@ -28,7 +28,7 @@
       <div class="cw-ai-topbar-title">
         <button class="cw-ai-icon-button cw-ai-sidebar-toggle" type="button" data-ai-sidebar-toggle aria-label="Open conversation list"><%- icon('menu', { size: 19 }) %></button>
         <span class="cw-ai-mark cw-ai-mark-small" aria-hidden="true"><%- icon('sparkles', { size: 16 }) %></span>
-        <div><h1 data-ai-title>Crowdwide AI</h1><p data-ai-mode>On-device AI · grounded in public Crowdwide discussions</p></div>
+        <div><h1 data-ai-title>Crowdwide AI</h1><p data-ai-mode>Grounded in verified Crowdwide data</p></div>
       </div>
       <button class="cw-ai-icon-button cw-ai-mobile-settings" type="button" data-ai-settings-open aria-label="AI settings"><%- icon('settings', { size: 18 }) %></button>
     </header>
@@ -38,7 +38,7 @@
         <div class="cw-ai-orbit" aria-hidden="true"><span><%- icon('sparkles', { size: 30 }) %></span><i></i><b></b></div>
         <p class="cw-ai-eyebrow">YOUR CROWDWIDE SIDEKICK</p>
         <h2>Curious about your community?</h2>
-        <p class="cw-ai-welcome-copy">I can answer from your device, search Crowdwide, review your notifications and conversations, and prepare posts, comments, replies or messages. Nothing is published or sent until you review and confirm it.</p>
+        <p class="cw-ai-welcome-copy">I can search Crowdwide, review notifications and conversations, and prepare posts, comments, replies or messages. Nothing is published or sent until you review and confirm it. I use deterministic search and retrieval, not language-model inference.</p>
         <div class="cw-ai-suggestions" data-ai-suggestions>
           <button type="button" data-prompt="What are the latest discussions on Crowdwide?">What’s being discussed lately?</button>
           <button type="button" data-prompt="Find posts about community building">Find posts about a topic</button>
@@ -58,12 +58,11 @@
         <div class="cw-ai-composer-bottom">
           <span class="cw-ai-composer-hint"><%- icon('shield', { size: 13 }) %> Crowdwide data only · no paid AI API</span>
           <div class="cw-ai-composer-actions">
-            <button class="cw-ai-stop" type="button" data-ai-stop hidden><%- icon('square', { size: 14 }) %> Stop</button>
             <button class="cw-ai-send" type="submit" data-ai-send aria-label="Send message"><span data-ai-send-icon><%- icon('arrow-up', { size: 17 }) %></span><span class="cw-ai-send-spinner" data-ai-send-spinner hidden aria-hidden="true"></span></button>
           </div>
         </div>
       </form>
-      <p class="cw-ai-disclaimer">On-device AI runs on your device. It prefers GPU when available and otherwise uses CPU; verified search answers are the fallback if inference is unavailable.</p>
+      <p class="cw-ai-disclaimer">Responses are based on Crowdwide search and retrieval. No language model or external AI service is used.</p>
     </div>
   </section>
 </main>
@@ -74,22 +73,6 @@
     <button class="cw-ai-icon-button" aria-label="Close settings"><%- icon('x', { size: 19 }) %></button>
   </form>
   <div class="cw-ai-dialog-content">
-    <label class="cw-ai-setting-row">
-      <span><strong>On-device AI</strong><small>Run an open model on this device. Your prompt and retrieved Crowdwide text are processed locally after they load in your browser.</small></span>
-      <input type="checkbox" data-ai-local-toggle checked>
-    </label>
-    <div class="cw-ai-model-note">
-      <strong>SmolLM2 · 135M · 4-bit</strong>
-      <p>Downloads about 118 MB of GPU or 182 MB of CPU/WASM model weights from Hugging Face on first use and caches them in this browser. A GPU fallback may download both variants. Inference runs in a background worker; allow roughly 0.5–1 GB of free memory while it runs. Speed depends on your device.</p>
-      <p>No model runs on Crowdwide’s Render server. If the browser, memory, download or inference is unsupported, verified search results remain available. This model is Apache-2.0 licensed.</p>
-    </div>
-    <label class="cw-ai-setting-field">Inference device
-      <select data-ai-device-select>
-        <option value="auto">Automatic (GPU, then CPU)</option>
-        <option value="cpu">CPU (WASM)</option>
-        <option value="gpu">GPU (fallback to CPU)</option>
-      </select>
-    </label>
     <label class="cw-ai-setting-field">AI appearance
       <select data-ai-theme-select>
         <option value="auto">Match Crowdwide</option>
@@ -108,7 +91,7 @@
     <button class="cw-ai-icon-button" aria-label="Close memory"><%- icon('x', { size: 19 }) %></button>
   </form>
   <div class="cw-ai-dialog-content">
-    <p class="cw-ai-memory-help">Only memories you add here are kept between conversations. On-device AI uses them for personalization; they never override Crowdwide permissions or trusted system rules. You can edit or remove them any time.</p>
+    <p class="cw-ai-memory-help">Only memories you add here are kept between conversations. They never override Crowdwide permissions or trusted system rules. You can edit or remove them any time.</p>
     <form class="cw-ai-memory-form" data-ai-memory-form>
       <label>Memory type
         <select name="kind"><option value="preference">Preference</option><option value="ongoing_task">Ongoing task</option><option value="summary">Conversation summary</option></select>

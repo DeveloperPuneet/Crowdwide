@@ -4,10 +4,8 @@ const AiConversation = require('../src/models/AiConversation');
 const AiMessage = require('../src/models/AiMessage');
 const AiAction = require('../src/models/AiAction');
 const AiMemory = require('../src/models/AiMemory');
-const AiPreference = require('../src/models/AiPreference');
 const aiController = require('../src/controllers/aiController');
 const { deleteAiDataForUser } = require('../src/services/aiData');
-const { enableLocalInferenceByDefault } = require('../src/services/aiPreferenceMigration');
 const {
   buildDirectResponse,
   buildFallbackResponse,
@@ -25,36 +23,11 @@ function fakeRes() {
   return res;
 }
 
-test('on-device AI is enabled by default and existing preferences are migrated once', async (t) => {
-  assert.equal(AiPreference.schema.path('localInference').defaultValue, true);
-  assert.equal(AiPreference.schema.path('inferenceDevice').defaultValue, 'auto');
-  const migration = t.mock.method(AiPreference, 'updateMany', async () => ({ modifiedCount: 1 }));
-
-  await enableLocalInferenceByDefault();
-
-  assert.deepEqual(migration.mock.calls[0].arguments, [
-    { localInferenceDefaultMigrated: { $ne: true } },
-    { $set: { localInference: true, localInferenceDefaultMigrated: true } }
-  ]);
-});
-
-test('saving an AI opt-out marks it as an intentional preference', async (t) => {
-  const userId = '507f1f77bcf86cd799439012';
-  let update;
-  t.mock.method(AiPreference, 'findOneAndUpdate', (_filter, changes) => {
-    update = changes.$set;
-    return { lean: async () => ({ localInference: false, inferenceDevice: 'cpu', theme: 'auto' }) };
-  });
-  const res = fakeRes();
-
-  await aiController.updatePreferences({
-    body: { localInference: false, inferenceDevice: 'cpu' },
-    session: { user: { id: userId } }
-  }, res);
-
-  assert.deepEqual(update, { localInference: false, localInferenceDefaultMigrated: true, inferenceDevice: 'cpu' });
-  assert.equal(res.body.preferences.localInference, false);
-  assert.equal(res.body.preferences.inferenceDevice, 'cpu');
+test('AI preferences contain appearance settings only', () => {
+  const AiPreference = require('../src/models/AiPreference');
+  assert.equal(AiPreference.schema.path('theme').defaultValue, 'auto');
+  assert.equal(AiPreference.schema.path('localInference'), undefined);
+  assert.equal(AiPreference.schema.path('inferenceDevice'), undefined);
 });
 
 test('Crowdwide AI extracts search topics from conversational requests', () => {

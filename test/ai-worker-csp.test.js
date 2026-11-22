@@ -3,15 +3,10 @@ const assert = require('node:assert/strict');
 const request = require('supertest');
 const createApp = require('../src/app');
 
-test('only the on-device inference worker CSP permits blob module imports', async () => {
+test('CSP no longer permits an inference worker or WebAssembly evaluation', async () => {
   const app = createApp({ port: 3000 });
-  const [worker, page] = await Promise.all([
-    request(app).get('/js/crowdwide-ai-worker.bundle.js'),
-    request(app).get('/docs')
-  ]);
-  const workerPolicy = worker.headers['content-security-policy'];
+  const page = await request(app).get('/docs');
   const pagePolicy = page.headers['content-security-policy'];
-
-  assert.match(workerPolicy, /script-src[^;]*blob:/);
   assert.doesNotMatch(pagePolicy, /script-src[^;]*blob:/);
+  assert.doesNotMatch(pagePolicy, /wasm-unsafe-eval/);
 });

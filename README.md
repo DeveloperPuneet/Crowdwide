@@ -49,11 +49,11 @@ authentication, optional TOTP two-factor, and email through the Gmail API.
   editable user memories, privacy-filtered search across public Crowdwide
   posts/comments/profiles/communities, account-scoped retrieval for mentions,
   notifications, posts, comments and chats, source links, and confirmed social
-  actions. Crowdwide-specific drafts use the curated
-  [verified project knowledge](./crowdwide-knowledge.md). A quantized model
-  runs in a background worker in the member's browser using GPU when available
-  or CPU/WASM otherwise, with privacy-filtered search-based answers as a
-  fallback. See [zero-cost AI setup](./DEPLOYMENT.md#crowdwide-ai-zero-cost).
+  actions. Responses use deterministic routing, privacy-filtered Crowdwide
+  search/retrieval, and the curated
+  [verified project knowledge](./crowdwide-knowledge.md). No local model,
+  external inference API, or paid AI service is used. See
+  [zero-cost AI setup](./DEPLOYMENT.md#crowdwide-ai-zero-cost).
 
 ### Communities
 - Open or private communities with banners, avatars, hashtags, guidelines,

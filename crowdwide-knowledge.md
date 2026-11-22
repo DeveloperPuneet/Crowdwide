@@ -33,11 +33,9 @@ on account permissions and deployment configuration.
 
 Crowdwide AI is an authenticated assistant in the existing Crowdwide app. It
 keeps private conversation history and user-managed memories, retrieves
-privacy-filtered Crowdwide content, and provides source links. Its language
-model runs in the member's browser: the current implementation uses
-Transformers.js and ONNX Runtime Web, preferring WebGPU when usable and
-supporting CPU/WASM without WebGPU. Search-based answers remain available when
-local inference is disabled or fails.
+privacy-filtered Crowdwide content, and provides source links. Crowdwide AI
+uses deterministic intent routing and existing MongoDB/Meilisearch retrieval;
+it does not run local or hosted language-model inference.
 
 The server validates social-action targets and permissions. Post, comment,
 reply, and direct/group message actions require the user to review and confirm
@@ -47,9 +45,8 @@ the proposed action before existing authenticated handlers execute it.
 
 The application is an Express MVC project using EJS views, MongoDB through
 Mongoose, and session-based authentication. Existing routes and models enforce
-ownership, membership, privacy, and moderation rules. The AI's local inference
-worker runs in the browser; it is not hosted as a paid inference service by
-Crowdwide.
+ownership, membership, privacy, and moderation rules. Crowdwide AI does not
+use a paid AI API or hosted inference service.
 
 ## Current State And Unknowns
 
