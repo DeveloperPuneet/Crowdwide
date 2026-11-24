@@ -86,10 +86,22 @@ test('sitemap includes public post URLs but excludes private community posts at 
   });
   let communityFilter;
   let postFilter;
-  t.mock.method(User, 'find', () => ({ distinct: async () => [] }));
+  t.mock.method(User, 'find', (filter) => {
+    if (filter?.privacy === 'public') {
+      return {
+        sort() { return this; }, limit() { return this; }, select() { return this; },
+        lean: async () => [{ _id: 'public-user', updatedAt: new Date('2026-10-02T00:00:00Z') }]
+      };
+    }
+    return { distinct: async () => [] };
+  });
   t.mock.method(Community, 'find', (filter) => {
     communityFilter = filter;
-    return { distinct: () => Promise.resolve(['private-community']) };
+    if (filter?.isPrivate === true) return { distinct: () => Promise.resolve(['private-community']) };
+    return {
+      sort() { return this; }, limit() { return this; }, select() { return this; },
+      lean: async () => [{ slug: 'public-community', updatedAt: new Date('2026-10-03T00:00:00Z') }]
+    };
   });
   t.mock.method(Post, 'find', (filter) => {
     postFilter = filter;
@@ -101,15 +113,19 @@ test('sitemap includes public post URLs but excludes private community posts at 
     };
   });
   const response = {
+    set(name, value) { this.headers ||= {}; this.headers[name] = value; return this; },
+    status(code) { this.statusCode = code; return this; },
     type(value) { this.contentType = value; return this; },
-    send(value) { this.body = value; }
+    send(value) { this.body = value; return this; }
   };
   await controller.sitemap({}, response);
 
-  assert.deepEqual(communityFilter, { isPrivate: true });
+  assert.deepEqual(communityFilter, { isPrivate: false });
   assert.deepEqual(postFilter.community, { $nin: ['private-community'] });
   assert.equal(postFilter.status, 'published');
   assert.match(response.body, /https:\/\/crowdwide\.example\/posts\/public-1/);
+  assert.match(response.body, /https:\/\/crowdwide\.example\/u\/public-user/);
+  assert.match(response.body, /https:\/\/crowdwide\.example\/communities\/public-community/);
   assert.match(response.body, /https:\/\/crowdwide\.example\/posts\?type=article/);
   assert.match(response.body, /<lastmod>2026-10-01T00:00:00\.000Z<\/lastmod>/);
 });

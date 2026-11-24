@@ -282,7 +282,31 @@ exports.detail = async (req, res) => {
   // Full post cards need the viewer's like state, as in the main feed.
   const viewerKey = String(req.session.user.id);
   posts.forEach((post) => { post.liked = (post.likes || []).some((id) => String(id) === viewerKey); });
-  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests, showCommunityAd: !isAdFree(res.locals.currentUser) });
+  res.render('pages/community-detail', {
+    title: community.name,
+    description: community.description || `Discover ${community.name}, a public community on Crowdwide.`,
+    pagePath: `/communities/${community.slug}`,
+    canonicalUrl: `${String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/communities/${community.slug}`,
+    noIndex: false,
+    community,
+    posts,
+    members,
+    moderatorIds,
+    joined,
+    requested,
+    isOwner,
+    locked: false,
+    quests,
+    showCommunityAd: !isAdFree(res.locals.currentUser),
+    structuredData: {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: community.name,
+      description: community.description || `A public community on Crowdwide`,
+      url: `${String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/communities/${community.slug}`,
+      ...(community.avatarImage ? { image: community.avatarImage.startsWith('http') ? community.avatarImage : `${String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')}${community.avatarImage}` } : {})
+    }
+  });
 };
 exports.manage = async (req, res) => {
   const [members, posts, pendingPosts, requests, moderators, quests, communityPromotionOffer] = await Promise.all([

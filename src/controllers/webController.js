@@ -112,7 +112,12 @@ exports.home = async (req, res) => {
 				'@type': 'WebSite',
 				name: 'Crowdwide',
 				url: process.env.APP_URL || 'http://localhost:3000',
-				description: 'A social network for real discovery.'
+				description: 'A social network for real discovery, thoughtful communities, and meaningful conversations.',
+				potentialAction: {
+					'@type': 'SearchAction',
+					target: `${process.env.APP_URL || 'http://localhost:3000'}/posts?q={search_term_string}`,
+					'query-input': 'required name=search_term_string'
+				}
 			}
 		});
 	} catch (error) {
@@ -777,10 +782,22 @@ exports.profile = async (req, res) => {
 		};
 	}
 
+	const appUrl = String(res.locals.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+	const profileUrl = `${appUrl}/u/${profileUser._id}`;
 	res.render('pages/profile', {
 		title: `${profileUser.name} on Crowdwide`,
+		description: profileUser.bio || `See ${profileUser.name}'s public posts and activity on Crowdwide.`,
 		pagePath: `/u/${profileUser._id}`,
+		canonicalUrl: profileUrl,
 		noIndex: profileUser.privacy !== 'public',
+		structuredData: profileUser.privacy === 'public' ? {
+			'@context': 'https://schema.org',
+			'@type': 'Person',
+			name: profileUser.name,
+			url: profileUrl,
+			description: profileUser.bio || undefined,
+			...(profileUser.profilePicture ? { image: profileUser.profilePicture.startsWith('http') ? profileUser.profilePicture : `${appUrl}${profileUser.profilePicture}` } : {})
+		} : undefined,
 		profileUser: { ...profileUser, followRequests: undefined },
 		streakInfo: effectiveStreak(profileUser.streak, new Date(), zoneOf(profileUser)),
 		// Everyone sees the badges earned; the owner also sees what is still to earn.
@@ -1203,24 +1220,50 @@ exports.infoPage = async (req, res) => {
 
 exports.robots = (req, res) => {
 	if (isStaging()) return res.type('text/plain').send('User-agent: *\nDisallow: /');
-	res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /auth/\nSitemap: ${(process.env.APP_URL || 'http://localhost:3000')}/sitemap.xml`);
+	res.type('text/plain').send(`User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /welcome
+Disallow: /auth/
+Disallow: /notifications
+Disallow: /messages/
+Disallow: /groups/
+Disallow: /settings/
+Disallow: /wallet
+Disallow: /recap
+Disallow: /badges
+Disallow: /explore
+Disallow: /people
+Disallow: /search
+Disallow: /communities/mine
+Disallow: /api/
+Disallow: /media/
+Sitemap: ${(process.env.APP_URL || 'http://localhost:3000')}/sitemap.xml`);
 };
 
 exports.sitemap = async (req, res) => {
 	try {
 		const baseUrl = String(process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 		const restrictedCommunityIds = await getRestrictedCommunityIds(null);
-		const posts = await Post.find({
-			status: 'published',
-			moderationStatus: { $ne: 'reported' },
-			community: { $nin: restrictedCommunityIds },
-			author: { $nin: await getHiddenAuthorIds(null) }
-		}).sort({ updatedAt: -1 }).limit(1000).select('_id updatedAt').lean();
-		const pages = ['/', '/top', '/question', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/partnerships', '/partnerships/apply', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide', '/auth/login', '/auth/register'];
+		const hiddenAuthorIds = await getHiddenAuthorIds(null);
+		const [posts, publicProfiles, publicCommunities] = await Promise.all([
+			Post.find({
+				status: 'published',
+				moderationStatus: { $ne: 'reported' },
+				community: { $nin: restrictedCommunityIds },
+				author: { $nin: hiddenAuthorIds }
+			}).sort({ updatedAt: -1 }).limit(1000).select('_id updatedAt').lean(),
+			User.find({ privacy: 'public', isVerified: true }).sort({ updatedAt: -1 }).limit(500).select('_id updatedAt').lean(),
+			Community.find({ isPrivate: false }).sort({ updatedAt: -1 }).limit(500).select('slug updatedAt').lean()
+		]);
+		const pages = ['/', '/top', '/question', '/posts', '/posts?type=post', '/posts?type=article', '/posts?type=poll', '/about', '/about/developer', '/privacy', '/terms', '/partnerships', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-guidelines', '/accessibility', '/contact', '/help', '/docs', '/guide'];
 		const urls = [
 			...pages.map((page) => `<url><loc>${escapeXml(`${baseUrl}${page}`)}</loc></url>`),
-			...posts.map((post) => `<url><loc>${escapeXml(`${baseUrl}/posts/${post._id}`)}</loc><lastmod>${new Date(post.updatedAt).toISOString()}</lastmod></url>`)
+			...posts.map((post) => `<url><loc>${escapeXml(`${baseUrl}/posts/${post._id}`)}</loc>${post.updatedAt ? `<lastmod>${new Date(post.updatedAt).toISOString()}</lastmod>` : ''}</url>`),
+			...publicProfiles.map((profile) => `<url><loc>${escapeXml(`${baseUrl}/u/${profile._id}`)}</loc>${profile.updatedAt ? `<lastmod>${new Date(profile.updatedAt).toISOString()}</lastmod>` : ''}</url>`),
+			...publicCommunities.filter((community) => community.slug).map((community) => `<url><loc>${escapeXml(`${baseUrl}/communities/${community.slug}`)}</loc>${community.updatedAt ? `<lastmod>${new Date(community.updatedAt).toISOString()}</lastmod>` : ''}</url>`)
 		];
+		res.set('Cache-Control', 'public, max-age=3600');
 		res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`);
 	} catch (error) {
 		logger.error('Sitemap generation failed', error);
