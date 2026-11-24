@@ -126,6 +126,11 @@
   padding-top: 30px;
 }
 
+.community-detail-layout .community-detail-ad {
+  margin: 30px 0 0;
+  min-height: 1px;
+}
+
 .community-waiting-page {
   min-height: min(72vh, 760px);
   display: grid;

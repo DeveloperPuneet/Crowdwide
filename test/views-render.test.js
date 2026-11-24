@@ -519,6 +519,19 @@ test('profile editor exposes the 40-word bio limit', async () => {
   assert.match(html, /Bio · up to 40 words/);
 });
 
+test('community detail renders a third-party ad slot unless community ads are disabled', async () => {
+  const common = {
+    title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
+    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', category: 'design', description: 'Share ideas', hashtags: [], membersCount: 12, isPrivate: false, owner: { _id: 'u1', name: 'Puneet' }, members: ['u1'], moderators: [], pinnedPosts: [] },
+    posts: [], members: [], moderatorIds: [], joined: true, requested: false, isOwner: false, locked: false, quests: []
+  };
+  const withAd = await render('pages/community-detail.ejs', { ...common, showCommunityAd: true });
+  const adFree = await render('pages/community-detail.ejs', { ...common, showCommunityAd: false });
+  assert.equal((withAd.match(/ta-ad-container/g) || []).length, 1);
+  assert.match(withAd, /class="community-detail-ad"/);
+  assert.doesNotMatch(adFree, /ta-ad-container/);
+});
+
 test('community detail renders a quest board with member actions', async () => {
   const html = await render('pages/community-detail.ejs', {
     title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,

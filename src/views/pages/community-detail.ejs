@@ -21,6 +21,7 @@
 			<% } else { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%= community.isPrivate ? 'Request to join' : 'Join community' %> <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button></form><% } %>
 		</div>
 	</section>
+	<% if (locals.showCommunityAd) { %><div class="community-detail-ad" ta-ad-container></div><% } %>
 	<% if (quests && quests.length) { %>
 	<section class="discover-panel quest-board">
 		<div class="panel-heading"><h2>Quest board</h2><span><%= quests.length %></span></div>

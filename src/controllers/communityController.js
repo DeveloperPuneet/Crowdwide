@@ -13,6 +13,7 @@ const { attachReplyPostCounts } = require('../services/replyPostCounts');
 const { attachPollVoters } = require('../services/pollVoters');
 const { reconcileCommunityMembers } = require('../services/communityMembership');
 const { getCommunityPromotionOffer, getActiveCommunityPromotions, promoteCommunity } = require('../services/communityPromotion');
+const { isAdFree } = require('../services/adFree');
 const logger = require('../services/logger');
 
 const loadCommunity = async (req, res, next) => {
@@ -281,7 +282,7 @@ exports.detail = async (req, res) => {
   // Full post cards need the viewer's like state, as in the main feed.
   const viewerKey = String(req.session.user.id);
   posts.forEach((post) => { post.liked = (post.likes || []).some((id) => String(id) === viewerKey); });
-  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests });
+  res.render('pages/community-detail', { title: community.name, pagePath: `/communities/${community.slug}`, noIndex: true, community, posts, members, moderatorIds, joined, requested, isOwner, locked: false, quests, showCommunityAd: !isAdFree(res.locals.currentUser) });
 };
 exports.manage = async (req, res) => {
   const [members, posts, pendingPosts, requests, moderators, quests, communityPromotionOffer] = await Promise.all([
