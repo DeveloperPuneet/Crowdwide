@@ -694,6 +694,17 @@ test('Explore community cards render uploaded community logos', async () => {
   assert.match(html, /Sketch Club/);
 });
 
+test('Explore follow controls render submit buttons recognized by async interactions', async () => {
+  const person = { _id: 'u2', name: 'Asha', profilePicture: '' };
+  const html = await render('pages/explore.ejs', {
+    title: 'Explore', pagePath: '/explore', noIndex: true,
+    query: '', category: '', categories: [], isBrowsing: false,
+    communities: [], promotedCommunities: [], newPeople: [person], popularPeople: [{ ...person, followers: 3 }],
+    viralPosts: [], risingCommunities: []
+  });
+  assert.equal((html.match(/<button class="round-action" type="submit"/g) || []).length, 2);
+});
+
 test('paid community promotions are separately and transparently labeled in discovery pages', async () => {
   const promoted = [{
     _id: 'c-paid', slug: 'makers', name: 'Makers', description: 'A public maker space',
