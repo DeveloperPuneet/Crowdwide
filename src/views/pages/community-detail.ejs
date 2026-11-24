@@ -13,12 +13,16 @@
 		<p><%= community.description %></p>
 		<% if ((community.hashtags || []).length) { %><div class="hashtag-row" style="margin-top: 25px;"><% community.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<div class="community-detail-meta">
-			<span><strong><%= community.membersCount %></strong> members</span>
+			<span><strong data-community-members="<%= community._id %>"><%= community.membersCount %></strong> members</span>
 			<span>Owner: <a class="name-link" href="/u/<%= community.owner?._id %>"><%= community.owner?.name || 'Crowdwide' %></a></span>
 			<% if (isOwner) { %><a class="button button-small button-ghost" href="/communities/<%= community._id %>/manage">Manage community</a>
-			<% } else if (joined) { %><span class="joined-mark">Joined</span><form method="post" action="/communities/<%= community._id %>/leave"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-small button-ghost community-leave-button" type="submit">Leave community</button></form>
-			<% } else if (requested) { %><span class="joined-mark">Request pending</span>
-			<% } else { %><form method="post" action="/communities/<%= community._id %>/join"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-primary button-small" type="submit"><%= community.isPrivate ? 'Request to join' : 'Join community' %> <span class="btn-arrow"><%- icon('arrow-up-right', { size: 14 }) %></span></button></form><% } %>
+			<% } else { %>
+			<span class="joined-mark" data-community-status<%= joined || requested ? '' : ' hidden' %>><%= joined ? 'Joined' : requested ? 'Request pending' : '' %></span>
+			<form data-community-follow data-community-id="<%= community._id %>" data-state="<%= joined ? 'joined' : requested ? 'requested' : 'open' %>" data-private="<%= community.isPrivate ? 'true' : 'false' %>" data-join-action="/communities/<%= community._id %>/join" data-leave-action="/communities/<%= community._id %>/leave" data-cancel-action="/communities/<%= community._id %>/join-request/cancel" method="post" action="<%= joined ? `/communities/${community._id}/leave` : requested ? `/communities/${community._id}/join-request/cancel` : `/communities/${community._id}/join` %>">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<button class="button button-small <%= joined || requested ? 'button-ghost' : 'button-primary' %>" type="submit"><%= joined ? 'Leave community' : requested ? 'Cancel request' : community.isPrivate ? 'Request to join' : 'Join community' %></button>
+			</form>
+			<% } %>
 		</div>
 	</section>
 	<% if (locals.showCommunityAd) { %><div class="community-detail-ad" ta-ad-container></div><% } %>

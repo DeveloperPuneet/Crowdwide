@@ -684,11 +684,13 @@ exports.postDetail = async (req, res) => {
   let blockedIds = [];
   let postModerationRole = null;
   let viewerAdFree = false;
+  let followedTopics = [];
   if (viewerId) {
-    const viewer = await User.findById(viewerId).select('bookmarks blockedUsers role adFreeUntil').lean();
+    const viewer = await User.findById(viewerId).select('bookmarks blockedUsers followedTopics role adFreeUntil').lean();
     viewerAdFree = isAdFree(viewer);
     post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
     post.bookmarked = (viewer?.bookmarks || []).some((id) => String(id) === String(post._id));
+    followedTopics = (viewer?.followedTopics || []).map(String);
     blockedIds = (viewer?.blockedUsers || []).map(String);
     if (['admin', 'moderator'].includes(viewer?.role)
       && !(viewer.role === 'moderator' && String(post.author?._id || post.author) === String(viewerId))) {
@@ -747,6 +749,7 @@ exports.postDetail = async (req, res) => {
     structuredData,
     noIndex: false,
     post,
+    followedTopics,
     showPostAd: !viewerAdFree,
     showThirdPartyAds: comments.length >= 30 && !viewerAdFree,
     comments,

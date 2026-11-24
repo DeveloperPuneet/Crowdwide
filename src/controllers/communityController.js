@@ -656,13 +656,19 @@ exports.togglePinPost = async (req, res) => {
 };
 
 exports.requestJoin = async (req, res) => {
+  const wantsJson = req.get?.('X-Requested-With') === 'XMLHttpRequest';
   const community = await Community.findById(req.params.id);
+  if (!community && wantsJson) return res.status(404).json({ ok: false, error: 'Community not found.' });
   if (!community) return res.redirect('/explore');
   const userId = req.session.user.id;
-  if (community.members.some((id) => String(id) === String(userId))) return res.redirect(`/communities/${community.slug}`);
+  if (community.members.some((id) => String(id) === String(userId))) {
+    if (wantsJson) return res.json({ ok: true, joined: true, requested: false, membersCount: community.membersCount });
+    return res.redirect(`/communities/${community.slug}`);
+  }
   if (community.isPrivate) {
     if (!community.joinRequests.some((request) => String(request.user) === String(userId))) community.joinRequests.push({ user: userId });
     await community.save();
+    if (wantsJson) return res.json({ ok: true, joined: false, requested: true, membersCount: community.membersCount });
     req.session.flash = { type: 'success', message: 'Join request sent to the community moderators.' };
     return res.redirect(`/communities/${community.slug}`);
   } else {
@@ -675,18 +681,23 @@ exports.requestJoin = async (req, res) => {
       .catch((error) => logger.error('Could not award Waves for joining a community', error));
     refreshPersonalization(userId);
   }
+  if (wantsJson) return res.json({ ok: true, joined: true, requested: false, membersCount: community.membersCount });
   res.redirect(req.get('referer') || `/communities/${community.slug}`);
 };
 
 exports.leaveCommunity = async (req, res) => {
+  const wantsJson = req.get?.('X-Requested-With') === 'XMLHttpRequest';
   const community = await Community.findById(req.params.id);
+  if (!community && wantsJson) return res.status(404).json({ ok: false, error: 'Community not found.' });
   if (!community) return res.redirect('/explore');
   const userId = req.session.user.id;
   if (String(community.owner) === String(userId)) {
+    if (wantsJson) return res.status(400).json({ ok: false, error: 'The community owner cannot leave their community.' });
     req.session.flash = { type: 'error', message: 'The community owner cannot leave their community.' };
     return res.redirect(`/communities/${community.slug}`);
   }
   if (!community.members.some((id) => String(id) === String(userId))) {
+    if (wantsJson) return res.status(400).json({ ok: false, error: 'You are not a member of this community.' });
     req.session.flash = { type: 'error', message: 'You are not a member of this community.' };
     return res.redirect(`/communities/${community.slug}`);
   }
@@ -699,20 +710,25 @@ exports.leaveCommunity = async (req, res) => {
   await community.save();
   await User.findByIdAndUpdate(userId, { $pull: { joinedCommunities: community._id } });
   refreshPersonalization(userId);
+  if (wantsJson) return res.json({ ok: true, joined: false, requested: false, membersCount: community.membersCount });
   req.session.flash = { type: 'success', message: `You left ${community.name}.` };
   res.redirect(`/communities/${community.slug}`);
 };
 
 exports.cancelJoinRequest = async (req, res) => {
+  const wantsJson = req.get?.('X-Requested-With') === 'XMLHttpRequest';
   const community = await Community.findById(req.params.id);
+  if (!community && wantsJson) return res.status(404).json({ ok: false, error: 'Community not found.' });
   if (!community) return res.redirect('/explore');
   const userId = req.session.user.id;
   const hadRequest = community.joinRequests.some((request) => String(request.user) === String(userId));
   if (hadRequest) {
     community.joinRequests = community.joinRequests.filter((request) => String(request.user) !== String(userId));
     await community.save();
+    if (wantsJson) return res.json({ ok: true, joined: false, requested: false, membersCount: community.membersCount });
     req.session.flash = { type: 'success', message: 'Your join request was cancelled.' };
   } else {
+    if (wantsJson) return res.status(400).json({ ok: false, error: 'You do not have a pending request for this community.' });
     req.session.flash = { type: 'error', message: 'You do not have a pending request for this community.' };
   }
   res.redirect(`/communities/${community.slug}`);

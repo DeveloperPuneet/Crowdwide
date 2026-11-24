@@ -22,7 +22,8 @@ const post = (i, extra = {}) => ({ _id: `p${i}`, author: { _id: `a${i}`, name: `
 
 test('new social feature pages render with empty and populated states', async () => {
   const post = { _id: 'p1', author: { _id: 'u2', name: 'Asha' }, body: 'A thoughtful conversation', type: 'post', status: 'published', likes: [], commentsCount: 2, sharesCount: 1, viewsCount: 8, community: null, hashtags: ['coding'] };
-  const topics = await render('pages/topics.ejs', { title: 'Topics you follow', topics: ['coding', 'ai'], posts: [post] });
+  const topics = await render('pages/topics.ejs', { title: 'Topics you follow', topics: ['coding', 'ai'], trendingHashtags: [{ tag: 'design', posts: 4 }], posts: [post] });
+  const topicDiscovery = await render('pages/topics.ejs', { title: 'Topics you follow', topics: [], trendingHashtags: [{ tag: 'design', posts: 4 }], posts: [] });
   const conversations = await render('pages/conversations.ejs', { title: 'Your Conversations', posts: [post] });
   const recent = await render('pages/recently-viewed.ejs', { title: 'Recently Viewed', posts: [post] });
   const members = await render('pages/community-members.ejs', {
@@ -30,6 +31,8 @@ test('new social feature pages render with empty and populated states', async ()
     members: [{ _id: 'u2', name: 'Asha', bio: 'Product designer', hashtags: ['design'], posts: 4, comments: 12, contributionScore: 24 }]
   });
   assert.match(topics, /Followed Topics/);
+  assert.match(topics, /class="topic-follow-form" data-async-interaction data-topic="coding" data-following="true"/);
+  assert.match(topicDiscovery, /class="topic-follow-form" data-async-interaction data-topic="design" data-following="false"/);
   assert.match(conversations, /Your Conversations/);
   assert.match(recent, /Recently Viewed/);
   assert.match(members, /Top contributor/);

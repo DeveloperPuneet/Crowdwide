@@ -4,11 +4,11 @@
   <section class="feed-column">
     <div class="panel-heading"><h1>Followed Topics</h1><span><%= (topics || []).length %></span></div>
     <% if (!(topics || []).length) { %>
-      <div class="empty-feed topic-empty"><h2>Follow a topic</h2><p>Choose topics to build a feed around the ideas you care about.</p><div class="topic-discovery-grid"><% (trendingHashtags || []).forEach(({ tag, posts }) => { %><article class="topic-discovery-row"><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %> <small><%= posts %> posts</small></a><form method="post" action="/topics/<%= tag %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-primary button-small">Follow</button></form></article><% }) %></div></div>
+      <div class="empty-feed topic-empty"><h2>Follow a topic</h2><p>Choose topics to build a feed around the ideas you care about.</p><div class="topic-discovery-grid"><% (trendingHashtags || []).forEach(({ tag, posts }) => { %><article class="topic-discovery-row"><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %> <small><%= posts %> posts</small></a><form class="topic-follow-form" data-async-interaction data-topic="<%= tag %>" data-following="false" method="post" action="/topics/<%= tag %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-primary button-small" aria-pressed="false" aria-label="Follow topic #<%= tag %>">Follow</button></form></article><% }) %></div></div>
     <% } else { %>
       <div class="topic-follow-grid">
         <% topics.forEach((topic) => { %>
-          <div class="topic-follow-row"><a href="/search?q=%23<%= topic %>">#<%= topic %></a><form method="post" action="/topics/<%= topic %>/follow" data-async-interaction><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small">Following</button></form></div>
+          <div class="topic-follow-row"><a href="/search?q=%23<%= topic %>">#<%= topic %></a><form class="topic-follow-form" data-async-interaction data-topic="<%= topic %>" data-following="true" method="post" action="/topics/<%= topic %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small" aria-pressed="true" aria-label="Unfollow topic #<%= topic %>">Following</button></form></div>
         <% }) %>
       </div>
       <div id="feed-posts">

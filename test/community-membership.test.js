@@ -118,6 +118,34 @@ test('a member can leave and community membership records stay in sync', async (
   assert.equal(req.session.flash.type, 'success');
 });
 
+test('private community join requests can be sent and cancelled asynchronously', async (t) => {
+  const pending = [];
+  const community = {
+    _id: 'c2',
+    slug: 'private-makers',
+    isPrivate: true,
+    membersCount: 0,
+    members: makeMembers([]),
+    joinRequests: pending,
+    async save() {}
+  };
+  t.mock.method(Community, 'findById', () => Promise.resolve(community));
+  const req = {
+    params: { id: 'c2' },
+    session: { user: { id: 'u1' } },
+    get(name) { return name === 'X-Requested-With' ? 'XMLHttpRequest' : undefined; }
+  };
+  const joinRes = { json(data) { this.data = data; return this; } };
+  await communityController.requestJoin(req, joinRes);
+  assert.deepEqual(joinRes.data, { ok: true, joined: false, requested: true, membersCount: 0 });
+  assert.deepEqual(pending, [{ user: 'u1' }]);
+
+  const cancelRes = { json(data) { this.data = data; return this; } };
+  await communityController.cancelJoinRequest(req, cancelRes);
+  assert.deepEqual(cancelRes.data, { ok: true, joined: false, requested: false, membersCount: 0 });
+  assert.deepEqual(community.joinRequests, []);
+});
+
 test('community owners cannot leave and a pending request can be cancelled', async (t) => {
   const ownerCommunity = {
     _id: 'c1', slug: 'makers', owner: 'u1',

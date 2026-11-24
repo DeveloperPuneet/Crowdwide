@@ -216,7 +216,7 @@
 					<input type="text" name="name" value="<%= collection.name %>" maxlength="40" aria-label="Collection name">
 					<button type="submit" class="button button-ghost button-small">Rename</button>
 				</form>
-				<form method="post" action="/saved/collections/<%= collection._id %>/delete" onsubmit="return confirm('Delete this collection?');">
+				<form method="post" action="/saved/collections/<%= collection._id %>/delete" data-confirm="Delete this collection?">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small">Delete</button>
 				</form>
 				<span><%= (collection.postIds || []).length %> saved</span>

@@ -684,7 +684,7 @@ if (window.axios) {
   window.setInterval(heartbeat, 13 * 60 * 1000);
 }
 
-const asyncInteractionSelector = '.post-actions form, .post-view-actions form, .follow-form, .block-form, .mute-form, [data-async-interaction]';
+const asyncInteractionSelector = '.post-actions form, .post-view-actions form, .follow-form, .block-form, .mute-form, [data-async-interaction], [data-community-follow]';
 // Status line under a control ("Vote recorded.", or why a change was undone). Shared with optimistic.js.
 const showInteractionMessage = (form, text, error = false) => window.cwOptimistic.notice(form, text, error);
 
@@ -714,7 +714,7 @@ const insertComment = (form, data) => {
 // tap, how to paint a state, and how to read the server's reply. cwOptimistic.run (public/js/optimistic.js)
 // does the rest: instant update, in-order background requests, reconcile with the server, undo on failure.
 const countOf = (el) => { const n = parseInt(String(el?.textContent || '').replace(/[^\d]/g, ''), 10); return Number.isFinite(n) ? n : 0; };
-const submitButtonOf = (form) => form.querySelector('button[type="submit"]');
+const submitButtonOf = (form) => form.querySelector('button[type="submit"]') || form.querySelector('button');
 const pinnedCommentPositions = new WeakMap();
 const restoreCommentPosition = (thread, comment) => {
   const parentId = comment.dataset.originalParent;
@@ -782,8 +782,70 @@ const optimisticSpecs = [
     write: (form, state) => {
       const button = submitButtonOf(form);
       button.classList.toggle('is-following', state.following);
-      button.textContent = state.following ? 'Following' : state.requested ? 'Requested' : (button.dataset.idleLabel || 'Follow');
+      button.setAttribute('aria-pressed', String(state.following));
+      if (button.classList.contains('round-action')) {
+        const name = button.dataset.followName || button.getAttribute('aria-label')?.replace(/^Follow\s+/, '') || 'person';
+        button.textContent = state.following ? '✓' : '+';
+        button.setAttribute('aria-label', state.following ? `Unfollow ${name}` : state.requested ? `Cancel follow request to ${name}` : `Follow ${name}`);
+      } else {
+        button.textContent = state.following ? 'Following' : state.requested ? 'Requested' : (button.dataset.idleLabel || 'Follow');
+      }
       if (state.followers !== null) document.querySelectorAll(`.follower-count[data-user="${form.dataset.user}"]`).forEach((el) => { el.textContent = state.followers; });
+    }
+  },
+  { // follow / unfollow a topic
+    match: (form) => form.classList.contains('topic-follow-form'),
+    scope: (form) => form,
+    read: (form) => ({ following: form.dataset.following === 'true' }),
+    next: (state) => ({ following: !state.following }),
+    fromServer: (data) => (data.followedTopic === undefined ? null : { following: Boolean(data.followedTopic) }),
+    write: (form, state) => {
+      const button = submitButtonOf(form);
+      form.dataset.following = String(state.following);
+      button.textContent = state.following ? 'Following' : 'Follow';
+      button.classList.toggle('button-primary', !state.following);
+      button.classList.toggle('button-ghost', state.following);
+      button.setAttribute('aria-pressed', String(state.following));
+      button.setAttribute('aria-label', `${state.following ? 'Unfollow' : 'Follow'} topic #${form.dataset.topic}`);
+    }
+  },
+  { // join / leave a community or manage its private join request
+    match: (form) => form.hasAttribute('data-community-follow'),
+    scope: (form) => form,
+    read: (form) => ({
+      state: form.dataset.state || 'open',
+      members: countOf(document.querySelector(`[data-community-members="${form.dataset.communityId}"]`))
+    }),
+    next: (state, form) => ({
+      state: state.state === 'joined' || state.state === 'requested'
+        ? 'open'
+        : form.dataset.private === 'true' ? 'requested' : 'joined',
+      members: Math.max(0, state.members + (state.state === 'joined' ? -1 : state.state === 'open' && form.dataset.private !== 'true' ? 1 : 0))
+    }),
+    fromServer: (data, state) => (data.joined === undefined && data.requested === undefined
+      ? null
+      : {
+          state: data.joined ? 'joined' : data.requested ? 'requested' : 'open',
+          members: Number.isFinite(Number(data.membersCount)) ? Number(data.membersCount) : state.members
+        }),
+    write: (form, state) => {
+      const button = submitButtonOf(form);
+      const status = form.parentElement.querySelector('[data-community-status]');
+      form.dataset.state = state.state;
+      form.action = state.state === 'joined'
+        ? form.dataset.leaveAction
+        : state.state === 'requested' ? form.dataset.cancelAction : form.dataset.joinAction;
+      button.textContent = state.state === 'joined'
+        ? 'Leave community'
+        : state.state === 'requested' ? 'Cancel request' : form.dataset.private === 'true' ? 'Request to join' : 'Join community';
+      button.classList.toggle('button-primary', state.state === 'open');
+      button.classList.toggle('button-ghost', state.state !== 'open');
+      button.setAttribute('aria-label', button.textContent);
+      if (status) {
+        status.textContent = state.state === 'joined' ? 'Joined' : state.state === 'requested' ? 'Request pending' : '';
+        status.hidden = !status.textContent;
+      }
+      document.querySelectorAll(`[data-community-members="${form.dataset.communityId}"]`).forEach((count) => { count.textContent = state.members; });
     }
   },
   { // block / unblock
@@ -949,13 +1011,14 @@ document.addEventListener('submit', async (event) => {
   if (spec) {
     // Build the request body now: it must describe THIS tap even if the form changes before it is sent.
     const body = new URLSearchParams(new FormData(form));
+    const action = form.action;
     window.cwOptimistic.run(spec.scope(form), {
       read: spec.read,
       next: (state) => spec.next(state, form),
       write: spec.write,
       fromServer: spec.fromServer,
       anchor: form,
-      request: async () => (await window.axios.post(form.action, body, { headers: csrfHeaders() })).data
+      request: async () => (await window.axios.post(action, body, { headers: csrfHeaders() })).data
     });
     return;
   }
