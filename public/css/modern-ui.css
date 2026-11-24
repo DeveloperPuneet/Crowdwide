@@ -790,6 +790,12 @@ body .profile-tabs a.profile-tab-active, body .public-posts-modern .public-post-
 .composer-draft-row strong, .composer-draft-row span { display: block; }
 .composer-draft-row strong { font-size: 12px; }
 .composer-draft-row span { margin-top: 3px; color: var(--tx-faint); font-size: 10px; }
+.feature-page { width: min(820px, calc(100% - 48px)); margin: 24px auto 48px; }
+.feature-page .feed-column { width: 100%; min-width: 0; }
+.topic-discovery-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.topic-discovery-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--sf-1); }
+.topic-discovery-row .hashtag-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.topic-discovery-row form { flex: none; }
 .topic-follow-grid { display: grid; gap: 8px; margin-bottom: 18px; }
 .topic-follow-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
 .topic-follow-row a { color: var(--ac-blue); font-weight: 700; }
@@ -814,6 +820,11 @@ body .profile-tabs a.profile-tab-active, body .public-posts-modern .public-post-
 .contributor-score { text-align: right; color: var(--ac-orange); font-size: 11px; }
 .contributor-score small { display: block; margin-top: 4px; color: var(--tx-faint); }
 @media (max-width: 760px) { .community-member-grid { grid-template-columns: minmax(0, 1fr); } .community-member-card { grid-template-columns: auto minmax(0, 1fr); } .contributor-score { grid-column: 2; text-align: left; } }
+.topic-empty { max-width: none; }
+.topic-empty .topic-discovery-grid { width: 100%; max-width: 720px; margin: 18px auto 0; }
+.feature-page .panel-heading h1 { font-size: 24px; }
+.feature-page .post-card { width: 100%; }
+@media (max-width: 520px) { .feature-page { width: calc(100% - 32px); margin-top: 16px; } .topic-discovery-grid { grid-template-columns: minmax(0, 1fr); } .topic-discovery-row { width: 100%; } }
 @media (max-width: 520px) { .post-collection-row { grid-template-columns: minmax(0, 1fr) auto; } .post-collection-row > span { grid-column: 1 / -1; } }
 .people-modern .discover-panel > p { padding: 22px 12px !important; margin: 8px 0 0; text-align: center; border: 1.5px dashed var(--bd-1); border-radius: 14px; font-size: 13px !important; line-height: 1.55; }
 

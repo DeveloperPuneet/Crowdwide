@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/conversations', noIndex: true }) %>
 <%- include('../partials/app-nav', { active: 'conversations', currentUser }) %>
-<main class="app-layout dashboard-modern">
+<main class="feature-page dashboard-modern">
   <section class="feed-column">
     <div class="panel-heading"><h1>Your Conversations</h1><span><%= (posts || []).length %></span></div>
     <% if (!(posts || []).length) { %>

@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/recently-viewed', noIndex: true }) %>
 <%- include('../partials/app-nav', { active: 'recent', currentUser }) %>
-<main class="app-layout dashboard-modern">
+<main class="feature-page dashboard-modern">
   <section class="feed-column">
     <div class="panel-heading"><h1>Recently Viewed</h1><span><%= (posts || []).length %></span></div>
     <% if (!(posts || []).length) { %>

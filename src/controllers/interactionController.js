@@ -700,7 +700,9 @@ exports.postDetail = async (req, res) => {
     // at 60 so the array never grows unbounded. Fire-and-forget: a slow or
     // failed write here should never hold up or break the page render.
     if (String(post.author?._id || post.author) !== String(viewerId)) {
-      User.updateOne({ _id: viewerId }, { $push: { recentViews: { $each: [{ post: post._id, viewedAt: new Date() }], $position: 0, $slice: 60 } } }).catch(() => {});
+      User.updateOne({ _id: viewerId }, { $pull: { recentViews: { post: post._id } } }).catch(() => {}).finally(() => {
+        User.updateOne({ _id: viewerId }, { $push: { recentViews: { $each: [{ post: post._id, viewedAt: new Date() }], $position: 0, $slice: 20 } } }).catch(() => {});
+      });
     }
   }
   const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').populate({ path: 'quotedComment', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }).lean())

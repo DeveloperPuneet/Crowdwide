@@ -904,7 +904,7 @@ exports.search = async (req, res) => {
 	const [trendingHashtags, communityOptions, viewer, popularSearches] = await Promise.all([
 		getTrendingHashtags(12),
 		Community.find().sort({ name: 1 }).select('name _id').lean(),
-		User.findById(req.session.user.id).select('blockedUsers mutedUsers searchHistory').lean(),
+		User.findById(req.session.user.id).select('blockedUsers mutedUsers searchHistory followedTopics').lean(),
 		getPopularSearches({ limit: 8 })
 	]);
 	const recentSearches = (viewer?.searchHistory || []).slice(0, 8);
@@ -917,7 +917,7 @@ exports.search = async (req, res) => {
 		from: req.query.from || '',
 		to: req.query.to || ''
 	};
-	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled });
+	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled, followedTopics: (viewer?.followedTopics || []).map(String) });
 	const tag = q.startsWith('#') ? q.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
 	// "@name" is what mention links produce: match that person's handle (the
 	// part of their email before the @) as well as their display name.
@@ -1256,8 +1256,11 @@ exports.infoPage = async (req, res) => {
 exports.followedTopicsPage = async (req, res) => {
 	const user = await User.findById(req.session.user.id).select('followedTopics').lean();
 	const topics = (user?.followedTopics || []).sort();
-	const posts = topics.length ? await Post.find({ status: 'published', hashtags: { $in: topics }, moderationStatus: { $ne: 'reported' } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').populate('community', 'name slug').lean() : [];
-	res.render('pages/topics', { title: 'Topics you follow', pagePath: '/topics', noIndex: true, topics, posts });
+	const [posts, trendingHashtags] = await Promise.all([
+		topics.length ? Post.find({ status: 'published', hashtags: { $in: topics }, moderationStatus: { $ne: 'reported' } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').populate('community', 'name slug').lean() : [],
+		getTrendingHashtags(12)
+	]);
+	res.render('pages/topics', { title: 'Topics you follow', pagePath: '/topics', noIndex: true, topics, posts, trendingHashtags });
 };
 
 exports.conversationsPage = async (req, res) => {
@@ -1270,7 +1273,7 @@ exports.conversationsPage = async (req, res) => {
 
 exports.recentlyViewedPage = async (req, res) => {
 	const user = await User.findById(req.session.user.id).select('recentViews').lean();
-	const ids = (user?.recentViews || []).map((entry) => entry.post).filter(Boolean);
+	const ids = (user?.recentViews || []).slice(0, 20).map((entry) => entry.post).filter(Boolean);
 	const posts = ids.length ? await Post.find({ _id: { $in: ids }, status: 'published' }).populate('author', 'name profilePicture').populate('community', 'name slug').lean() : [];
 	const order = new Map(ids.map((id, index) => [String(id), index]));
 	posts.sort((a, b) => (order.get(String(a._id)) ?? 999) - (order.get(String(b._id)) ?? 999));

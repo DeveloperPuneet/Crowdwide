@@ -25,7 +25,7 @@
 			<div class="popular-search-list"><% recentSearches.forEach((entry) => { %><a href="/search?q=<%= encodeURIComponent(entry.query) %>"><%- icon('clock', { size: 15 }) %><span class="search-label"><%= entry.query %></span></a><% }) %></div>
 		</section>
 		<% } %>
-		<section class="search-section"><h2>Viral hashtags</h2><div class="hashtag-row"><% trendingHashtags.forEach(({ tag, posts }) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %> <small><%= posts %></small></a><% }) %></div></section>
+		<section class="search-section"><h2>Viral hashtags</h2><div class="topic-discovery-grid"><% trendingHashtags.forEach(({ tag, posts }) => { const following = (locals.followedTopics || []).includes(String(tag)); %><article class="topic-discovery-row"><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %> <small><%= posts %> posts</small></a><form method="post" action="/topics/<%= tag %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-small <%= following ? 'button-ghost' : 'button-primary' %>"><%= following ? 'Following' : 'Follow' %></button></form></article><% }) %></div></section>
 		<section class="search-section"><h2>Popular searches</h2><%- include('../partials/popular-searches', { items: popularSearches.slice(0, 8) }) %></section>
 	</div>
 	<div class="empty-feed search-empty"><div class="search-empty-icon" aria-hidden="true"><%- icon('search', { size: 28 }) %></div><h2>Search for anything on Crowdwide.</h2><p>Try a name, a community, or a phrase from a post.</p></div>
