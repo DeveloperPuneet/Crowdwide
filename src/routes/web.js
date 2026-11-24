@@ -117,6 +117,10 @@ router.post('/comments/:id/author-heart', requireAuth, requireVerified, interact
 router.post('/comments/:id/pin', requireAuth, requireVerified, interactionLimiter, interactionController.togglePinnedComment);
 router.post('/comments/:id/react', requireAuth, requireVerified, interactionLimiter, interactionController.toggleCommentReaction);
 router.post('/posts/:id/bookmark', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBookmark);
+router.post('/posts/:id/ama', requireAuth, requireVerified, interactionLimiter, interactionController.toggleAma);
+router.post('/comments/:id/answer', requireAuth, requireVerified, interactionLimiter, interactionController.answerAmaComment);
+router.post('/topics/:topic/follow', requireAuth, requireVerified, interactionLimiter, interactionController.toggleFollowTopic);
+router.post('/posts/:id/discussion/:action(follow|mute|hide)', requireAuth, requireVerified, interactionLimiter, interactionController.toggleDiscussionPreference);
 router.post('/saved/collections', requireAuth, requireVerified, interactionLimiter, interactionController.createPostCollection);
 router.post('/saved/collections/:collectionId/rename', requireAuth, requireVerified, interactionLimiter, interactionController.renamePostCollection);
 router.post('/saved/collections/:collectionId/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deletePostCollection);
@@ -149,6 +153,7 @@ router.get('/u/:id/following', requireAuth, requireVerified, controller.followin
 router.get('/communities/:slug/rss.xml', controller.communityRss);
 router.get('/communities/invite/:code', visitorPreview('invite'), requireAuth, requireVerified, communityController.invitePreview);
 router.post('/communities/invite/:code/join', requireAuth, requireVerified, csrfSynchronisedProtection, communityController.joinByInvite);
+router.get('/communities/:slug/members', requireAuth, requireVerified, communityController.memberDirectory);
 router.get('/communities/:slug', visitorPreview('community'), requireAuth, requireVerified, communityController.detail);
 router.post('/posts', requireAuth, requireVerified, postUpload, csrfSynchronisedProtection, handleUploadError, validatePostUpload, scanUploadsForViruses, controller.createPost);
 router.post('/communities', requireAuth, requireVerified, controller.createCommunity);
@@ -236,6 +241,9 @@ router.post('/settings/push/unsubscribe', requireAuth, requireVerified, settings
 router.get('/settings/account/download', requireAuth, requireVerified, settingsController.downloadData);
 router.post('/settings/account/delete', requireAuth, requireVerified, settingsController.deleteAccount);
 router.get('/guide', controller.guide);
+router.get('/topics', requireAuth, requireVerified, controller.followedTopicsPage);
+router.get('/conversations', requireAuth, requireVerified, controller.conversationsPage);
+router.get('/recently-viewed', requireAuth, requireVerified, controller.recentlyViewedPage);
 router.get('/docs', controller.docs);
 ['/about', '/about/developer', '/privacy', '/terms', '/partnerships/terms', '/partnerships/brand-guidelines', '/waves/terms', '/community-guidelines', '/accessibility', '/contact', '/help'].forEach((path) => router.get(path, controller.infoPage));
 router.get('/robots.txt', controller.robots);

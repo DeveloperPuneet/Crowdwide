@@ -1,0 +1,14 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/recently-viewed', noIndex: true }) %>
+<%- include('../partials/app-nav', { active: 'recent', currentUser }) %>
+<main class="app-layout dashboard-modern">
+  <section class="feed-column">
+    <div class="panel-heading"><h1>Recently Viewed</h1><span><%= (posts || []).length %></span></div>
+    <% if (!(posts || []).length) { %>
+      <div class="empty-feed"><h2>Nothing viewed yet</h2><p>Posts you open will remain here for quick return.</p></div>
+    <% } else { %>
+      <div id="feed-posts"><% posts.forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %></div>
+    <% } %>
+  </section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

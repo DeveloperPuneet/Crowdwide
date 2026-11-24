@@ -1,0 +1,21 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/topics', noIndex: true }) %>
+<%- include('../partials/app-nav', { active: 'topics', currentUser }) %>
+<main class="app-layout dashboard-modern">
+  <section class="feed-column">
+    <div class="panel-heading"><h1>Followed Topics</h1><span><%= (topics || []).length %></span></div>
+    <% if (!(topics || []).length) { %>
+      <div class="empty-feed"><h2>Follow a topic</h2><p>Choose topics to build a feed around the ideas you care about.</p><a class="button button-primary button-small" href="/search">Browse topics</a></div>
+    <% } else { %>
+      <div class="topic-follow-grid">
+        <% topics.forEach((topic) => { %>
+          <div class="topic-follow-row"><a href="/search?q=%23<%= topic %>">#<%= topic %></a><form method="post" action="/topics/<%= topic %>/follow" data-async-interaction><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small">Following</button></form></div>
+        <% }) %>
+      </div>
+      <div id="feed-posts">
+        <% (posts || []).forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %>
+      </div>
+    <% } %>
+  </section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

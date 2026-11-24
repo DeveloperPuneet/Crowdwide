@@ -167,7 +167,7 @@ function fetchMostEngaged(match, limit, minPoints = 0, { interactionsOnly = fals
 }
 
 async function loadUser(userId) {
-  return User.findById(userId).select('following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt recentViews adFreeUntil').lean();
+  return User.findById(userId).select('following joinedCommunities blockedUsers mutedUsers bookmarks hiddenPosts followedTopics followedDiscussions mutedDiscussions hashtags searchHistory createdAt recentViews adFreeUntil').lean();
 }
 
 // What this person is interested in, learned from what they actually do:
@@ -262,8 +262,10 @@ async function loadGrowthSources(now) {
 async function gatherCandidates({ user, view, restricted, excludedAuthors, interests, now }) {
   const following = user.following || [];
   const joined = user.joinedCommunities || [];
+  const hiddenPosts = user.hiddenPosts || [];
   const base = {
     status: 'published',
+    _id: { $nin: hiddenPosts },
     community: { $nin: restricted },
     author: { $nin: excludedAuthors },
     moderationStatus: { $ne: 'reported' },

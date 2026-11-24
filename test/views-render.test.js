@@ -20,6 +20,22 @@ const base = { icon, renderMentions, renderRichBody, renderInlineText, plainText
 const render = (file, data = {}) => ejs.renderFile(path.join(views, file), { ...base, ...data });
 const post = (i, extra = {}) => ({ _id: `p${i}`, author: { _id: `a${i}`, name: `Author ${i}` }, body: `Hello #tag ${i}`, type: 'post', likes: [1, 2], commentsCount: 3, sharesCount: 4, viewsCount: 9, hashtags: ['tag'], community: null, createdAt: new Date(), status: 'published', reactions: {}, media: [], ...extra });
 
+test('new social feature pages render with empty and populated states', async () => {
+  const post = { _id: 'p1', author: { _id: 'u2', name: 'Asha' }, body: 'A thoughtful conversation', type: 'post', status: 'published', likes: [], commentsCount: 2, sharesCount: 1, viewsCount: 8, community: null, hashtags: ['coding'] };
+  const topics = await render('pages/topics.ejs', { title: 'Topics you follow', topics: ['coding', 'ai'], posts: [post] });
+  const conversations = await render('pages/conversations.ejs', { title: 'Your Conversations', posts: [post] });
+  const recent = await render('pages/recently-viewed.ejs', { title: 'Recently Viewed', posts: [post] });
+  const members = await render('pages/community-members.ejs', {
+    title: 'Design Lab members', pagePath: '/communities/design-lab/members', community: { name: 'Design Lab', slug: 'design-lab' },
+    members: [{ _id: 'u2', name: 'Asha', bio: 'Product designer', hashtags: ['design'], posts: 4, comments: 12, contributionScore: 24 }]
+  });
+  assert.match(topics, /Followed Topics/);
+  assert.match(conversations, /Your Conversations/);
+  assert.match(recent, /Recently Viewed/);
+  assert.match(members, /Top contributor/);
+  assert.match(members, /Browse member directory/);
+});
+
 test('chat attachment responses render previewable media inline and keep downloads for files', () => {
   const captures = [];
   const res = {

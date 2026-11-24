@@ -44,6 +44,9 @@
       <a href="/posts"><%- icon('file-text', { size: 18 }) %> Public posts</a>
       <% if (locals.currentUser) { %>
       <a href="/people"><%- icon('user-plus', { size: 18 }) %> People to follow</a>
+      <a href="/topics"><%- icon('hash', { size: 18 }) %> Followed topics</a>
+      <a href="/conversations"><%- icon('message-circle', { size: 18 }) %> Your Conversations</a>
+      <a href="/recently-viewed"><%- icon('clock', { size: 18 }) %> Recently viewed</a>
       <a href="/surveys"><%- icon('message-square', { size: 18 }) %> Surveys</a>
       <a href="/wallet"><%- icon('waves', { size: 18 }) %> Waves wallet · <%= Number(currentUser.wavesBalance || 0).toLocaleString() %></a>
       <a href="/recap"><%- icon('trending-up', { size: 18 }) %> Your recap</a>

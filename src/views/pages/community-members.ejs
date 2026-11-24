@@ -1,0 +1,20 @@
+<%- include('../partials/head', { title, bodyClass: 'dashboard-page community-workspace', pagePath, noIndex: true, communityPage: true }) %>
+<%- include('../partials/app-nav', { active: 'communities', currentUser }) %>
+<main class="explore-page people-modern">
+  <header class="explore-hero"><p class="eyebrow">Community people</p><h1><%= community.name %><br><em>Members &amp; contributors.</em></h1><a class="community-map-entry" href="/communities/<%= community.slug %>">Back to community</a></header>
+  <section class="explore-section">
+    <div class="panel-heading"><h2>Community members</h2><span><%= members.length %></span></div>
+    <p class="community-directory-label">Browse member directory &amp; contributors</p>
+    <div class="community-member-grid">
+      <% members.forEach((member) => { %>
+        <article class="community-member-card">
+          <%- include('../partials/avatar', { person: member, size: 'small' }) %>
+          <div><strong><a class="name-link" href="/u/<%= member._id %>"><%= member.name %></a></strong><p><%= member.bio || 'Crowdwide member' %></p><div class="member-topic-row"><% (member.hashtags || []).slice(0, 4).forEach((topic) => { %><a href="/topics">#<%= topic %></a><% }) %></div></div>
+          <span class="contributor-score"><%= member.contributionScore >= 15 ? 'Top contributor' : member.contributionScore >= 5 ? 'Active contributor' : 'Community member' %><small><%= member.posts %> posts · <%= member.comments %> comments</small></span>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+</main>
+<%- include('../partials/app-footer') %>
+<%- include('../partials/foot') %>

@@ -5,7 +5,7 @@
   const here = locals.active || '';
   const surveyCount = (locals.openSurveys || []).length;
   const item = (href, glyph, label, key, extra = '') => `<a class="${here === key ? 'side-active' : ''}" href="${href}" data-tip="${label}" aria-label="${label}"${here === key ? ' aria-current="page"' : ''}>${icon(glyph, { size: 19 })}<span>${label}</span>${extra}</a>`;
-  const moreKeys = ['groups', 'posts', 'people', 'surveys', 'wallet', 'badges', 'recap', 'welcome', 'settings', 'admin', 'blocked', 'moderator'];
+  const moreKeys = ['groups', 'posts', 'people', 'topics', 'conversations', 'recent', 'surveys', 'wallet', 'badges', 'recap', 'welcome', 'settings', 'admin', 'blocked', 'moderator'];
   const moreOpen = moreKeys.includes(here);
   const isStaff = ['admin', 'moderator'].includes(currentUser.role);
 %>
@@ -20,6 +20,9 @@
 		<%- item('/groups', 'message-circle', 'Groups', 'groups') %>
 		<%- item('/posts', 'file-text', 'Public posts', 'posts') %>
 		<%- item('/people', 'user-plus', 'People to follow', 'people') %>
+		<%- item('/topics', 'hash', 'Followed topics', 'topics') %>
+		<%- item('/conversations', 'message-circle', 'Your Conversations', 'conversations') %>
+		<%- item('/recently-viewed', 'clock', 'Recently viewed', 'recent') %>
 		<%- item('/surveys', 'message-square', 'Surveys', 'surveys', surveyCount ? `<b class="side-badge">${surveyCount}<span class="visually-hidden"> open surveys</span></b>` : '') %>
 		<%- item('/wallet', 'waves', 'Waves wallet', 'wallet') %>
 		<%- item('/badges', 'award', 'Badges', 'badges') %>

@@ -108,6 +108,10 @@ const userSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
   }],
   bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+  followedTopics: [{ type: String, trim: true, lowercase: true }],
+  followedDiscussions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+  mutedDiscussions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+  hiddenPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   postCollections: [new mongoose.Schema({
     name: { type: String, required: true, trim: true, maxlength: 40 },
     postIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],

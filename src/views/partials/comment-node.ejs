@@ -19,7 +19,9 @@
 		<% if (node.heartedByAuthor) { %><span class="author-heart-badge" title="Hearted by the post author"><%- icon('heart', { size: 12 }) %><span class="visually-hidden">Hearted by the post author</span></span><% } %>
 		<% if (node.isPinned) { %><span class="pinned-comment-badge"><%- icon('map-pin', { size: 12 }) %> Pinned by publisher</span><% } %>
 	</div>
+	<% if (node.quotedComment) { %><blockquote class="comment-quote"><strong><%= node.quotedComment.author?.name || 'Member' %> wrote</strong><p><%= preview(node.quotedComment.body || 'Shared comment', 180) %></p></blockquote><% } %>
 	<% if (node.body) { %><p class="thread-comment-text" data-translatable data-original="<%= node.body %>"><%- renderInlineText(node.body) %></p><% } %>
+	<% if (node.answeredByHost && node.hostAnswer) { %><blockquote class="ama-host-answer"><strong>Host answer</strong><p><%= node.hostAnswer %></p></blockquote><% } %>
 	<% if (node.gif?.url) { %><img class="comment-gif" src="<%= node.gif.url %>" alt="<%= node.gif.title || 'GIF' %>" loading="lazy"<% if (node.gif.width && node.gif.height) { %> width="<%= node.gif.width %>" height="<%= node.gif.height %>"<% } %>><% } %>
 	<div class="thread-comment-actions">
 		<% if (currentUser) { %>
@@ -31,11 +33,16 @@
 		<a class="comment-guest-like" href="/auth/register" aria-label="Create an account to like this comment"><%- icon('heart', { size: 15 }) %><span><%= node.likes?.length || 0 %></span></a>
 		<% } %>
 		<% if (node.body) { %><button type="button" class="action-translate" data-translate-trigger><%- icon('globe', { size: 14 }) %> <span class="label">Translate</span></button><% } %>
+		<button type="button" class="action-quote-comment" data-quote-comment="<%= node._id %>" data-quote-author="<%= node.author?.name || 'Member' %>"><%- icon('quote', { size: 14 }) %> Quote</button>
+		<a class="action-comment-link" href="/posts/<%= postId %>#comment-<%= node._id %>" data-copy-comment-link="/posts/<%= postId %>#comment-<%= node._id %>"><%- icon('link', { size: 14 }) %> Copy link</a>
 		<% if (isPostAuthor && String(node.author?._id) !== String(currentUser.id)) { %>
 		<form class="comment-author-heart-form" data-async-interaction method="post" action="/comments/<%= node._id %>/author-heart">
 			<input type="hidden" name="_csrf" value="<%= csrf %>">
 			<button type="submit" class="action-author-heart<%= node.heartedByAuthor ? ' is-selected' : '' %>" aria-pressed="<%= node.heartedByAuthor ? 'true' : 'false' %>" title="<%= node.heartedByAuthor ? 'Remove your heart' : 'Heart this comment as the post author' %>"><%- icon('heart', { size: 14 }) %></button>
 		</form>
+		<% } %>
+		<% if (isPostAuthor && node.answeredByHost === false) { %>
+		<details class="ama-answer-form"><summary>Answer as host</summary><form method="post" action="/comments/<%= node._id %>/answer"><input type="hidden" name="_csrf" value="<%= csrf %>"><textarea name="answer" maxlength="4000" required placeholder="Public host answer..."></textarea><button type="submit" class="button button-primary button-small">Publish answer</button></form></details>
 		<% } %>
 		<% if (canPinComments) { %>
 		<form class="comment-pin-form" data-async-interaction method="post" action="/comments/<%= node._id %>/pin">

@@ -62,7 +62,8 @@ exports.canAccessPost = canAccessPost;
 
 async function notify(recipient, actor, type, message, post, community, actorName, url) {
   if (!recipient || String(recipient) === String(actor)) return;
-  const recipientUser = await User.findById(recipient).select('name email notificationPreferences').lean();
+  const recipientUser = await User.findById(recipient).select('name email notificationPreferences mutedDiscussions').lean();
+  if (post && (recipientUser?.mutedDiscussions || []).some((id) => String(id) === String(post))) return;
   const preferenceKey = type === 'like' ? 'likes' : (type === 'follow' || type === 'follow_request') ? 'follows' : type === 'message' ? 'messages' : ['comment', 'reply', 'mention', 'post_reply'].includes(type) ? 'comments' : 'security';
   if (!notificationPreferenceAllows(recipientUser?.notificationPreferences, preferenceKey, type)) return;
   await Notification.create({ recipient, actor, type, message, post, community, ...(url ? { url } : {}) });
@@ -236,6 +237,11 @@ exports.comment = async (req, res) => {
   const post = await Post.findById(req.params.id);
   if (!(await canAccessPost(post, req.session.user.id)) || (!body && !gif) || body.length > 2000) return redirectBack(req, res, { ok: false, error: 'Add a comment (up to 2,000 characters) or pick a GIF.' });
   let parent = null;
+  let quotedComment = null;
+  const requestedQuote = req.body.quotedComment;
+  if (requestedQuote && /^[a-f\d]{24}$/i.test(String(requestedQuote))) {
+    quotedComment = await Comment.findOne({ _id: requestedQuote, post: post._id }).select('_id').lean();
+  }
   let replyRecipient = null;
   const requestedParent = req.body.parent;
   if (requestedParent) {
@@ -249,7 +255,7 @@ exports.comment = async (req, res) => {
   }
   let comment;
   try {
-    comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, ...(gif ? { gif } : {}) });
+    comment = await Comment.create({ post: post._id, author: req.session.user.id, body, parent, quotedComment: quotedComment?._id || null, ...(gif ? { gif } : {}) });
   } catch (error) {
     throw error;
   }
@@ -272,6 +278,7 @@ exports.comment = async (req, res) => {
   if (req.get('X-Requested-With') === 'XMLHttpRequest') {
     // Send the finished comment back as HTML so the page can drop it into the
     // thread without reloading.
+    await comment.populate({ path: 'quotedComment', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } });
     const node = { ...comment.toObject(), author: { _id: req.session.user.id, name: req.session.user.name, profilePicture: req.session.user.profilePicture }, children: [] };
     const canPinComments = [post.author, ...(post.coAuthors || [])].some((id) => String(id) === String(req.session.user.id));
     const html = await renderPartial(res, 'partials/comment-node', { node, depth: parent ? 1 : 0, postId: post._id, postAuthorId: post.author, csrfToken: res.locals.csrfToken, canReply: true, canPinComments });
@@ -351,6 +358,67 @@ exports.toggleCommentReaction = async (req, res) => {
   await comment.save();
   if (result.reacted) await notify(comment.author, req.session.user.id, 'comment', `reacted ${req.body.emoji} to your comment.`, comment.post._id, comment.post.community, req.session.user.name, `/posts/${comment.post._id}`);
   return redirectBack(req, res, { ok: true, reactions: result.summary });
+};
+
+exports.toggleAma = async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (!post || String(post.author) !== String(req.session.user.id)) return redirectBack(req, res, { ok: false, error: 'Only the host can manage this AMA.' });
+  const enabled = req.body.enabled === 'true' || req.body.enabled === 'on';
+  post.ama.enabled = enabled;
+  if (enabled && !post.ama.startedAt) post.ama.startedAt = new Date();
+  if (!enabled) post.ama.endedAt = new Date();
+  await post.save();
+  return redirectBack(req, res, { amaEnabled: enabled });
+};
+
+exports.answerAmaComment = async (req, res) => {
+  const answer = String(req.body.answer || '').trim().slice(0, 4000);
+  const comment = await Comment.findById(req.params.id).populate('post', 'author ama');
+  if (!comment || !comment.post || String(comment.post.author) !== String(req.session.user.id)) return redirectBack(req, res, { ok: false, error: 'Only the AMA host can answer this question.' });
+  if (!comment.post.ama?.enabled) return redirectBack(req, res, { ok: false, error: 'This AMA is not active.' });
+  if (!answer) return redirectBack(req, res, { ok: false, error: 'Add a public answer.' });
+  comment.answeredByHost = true;
+  comment.hostAnswer = answer;
+  await comment.save();
+  return redirectBack(req, res, { answered: true });
+};
+
+exports.toggleFollowTopic = async (req, res) => {
+  const topic = String(req.params.topic || req.body.topic || '').trim().toLowerCase().replace(/^#/, '').replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+  if (!topic) return redirectBack(req, res, { ok: false });
+  const user = await User.findById(req.session.user.id);
+  if (!user) return redirectBack(req, res, { ok: false });
+  const exists = user.followedTopics.some((tag) => String(tag).toLowerCase() === topic);
+  if (exists) user.followedTopics.pull(topic); else user.followedTopics.addToSet(topic);
+  await user.save();
+  return redirectBack(req, res, { followedTopic: !exists, topic });
+};
+
+exports.toggleDiscussionPreference = async (req, res) => {
+  const post = await Post.findById(req.params.id).select('_id');
+  if (!post) return redirectBack(req, res, { ok: false });
+  const user = await User.findById(req.session.user.id);
+  if (!user) return redirectBack(req, res, { ok: false });
+  const action = req.params.action;
+  if (action === 'follow') {
+    const exists = user.followedDiscussions.some((id) => String(id) === String(post._id));
+    if (exists) user.followedDiscussions.pull(post._id); else user.followedDiscussions.addToSet(post._id);
+    await user.save();
+    return redirectBack(req, res, { followingDiscussion: !exists });
+  }
+  if (action === 'mute') {
+    const exists = user.mutedDiscussions.some((id) => String(id) === String(post._id));
+    if (exists) user.mutedDiscussions.pull(post._id); else user.mutedDiscussions.addToSet(post._id);
+    await user.save();
+    return redirectBack(req, res, { mutedDiscussion: !exists });
+  }
+  if (action === 'hide') {
+    const exists = user.hiddenPosts.some((id) => String(id) === String(post._id));
+    if (exists) user.hiddenPosts.pull(post._id); else user.hiddenPosts.addToSet(post._id);
+    await user.save();
+    return redirectBack(req, res, { hiddenPost: !exists });
+  }
+  return redirectBack(req, res, { ok: false });
 };
 
 exports.toggleBookmark = async (req, res) => {
@@ -635,7 +703,7 @@ exports.postDetail = async (req, res) => {
       User.updateOne({ _id: viewerId }, { $push: { recentViews: { $each: [{ post: post._id, viewedAt: new Date() }], $position: 0, $slice: 60 } } }).catch(() => {});
     }
   }
-  const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').lean())
+  const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').populate({ path: 'quotedComment', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }).lean())
     .filter((comment) => !blockedIds.includes(String(comment.author?._id)));
   const commentTree = movePinnedCommentToRoots(buildCommentTree(comments), post.pinnedComment);
   const canPinComments = viewerId && [post.author?._id, ...(post.coAuthors || []).map((publisher) => publisher?._id)]

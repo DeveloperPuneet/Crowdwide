@@ -6,6 +6,9 @@ const commentSchema = new mongoose.Schema({
   body: { type: String, trim: true, maxlength: 2000, default: '' },
   gif: { url: String, preview: String, title: String, width: Number, height: Number },
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null },
+  quotedComment: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null },
+  answeredByHost: { type: Boolean, default: false },
+  hostAnswer: { type: String, trim: true, maxlength: 4000, default: '' },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   // The post author's own "special like" on a comment (like a creator heart on
   // YouTube) - distinct from ordinary likes, settable only by the post's author.

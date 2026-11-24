@@ -1,6 +1,7 @@
 const Community = require('../models/Community');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const Comment = require('../models/Comment');
 const Quest = require('../models/Quest');
 const crypto = require('node:crypto');
 const { uploadBuffer, mediaUrl } = require('../services/storageCluster');
@@ -253,6 +254,29 @@ exports.mine = async (req, res) => {
     communities,
     communityCategories: COMMUNITY_CATEGORIES
   });
+};
+
+exports.memberDirectory = async (req, res) => {
+  const community = await Community.findOne({ slug: req.params.slug }).populate('owner', 'name profilePicture').lean();
+  if (!community) return res.status(404).render('pages/not-found', { title: 'Community not found' });
+  if (community.isPrivate) {
+    const joined = (community.members || []).some((id) => String(id) === String(req.session.user.id));
+    if (!joined) return res.status(403).render('pages/community-request', { title: `Request to join ${community.name}`, pagePath: `/communities/${community.slug}`, noIndex: true, community, requested: false });
+  }
+  const [members, postCounts, commentCounts] = await Promise.all([
+    User.find({ _id: { $in: community.members || [] } }).select('name profilePicture bio hashtags createdAt').sort({ name: 1 }).lean(),
+    Post.aggregate([{ $match: { community: community._id, status: 'published' } }, { $group: { _id: '$author', posts: { $sum: 1 } } }]),
+    Comment.aggregate([{ $lookup: { from: 'posts', localField: 'post', foreignField: '_id', as: 'postDoc' } }, { $match: { 'postDoc.community': community._id } }, { $group: { _id: '$author', comments: { $sum: 1 } } }])
+  ]);
+  const postsByAuthor = new Map(postCounts.map((row) => [String(row._id), row.posts]));
+  const commentsByAuthor = new Map(commentCounts.map((row) => [String(row._id), row.comments]));
+  const rows = members.map((member) => ({
+    ...member,
+    posts: postsByAuthor.get(String(member._id)) || 0,
+    comments: commentsByAuthor.get(String(member._id)) || 0,
+    contributionScore: (postsByAuthor.get(String(member._id)) || 0) * 3 + (commentsByAuthor.get(String(member._id)) || 0)
+  })).sort((a, b) => b.contributionScore - a.contributionScore);
+  res.render('pages/community-members', { title: `${community.name} members`, pagePath: `/communities/${community.slug}/members`, noIndex: true, community, members: rows });
 };
 
 exports.detail = async (req, res) => {

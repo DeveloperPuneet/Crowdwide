@@ -987,6 +987,29 @@ document.addEventListener('submit', async (event) => {
   }
 });
 
+document.querySelectorAll('[data-quote-comment]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const commentForm = document.querySelector('#comment-body')?.closest('form') || document.querySelector('.comment-form:not(.is-compact)');
+    if (!commentForm) return;
+    const quoteInput = commentForm.querySelector('[data-quoted-comment-input]');
+    if (quoteInput) quoteInput.value = button.dataset.quoteComment;
+    const textarea = commentForm.querySelector('[data-comment-input]');
+    if (textarea) {
+      textarea.placeholder = `Replying to ${button.dataset.quoteAuthor || 'this comment'}...`;
+      textarea.focus();
+      textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+});
+
+document.querySelectorAll('[data-copy-comment-link]').forEach((link) => {
+  link.addEventListener('click', async (event) => {
+    event.preventDefault();
+    const url = new URL(link.dataset.copyCommentLink, window.location.origin).href;
+    try { await navigator.clipboard.writeText(url); } catch (error) { window.location.href = url; }
+  });
+});
+
 const notificationBadge = document.querySelector('.notification-badge');
 if (window.axios && notificationBadge) {
   const refreshNotifications = async () => {

@@ -1253,6 +1253,30 @@ exports.infoPage = async (req, res) => {
 	res.render('pages/info', { ...page, showPartners: Boolean(page.showPartners), growthChart: Boolean(growthStats), growthStats, pagePath: req.path, description: page.intro });
 };
 
+exports.followedTopicsPage = async (req, res) => {
+	const user = await User.findById(req.session.user.id).select('followedTopics').lean();
+	const topics = (user?.followedTopics || []).sort();
+	const posts = topics.length ? await Post.find({ status: 'published', hashtags: { $in: topics }, moderationStatus: { $ne: 'reported' } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').populate('community', 'name slug').lean() : [];
+	res.render('pages/topics', { title: 'Topics you follow', pagePath: '/topics', noIndex: true, topics, posts });
+};
+
+exports.conversationsPage = async (req, res) => {
+	const user = await User.findById(req.session.user.id).select('followedDiscussions').lean();
+	const commentPosts = await Comment.find({ author: req.session.user.id }).distinct('post');
+	const ids = [...new Set([...(user?.followedDiscussions || []).map(String), ...commentPosts.map(String)])];
+	const posts = await Post.find({ $or: [{ author: req.session.user.id }, { _id: { $in: ids } }] }).sort({ updatedAt: -1 }).limit(50).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
+	res.render('pages/conversations', { title: 'Your Conversations', pagePath: '/conversations', noIndex: true, posts });
+};
+
+exports.recentlyViewedPage = async (req, res) => {
+	const user = await User.findById(req.session.user.id).select('recentViews').lean();
+	const ids = (user?.recentViews || []).map((entry) => entry.post).filter(Boolean);
+	const posts = ids.length ? await Post.find({ _id: { $in: ids }, status: 'published' }).populate('author', 'name profilePicture').populate('community', 'name slug').lean() : [];
+	const order = new Map(ids.map((id, index) => [String(id), index]));
+	posts.sort((a, b) => (order.get(String(a._id)) ?? 999) - (order.get(String(b._id)) ?? 999));
+	res.render('pages/recently-viewed', { title: 'Recently Viewed', pagePath: '/recently-viewed', noIndex: true, posts });
+};
+
 exports.robots = (req, res) => {
 	if (isStaging()) return res.type('text/plain').send('User-agent: *\nDisallow: /');
 	res.type('text/plain').send(`User-agent: *

@@ -10,6 +10,7 @@
 <form class="comment-form<%= compact ? ' is-compact' : '' %>" data-async-interaction data-gif-form method="post" action="<%= action %>">
 	<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 	<% if (locals.parent) { %><input type="hidden" name="parent" value="<%= parent %>"><% } %>
+	<input type="hidden" name="quotedComment" value="" data-quoted-comment-input>
 	<input type="hidden" name="gifUrl" value=""><input type="hidden" name="gifPreview" value=""><input type="hidden" name="gifTitle" value=""><input type="hidden" name="gifWidth" value=""><input type="hidden" name="gifHeight" value="">
 	<div class="comment-form-row">
 		<% if (locals.showAvatar && currentUser) { %><%- include('avatar', { person: currentUser, size: 'small', link: false }) %><% } %>

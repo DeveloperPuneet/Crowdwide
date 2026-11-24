@@ -28,6 +28,11 @@ const postSchema = new mongoose.Schema({
   hashtags: [{ type: String, trim: true, lowercase: true }],
   type: { type: String, enum: ['post', 'article', 'poll'], default: 'post' },
   status: { type: String, enum: ['draft', 'scheduled', 'published', 'pending', 'rejected'], default: 'published' },
+  ama: {
+    enabled: { type: Boolean, default: false },
+    startedAt: Date,
+    endedAt: Date
+  },
   scheduledAt: Date,
   media: [{
     url: { type: String, required: true },
