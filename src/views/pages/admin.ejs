@@ -91,7 +91,7 @@
   <section class="admin-panel" id="admin-panel-users" role="tabpanel" aria-labelledby="admin-tab-users" data-panel="users">
     <div class="admin-section-head"><h2>Users</h2><input class="admin-search" type="search" placeholder="Filter by name or email" data-filter-table="users-table"></div>
     <table class="admin-table" id="users-table">
-      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Verified</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Verified</th><th>Status</th><th>Joined</th><th>Last active</th><th></th></tr></thead>
       <tbody>
       <% users.forEach((user) => { %>
         <tr data-row-text="<%= (user.name + ' ' + user.email).toLowerCase() %>">
@@ -101,6 +101,7 @@
           <td data-label="Verified"><%= user.isVerified ? 'Yes' : 'No' %></td>
           <td data-label="Status"><% if (user.suspendedUntil && new Date(user.suspendedUntil) > new Date()) { %><span class="admin-badge status-suspended">Suspended</span><% } else if (user.postingRestrictedUntil && new Date(user.postingRestrictedUntil) > new Date()) { %><span class="admin-badge status-suspended">Posting restricted</span><% } else { %>Active<% } %><% if (user.warnings?.length) { %> · <%= user.warnings.length %> warning<%= user.warnings.length === 1 ? '' : 's' %><% } %></td>
           <td data-label="Joined"><%= new Date(user.createdAt).toLocaleDateString() %></td>
+          <td data-label="Last active"><%= user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleString() : 'Never recorded' %></td>
           <td><a class="admin-row-toggle" href="/admin/users/<%= user._id %>/preview">Preferences &amp; feed</a> <button type="button" class="admin-row-toggle" data-edit-toggle="user-edit-<%= user._id %>">Edit</button></td>
         </tr>
         <tr class="admin-editrow" id="user-edit-<%= user._id %>">

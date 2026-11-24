@@ -359,10 +359,61 @@ exports.toggleBookmark = async (req, res) => {
   const user = await User.findById(req.session.user.id);
   if (!user) return redirectBack(req, res);
   const exists = user.bookmarks.some((id) => String(id) === req.params.id);
-  if (exists) user.bookmarks.pull(req.params.id);
-  else { user.bookmarks.addToSet(req.params.id); refreshPersonalization(req.session.user.id); }
+  if (exists) {
+    user.bookmarks.pull(req.params.id);
+    user.postCollections.forEach((collection) => collection.postIds.pull(req.params.id));
+  } else {
+    user.bookmarks.addToSet(req.params.id);
+    refreshPersonalization(req.session.user.id);
+  }
   await user.save();
   redirectBack(req, res, { bookmarked: !exists });
+};
+
+exports.createPostCollection = async (req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 40);
+  if (!name) return redirectBack(req, res, { ok: false, error: 'Collection name is required.' });
+  const user = await User.findById(req.session.user.id);
+  if (!user) return redirectBack(req, res, { ok: false });
+  if ((user.postCollections || []).length >= 50) return redirectBack(req, res, { ok: false, error: 'Collection limit reached.' });
+  user.postCollections.push({ name, postIds: [], createdAt: new Date(), updatedAt: new Date() });
+  await user.save();
+  redirectBack(req, res, { ok: true });
+};
+
+exports.renamePostCollection = async (req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 40);
+  const user = await User.findById(req.session.user.id);
+  const collection = user?.postCollections?.id(req.params.collectionId);
+  if (!name || !collection) return redirectBack(req, res, { ok: false });
+  collection.name = name;
+  collection.updatedAt = new Date();
+  await user.save();
+  redirectBack(req, res, { ok: true });
+};
+
+exports.deletePostCollection = async (req, res) => {
+  const user = await User.findById(req.session.user.id);
+  const collection = user?.postCollections?.id(req.params.collectionId);
+  if (!collection) return redirectBack(req, res, { ok: false });
+  user.postCollections.pull(collection._id);
+  await user.save();
+  redirectBack(req, res, { ok: true });
+};
+
+exports.setPostCollectionMembership = async (req, res) => {
+  const user = await User.findById(req.session.user.id);
+  const collection = user?.postCollections?.id(req.params.collectionId);
+  const post = await Post.findById(req.params.postId).select('_id author status community').lean();
+  if (!collection || !post || !(await canAccessPost(post, req.session.user.id))) return redirectBack(req, res, { ok: false });
+  const add = req.body.add === 'true' || req.body.add === 'on';
+  if (add) {
+    if (!user.bookmarks.some((id) => String(id) === req.params.postId)) user.bookmarks.addToSet(req.params.postId);
+    collection.postIds.addToSet(req.params.postId);
+  } else collection.postIds.pull(req.params.postId);
+  collection.updatedAt = new Date();
+  await user.save();
+  redirectBack(req, res, { ok: true });
 };
 
 // Copying the link or using the phone's share sheet does NOT count as a share:

@@ -767,6 +767,30 @@ body .profile-tabs a.profile-tab-active, body .public-posts-modern .public-post-
 .people-modern .discover-row span { font-size: 12px; line-height: 1.45; margin-top: 2px; }
 .people-modern .round-action { width: 34px; height: 34px; display: grid; place-items: center; line-height: 1; border-color: var(--bd-2); color: var(--blue); transition: all .15s; }
 .people-modern .round-action:hover { background: var(--mu-grad); border-color: transparent; color: #fff; transform: scale(1.06); }
+.trending-discussion-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.trending-discussion-row:last-child { border-bottom: 0; }
+.trending-discussion-row strong { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12px; line-height: 1.35; }
+.trending-discussion-row span { display: block; margin-top: 3px; color: var(--tx-faint); font-size: 10px; }
+.trending-discussion-count { min-width: 42px; display: flex !important; align-items: center; justify-content: flex-end; gap: 5px; color: var(--tx-lo) !important; }
+.post-collections-panel { margin: 0 0 18px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--sf-1); }
+.post-collections-panel .panel-heading { border-bottom: 0; padding: 0 0 10px; }
+.post-collection-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.post-collection-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.post-collection-row form { display: inline-flex; align-items: center; gap: 8px; }
+.post-collection-row input { min-width: 120px; }
+.post-collection-row > span { color: var(--tx-faint); font-size: 11px; }
+.post-collection-memberships { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 18px; color: var(--tx-faint); font-size: 11px; }
+.post-collection-memberships form { margin: 0; }
+.composer-drafts { margin: 8px 0 10px 54px; border: 1px solid var(--line); border-radius: 8px; background: var(--sf-1); }
+.composer-drafts summary { cursor: pointer; padding: 9px 12px; color: var(--tx-mid); font-size: 12px; font-weight: 700; }
+.composer-drafts summary span { float: right; color: var(--orange); }
+.composer-drafts-list { border-top: 1px solid var(--line); }
+.composer-draft-row { display: block; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.composer-draft-row:last-child { border-bottom: 0; }
+.composer-draft-row strong, .composer-draft-row span { display: block; }
+.composer-draft-row strong { font-size: 12px; }
+.composer-draft-row span { margin-top: 3px; color: var(--tx-faint); font-size: 10px; }
+@media (max-width: 520px) { .post-collection-row { grid-template-columns: minmax(0, 1fr) auto; } .post-collection-row > span { grid-column: 1 / -1; } }
 .people-modern .discover-panel > p { padding: 22px 12px !important; margin: 8px 0 0; text-align: center; border: 1.5px dashed var(--bd-1); border-radius: 14px; font-size: 13px !important; line-height: 1.55; }
 
 /* ---------- Notifications ---------- */

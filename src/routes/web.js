@@ -117,6 +117,10 @@ router.post('/comments/:id/author-heart', requireAuth, requireVerified, interact
 router.post('/comments/:id/pin', requireAuth, requireVerified, interactionLimiter, interactionController.togglePinnedComment);
 router.post('/comments/:id/react', requireAuth, requireVerified, interactionLimiter, interactionController.toggleCommentReaction);
 router.post('/posts/:id/bookmark', requireAuth, requireVerified, interactionLimiter, interactionController.toggleBookmark);
+router.post('/saved/collections', requireAuth, requireVerified, interactionLimiter, interactionController.createPostCollection);
+router.post('/saved/collections/:collectionId/rename', requireAuth, requireVerified, interactionLimiter, interactionController.renamePostCollection);
+router.post('/saved/collections/:collectionId/delete', requireAuth, requireVerified, interactionLimiter, interactionController.deletePostCollection);
+router.post('/saved/collections/:collectionId/posts/:postId', requireAuth, requireVerified, interactionLimiter, interactionController.setPostCollectionMembership);
 router.post('/posts/:id/share', requireAuth, requireVerified, interactionLimiter, interactionController.share);
 router.post('/posts/:id/poll/vote', requireAuth, requireVerified, interactionLimiter, interactionController.votePoll);
 router.post('/posts/:id/reaction', requireAuth, requireVerified, interactionLimiter, interactionController.toggleReaction);

@@ -15,6 +15,7 @@
   const SEND_TIMEOUT_MS = 45 * 1000;
   const EDIT_TIMEOUT_MS = 30 * 1000;
   const STORE_KEY = 'cw-unsent-post';
+  const COMPOSER_DRAFT_KEY = 'cw-composer-draft';
 
   const csrfHeaders = () => ({
     'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content,
@@ -67,6 +68,26 @@
     const feed = document.getElementById('feed-posts');
     if (!feed || !window.axios) return; // no feed on this page: the normal form submit still works
     const textarea = composer.querySelector('textarea[name="body"]');
+    const readComposerDraft = () => {
+      try { return JSON.parse(window.localStorage.getItem(COMPOSER_DRAFT_KEY) || 'null'); } catch (error) { return null; }
+    };
+    const clearComposerDraft = () => {
+      try { window.localStorage.removeItem(COMPOSER_DRAFT_KEY); } catch (error) { /* private mode */ }
+    };
+    const saveComposerDraft = () => {
+      if (!textarea) return;
+      const body = textarea.value;
+      if (!body.trim()) { clearComposerDraft(); return; }
+      try { window.localStorage.setItem(COMPOSER_DRAFT_KEY, JSON.stringify({ body, savedAt: Date.now() })); } catch (error) { /* private mode */ }
+    };
+    const localDraft = readComposerDraft();
+    if (localDraft?.body && textarea && !textarea.value) {
+      textarea.value = localDraft.body;
+      composer.classList.remove('composer-hidden');
+      document.querySelector('[data-composer-open]')?.setAttribute('aria-expanded', 'true');
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    textarea?.addEventListener('input', saveComposerDraft);
     let pending = false;
     let failed = null; // { snapshot, requestId, fingerprint, card }
 
@@ -184,6 +205,7 @@
 
     const resetComposer = () => {
       composer.reset();
+      clearComposerDraft();
       composer.dispatchEvent(new CustomEvent('gif:clear', { bubbles: true }));
       composer.querySelectorAll('[data-hashtag-suggestions]').forEach((node) => node.replaceChildren());
       textarea?.dispatchEvent(new Event('input', { bubbles: true }));

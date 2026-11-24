@@ -201,12 +201,47 @@
 
 	<% if (profileTab !== 'activity' && profileTab !== 'comments' && profileTab !== 'stats') { %>
 	<section class="community-posts profile-posts">
+		<% if (isSelf && profileTab === 'saved') { %>
+		<div class="post-collections-panel">
+			<div class="panel-heading"><h2>Post collections</h2><span><%= (locals.postCollections || []).length %></span></div>
+			<form class="post-collection-create" method="post" action="/saved/collections">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<input type="text" name="name" maxlength="40" required placeholder="New collection name" aria-label="New collection name">
+				<button class="button button-small button-primary" type="submit">Create</button>
+			</form>
+			<% (locals.postCollections || []).forEach((collection) => { %>
+			<div class="post-collection-row">
+				<form method="post" action="/saved/collections/<%= collection._id %>/rename">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+					<input type="text" name="name" value="<%= collection.name %>" maxlength="40" aria-label="Collection name">
+					<button type="submit" class="button button-ghost button-small">Rename</button>
+				</form>
+				<form method="post" action="/saved/collections/<%= collection._id %>/delete" onsubmit="return confirm('Delete this collection?');">
+					<input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small">Delete</button>
+				</form>
+				<span><%= (collection.postIds || []).length %> saved</span>
+			</div>
+			<% }) %>
+		</div>
+		<% } %>
 		<div class="panel-heading"><h2><%= profileTab === 'likes' ? `${profileUser.name}'s likes` : profileTab === 'saved' ? 'Saved posts' : isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= listTotal.toLocaleString() %></span></div>
 		<% if (!displayedPosts.length) { %>
 		<div class="empty-feed"><h2><%= profileTab === 'saved' ? 'No saved posts yet.' : 'No posts yet.' %></h2><p><%= isSelf ? 'Posts and conversations you collect will appear here.' : 'This person has not posted yet.' %></p></div>
 		<% } %>
 		<% displayedPosts.forEach((post) => { %>
 		<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
+		<% if (isSelf && profileTab === 'saved' && (locals.postCollections || []).length) { %>
+		<div class="post-collection-memberships">
+			<span>Add to collection:</span>
+			<% (locals.postCollections || []).forEach((collection) => { const inCollection = (collection.postIds || []).some((id) => String(id) === String(post._id)); %>
+			<form method="post" action="/saved/collections/<%= collection._id %>/posts/<%= post._id %>">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<input type="hidden" name="add" value="<%= inCollection ? 'false' : 'true' %>">
+				<button type="submit" class="button button-ghost button-small"><%= inCollection ? 'Remove from' : 'Add to' %> <%= collection.name %></button>
+			</form>
+			<% }) %>
+		</div>
+		<% } %>
 		<% }) %>
 		<% if (hasMoreList) { %>
 		<div class="profile-more" data-profile-more data-url="/u/<%= profileUser._id %>/posts/more" data-tab="<%= profileTab %>" data-page="1">

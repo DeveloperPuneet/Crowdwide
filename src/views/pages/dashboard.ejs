@@ -11,6 +11,20 @@
 			<%- include('../partials/avatar', { person: locals.profileUser || currentUser, size: 'small', link: false }) %>
 			<span class="composer-prompt-text">Share something…</span><span class="composer-prompt-plus"><%- icon('plus', { size: 16 }) %></span>
 		</button>
+		<% const visibleDraftPosts = locals.draftPosts || []; %>
+		<% if (visibleDraftPosts.length) { %>
+		<details class="composer-drafts" data-composer-drafts>
+			<summary>Drafts <span><%= visibleDraftPosts.length %></span></summary>
+			<div class="composer-drafts-list">
+			<% visibleDraftPosts.forEach((draft) => { %>
+				<a href="/posts/<%= draft._id %>/edit" class="composer-draft-row">
+					<strong><%= preview(draft.body, 72) || 'Untitled draft' %></strong>
+					<span><%= draft.type === 'article' ? 'Article' : draft.type === 'poll' ? 'Poll' : 'Post' %> · Updated <%= new Date(draft.updatedAt).toLocaleString() %></span>
+				</a>
+			<% }) %>
+			</div>
+		</details>
+		<% } %>
 		<%
 	const feedTabs = [
 		['for-you', '/dashboard?view=for-you', 'For you', 'sparkles', ['for-you']],
@@ -136,6 +150,19 @@
 		<p id="feed-end-note" class="upload-help feed-end-note" style="display:<%= feed.visiblePosts.length && !feed.hasMore ? 'block' : 'none' %>;">You're all caught up.</p>
 	</section>
 	<aside class="discover-column" id="explore">
+		<section class="discover-panel trending-discussions" id="trending-discussions">
+			<div class="panel-heading"><h2>Trending Discussions</h2><a href="/top">Last 24 hours <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
+			<% const visibleTrendingDiscussions = locals.trendingDiscussions || []; %>
+			<% if (!visibleTrendingDiscussions.length) { %>
+			<p style="color:var(--tx-faint);font-size:12px;padding:10px 0;">New conversations will trend here as they gather replies and reactions.</p>
+			<% } %>
+			<% visibleTrendingDiscussions.forEach((discussion) => { %>
+			<a class="trending-discussion-row" href="/posts/<%= discussion._id %>">
+				<div><strong><%= preview(discussion.body, 72) || 'Join this discussion' %></strong><span><%= discussion.community?.name || 'Open Crowdwide' %></span></div>
+				<span class="trending-discussion-count"><%- icon('message-circle', { size: 13 }) %> <%= discussion.commentsCount || 0 %> <span class="visually-hidden">comments</span></span>
+			</a>
+			<% }) %>
+		</section>
 		<section class="discover-panel" id="communities">
 			<div class="panel-heading"><h2>Communities for you</h2><a href="/explore">See all <%- icon('arrow-up-right', { size: 13, className: 'inline-arrow' }) %></a></div>
 			<% if (!communities.length) { %>

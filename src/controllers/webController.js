@@ -222,14 +222,46 @@ exports.dashboard = async (req, res) => {
 		const user = await User.findById(req.session.user.id).lean();
 		const activeTab = resolveFeedView(req.query);
 		const followingIds = (user.following || []).map(String);
-		const [feed, communities, joinedCommunityDocs, people, followedPeople, followerPeople, wordLimits] = await Promise.all([
+		const [feed, communities, joinedCommunityDocs, people, followedPeople, followerPeople, wordLimits, trendingDiscussions, draftPosts] = await Promise.all([
 			getFeedPage({ userId: user._id, view: activeTab, page: 1, user }),
 			getRecommendedCommunities(user, { limit: 5, getInterestProfile }),
 			Community.find({ $or: [{ members: user._id }, { owner: user._id }] }).sort({ name: 1 }).lean(),
 			User.find({ _id: { $ne: user._id, $nin: [...(user.following || []), ...(user.blockedUsers || [])] }, isVerified: true }).sort({ createdAt: -1 }).limit(5).select('name profilePicture').lean(),
 			User.find({ _id: { $in: user.following || [], $ne: user._id } }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
-			getWordLimits()
+			getWordLimits(),
+			Post.aggregate([
+				{ $match: { status: 'published', moderationStatus: { $ne: 'reported' }, updatedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, community: { $nin: await getRestrictedCommunityIds(user._id) }, author: { $nin: await getHiddenAuthorIds(user._id) } } },
+				{ $addFields: {
+					likesCount: { $size: { $ifNull: ['$likes', []] } },
+					reactionsCount: {
+						$add: [
+							{ $size: { $ifNull: ['$reactions.celebrate', []] } },
+							{ $size: { $ifNull: ['$reactions.insightful', []] } },
+							{ $size: { $ifNull: ['$reactions.support', []] } },
+							{ $size: { $ifNull: ['$reactions.funny', []] } }
+						]
+					}
+				} },
+				{ $addFields: { engagementScore: {
+					$add: [
+						{ $multiply: [{ $ifNull: ['$commentsCount', 0] }, 4] },
+						{ $multiply: [{ $ifNull: ['$replyPostsCount', 0] }, 3] },
+						{ $multiply: ['$likesCount', 2] },
+						'$reactionsCount',
+						{ $multiply: [{ $ifNull: ['$sharesCount', 0] }, 3] },
+						{ $multiply: [{ $ifNull: ['$viewsCount', 0] }, 0.25] }
+					]
+				} } },
+				{ $sort: { engagementScore: -1, commentsCount: -1, createdAt: -1 } },
+				{ $limit: 5 },
+				{ $lookup: { from: 'users', localField: 'author', foreignField: '_id', as: 'authorDoc' } },
+				{ $unwind: { path: '$authorDoc', preserveNullAndEmptyArrays: true } },
+				{ $lookup: { from: 'communities', localField: 'community', foreignField: '_id', as: 'communityDoc' } },
+				{ $unwind: { path: '$communityDoc', preserveNullAndEmptyArrays: true } },
+				{ $project: { body: 1, commentsCount: 1, likesCount: 1, reactionsCount: 1, engagementScore: 1, createdAt: 1, updatedAt: 1, author: { _id: '$authorDoc._id', name: '$authorDoc.name', profilePicture: '$authorDoc.profilePicture' }, community: { _id: '$communityDoc._id', name: '$communityDoc.name', slug: '$communityDoc.slug' } } }
+			]),
+			Post.find({ author: user._id, status: 'draft' }).sort({ updatedAt: -1 }).limit(10).select('body type community poll updatedAt').lean()
 		]);
 		// These lookups do not depend on each other, so they run together instead of one after another.
 		const awayFrom = req.session.awayFrom;
@@ -290,6 +322,8 @@ exports.dashboard = async (req, res) => {
 			selectedQuestId: selectedQuest ? String(selectedQuest._id) : '',
 			selectedCommunityId: selectedQuest ? String(selectedQuest.community?._id) : '',
 			people,
+			trendingDiscussions,
+			draftPosts,
 			coAuthorSuggestions,
 			communityCategories: COMMUNITY_CATEGORIES,
 			joinedCommunities: (user.joinedCommunities || []).map(String),
@@ -699,7 +733,7 @@ exports.profile = async (req, res) => {
 	const [posts, followersCount, viewer, postCount, likedPosts, comments, engagementAgg, memberCommunities, wonQuests, listPostsTotal, listLikesTotal] = await Promise.all([
 		locked ? none : Post.find(postFilter).sort({ createdAt: -1, _id: -1 }).limit(PROFILE_PAGE_SIZE).populate('community', 'name slug').lean(),
 		User.countDocuments({ following: profileUser._id }),
-		User.findById(viewerId).select('following bookmarks blockedUsers mutedUsers').lean(),
+		User.findById(viewerId).select('following bookmarks postCollections blockedUsers mutedUsers').lean(),
 		Post.countDocuments(publishedFilter),
 		locked ? none : Post.find({ likes: profileUser._id, status: 'published', community: { $nin: restrictedCommunityIds } }).sort({ updatedAt: -1, _id: -1 }).limit(PROFILE_PAGE_SIZE).populate('community', 'name slug').lean(),
 		locked ? none : Comment.find({ author: profileUser._id }).sort({ createdAt: -1 }).limit(30).populate({ path: 'post', select: 'body author createdAt community', populate: { path: 'author', select: 'name' } }).lean(),
@@ -810,6 +844,7 @@ exports.profile = async (req, res) => {
 		profileLikes: visibleLikes,
 		profileComments: visibleComments,
 		savedPosts,
+		postCollections: viewer?.postCollections || [],
 		statsDetail,
 		postCount,
 		listTotals: { posts: listPostsTotal, likes: listLikesTotal, pageSize: PROFILE_PAGE_SIZE },
