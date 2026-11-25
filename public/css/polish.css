@@ -283,6 +283,15 @@ input:disabled, textarea:disabled, select:disabled { opacity: .6; cursor: not-al
 .post-ama-indicator:not([hidden]) { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
 .post-ama-indicator svg { flex: none; }
 .post-actions.has-ama { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.post-ama-controls { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 0; margin: 18px 0; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--blue) 28%, var(--line)); border-radius: 17px; background: radial-gradient(65% 160% at 100% 0%, color-mix(in srgb, var(--blue) 10%, transparent), transparent 75%), var(--sf-1); }
+.post-ama-controls:has(.post-ama-control.is-active) { border-color: color-mix(in srgb, var(--ac-orange) 30%, var(--line)); background: radial-gradient(65% 160% at 100% 0%, color-mix(in srgb, var(--ac-orange) 9%, transparent), transparent 75%), var(--sf-1); }
+.post-ama-copy { display: grid; min-width: 0; gap: 4px; }
+.post-ama-copy strong { color: var(--tx-hi); font-size: 13px; }
+.post-ama-copy span { color: var(--tx-lo); font-size: 12px; line-height: 1.45; }
+.post-ama-toggle { margin: 0; }
+.post-ama-control { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 9px 16px; border: 1px solid color-mix(in srgb, var(--blue) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--blue) 12%, var(--sf-1)); color: var(--ac-blue); font-size: 12px; font-weight: 700; cursor: pointer; transition: background .15s, border-color .15s, transform .15s; }
+.post-ama-control:hover { transform: translateY(-1px); border-color: var(--blue); background: color-mix(in srgb, var(--blue) 18%, var(--sf-1)); }
+.post-ama-control.is-active { border-color: color-mix(in srgb, var(--ac-orange) 40%, var(--line)); background: color-mix(in srgb, var(--ac-orange) 12%, var(--sf-1)); color: var(--ac-orange); }
 .community-member-card { padding: 16px; border-radius: 16px; background: var(--panel); transition: border-color .15s, transform .15s; }
 .community-member-card:hover { border-color: var(--bd-2); transform: translateY(-1px); }
 .community-member-card .avatar { width: 42px; height: 42px; }
@@ -345,6 +354,7 @@ input:disabled, textarea:disabled, select:disabled { opacity: .6; cursor: not-al
 .search-topic-result > form { flex: none; }
 .search-topic-result .button { min-height: 42px; }
 .community-members-page { width: 100%; max-width: 1720px; margin: 0 auto; padding: 20px clamp(22px, 3.2vw, 56px) 76px; }
+body:has(.community-members-page) .app-nav { width: calc(100% + var(--rail-w, 0px)); margin-left: calc(-1 * var(--rail-w, 0px)); padding-left: calc(var(--rail-w, 0px) + max(20px, calc((100% - 1400px) / 2))); }
 .community-members-hero {
   display: flex; align-items: center; gap: clamp(16px, 3vw, 26px); min-width: 0;
   padding: clamp(20px, 4vw, 34px); border: 1px solid var(--bd-1); border-radius: 24px;
@@ -414,6 +424,8 @@ input:disabled, textarea:disabled, select:disabled { opacity: .6; cursor: not-al
   .feature-page.feature-page-modern { width: calc(100% - 32px); margin-top: 14px; }
   .feature-page-modern .feature-hero { min-height: 0; gap: 18px; padding: 22px; }
   .feature-page-modern > .feed-column > .panel-heading :is(h1, h2) { font-size: 18px; }
+  .post-ama-controls { align-items: stretch; flex-direction: column; gap: 12px; padding: 14px; }
+  .post-ama-toggle, .post-ama-control { width: 100%; }
   .search-topic-result { align-items: stretch; flex-direction: column; margin: 18px 0 26px; }
   .search-topic-result > form, .search-topic-result .button { width: 100%; }
   .community-members-page { padding: 12px 16px 54px; }

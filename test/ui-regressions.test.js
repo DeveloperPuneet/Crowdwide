@@ -117,6 +117,15 @@ test('post options, topic search cards, member roles, and the original sidebar c
   assert.match(read('public', 'css', 'style.css'), /\.app-rail \.rail-toggle\s*\{[^}]*right:\s*-13px/);
 });
 
+test('AMA controls have a dedicated post-detail placement and the member page navbar spans the rail', () => {
+  const detail = read('src', 'views', 'pages', 'post-detail.ejs');
+  const css = read('public', 'css', 'polish.css');
+  assert.match(detail, /class="post-ama-controls"[\s\S]*?class="post-ama-toggle"/);
+  assert.doesNotMatch(detail, /class="post-view-actions"[\s\S]*?data-ama-toggle/);
+  assert.match(css, /\.post-ama-control\s*\{[^}]*min-height:\s*42px/);
+  assert.match(css, /body:has\(\.community-members-page\) \.app-nav \{[^}]*width:\s*calc\(100% \+ var\(--rail-w, 0px\)\);[^}]*margin-left:\s*calc\(-1 \* var\(--rail-w, 0px\)\)/);
+});
+
 test('community member directory separates activity and followed topics with responsive theme-aware cards', () => {
   const page = read('src', 'views', 'pages', 'community-members.ejs');
   const css = read('public', 'css', 'polish.css');

@@ -73,6 +73,19 @@
 		</a>
 		<% } %>
 		<%- include('../partials/post-media', { post }) %>
+		<% if (currentUser && String(post.author?._id) === String(currentUser.id)) { %>
+		<section class="post-ama-controls" aria-label="Ask me anything controls">
+			<div class="post-ama-copy">
+				<strong data-ama-control-title><%= post.ama?.enabled ? 'Your AMA is live' : 'Host an AMA on this post' %></strong>
+				<span data-ama-control-hint><%= post.ama?.enabled ? 'People can ask questions in the comments.' : 'Invite the community to ask you anything.' %></span>
+			</div>
+			<form class="post-ama-toggle" data-async-interaction data-ama-toggle method="post" action="/posts/<%= post._id %>/ama">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<input type="hidden" name="enabled" value="<%= post.ama?.enabled ? 'false' : 'true' %>">
+				<button type="submit" class="post-ama-control <%= post.ama?.enabled ? 'is-active' : '' %>" aria-pressed="<%= post.ama?.enabled ? 'true' : 'false' %>"><%- icon('message-square', { size: 17 }) %><span class="label"><%= post.ama?.enabled ? 'End AMA' : 'Start AMA' %></span></button>
+			</form>
+		</section>
+		<% } %>
 
 		<div class="post-view-counts">
 			<span><strong data-like-total><%= post.likes?.length || 0 %></strong> likes</span>
@@ -92,7 +105,6 @@
 			<button type="button" class="action-link action-translate" data-translate-trigger><%- icon('globe', { size: 24 }) %><span class="label">Translate</span></button>
 			<button type="button" class="action-share" data-share-open data-post-id="<%= post._id %>" data-post-url="/posts/<%= post._id %>"><%- icon('send', { size: 24 }) %><span class="label">Share</span></button>
 			<form class="post-view-save" method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="button" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>" aria-pressed="<%= post.bookmarked ? 'true' : 'false' %>" data-save-picker-open><%- icon('bookmark', { size: 24 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
-			<% if (String(post.author?._id) === String(currentUser.id)) { %><form data-async-interaction data-ama-toggle method="post" action="/posts/<%= post._id %>/ama"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="enabled" value="<%= post.ama?.enabled ? 'false' : 'true' %>"><button type="submit" class="action-link"><%- icon('message-square', { size: 20 }) %><span class="label"><%= post.ama?.enabled ? 'End AMA' : 'Start AMA' %></span></button></form><% } %>
 		</div>
 		<dialog class="save-picker-dialog" data-save-picker-dialog data-post-id="<%= post._id %>" aria-labelledby="save-picker-title">
 			<div class="save-picker-head"><div><p class="eyebrow">Organize for later</p><h2 id="save-picker-title">Save post</h2></div><button type="button" class="save-picker-close" data-save-picker-close aria-label="Close">×</button></div>

@@ -771,6 +771,12 @@ const optimisticSpecs = [
       const button = submitButtonOf(form);
       const label = button.querySelector('.label');
       if (label) label.textContent = state.enabled ? 'End AMA' : 'Start AMA';
+      button.setAttribute('aria-pressed', String(state.enabled));
+      button.classList.toggle('is-active', state.enabled);
+      const title = form.querySelector('[data-ama-control-title]');
+      if (title) title.textContent = state.enabled ? 'Your AMA is live' : 'Host an AMA on this post';
+      const hint = form.querySelector('[data-ama-control-hint]');
+      if (hint) hint.textContent = state.enabled ? 'People can ask questions in the comments.' : 'Invite the community to ask you anything.';
       const post = document.querySelector(`#post-${CSS.escape(form.action.match(/\/posts\/([^/]+)\/ama/)?.[1] || '')}`);
       post?.querySelectorAll('[data-ama-badge]').forEach((badge) => {
         badge.hidden = !state.enabled;
