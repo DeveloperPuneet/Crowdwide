@@ -16,6 +16,7 @@
     "reminders:run": "node scripts/send-reminders.js"
   },
   "dependencies": {
+    "@google-cloud/storage": "^9.0.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.2",
     "connect-mongo": "^5.1.0",
