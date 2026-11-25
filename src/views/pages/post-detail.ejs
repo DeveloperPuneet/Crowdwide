@@ -38,6 +38,19 @@
 					<% } else { %>
 					<button class="post-menu-item is-danger" role="menuitem" type="button" data-report-open="report-dialog"><%- icon('flag', { size: 16 }) %><span>Report post</span></button>
 					<% } %>
+					<div class="post-menu-divider" role="separator"></div>
+					<form method="post" action="/posts/<%= post._id %>/discussion/follow">
+						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+						<button class="post-menu-item" role="menuitem" type="submit"><%- icon('bell', { size: 16 }) %><span>Follow discussion</span></button>
+					</form>
+					<form method="post" action="/posts/<%= post._id %>/discussion/mute">
+						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+						<button class="post-menu-item" role="menuitem" type="submit"><%- icon('volume-x', { size: 16 }) %><span>Mute discussion</span></button>
+					</form>
+					<form method="post" action="/posts/<%= post._id %>/discussion/hide">
+						<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+						<button class="post-menu-item" role="menuitem" type="submit"><%- icon('eye-off', { size: 16 }) %><span>Hide post</span></button>
+					</form>
 				</div>
 			</details>
 			<% } %>
@@ -45,14 +58,14 @@
 		<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
 		<% const readingWords = String(post.body || '').trim().split(/\s+/).filter(Boolean).length; const readingMinutes = Math.max(1, Math.ceil(readingWords / 220)); %>
 		<span class="reading-time" aria-label="Estimated reading time"><%- icon('clock', { size: 13 }) %> <%= readingMinutes %> min read</span>
-		<% if (post.ama?.enabled) { %><span class="ama-badge"><%- icon('message-square', { size: 13 }) %> Ask Me Anything</span><% } %>
+		<span class="ama-badge" data-ama-badge <%= post.ama?.enabled ? '' : 'hidden' %>><%- icon('message-square', { size: 13 }) %> Ask Me Anything</span>
 		<div class="post-view-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
 		<% if (post.poll?.question && post.poll.options?.length) { %>
 		<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (currentUser) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %><% if (!currentUser) { %><a class="public-interaction-prompt" href="/auth/register">Create an account to vote in this poll</a><% } %><%- include('../partials/poll-voters', { poll: post.poll }) %></section>
 		<% } %>
 		<% if (post.quotedPost) { %><a class="quoted-post" href="/posts/<%= post.quotedPost._id %>"><strong><%= post.quotedPost.author?.name || 'Crowdwide member' %>'s post</strong><p><%= preview(post.quotedPost.body, 400) %></p></a><% } %>
 		<% if (post.replyTo) { %><a class="quoted-post reply-source" href="/posts/<%= post.replyTo._id %>"><strong>Replying to <%= post.replyTo.author?.name || 'Crowdwide member' %></strong><p><%= preview(post.replyTo.body, 400) %></p></a><% } %>
-		<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { const followingTopic = (locals.followedTopics || []).some((followed) => String(followed).toLowerCase() === String(tag).toLowerCase()); %><span class="topic-chip"><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% if (currentUser) { %><form class="topic-follow-form" method="post" action="/topics/<%= tag %>/follow" data-async-interaction data-topic="<%= tag %>" data-following="<%= followingTopic %>"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" aria-pressed="<%= followingTopic %>" aria-label="<%= followingTopic ? 'Unfollow' : 'Follow' %> topic #<%= tag %>"><%= followingTopic ? '−' : '+' %></button></form><% } %></span><% }) %></div><% } %>
+		<% if ((post.hashtags || []).length) { %><div class="hashtag-row"><% post.hashtags.forEach((tag) => { %><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %></a><% }) %></div><% } %>
 		<% if (post.linkPreview?.title) { %>
 		<a class="link-preview-card" href="<%= post.linkPreview.url %>" target="_blank" rel="noopener noreferrer nofollow">
 			<% if (post.linkPreview.image) { %><img src="<%= post.linkPreview.image %>" alt="" loading="lazy"><% } %>
@@ -78,12 +91,25 @@
 			<a class="action-link" href="#comment-body" data-focus-comment><%- icon('message-circle', { size: 24 }) %><span class="label">Comment</span></a>
 			<button type="button" class="action-link action-translate" data-translate-trigger><%- icon('globe', { size: 24 }) %><span class="label">Translate</span></button>
 			<button type="button" class="action-share" data-share-open data-post-id="<%= post._id %>" data-post-url="/posts/<%= post._id %>"><%- icon('send', { size: 24 }) %><span class="label">Share</span></button>
-			<form class="post-view-save" method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>" aria-pressed="<%= post.bookmarked ? 'true' : 'false' %>"><%- icon('bookmark', { size: 24 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
-			<form method="post" action="/posts/<%= post._id %>/discussion/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-link"><%- icon('bell', { size: 20 }) %><span class="label">Follow discussion</span></button></form>
-			<form method="post" action="/posts/<%= post._id %>/discussion/mute"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-link"><%- icon('volume-x', { size: 20 }) %><span class="label">Mute discussion</span></button></form>
-			<form method="post" action="/posts/<%= post._id %>/discussion/hide"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-link"><%- icon('eye-off', { size: 20 }) %><span class="label">Hide post</span></button></form>
-			<% if (String(post.author?._id) === String(currentUser.id)) { %><form method="post" action="/posts/<%= post._id %>/ama"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="enabled" value="<%= post.ama?.enabled ? 'false' : 'true' %>"><button type="submit" class="action-link"><%- icon('message-square', { size: 20 }) %><span class="label"><%= post.ama?.enabled ? 'End AMA' : 'Start AMA' %></span></button></form><% } %>
+			<form class="post-view-save" method="post" action="/posts/<%= post._id %>/bookmark"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="button" class="action-save <%= post.bookmarked ? 'is-saved' : '' %>" aria-pressed="<%= post.bookmarked ? 'true' : 'false' %>" data-save-picker-open><%- icon('bookmark', { size: 24 }) %><span class="label"><%= post.bookmarked ? 'Saved' : 'Save' %></span></button></form>
+			<% if (String(post.author?._id) === String(currentUser.id)) { %><form data-async-interaction data-ama-toggle method="post" action="/posts/<%= post._id %>/ama"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="enabled" value="<%= post.ama?.enabled ? 'false' : 'true' %>"><button type="submit" class="action-link"><%- icon('message-square', { size: 20 }) %><span class="label"><%= post.ama?.enabled ? 'End AMA' : 'Start AMA' %></span></button></form><% } %>
 		</div>
+		<dialog class="save-picker-dialog" data-save-picker-dialog data-post-id="<%= post._id %>" aria-labelledby="save-picker-title">
+			<div class="save-picker-head"><div><p class="eyebrow">Organize for later</p><h2 id="save-picker-title">Save post</h2></div><button type="button" class="save-picker-close" data-save-picker-close aria-label="Close">×</button></div>
+			<p class="save-picker-description">Choose where this post belongs. You can save it to more than one collection.</p>
+			<label class="save-picker-option"><input type="checkbox" data-save-base data-confirmed="<%= post.bookmarked %>" <%= post.bookmarked ? 'checked' : '' %>><span><strong>All saved posts</strong><small>Keep this in your saved library</small></span></label>
+			<div class="save-picker-collections" data-save-picker-collections>
+				<% (locals.postCollections || []).forEach((collection) => { const selected = (post.collectionIds || []).some((id) => String(id) === String(collection._id)); %>
+				<label class="save-picker-option"><input type="checkbox" data-save-collection="<%= collection._id %>" data-confirmed="<%= selected %>" <%= selected ? 'checked' : '' %>><span><strong><%= collection.name %></strong><small><%= (collection.postIds || []).length %> saved</small></span></label>
+				<% }) %>
+			</div>
+			<form class="save-picker-create" data-save-create method="post" action="/saved/collections">
+				<input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="postId" value="<%= post._id %>">
+				<label><span class="visually-hidden">New collection name</span><input name="name" maxlength="40" required placeholder="Create a collection"></label>
+				<button class="button button-small button-primary" type="submit">Create &amp; save</button>
+			</form>
+			<p class="save-picker-status" data-save-picker-status role="status" aria-live="polite"></p>
+		</dialog>
 		<div class="reaction-strip" role="group" aria-label="React to this post">
 			<% [['celebrate', 'award', 'Celebrate'], ['insightful', 'lightbulb', 'Insightful'], ['support', 'thumbs-up', 'Support'], ['funny', 'smile', 'Funny']].forEach(([reaction, glyph, label]) => { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/reaction"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="reaction" value="<%= reaction %>"><button type="submit" title="<%= label %>" aria-label="<%= label %>" data-reaction="<%= reaction %>"><%- icon(glyph, { size: 16 }) %><span class="label"><%= label %></span><span class="count"><%= post.reactions?.[reaction]?.length || 0 %></span></button></form><% }) %>
 		</div>

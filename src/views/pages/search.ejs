@@ -1,5 +1,6 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath, noIndex }) %>
 <%- include('../partials/app-nav', { active: '', currentUser, searchQuery: query }) %>
+<% const hashtag = locals.hashtag || null; %>
 <main class="explore-page search-page">
 	<p class="eyebrow">Search Crowdwide</p>
 	<h1>Find people, communities, and posts.</h1>
@@ -29,7 +30,17 @@
 		<section class="search-section"><h2>Popular searches</h2><%- include('../partials/popular-searches', { items: popularSearches.slice(0, 8) }) %></section>
 	</div>
 	<div class="empty-feed search-empty"><div class="search-empty-icon" aria-hidden="true"><%- icon('search', { size: 28 }) %></div><h2>Search for anything on Crowdwide.</h2><p>Try a name, a community, or a phrase from a post.</p></div>
-	<% } else if (!users.length && !communities.length && !posts.length) { %>
+	<% } else { %>
+	<% if (hashtag) { const following = (locals.followedTopics || []).includes(String(hashtag).toLowerCase()); %>
+	<section class="search-section search-topic-result" aria-labelledby="search-topic-heading">
+		<div class="search-topic-result-copy"><p class="eyebrow">Topic</p><h2 id="search-topic-heading"><a href="/search?q=%23<%= hashtag %>">#<%= hashtag %></a></h2><p>Explore posts and communities using this topic.</p></div>
+		<form class="topic-follow-form" data-async-interaction data-topic="<%= hashtag %>" data-following="<%= following %>" method="post" action="/topics/<%= hashtag %>/follow">
+			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<button type="submit" class="button button-small <%= following ? 'button-ghost' : 'button-primary' %>" aria-pressed="<%= following %>" aria-label="<%= following ? 'Unfollow' : 'Follow' %> topic #<%= hashtag %>"><%= following ? 'Following' : 'Follow topic' %></button>
+		</form>
+	</section>
+	<% } %>
+	<% if (!users.length && !communities.length && !posts.length) { %>
 	<div class="empty-feed search-empty"><div class="search-empty-icon" aria-hidden="true"><%- icon('search', { size: 28 }) %></div><h2>No results for “<%= query %>”.</h2><p>Try a different search term, or start from something people are searching for.</p></div>
 	<% if (popularSearches.length) { %><section class="search-section" style="margin-top:28px;"><h2>Popular searches</h2><%- include('../partials/popular-searches', { items: popularSearches.slice(0, 8) }) %></section><% } %>
 	<% } else { %>
@@ -75,6 +86,7 @@
 	</section>
 	<% } %>
 
+	<% } %>
 	<% } %>
 </main>
 <%- include('../partials/app-footer') %>

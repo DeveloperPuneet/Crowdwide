@@ -222,6 +222,7 @@ exports.dashboard = async (req, res) => {
 		const user = await User.findById(req.session.user.id).lean();
 		const activeTab = resolveFeedView(req.query);
 		const followingIds = (user.following || []).map(String);
+		const trendingSince = new Date(Date.now() - 24 * 60 * 60 * 1000);
 		const [feed, communities, joinedCommunityDocs, people, followedPeople, followerPeople, wordLimits, trendingDiscussions, draftPosts] = await Promise.all([
 			getFeedPage({ userId: user._id, view: activeTab, page: 1, user }),
 			getRecommendedCommunities(user, { limit: 5, getInterestProfile }),
@@ -231,9 +232,20 @@ exports.dashboard = async (req, res) => {
 			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			getWordLimits(),
 			Post.aggregate([
-				{ $match: { status: 'published', moderationStatus: { $ne: 'reported' }, updatedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, community: { $nin: await getRestrictedCommunityIds(user._id) }, author: { $nin: await getHiddenAuthorIds(user._id) } } },
+				{ $match: { status: 'published', moderationStatus: { $ne: 'reported' }, commentsCount: { $gt: 0 }, community: { $nin: await getRestrictedCommunityIds(user._id) }, author: { $nin: await getHiddenAuthorIds(user._id) } } },
+				{ $lookup: {
+					from: Comment.collection.name,
+					let: { postId: '$_id' },
+					pipeline: [
+						{ $match: { $expr: { $and: [{ $eq: ['$post', '$$postId'] }, { $gte: ['$createdAt', trendingSince] }] } } },
+						{ $count: 'recentCount' }
+					],
+					as: 'recentDiscussion'
+				} },
+				{ $match: { 'recentDiscussion.0': { $exists: true } } },
 				{ $addFields: {
 					likesCount: { $size: { $ifNull: ['$likes', []] } },
+					recentCommentsCount: { $ifNull: [{ $arrayElemAt: ['$recentDiscussion.recentCount', 0] }, 0] },
 					reactionsCount: {
 						$add: [
 							{ $size: { $ifNull: ['$reactions.celebrate', []] } },
@@ -245,7 +257,7 @@ exports.dashboard = async (req, res) => {
 				} },
 				{ $addFields: { engagementScore: {
 					$add: [
-						{ $multiply: [{ $ifNull: ['$commentsCount', 0] }, 4] },
+						{ $multiply: ['$recentCommentsCount', 4] },
 						{ $multiply: [{ $ifNull: ['$replyPostsCount', 0] }, 3] },
 						{ $multiply: ['$likesCount', 2] },
 						'$reactionsCount',
@@ -253,13 +265,13 @@ exports.dashboard = async (req, res) => {
 						{ $multiply: [{ $ifNull: ['$viewsCount', 0] }, 0.25] }
 					]
 				} } },
-				{ $sort: { engagementScore: -1, commentsCount: -1, createdAt: -1 } },
+				{ $sort: { engagementScore: -1, recentCommentsCount: -1, createdAt: -1 } },
 				{ $limit: 5 },
 				{ $lookup: { from: 'users', localField: 'author', foreignField: '_id', as: 'authorDoc' } },
 				{ $unwind: { path: '$authorDoc', preserveNullAndEmptyArrays: true } },
 				{ $lookup: { from: 'communities', localField: 'community', foreignField: '_id', as: 'communityDoc' } },
 				{ $unwind: { path: '$communityDoc', preserveNullAndEmptyArrays: true } },
-				{ $project: { body: 1, commentsCount: 1, likesCount: 1, reactionsCount: 1, engagementScore: 1, createdAt: 1, updatedAt: 1, author: { _id: '$authorDoc._id', name: '$authorDoc.name', profilePicture: '$authorDoc.profilePicture' }, community: { _id: '$communityDoc._id', name: '$communityDoc.name', slug: '$communityDoc.slug' } } }
+				{ $project: { body: 1, commentsCount: 1, recentCommentsCount: 1, likesCount: 1, reactionsCount: 1, engagementScore: 1, createdAt: 1, updatedAt: 1, author: { _id: '$authorDoc._id', name: '$authorDoc.name', profilePicture: '$authorDoc.profilePicture' }, community: { _id: '$communityDoc._id', name: '$communityDoc.name', slug: '$communityDoc.slug' } } }
 			]),
 			Post.find({ author: user._id, status: 'draft' }).sort({ updatedAt: -1 }).limit(10).select('body type community poll updatedAt').lean()
 		]);
@@ -762,6 +774,13 @@ exports.profile = async (req, res) => {
 	if (isSelf && bookmarked.length) {
 		savedPosts = await Post.find({ _id: { $in: bookmarked }, status: 'published' }).sort({ createdAt: -1 }).populate('community', 'name slug').lean();
 		savedPosts = await Post.populate(savedPosts, { path: 'author', select: 'name profilePicture' });
+		savedPosts = savedPosts.map((post) => ({
+			...post,
+			bookmarked: true,
+			collectionIds: (viewer?.postCollections || [])
+				.filter((collection) => (collection.postIds || []).some((id) => String(id) === String(post._id)))
+				.map((collection) => String(collection._id))
+		}));
 		savedPosts = await attachPollVoters(await attachReplyPostCounts(savedPosts), viewerId);
 	}
 
@@ -917,7 +936,8 @@ exports.search = async (req, res) => {
 		from: req.query.from || '',
 		to: req.query.to || ''
 	};
-	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled, followedTopics: (viewer?.followedTopics || []).map(String) });
+	const followedTopics = (viewer?.followedTopics || []).map((topic) => String(topic).toLowerCase());
+	if (!q) return res.render('pages/search', { title: 'Search Crowdwide', pagePath: '/search', noIndex: true, query: '', users: [], communities: [], posts: [], hashtag: null, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled, followedTopics });
 	const tag = q.startsWith('#') ? q.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
 	// "@name" is what mention links produce: match that person's handle (the
 	// part of their email before the @) as well as their display name.
@@ -979,7 +999,7 @@ exports.search = async (req, res) => {
 	// Feeds "Popular searches" for everyone. Never awaited: it must not slow
 	// the results page down or break it.
 	recordSearch({ userId: req.session.user.id, query: q, hits: users.length + communities.length + posts.length });
-	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts: visiblePosts, hashtag: tag, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled });
+	res.render('pages/search', { title: `“${q}” on Crowdwide`, pagePath: '/search', noIndex: true, query: q, users, communities, posts: visiblePosts, hashtag: tag, trendingHashtags, popularSearches, recentSearches, communityOptions, filters, meilisearchEnabled, followedTopics });
 };
 
 exports.clearSearchHistory = async (req, res) => {

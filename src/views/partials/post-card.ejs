@@ -27,7 +27,8 @@
 	</a>
 	<% } %>
 	<%- include('post-media', { post }) %>
-	<div class="post-actions" role="group" aria-label="Post activity" style="background: none;">
+	<div class="post-actions<%= post.ama?.enabled ? ' has-ama' : '' %>" role="group" aria-label="Post activity" style="background: none;">
+		<span class="post-stat post-ama-indicator" data-ama-badge <%= post.ama?.enabled ? '' : 'hidden' %>><%- icon('message-square', { size: 15 }) %><span>AMA</span></span>
 		<% if (canInteract) { %><form method="post" action="/posts/<%= post._id %>/like"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="action-like <%= post.liked ? 'is-liked' : '' %>" aria-pressed="<%= post.liked ? 'true' : 'false' %>"><%- icon('heart', { size: 17 }) %><span class="visually-hidden">Like </span><span class="count"><%= post.likes?.length || 0 %></span></button></form><% } else if (readOnly) { %><span class="post-stat guest-like-link" aria-label="<%= post.likes?.length || 0 %> likes"><%- icon('heart', { size: 17 }) %><span><%= post.likes?.length || 0 %></span></span><% } else { %><a class="post-stat guest-like-link" href="/auth/register" aria-label="Create an account to like this post (<%= post.likes?.length || 0 %> likes)"><%- icon('heart', { size: 17 }) %><span><%= post.likes?.length || 0 %></span></a><% } %>
 		<a class="post-stat" href="/posts/<%= post._id %>#replies"><%- icon('message-circle', { size: 17 }) %><span class="visually-hidden">Comments </span><span><%= post.commentsCount || 0 %></span></a>
 		<a class="post-stat post-stat-replyposts" href="/posts/<%= post._id %>/replies-with-posts" title="Replies with a post"><%- icon('reply-post', { size: 17 }) %><span class="visually-hidden">Replies with a post </span><span><%= post.replyPostsCount || 0 %></span></a>

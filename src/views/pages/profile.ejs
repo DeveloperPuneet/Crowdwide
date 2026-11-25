@@ -203,46 +203,52 @@
 	<section class="community-posts profile-posts">
 		<% if (isSelf && profileTab === 'saved') { %>
 		<div class="post-collections-panel">
-			<div class="panel-heading"><h2>Post collections</h2><span><%= (locals.postCollections || []).length %></span></div>
-			<form class="post-collection-create" method="post" action="/saved/collections">
+			<div class="panel-heading"><h2>Post collections</h2><span data-collection-total><%= (locals.postCollections || []).length %></span></div>
+			<form class="post-collection-create" data-collection-action="create" method="post" action="/saved/collections">
 				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 				<input type="text" name="name" maxlength="40" required placeholder="New collection name" aria-label="New collection name">
 				<button class="button button-small button-primary" type="submit">Create</button>
 			</form>
+			<nav class="post-collection-folders" aria-label="Saved post folders" data-collection-filters>
+				<button type="button" class="post-collection-folder is-active" data-collection-filter="all" aria-pressed="true"><%- icon('bookmark', { size: 17 }) %><span><strong>All saved</strong><small><%= savedPosts.length %> posts</small></span></button>
+				<% const uncollectedCount = savedPosts.filter((post) => !(post.collectionIds || []).length).length; %>
+				<button type="button" class="post-collection-folder" data-collection-filter="uncategorized" aria-pressed="false"><%- icon('folder', { size: 17 }) %><span><strong>Saved posts</strong><small><%= uncollectedCount %> posts</small></span></button>
+				<% (locals.postCollections || []).forEach((collection) => { %>
+				<button type="button" class="post-collection-folder" data-collection-filter="<%= collection._id %>" aria-pressed="false"><%- icon('folder', { size: 17 }) %><span><strong><%= collection.name %></strong><small><%= (collection.postIds || []).length %> posts</small></span></button>
+				<% }) %>
+			</nav>
 			<% (locals.postCollections || []).forEach((collection) => { %>
-			<div class="post-collection-row">
-				<form method="post" action="/saved/collections/<%= collection._id %>/rename">
+			<div class="post-collection-row" data-collection-row="<%= collection._id %>">
+				<form data-collection-action="rename" method="post" action="/saved/collections/<%= collection._id %>/rename">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 					<input type="text" name="name" value="<%= collection.name %>" maxlength="40" aria-label="Collection name">
 					<button type="submit" class="button button-ghost button-small">Rename</button>
 				</form>
-				<form method="post" action="/saved/collections/<%= collection._id %>/delete" data-confirm="Delete this collection?">
+				<form data-collection-action="delete" method="post" action="/saved/collections/<%= collection._id %>/delete">
 					<input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small">Delete</button>
 				</form>
 				<span><%= (collection.postIds || []).length %> saved</span>
 			</div>
 			<% }) %>
+			<p class="save-picker-status" data-collection-status role="status" aria-live="polite"></p>
 		</div>
 		<% } %>
-		<div class="panel-heading"><h2><%= profileTab === 'likes' ? `${profileUser.name}'s likes` : profileTab === 'saved' ? 'Saved posts' : isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= listTotal.toLocaleString() %></span></div>
+		<div class="panel-heading"><h2<% if (profileTab === 'saved') { %> data-saved-heading<% } %>><%= profileTab === 'likes' ? `${profileUser.name}'s likes` : profileTab === 'saved' ? 'All saved posts' : isSelf ? 'Your posts' : `${profileUser.name}'s posts` %></h2><span><%= listTotal.toLocaleString() %></span></div>
 		<% if (!displayedPosts.length) { %>
 		<div class="empty-feed"><h2><%= profileTab === 'saved' ? 'No saved posts yet.' : 'No posts yet.' %></h2><p><%= isSelf ? 'Posts and conversations you collect will appear here.' : 'This person has not posted yet.' %></p></div>
 		<% } %>
 		<% displayedPosts.forEach((post) => { %>
-		<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
-		<% if (isSelf && profileTab === 'saved' && (locals.postCollections || []).length) { %>
-		<div class="post-collection-memberships">
-			<span>Add to collection:</span>
-			<% (locals.postCollections || []).forEach((collection) => { const inCollection = (collection.postIds || []).some((id) => String(id) === String(post._id)); %>
-			<form method="post" action="/saved/collections/<%= collection._id %>/posts/<%= post._id %>">
-				<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-				<input type="hidden" name="add" value="<%= inCollection ? 'false' : 'true' %>">
-				<button type="submit" class="button button-ghost button-small"><%= inCollection ? 'Remove from' : 'Add to' %> <%= collection.name %></button>
-			</form>
-			<% }) %>
+		<% if (isSelf && profileTab === 'saved') { %>
+		<div class="saved-post-item" data-saved-item data-collection-ids="<%= JSON.stringify(post.collectionIds || []) %>">
+			<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
+			<% const assignedCollections = (locals.postCollections || []).filter((collection) => (post.collectionIds || []).includes(String(collection._id))); %>
+			<% if (assignedCollections.length) { %><div class="saved-post-folders" aria-label="Saved in"><%- icon('folder', { size: 14 }) %><% assignedCollections.forEach((collection) => { %><span data-folder-name="<%= collection._id %>"><%= collection.name %></span><% }) %></div><% } else { %><div class="saved-post-folders"><%- icon('bookmark', { size: 14 }) %><span>Saved posts</span></div><% } %>
 		</div>
+		<% } else { %>
+		<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
 		<% } %>
 		<% }) %>
+		<% if (isSelf && profileTab === 'saved' && displayedPosts.length) { %><div class="empty-feed saved-folder-empty" data-filter-empty hidden><h2>This folder is empty</h2><p>Save a post to this collection to find it here.</p></div><% } %>
 		<% if (hasMoreList) { %>
 		<div class="profile-more" data-profile-more data-url="/u/<%= profileUser._id %>/posts/more" data-tab="<%= profileTab %>" data-page="1">
 			<button class="button button-dark" type="button" data-profile-more-button>Show more posts</button>

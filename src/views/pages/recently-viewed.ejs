@@ -1,6 +1,15 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/recently-viewed', noIndex: true }) %>
 <%- include('../partials/app-nav', { active: 'recent', currentUser }) %>
-<main class="feature-page dashboard-modern">
+<main class="feature-page feature-page-modern dashboard-modern">
+  <header class="feature-hero">
+    <div><p class="eyebrow">Pick up where you left off</p><h1>Recently viewed</h1><p>Return to posts you've opened recently.</p></div>
+    <a class="button button-primary button-small" href="/top">Explore popular posts</a>
+  </header>
+  <nav class="feature-nav" aria-label="Your activity">
+    <a href="/topics">Topics</a>
+    <a href="/conversations">Conversations</a>
+    <a href="/recently-viewed" aria-current="page">Recently viewed <span><%= (posts || []).length %></span></a>
+  </nav>
   <section class="feed-column">
     <div class="panel-heading"><h1>Recently Viewed</h1><span><%= (posts || []).length %></span></div>
     <% if (!(posts || []).length) { %>

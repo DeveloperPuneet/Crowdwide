@@ -1,6 +1,15 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/topics', noIndex: true }) %>
 <%- include('../partials/app-nav', { active: 'topics', currentUser }) %>
-<main class="feature-page dashboard-modern">
+<main class="feature-page feature-page-modern dashboard-modern">
+  <header class="feature-hero">
+    <div><p class="eyebrow">Your interests</p><h1>Followed topics</h1><p>Keep up with the ideas and conversations you choose.</p></div>
+    <a class="button button-primary button-small" href="/search">Discover topics</a>
+  </header>
+  <nav class="feature-nav" aria-label="Your activity">
+    <a href="/topics" aria-current="page">Topics <span><%= (topics || []).length %></span></a>
+    <a href="/conversations">Conversations</a>
+    <a href="/recently-viewed">Recently viewed</a>
+  </nav>
   <section class="feed-column">
     <div class="panel-heading"><h1>Followed Topics</h1><span><%= (topics || []).length %></span></div>
     <% if (!(topics || []).length) { %>

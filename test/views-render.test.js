@@ -28,15 +28,22 @@ test('new social feature pages render with empty and populated states', async ()
   const recent = await render('pages/recently-viewed.ejs', { title: 'Recently Viewed', posts: [post] });
   const members = await render('pages/community-members.ejs', {
     title: 'Design Lab members', pagePath: '/communities/design-lab/members', community: { name: 'Design Lab', slug: 'design-lab' },
-    members: [{ _id: 'u2', name: 'Asha', bio: 'Product designer', hashtags: ['design'], posts: 4, comments: 12, contributionScore: 24 }]
+    memberStats: { total: 1, moderators: 0, activeThisMonth: 1, contributions: 16 },
+    members: [{ _id: 'u2', name: 'Asha', bio: 'Product designer', hashtags: ['design'], posts: 4, comments: 12, recentPosts: 2, recentComments: 1, contributionScore: 24, communityRole: 'owner', isVerified: true }]
   });
   assert.match(topics, /Followed Topics/);
+  assert.match(topics, /class="feature-nav" aria-label="Your activity"/);
+  assert.match(topics, /href="\/search">Discover topics/);
   assert.match(topics, /class="topic-follow-form" data-async-interaction data-topic="coding" data-following="true"/);
   assert.match(topicDiscovery, /class="topic-follow-form" data-async-interaction data-topic="design" data-following="false"/);
   assert.match(conversations, /Your Conversations/);
+  assert.match(conversations, /href="\/dashboard">Start a conversation/);
   assert.match(recent, /Recently Viewed/);
+  assert.match(recent, /href="\/top">Explore popular posts/);
   assert.match(members, /Top contributor/);
-  assert.match(members, /Browse member directory/);
+  assert.match(members, /class="member-role-badge role-owner">Owner/);
+  assert.match(members, /class="member-verified-badge">Verified/);
+  assert.match(members, /href="\/search\?q=%23design">#design/);
 });
 
 test('chat attachment responses render previewable media inline and keep downloads for files', () => {
@@ -97,6 +104,20 @@ test('search results clamp long text and use responsive result classes', async (
   assert.match(html, /class="post-card search-result-post"/);
   assert.match(html, /class="post-body search-result-description"/);
   assert.doesNotMatch(html, /max-width:1080px|line-clamp:3;max-height:5em/);
+});
+
+test('hashtag searches render an actionable topic result, including when there are no posts', async () => {
+  const data = {
+    title: 'Search', pagePath: '/search', noIndex: true, query: '#design', hashtag: 'design',
+    filters: { type: '', community: '', sort: 'newest', from: '', to: '', media: '', unanswered: false },
+    communityOptions: [], meilisearchEnabled: false, recentSearches: [], trendingHashtags: [],
+    popularSearches: [], users: [], communities: [], posts: []
+  };
+  const unfollowed = await render('pages/search.ejs', { ...data, followedTopics: [] });
+  assert.match(unfollowed, /class="search-section search-topic-result"[\s\S]*#design[\s\S]*action="\/topics\/design\/follow"/);
+  assert.match(unfollowed, /aria-pressed="false" aria-label="Follow topic #design">Follow topic/);
+  const followed = await render('pages/search.ejs', { ...data, followedTopics: ['design'] });
+  assert.match(followed, /aria-pressed="true" aria-label="Unfollow topic #design">Following/);
 });
 
 test('community invite and sharing UI are rendered for private community owners', async () => {
@@ -299,6 +320,13 @@ test('post page: flat actions, send-to-chat share, comment box, no Quote', async
   assert.doesNotMatch(html, /\/share"/, 'the old count-on-click share form is gone');
   assert.doesNotMatch(html, /\/quote/);
   assert.match(html, /Reply with a post/);
+  assert.match(html, /action="\/posts\/p1\/discussion\/follow"[\s\S]*Follow discussion/);
+  assert.match(html, /action="\/posts\/p1\/discussion\/mute"[\s\S]*Mute discussion/);
+  assert.match(html, /action="\/posts\/p1\/discussion\/hide"[\s\S]*Hide post/);
+  assert.doesNotMatch(html, /class="topic-follow-form"/);
+  const activityStart = html.indexOf('<div class="post-view-actions"');
+  const activityEnd = html.indexOf('</div>', activityStart);
+  assert.doesNotMatch(html.slice(activityStart, activityEnd), /Follow discussion|Mute discussion|Hide post/);
   assert.match(html, /id="comment-body"/);
   assert.match(html, /class="comment-gif"/);
   assert.match(html, /<p>Hi,<br>how are you\?<br>wassup<\/p>/);
@@ -970,4 +998,39 @@ test('profile lists show the true post total and a load-more control past the fi
   assert.match(html, /data-profile-more data-url="\/u\/u1\/posts\/more" data-tab="posts" data-page="1"/);
   const all = await render('pages/profile.ejs', { ...data, posts: Array.from({ length: 45 }, (_, i) => post(i + 1)) });
   assert.doesNotMatch(all, /data-profile-more /);
+});
+
+test('saved posts render as filterable folders and post saving offers collection choices', async () => {
+  const savedPost = post(130, { author: { _id: 'u1', name: 'Puneet K' }, bookmarked: true, ama: { enabled: true }, collectionIds: ['col1'] });
+  const detail = await render('pages/post-detail.ejs', {
+    title: 'Post by Puneet K', pagePath: '/posts/p130', post: savedPost, comments: [], commentTree: [],
+    postCollections: [{ _id: 'col1', name: 'Ideas', postIds: ['p130'] }]
+  });
+  assert.match(detail, /data-save-picker-open/);
+  assert.match(detail, /data-save-collection="col1" data-confirmed="true" checked/);
+  assert.match(detail, /data-save-create/);
+  assert.match(detail, /data-ama-toggle/);
+  assert.match(detail, /Ask Me Anything/);
+
+  const profile = await render('pages/profile.ejs', {
+    title: 'Puneet K', pagePath: '/u/u1', noIndex: true,
+    profileUser: { _id: 'u1', id: 'u1', name: 'Puneet K', email: 'p@x.com', isVerified: true, createdAt: new Date(), hashtags: [], links: [] },
+    isSelf: true, profileTab: 'saved', posts: [], profileLikes: [], savedPosts: [savedPost], profileComments: [],
+    postCollections: [{ _id: 'col1', name: 'Ideas', postIds: ['p130'] }], activity: [], suggestions: [],
+    followersCount: 0, followingCount: 0, postCount: 1, listTotals: { posts: 1, likes: 0, pageSize: 20 },
+    profileStats: { totalLikes: 0, totalComments: 0, totalViews: 0, totalShares: 0 }, memberCommunities: [],
+    questAchievements: [], statsDetail: null
+  });
+  assert.match(profile, /data-collection-filter="col1"/);
+  assert.match(profile, /data-saved-item data-collection-ids="\[&#34;col1&#34;\]"/);
+  assert.match(profile, /data-folder-name="col1">Ideas/);
+  assert.doesNotMatch(profile, /Add to collection:/);
+});
+
+test('trending discussions require a comment made in the recent window', () => {
+  const controller = fs.readFileSync(path.join(__dirname, '..', 'src', 'controllers', 'webController.js'), 'utf8');
+  assert.match(controller, /commentsCount:\s*\{\s*\$gt:\s*0\s*\}/);
+  assert.match(controller, /from:\s*Comment\.collection\.name[\s\S]*?\$gte:\s*\['\$createdAt',\s*trendingSince\]/);
+  assert.match(controller, /'recentDiscussion\.0':\s*\{\s*\$exists:\s*true\s*\}/);
+  assert.doesNotMatch(controller, /updatedAt:\s*\{\s*\$gte:\s*trendingSince\s*\}/);
 });

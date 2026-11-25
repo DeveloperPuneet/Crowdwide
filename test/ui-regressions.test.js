@@ -97,6 +97,26 @@ test('settings, post composer, and comment controls share refreshed responsive s
   assert.match(css, /\.action-translate-inline\s*\{[^}]*justify-content:\s*flex-end/);
 });
 
+test('new social feature surfaces use theme tokens and reflow on small screens', () => {
+  const css = read('public', 'css', 'polish.css');
+  assert.match(css, /\.feature-page-modern \.feature-hero[\s\S]*?background:[^;]*var\(--panel\)/);
+  assert.match(css, /\.feature-nav a\[aria-current="page"\][^}]*var\(--blue\)[^}]*var\(--ac-blue\)/);
+  assert.match(css, /\.post-collections-panel[^}]*background:\s*var\(--panel\)/);
+  assert.match(css, /@media \(max-width: 600px\)[\s\S]*?\.feature-page-modern \.feature-hero[^}]*flex-direction:\s*column/);
+  assert.match(css, /@media \(max-width: 600px\)[\s\S]*?\.post-collection-row \{ grid-template-columns:/);
+});
+
+test('post options, topic search cards, member roles, and the original sidebar control stay intact', () => {
+  const css = read('public', 'css', 'polish.css');
+  assert.match(css, /\.post-menu-divider\s*\{[^}]*background:\s*var\(--bd-1\)/);
+  assert.match(css, /\.search-topic-result\s*\{[^}]*background:[^;]*var\(--panel\)/);
+  assert.match(css, /\.member-badges \.role-moderator\s*\{[^}]*var\(--ac-blue\)/);
+  assert.match(css, /\.member-directory-stats\s*\{[^}]*grid-template-columns:\s*repeat\(4/);
+  assert.match(css, /@media \(max-width: 520px\)[\s\S]*?\.search-topic-result \{ align-items: stretch; flex-direction: column/);
+  assert.doesNotMatch(css, /\.app-rail \.rail-toggle\s*\{/);
+  assert.match(read('public', 'css', 'style.css'), /\.app-rail \.rail-toggle\s*\{[^}]*right:\s*-13px/);
+});
+
 test('light and pink themes set readable text, control, and surface colors', () => {
   const css = read('public', 'css', 'style.css');
   assert.match(css, /body\[data-theme="pink"\]\s*\{[^}]*--theme-fg:/s);

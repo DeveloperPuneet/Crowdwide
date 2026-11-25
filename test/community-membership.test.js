@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const Community = require('../src/models/Community');
 const User = require('../src/models/User');
+const Post = require('../src/models/Post');
+const Comment = require('../src/models/Comment');
 const communityController = require('../src/controllers/communityController');
 const router = require('../src/routes/web');
 const { csrfSynchronisedProtection } = require('../src/middleware/security');
@@ -195,4 +197,52 @@ test('a pending private-community request renders the waiting page without loadi
   assert.equal(res.view, 'pages/community-request');
   assert.equal(res.data.requested, true);
   assert.equal(res.data.community, community);
+});
+
+test('community member directory distinguishes roles and summarizes recent contribution', async (t) => {
+  const community = {
+    _id: 'community-1',
+    slug: 'makers',
+    name: 'Makers',
+    description: 'Build together',
+    isPrivate: false,
+    owner: { _id: 'owner-1', name: 'Owner' },
+    members: ['owner-1', 'mod-1', 'member-1'],
+    moderators: [],
+    memberRoles: [{ user: 'mod-1', role: 'moderator' }]
+  };
+  const members = [
+    { _id: 'owner-1', name: 'Owner', hashtags: [], isVerified: true },
+    { _id: 'mod-1', name: 'Moderator', hashtags: [] },
+    { _id: 'member-1', name: 'Member', hashtags: [] }
+  ];
+  t.mock.method(Community, 'findOne', () => ({
+    populate: () => ({ lean: () => Promise.resolve(community) })
+  }));
+  t.mock.method(User, 'find', () => ({
+    select: () => ({ sort: () => ({ lean: () => Promise.resolve(members) }) })
+  }));
+  t.mock.method(Post, 'aggregate', () => Promise.resolve([
+    { _id: 'mod-1', posts: 4, recentPosts: 2, lastPostAt: new Date() },
+    { _id: 'member-1', posts: 1, recentPosts: 1, lastPostAt: new Date() }
+  ]));
+  t.mock.method(Comment, 'aggregate', () => Promise.resolve([
+    { _id: 'mod-1', comments: 3, recentComments: 1, lastCommentAt: new Date() }
+  ]));
+  const res = {
+    render(view, data) { this.view = view; this.data = data; },
+    status() { return this; }
+  };
+
+  await communityController.memberDirectory({ params: { slug: 'makers' }, session: { user: { id: 'visitor' } } }, res);
+
+  assert.equal(res.view, 'pages/community-members');
+  assert.deepEqual(res.data.members.map(({ name }) => name), ['Moderator', 'Member', 'Owner']);
+  assert.equal(res.data.members[0].communityRole, 'moderator');
+  assert.equal(res.data.members[0].contributionScore, 15);
+  assert.equal(res.data.members[0].recentPosts + res.data.members[0].recentComments, 3);
+  assert.equal(res.data.members[2].communityRole, 'owner');
+  assert.equal(res.data.memberStats.moderators, 1);
+  assert.equal(res.data.memberStats.activeThisMonth, 2);
+  assert.equal(res.data.memberStats.contributions, 8);
 });

@@ -263,20 +263,58 @@ exports.memberDirectory = async (req, res) => {
     const joined = (community.members || []).some((id) => String(id) === String(req.session.user.id));
     if (!joined) return res.status(403).render('pages/community-request', { title: `Request to join ${community.name}`, pagePath: `/communities/${community.slug}`, noIndex: true, community, requested: false });
   }
+  const activeSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const [members, postCounts, commentCounts] = await Promise.all([
-    User.find({ _id: { $in: community.members || [] } }).select('name profilePicture bio hashtags createdAt').sort({ name: 1 }).lean(),
-    Post.aggregate([{ $match: { community: community._id, status: 'published' } }, { $group: { _id: '$author', posts: { $sum: 1 } } }]),
-    Comment.aggregate([{ $lookup: { from: 'posts', localField: 'post', foreignField: '_id', as: 'postDoc' } }, { $match: { 'postDoc.community': community._id } }, { $group: { _id: '$author', comments: { $sum: 1 } } }])
+    User.find({ _id: { $in: community.members || [] } }).select('name profilePicture bio hashtags createdAt isVerified').sort({ name: 1 }).lean(),
+    Post.aggregate([
+      { $match: { community: community._id, status: 'published' } },
+      { $group: {
+        _id: '$author',
+        posts: { $sum: 1 },
+        recentPosts: { $sum: { $cond: [{ $gte: ['$createdAt', activeSince] }, 1, 0] } },
+        lastPostAt: { $max: '$createdAt' }
+      } }
+    ]),
+    Comment.aggregate([
+      { $lookup: { from: 'posts', localField: 'post', foreignField: '_id', as: 'postDoc' } },
+      { $match: { 'postDoc.community': community._id } },
+      { $group: {
+        _id: '$author',
+        comments: { $sum: 1 },
+        recentComments: { $sum: { $cond: [{ $gte: ['$createdAt', activeSince] }, 1, 0] } },
+        lastCommentAt: { $max: '$createdAt' }
+      } }
+    ])
   ]);
   const postsByAuthor = new Map(postCounts.map((row) => [String(row._id), row.posts]));
   const commentsByAuthor = new Map(commentCounts.map((row) => [String(row._id), row.comments]));
+  const recentPostsByAuthor = new Map(postCounts.map((row) => [String(row._id), row.recentPosts]));
+  const recentCommentsByAuthor = new Map(commentCounts.map((row) => [String(row._id), row.recentComments]));
+  const lastPostByAuthor = new Map(postCounts.map((row) => [String(row._id), row.lastPostAt]));
+  const lastCommentByAuthor = new Map(commentCounts.map((row) => [String(row._id), row.lastCommentAt]));
+  const ownerId = String(community.owner?._id || community.owner);
+  const moderatorIds = new Set((community.moderators || []).map(String));
+  (community.memberRoles || []).forEach((entry) => {
+    if (entry.role === 'moderator') moderatorIds.add(String(entry.user));
+  });
   const rows = members.map((member) => ({
     ...member,
     posts: postsByAuthor.get(String(member._id)) || 0,
     comments: commentsByAuthor.get(String(member._id)) || 0,
-    contributionScore: (postsByAuthor.get(String(member._id)) || 0) * 3 + (commentsByAuthor.get(String(member._id)) || 0)
-  })).sort((a, b) => b.contributionScore - a.contributionScore);
-  res.render('pages/community-members', { title: `${community.name} members`, pagePath: `/communities/${community.slug}/members`, noIndex: true, community, members: rows });
+    recentPosts: recentPostsByAuthor.get(String(member._id)) || 0,
+    recentComments: recentCommentsByAuthor.get(String(member._id)) || 0,
+    lastActivityAt: [lastPostByAuthor.get(String(member._id)), lastCommentByAuthor.get(String(member._id))]
+      .filter(Boolean).map((value) => new Date(value)).sort((a, b) => b - a)[0] || null,
+    contributionScore: (postsByAuthor.get(String(member._id)) || 0) * 3 + (commentsByAuthor.get(String(member._id)) || 0),
+    communityRole: String(member._id) === ownerId ? 'owner' : moderatorIds.has(String(member._id)) ? 'moderator' : 'member'
+  })).sort((a, b) => b.contributionScore - a.contributionScore || b.recentPosts + b.recentComments - (a.recentPosts + a.recentComments) || a.name.localeCompare(b.name));
+  const memberStats = {
+    total: rows.length,
+    moderators: rows.filter((member) => member.communityRole === 'moderator').length,
+    activeThisMonth: rows.filter((member) => member.recentPosts + member.recentComments > 0).length,
+    contributions: rows.reduce((total, member) => total + member.posts + member.comments, 0)
+  };
+  res.render('pages/community-members', { title: `${community.name} members`, pagePath: `/communities/${community.slug}/members`, noIndex: true, community, members: rows, memberStats });
 };
 
 exports.detail = async (req, res) => {

@@ -365,8 +365,12 @@ exports.toggleAma = async (req, res) => {
   if (!post || String(post.author) !== String(req.session.user.id)) return redirectBack(req, res, { ok: false, error: 'Only the host can manage this AMA.' });
   const enabled = req.body.enabled === 'true' || req.body.enabled === 'on';
   post.ama.enabled = enabled;
-  if (enabled && !post.ama.startedAt) post.ama.startedAt = new Date();
-  if (!enabled) post.ama.endedAt = new Date();
+  if (enabled) {
+    post.ama.startedAt = new Date();
+    post.ama.endedAt = undefined;
+  } else {
+    post.ama.endedAt = new Date();
+  }
   await post.save();
   return redirectBack(req, res, { amaEnabled: enabled });
 };
@@ -426,8 +430,32 @@ exports.toggleBookmark = async (req, res) => {
   if (!(await canAccessPost(post, req.session.user.id))) return redirectBack(req, res, { ok: false });
   const user = await User.findById(req.session.user.id);
   if (!user) return redirectBack(req, res);
+  const collectionId = req.body.collectionId;
+  const collection = collectionId ? user.postCollections.id(collectionId) : null;
+  if (collectionId && !collection) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(404).json({ ok: false, error: 'That collection no longer exists.' });
+    return redirectBack(req, res, { ok: false, error: 'That collection no longer exists.' });
+  }
   const exists = user.bookmarks.some((id) => String(id) === req.params.id);
-  if (exists) {
+  if (collection) {
+    const add = req.body.add === 'true' || req.body.add === 'on';
+    if (add) {
+      collection.postIds.addToSet(req.params.id);
+      user.bookmarks.addToSet(req.params.id);
+      if (!exists) refreshPersonalization(req.session.user.id);
+    } else {
+      collection.postIds.pull(req.params.id);
+    }
+  } else if (req.body.saved !== undefined) {
+    const saved = req.body.saved === 'true' || req.body.saved === 'on';
+    if (saved) {
+      user.bookmarks.addToSet(req.params.id);
+      if (!exists) refreshPersonalization(req.session.user.id);
+    } else {
+      user.bookmarks.pull(req.params.id);
+      user.postCollections.forEach((entry) => entry.postIds.pull(req.params.id));
+    }
+  } else if (exists) {
     user.bookmarks.pull(req.params.id);
     user.postCollections.forEach((collection) => collection.postIds.pull(req.params.id));
   } else {
@@ -435,17 +463,49 @@ exports.toggleBookmark = async (req, res) => {
     refreshPersonalization(req.session.user.id);
   }
   await user.save();
-  redirectBack(req, res, { bookmarked: !exists });
+  const bookmarked = user.bookmarks.some((id) => String(id) === req.params.id);
+  redirectBack(req, res, {
+    bookmarked,
+    collectionIds: user.postCollections
+      .filter((entry) => entry.postIds.some((id) => String(id) === req.params.id))
+      .map((entry) => String(entry._id)),
+    ...(collection ? { collectionId: String(collection._id), inCollection: collection.postIds.some((id) => String(id) === req.params.id) } : {})
+  });
 };
 
 exports.createPostCollection = async (req, res) => {
   const name = String(req.body.name || '').trim().slice(0, 40);
-  if (!name) return redirectBack(req, res, { ok: false, error: 'Collection name is required.' });
+  if (!name) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(400).json({ ok: false, error: 'Collection name is required.' });
+    return redirectBack(req, res, { ok: false, error: 'Collection name is required.' });
+  }
   const user = await User.findById(req.session.user.id);
   if (!user) return redirectBack(req, res, { ok: false });
-  if ((user.postCollections || []).length >= 50) return redirectBack(req, res, { ok: false, error: 'Collection limit reached.' });
-  user.postCollections.push({ name, postIds: [], createdAt: new Date(), updatedAt: new Date() });
+  if ((user.postCollections || []).length >= 50) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(400).json({ ok: false, error: 'Collection limit reached.' });
+    return redirectBack(req, res, { ok: false, error: 'Collection limit reached.' });
+  }
+  const postId = req.body.postId;
+  const post = postId ? await Post.findById(postId).select('author status community').lean() : null;
+  if (postId && !(await canAccessPost(post, req.session.user.id))) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(404).json({ ok: false, error: 'That post is no longer available.' });
+    return redirectBack(req, res, { ok: false, error: 'That post is no longer available.' });
+  }
+  const collectionData = { name, postIds: post ? [post._id] : [], createdAt: new Date(), updatedAt: new Date() };
+  user.postCollections.push(collectionData);
+  if (post && !user.bookmarks.some((id) => String(id) === String(post._id))) {
+    user.bookmarks.addToSet(post._id);
+    refreshPersonalization(req.session.user.id);
+  }
   await user.save();
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') {
+    const collection = user.postCollections[user.postCollections.length - 1];
+    return res.json({
+      ok: true,
+      collection: { id: String(collection._id), name: collection.name, postIds: collection.postIds.map(String) },
+      bookmarked: post ? user.bookmarks.some((id) => String(id) === String(post._id)) : undefined
+    });
+  }
   redirectBack(req, res, { ok: true });
 };
 
@@ -453,19 +513,27 @@ exports.renamePostCollection = async (req, res) => {
   const name = String(req.body.name || '').trim().slice(0, 40);
   const user = await User.findById(req.session.user.id);
   const collection = user?.postCollections?.id(req.params.collectionId);
-  if (!name || !collection) return redirectBack(req, res, { ok: false });
+  if (!name || !collection) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(collection ? 400 : 404).json({ ok: false, error: collection ? 'Collection name is required.' : 'That collection no longer exists.' });
+    return redirectBack(req, res, { ok: false });
+  }
   collection.name = name;
   collection.updatedAt = new Date();
   await user.save();
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, collection: { id: String(collection._id), name: collection.name } });
   redirectBack(req, res, { ok: true });
 };
 
 exports.deletePostCollection = async (req, res) => {
   const user = await User.findById(req.session.user.id);
   const collection = user?.postCollections?.id(req.params.collectionId);
-  if (!collection) return redirectBack(req, res, { ok: false });
+  if (!collection) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(404).json({ ok: false, error: 'That collection no longer exists.' });
+    return redirectBack(req, res, { ok: false });
+  }
   user.postCollections.pull(collection._id);
   await user.save();
+  if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.json({ ok: true, collectionId: req.params.collectionId });
   redirectBack(req, res, { ok: true });
 };
 
@@ -685,11 +753,16 @@ exports.postDetail = async (req, res) => {
   let postModerationRole = null;
   let viewerAdFree = false;
   let followedTopics = [];
+  let postCollections = [];
   if (viewerId) {
-    const viewer = await User.findById(viewerId).select('bookmarks blockedUsers followedTopics role adFreeUntil').lean();
+    const viewer = await User.findById(viewerId).select('bookmarks postCollections blockedUsers followedTopics role adFreeUntil').lean();
     viewerAdFree = isAdFree(viewer);
     post.liked = (post.likes || []).some((id) => String(id) === String(viewerId));
     post.bookmarked = (viewer?.bookmarks || []).some((id) => String(id) === String(post._id));
+    post.collectionIds = (viewer?.postCollections || [])
+      .filter((collection) => (collection.postIds || []).some((id) => String(id) === String(post._id)))
+      .map((collection) => String(collection._id));
+    postCollections = viewer?.postCollections || [];
     followedTopics = (viewer?.followedTopics || []).map(String);
     blockedIds = (viewer?.blockedUsers || []).map(String);
     if (['admin', 'moderator'].includes(viewer?.role)
@@ -749,6 +822,7 @@ exports.postDetail = async (req, res) => {
     structuredData,
     noIndex: false,
     post,
+    postCollections,
     followedTopics,
     showPostAd: !viewerAdFree,
     showThirdPartyAds: comments.length >= 30 && !viewerAdFree,

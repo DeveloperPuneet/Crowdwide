@@ -1,6 +1,15 @@
 <%- include('../partials/head', { title, bodyClass: 'dashboard-page', pagePath: '/conversations', noIndex: true }) %>
 <%- include('../partials/app-nav', { active: 'conversations', currentUser }) %>
-<main class="feature-page dashboard-modern">
+<main class="feature-page feature-page-modern dashboard-modern">
+  <header class="feature-hero">
+    <div><p class="eyebrow">Your activity</p><h1>Your conversations</h1><p>Posts you've shared, replied to, or chosen to follow.</p></div>
+    <a class="button button-primary button-small" href="/dashboard">Start a conversation</a>
+  </header>
+  <nav class="feature-nav" aria-label="Your activity">
+    <a href="/topics">Topics</a>
+    <a href="/conversations" aria-current="page">Conversations <span><%= (posts || []).length %></span></a>
+    <a href="/recently-viewed">Recently viewed</a>
+  </nav>
   <section class="feed-column">
     <div class="panel-heading"><h1>Your Conversations</h1><span><%= (posts || []).length %></span></div>
     <% if (!(posts || []).length) { %>

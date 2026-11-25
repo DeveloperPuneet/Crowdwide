@@ -760,6 +760,24 @@ const optimisticSpecs = [
       if (label) label.textContent = state.saved ? 'Saved' : 'Save';
     }
   },
+  { // start or end an AMA without reloading the post
+    match: (form) => form.hasAttribute('data-ama-toggle'),
+    scope: (form) => form,
+    read: (form) => ({ enabled: form.querySelector('input[name="enabled"]')?.value === 'false' }),
+    next: (state) => ({ enabled: !state.enabled }),
+    fromServer: (data) => (data.amaEnabled === undefined ? null : { enabled: Boolean(data.amaEnabled) }),
+    write: (form, state) => {
+      form.querySelector('input[name="enabled"]').value = String(!state.enabled);
+      const button = submitButtonOf(form);
+      const label = button.querySelector('.label');
+      if (label) label.textContent = state.enabled ? 'End AMA' : 'Start AMA';
+      const post = document.querySelector(`#post-${CSS.escape(form.action.match(/\/posts\/([^/]+)\/ama/)?.[1] || '')}`);
+      post?.querySelectorAll('[data-ama-badge]').forEach((badge) => {
+        badge.hidden = !state.enabled;
+        if (badge.classList.contains('post-ama-indicator')) badge.closest('.post-actions')?.classList.toggle('has-ama', state.enabled);
+      });
+    }
+  },
   { // follow / unfollow / cancel a follow request
     match: (form) => form.classList.contains('follow-form'),
     scope: (form) => form,
@@ -1047,6 +1065,286 @@ document.addEventListener('submit', async (event) => {
   } finally {
     form.dataset.pending = 'false';
     if (button) button.disabled = false;
+  }
+});
+
+const savePicker = document.querySelector('[data-save-picker-dialog]');
+const savePickerQueues = new WeakMap();
+const saveStatus = (text, error = false) => {
+  const status = savePicker?.querySelector('[data-save-picker-status]');
+  if (!status) return;
+  status.textContent = text;
+  status.classList.toggle('is-error', error);
+};
+const postSaveUpdate = (data) => {
+  document.querySelectorAll(`#post-${CSS.escape(savePicker?.dataset.postId || '')} .action-save`).forEach((button) => {
+    button.classList.toggle('is-saved', Boolean(data.bookmarked));
+    button.setAttribute('aria-pressed', String(Boolean(data.bookmarked)));
+    const label = button.querySelector('.label');
+    if (label) label.textContent = data.bookmarked ? 'Saved' : 'Save';
+  });
+};
+const queueSaveRequest = (task) => {
+  const previous = savePickerQueues.get(savePicker) || Promise.resolve();
+  const next = previous.then(task, task);
+  savePickerQueues.set(savePicker, next);
+  return next;
+};
+
+document.addEventListener('click', (event) => {
+  const openButton = event.target.closest('[data-save-picker-open]');
+  if (openButton && savePicker) {
+    event.preventDefault();
+    savePicker.showModal();
+  }
+  if (event.target.closest('[data-save-picker-close]')) savePicker?.close();
+  if (event.target === savePicker) savePicker.close();
+});
+
+savePicker?.addEventListener('change', (event) => {
+  const checkbox = event.target.closest('[data-save-base], [data-save-collection]');
+  if (!checkbox || !window.axios) return;
+  const previous = checkbox.dataset.confirmed === 'true';
+  const isBase = checkbox.hasAttribute('data-save-base');
+  if (isBase && !checkbox.checked) {
+    savePicker.querySelectorAll('[data-save-collection]').forEach((input) => { input.checked = false; });
+  } else if (!isBase && checkbox.checked) {
+    savePicker.querySelector('[data-save-base]').checked = true;
+  }
+  const desired = checkbox.checked;
+  postSaveUpdate({ bookmarked: isBase ? desired : (desired || savePicker.querySelector('[data-save-base]').checked) });
+  saveStatus('Saving…');
+  queueSaveRequest(async () => {
+    try {
+      const body = new URLSearchParams();
+      if (isBase) body.set('saved', String(desired));
+      else {
+        body.set('collectionId', checkbox.dataset.saveCollection);
+        body.set('add', String(desired));
+      }
+      const { data } = await window.axios.post(`/posts/${savePicker.dataset.postId}/bookmark`, body, { headers: csrfHeaders() });
+      if (data.ok === false) throw new Error(data.error || 'Could not save this post.');
+      checkbox.dataset.confirmed = String(desired);
+      if (isBase) {
+        savePicker.querySelectorAll('[data-save-collection]').forEach((input) => {
+          input.checked = desired ? input.checked : false;
+          input.dataset.confirmed = desired ? input.dataset.confirmed : 'false';
+        });
+      } else {
+        const base = savePicker.querySelector('[data-save-base]');
+        base.checked = Boolean(data.bookmarked);
+        base.dataset.confirmed = String(Boolean(data.bookmarked));
+      }
+      postSaveUpdate(data);
+      saveStatus(data.bookmarked ? 'Saved to your library.' : 'Removed from your saved library.');
+    } catch (error) {
+      checkbox.checked = previous;
+      if (isBase && !previous) savePicker.querySelectorAll('[data-save-collection]').forEach((input) => { input.checked = input.dataset.confirmed === 'true'; });
+      postSaveUpdate({ bookmarked: savePicker.querySelector('[data-save-base]').checked });
+      saveStatus(error.message || 'Could not save this post. Try again.', true);
+    }
+  });
+});
+
+savePicker?.querySelector('[data-save-create]')?.addEventListener('submit', (event) => {
+  const form = event.target;
+  if (!window.axios) return;
+  event.preventDefault();
+  const input = form.elements.name;
+  const name = input.value.trim();
+  if (!name) return input.focus();
+  const tempId = `pending-${Date.now()}`;
+  const row = document.createElement('label');
+  row.className = 'save-picker-option';
+  row.dataset.pendingCollection = tempId;
+  row.innerHTML = '<input type="checkbox" checked><span><strong></strong><small>Creating…</small></span>';
+  row.querySelector('strong').textContent = name;
+  savePicker.querySelector('[data-save-picker-collections]').append(row);
+  const checkbox = row.querySelector('input');
+  savePicker.querySelector('[data-save-base]').checked = true;
+  postSaveUpdate({ bookmarked: true });
+  const body = new URLSearchParams(new FormData(form));
+  input.value = '';
+  saveStatus('Creating collection…');
+  queueSaveRequest(async () => {
+    try {
+      const { data } = await window.axios.post(form.action, body, { headers: csrfHeaders() });
+      if (!data.collection?.id) throw new Error(data.error || 'The collection was not created.');
+      row.dataset.pendingCollection = '';
+      checkbox.dataset.saveCollection = data.collection.id;
+      checkbox.dataset.confirmed = 'true';
+      row.querySelector('small').textContent = `${data.collection.postIds.length} saved`;
+      savePicker.querySelector('[data-save-base]').dataset.confirmed = 'true';
+      postSaveUpdate({ bookmarked: data.bookmarked });
+      saveStatus(`Saved to ${data.collection.name}.`);
+    } catch (error) {
+      row.remove();
+      savePicker.querySelector('[data-save-base]').checked = savePicker.querySelector('[data-save-base]').dataset.confirmed === 'true';
+      postSaveUpdate({ bookmarked: savePicker.querySelector('[data-save-base]').checked });
+      saveStatus(error.response?.data?.error || error.message || 'Could not create that collection.', true);
+    }
+  });
+});
+
+const collectionFilters = document.querySelector('[data-collection-filters]');
+if (collectionFilters) {
+  collectionFilters.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-collection-filter]');
+    if (!button) return;
+    collectionFilters.querySelectorAll('[data-collection-filter]').forEach((item) => {
+      const active = item === button;
+      item.classList.toggle('is-active', active);
+      item.setAttribute('aria-pressed', String(active));
+    });
+    const collectionId = button.dataset.collectionFilter;
+    let visible = 0;
+    document.querySelectorAll('[data-saved-item]').forEach((item) => {
+      const ids = JSON.parse(item.dataset.collectionIds || '[]');
+      const show = collectionId === 'all' || (collectionId === 'uncategorized' ? ids.length === 0 : ids.includes(collectionId));
+      item.hidden = !show;
+      if (show) visible += 1;
+    });
+    const emptyState = document.querySelector('[data-filter-empty]');
+    if (emptyState) emptyState.hidden = visible > 0;
+    const heading = document.querySelector('[data-saved-heading]');
+    if (heading) heading.textContent = button.querySelector('strong')?.textContent || 'Saved posts';
+    const count = document.querySelector('.profile-posts > .panel-heading > span');
+    if (count) count.textContent = visible.toLocaleString();
+  });
+}
+
+const collectionPanel = document.querySelector('.post-collections-panel');
+collectionPanel?.addEventListener('submit', async (event) => {
+  const form = event.target.closest('form[data-collection-action]');
+  if (!form || !window.axios) return;
+  event.preventDefault();
+  const actionType = form.dataset.collectionAction;
+  const status = collectionPanel.querySelector('[data-collection-status]');
+  const statusMessage = (text, error = false) => {
+    status.textContent = text;
+    status.classList.toggle('is-error', error);
+  };
+  const row = form.closest('[data-collection-row]');
+  const folderId = row?.dataset.collectionRow;
+  const folder = collectionPanel.querySelector(`[data-collection-filter="${CSS.escape(folderId || '')}"]`);
+  const request = () => window.axios.post(form.action, new URLSearchParams(new FormData(form)), { headers: csrfHeaders() });
+
+  if (actionType === 'create') {
+    const input = form.elements.name;
+    const name = input.value.trim();
+    if (!name) return input.focus();
+    const pendingId = `pending-${Date.now()}`;
+    const folderButton = document.createElement('button');
+    folderButton.type = 'button';
+    folderButton.className = 'post-collection-folder';
+    folderButton.dataset.collectionFilter = pendingId;
+    folderButton.innerHTML = '<span class="folder-glyph">Folder</span><span><strong></strong><small>0 posts</small></span>';
+    folderButton.querySelector('strong').textContent = name;
+    const rowNode = document.createElement('div');
+    rowNode.className = 'post-collection-row';
+    rowNode.dataset.collectionRow = pendingId;
+    rowNode.innerHTML = '<form data-collection-action="rename" method="post"><input type="text" name="name" maxlength="40" aria-label="Collection name"><button type="submit" class="button button-ghost button-small">Rename</button></form><form data-collection-action="delete" method="post"><button type="submit" class="button button-ghost button-small">Delete</button></form><span>0 saved</span>';
+    rowNode.querySelector('input[name="name"]').value = name;
+    const body = new URLSearchParams(new FormData(form));
+    collectionFilters.append(folderButton);
+    form.before(rowNode);
+    const total = collectionPanel.querySelector('[data-collection-total]');
+    if (total) total.textContent = String(Number(total.textContent) + 1);
+    input.value = '';
+    statusMessage('Creating collection…');
+    try {
+      const { data } = await window.axios.post(form.action, body, { headers: csrfHeaders() });
+      if (!data.collection?.id) throw new Error(data.error || 'The collection was not created.');
+      folderButton.dataset.collectionFilter = data.collection.id;
+      rowNode.dataset.collectionRow = data.collection.id;
+      rowNode.querySelectorAll('form').forEach((item, index) => {
+        item.action = `/saved/collections/${data.collection.id}/${index === 0 ? 'rename' : 'delete'}`;
+      });
+      folderButton.querySelector('small').textContent = '0 posts';
+      statusMessage(`${data.collection.name} created.`);
+    } catch (error) {
+      folderButton.remove();
+      rowNode.remove();
+      if (total) total.textContent = String(Math.max(0, Number(total.textContent) - 1));
+      input.value = name;
+      statusMessage(error.response?.data?.error || 'Could not create that collection.', true);
+    }
+    return;
+  }
+
+  if (!row || !folder) return;
+  if (actionType === 'rename') {
+    const input = form.elements.name;
+    const previous = folder.querySelector('strong').textContent;
+    const name = input.value.trim();
+    if (!name) return input.focus();
+    folder.querySelector('strong').textContent = name;
+    statusMessage('Renaming…');
+    try {
+      const { data } = await request();
+      if (data.ok === false) throw new Error(data.error || 'Could not rename that collection.');
+      document.querySelectorAll(`[data-folder-name="${CSS.escape(folderId)}"]`).forEach((label) => { label.textContent = name; });
+      statusMessage(`${name} renamed.`);
+    } catch (error) {
+      folder.querySelector('strong').textContent = previous;
+      input.value = previous;
+      statusMessage(error.response?.data?.error || 'Could not rename that collection.', true);
+    }
+    return;
+  }
+
+  if (actionType === 'delete') {
+    if (!window.confirm('Delete this collection? Saved posts will stay in your library.')) return;
+    collectionFilters.querySelector('[data-collection-filter="all"]')?.click();
+    const folderNext = folder.nextSibling;
+    const rowNext = row.nextSibling;
+    const total = collectionPanel.querySelector('[data-collection-total]');
+    const memberships = [];
+    document.querySelectorAll('[data-saved-item]').forEach((item) => {
+      const ids = JSON.parse(item.dataset.collectionIds || '[]');
+      if (ids.includes(folderId)) {
+        const label = item.querySelector('.saved-post-folders');
+        memberships.push([item, ids, label?.innerHTML]);
+        const nextIds = ids.filter((id) => id !== folderId);
+        item.dataset.collectionIds = JSON.stringify(nextIds);
+        if (label) {
+          label.replaceChildren();
+          const glyph = document.createElement('span');
+          glyph.className = 'folder-glyph';
+          glyph.textContent = nextIds.length ? 'Folder' : 'Saved';
+          label.append(glyph);
+          nextIds.forEach((id) => {
+            const name = collectionFilters.querySelector(`[data-collection-filter="${CSS.escape(id)}"] strong`)?.textContent;
+            if (name) {
+              const tag = document.createElement('span');
+              tag.dataset.folderName = id;
+              tag.textContent = name;
+              label.append(tag);
+            }
+          });
+          if (!nextIds.length) { const tag = document.createElement('span'); tag.textContent = 'Saved posts'; label.append(tag); }
+        }
+      }
+    });
+    folder.remove();
+    row.remove();
+    if (total) total.textContent = String(Math.max(0, Number(total.textContent) - 1));
+    statusMessage('Deleting collection…');
+    try {
+      const { data } = await request();
+      if (data.ok === false) throw new Error(data.error || 'Could not delete that collection.');
+      statusMessage('Collection deleted. Posts remain saved.');
+    } catch (error) {
+      collectionFilters.insertBefore(folder, folderNext);
+      collectionPanel.insertBefore(row, rowNext);
+      if (total) total.textContent = String(Number(total.textContent) + 1);
+      memberships.forEach(([item, ids, html]) => {
+        item.dataset.collectionIds = JSON.stringify(ids);
+        const label = item.querySelector('.saved-post-folders');
+        if (label && html !== undefined) label.innerHTML = html;
+      });
+      statusMessage(error.response?.data?.error || 'Could not delete that collection.', true);
+    }
   }
 });
 
