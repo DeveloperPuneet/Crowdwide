@@ -1104,14 +1104,22 @@ document.addEventListener('click', (event) => {
 savePicker?.addEventListener('change', (event) => {
   const checkbox = event.target.closest('[data-save-base], [data-save-collection]');
   if (!checkbox || !window.axios) return;
-  const previous = checkbox.dataset.confirmed === 'true';
   const isBase = checkbox.hasAttribute('data-save-base');
+  const countLabel = isBase ? null : checkbox.closest('.save-picker-option')?.querySelector('small');
+  const countBefore = countLabel ? Number.parseInt(countLabel.textContent, 10) || 0 : 0;
   if (isBase && !checkbox.checked) {
-    savePicker.querySelectorAll('[data-save-collection]').forEach((input) => { input.checked = false; });
+    savePicker.querySelectorAll('[data-save-collection]').forEach((input) => {
+      if (input.checked) {
+        const label = input.closest('.save-picker-option')?.querySelector('small');
+        if (label) label.textContent = `${Math.max(0, (Number.parseInt(label.textContent, 10) || 0) - 1)} saved`;
+      }
+      input.checked = false;
+    });
   } else if (!isBase && checkbox.checked) {
     savePicker.querySelector('[data-save-base]').checked = true;
   }
   const desired = checkbox.checked;
+  if (!isBase && countLabel) countLabel.textContent = `${Math.max(0, countBefore + (desired ? 1 : -1))} saved`;
   postSaveUpdate({ bookmarked: isBase ? desired : (desired || savePicker.querySelector('[data-save-base]').checked) });
   saveStatus('Saving…');
   queueSaveRequest(async () => {
@@ -1124,23 +1132,32 @@ savePicker?.addEventListener('change', (event) => {
       }
       const { data } = await window.axios.post(`/posts/${savePicker.dataset.postId}/bookmark`, body, { headers: csrfHeaders() });
       if (data.ok === false) throw new Error(data.error || 'Could not save this post.');
-      checkbox.dataset.confirmed = String(desired);
-      if (isBase) {
-        savePicker.querySelectorAll('[data-save-collection]').forEach((input) => {
-          input.checked = desired ? input.checked : false;
-          input.dataset.confirmed = desired ? input.dataset.confirmed : 'false';
-        });
-      } else {
-        const base = savePicker.querySelector('[data-save-base]');
-        base.checked = Boolean(data.bookmarked);
-        base.dataset.confirmed = String(Boolean(data.bookmarked));
-      }
+      const base = savePicker.querySelector('[data-save-base]');
+      base.checked = Boolean(data.bookmarked);
+      base.dataset.confirmed = String(Boolean(data.bookmarked));
+      const collectionIds = data.collectionIds || [];
+      const collections = data.collections || [];
+      savePicker.querySelectorAll('[data-save-collection]').forEach((input) => {
+        input.checked = collectionIds.includes(input.dataset.saveCollection);
+        input.dataset.confirmed = String(input.checked);
+        const collection = collections.find((entry) => entry.id === input.dataset.saveCollection);
+        const label = input.closest('.save-picker-option')?.querySelector('small');
+        if (label && collection) {
+          label.textContent = `${collection.count} saved`;
+          input.dataset.confirmedCount = String(collection.count);
+        }
+      });
       postSaveUpdate(data);
       saveStatus(data.bookmarked ? 'Saved to your library.' : 'Removed from your saved library.');
     } catch (error) {
-      checkbox.checked = previous;
-      if (isBase && !previous) savePicker.querySelectorAll('[data-save-collection]').forEach((input) => { input.checked = input.dataset.confirmed === 'true'; });
-      postSaveUpdate({ bookmarked: savePicker.querySelector('[data-save-base]').checked });
+      const base = savePicker.querySelector('[data-save-base]');
+      base.checked = base.dataset.confirmed === 'true';
+      savePicker.querySelectorAll('[data-save-collection]').forEach((input) => {
+        input.checked = input.dataset.confirmed === 'true';
+        const label = input.closest('.save-picker-option')?.querySelector('small');
+        if (label && input.dataset.confirmedCount !== undefined) label.textContent = `${input.dataset.confirmedCount} saved`;
+      });
+      postSaveUpdate({ bookmarked: base.checked });
       saveStatus(error.message || 'Could not save this post. Try again.', true);
     }
   });
@@ -1153,11 +1170,14 @@ savePicker?.querySelector('[data-save-create]')?.addEventListener('submit', (eve
   const input = form.elements.name;
   const name = input.value.trim();
   if (!name) return input.focus();
+  const submitButton = submitButtonOf(form);
+  if (submitButton?.disabled) return;
+  if (submitButton) submitButton.disabled = true;
   const tempId = `pending-${Date.now()}`;
   const row = document.createElement('label');
   row.className = 'save-picker-option';
   row.dataset.pendingCollection = tempId;
-  row.innerHTML = '<input type="checkbox" checked><span><strong></strong><small>Creating…</small></span>';
+  row.innerHTML = '<input type="checkbox" checked disabled><span><strong></strong><small>Creating…</small></span>';
   row.querySelector('strong').textContent = name;
   savePicker.querySelector('[data-save-picker-collections]').append(row);
   const checkbox = row.querySelector('input');
@@ -1173,15 +1193,19 @@ savePicker?.querySelector('[data-save-create]')?.addEventListener('submit', (eve
       row.dataset.pendingCollection = '';
       checkbox.dataset.saveCollection = data.collection.id;
       checkbox.dataset.confirmed = 'true';
-      row.querySelector('small').textContent = `${data.collection.postIds.length} saved`;
+      checkbox.dataset.confirmedCount = String(data.collection.count);
+      checkbox.disabled = false;
+      row.querySelector('small').textContent = `${data.collection.count} saved`;
       savePicker.querySelector('[data-save-base]').dataset.confirmed = 'true';
       postSaveUpdate({ bookmarked: data.bookmarked });
       saveStatus(`Saved to ${data.collection.name}.`);
+      if (submitButton) submitButton.disabled = false;
     } catch (error) {
       row.remove();
       savePicker.querySelector('[data-save-base]').checked = savePicker.querySelector('[data-save-base]').dataset.confirmed === 'true';
       postSaveUpdate({ bookmarked: savePicker.querySelector('[data-save-base]').checked });
       saveStatus(error.response?.data?.error || error.message || 'Could not create that collection.', true);
+      if (submitButton) submitButton.disabled = false;
     }
   });
 });
@@ -1233,6 +1257,9 @@ collectionPanel?.addEventListener('submit', async (event) => {
     const input = form.elements.name;
     const name = input.value.trim();
     if (!name) return input.focus();
+    const submitButton = submitButtonOf(form);
+    if (submitButton?.disabled) return;
+    if (submitButton) submitButton.disabled = true;
     const pendingId = `pending-${Date.now()}`;
     const folderButton = document.createElement('button');
     folderButton.type = 'button';
@@ -1262,12 +1289,14 @@ collectionPanel?.addEventListener('submit', async (event) => {
       });
       folderButton.querySelector('small').textContent = '0 posts';
       statusMessage(`${data.collection.name} created.`);
+      if (submitButton) submitButton.disabled = false;
     } catch (error) {
       folderButton.remove();
       rowNode.remove();
       if (total) total.textContent = String(Math.max(0, Number(total.textContent) - 1));
       input.value = name;
       statusMessage(error.response?.data?.error || 'Could not create that collection.', true);
+      if (submitButton) submitButton.disabled = false;
     }
     return;
   }

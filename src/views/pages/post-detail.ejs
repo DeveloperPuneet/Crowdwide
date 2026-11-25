@@ -100,7 +100,7 @@
 			<label class="save-picker-option"><input type="checkbox" data-save-base data-confirmed="<%= post.bookmarked %>" <%= post.bookmarked ? 'checked' : '' %>><span><strong>All saved posts</strong><small>Keep this in your saved library</small></span></label>
 			<div class="save-picker-collections" data-save-picker-collections>
 				<% (locals.postCollections || []).forEach((collection) => { const selected = (post.collectionIds || []).some((id) => String(id) === String(collection._id)); %>
-				<label class="save-picker-option"><input type="checkbox" data-save-collection="<%= collection._id %>" data-confirmed="<%= selected %>" <%= selected ? 'checked' : '' %>><span><strong><%= collection.name %></strong><small><%= (collection.postIds || []).length %> saved</small></span></label>
+				<label class="save-picker-option"><input type="checkbox" data-save-collection="<%= collection._id %>" data-confirmed="<%= selected %>" data-confirmed-count="<%= (collection.postIds || []).length %>" <%= selected ? 'checked' : '' %>><span><strong><%= collection.name %></strong><small><%= (collection.postIds || []).length %> saved</small></span></label>
 				<% }) %>
 			</div>
 			<form class="save-picker-create" data-save-create method="post" action="/saved/collections">

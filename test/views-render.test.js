@@ -1007,7 +1007,7 @@ test('saved posts render as filterable folders and post saving offers collection
     postCollections: [{ _id: 'col1', name: 'Ideas', postIds: ['p130'] }]
   });
   assert.match(detail, /data-save-picker-open/);
-  assert.match(detail, /data-save-collection="col1" data-confirmed="true" checked/);
+  assert.match(detail, /data-save-collection="col1" data-confirmed="true" data-confirmed-count="1" checked/);
   assert.match(detail, /data-save-create/);
   assert.match(detail, /data-ama-toggle/);
   assert.match(detail, /Ask Me Anything/);
@@ -1029,8 +1029,8 @@ test('saved posts render as filterable folders and post saving offers collection
 
 test('trending discussions require a comment made in the recent window', () => {
   const controller = fs.readFileSync(path.join(__dirname, '..', 'src', 'controllers', 'webController.js'), 'utf8');
-  assert.match(controller, /commentsCount:\s*\{\s*\$gt:\s*0\s*\}/);
-  assert.match(controller, /from:\s*Comment\.collection\.name[\s\S]*?\$gte:\s*\['\$createdAt',\s*trendingSince\]/);
-  assert.match(controller, /'recentDiscussion\.0':\s*\{\s*\$exists:\s*true\s*\}/);
+  assert.match(controller, /Comment\.aggregate\(\[\s*\{\s*\$match:\s*\{\s*createdAt:\s*\{\s*\$gte:\s*trendingSince/);
+  assert.match(controller, /\$group:\s*\{\s*_id:\s*'\$post',\s*recentCommentsCount:\s*\{\s*\$sum:\s*1\s*\}/);
+  assert.match(controller, /'post\.commentsCount':\s*\{\s*\$gt:\s*0\s*\}/);
   assert.doesNotMatch(controller, /updatedAt:\s*\{\s*\$gte:\s*trendingSince\s*\}/);
 });

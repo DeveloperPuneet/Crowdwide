@@ -427,9 +427,15 @@ exports.toggleDiscussionPreference = async (req, res) => {
 
 exports.toggleBookmark = async (req, res) => {
   const post = await Post.findById(req.params.id).select('author status community').lean();
-  if (!(await canAccessPost(post, req.session.user.id))) return redirectBack(req, res, { ok: false });
+  if (!(await canAccessPost(post, req.session.user.id))) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(404).json({ ok: false, error: 'That post is no longer available.' });
+    return redirectBack(req, res, { ok: false });
+  }
   const user = await User.findById(req.session.user.id);
-  if (!user) return redirectBack(req, res);
+  if (!user) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(401).json({ ok: false, error: 'Sign in again to save posts.' });
+    return redirectBack(req, res);
+  }
   const collectionId = req.body.collectionId;
   const collection = collectionId ? user.postCollections.id(collectionId) : null;
   if (collectionId && !collection) {
@@ -469,7 +475,12 @@ exports.toggleBookmark = async (req, res) => {
     collectionIds: user.postCollections
       .filter((entry) => entry.postIds.some((id) => String(id) === req.params.id))
       .map((entry) => String(entry._id)),
-    ...(collection ? { collectionId: String(collection._id), inCollection: collection.postIds.some((id) => String(id) === req.params.id) } : {})
+    collections: user.postCollections.map((entry) => ({ id: String(entry._id), name: entry.name, count: entry.postIds.length })),
+    ...(collection ? {
+      collectionId: String(collection._id),
+      inCollection: collection.postIds.some((id) => String(id) === req.params.id),
+      collectionCount: collection.postIds.length
+    } : {})
   });
 };
 
@@ -480,7 +491,10 @@ exports.createPostCollection = async (req, res) => {
     return redirectBack(req, res, { ok: false, error: 'Collection name is required.' });
   }
   const user = await User.findById(req.session.user.id);
-  if (!user) return redirectBack(req, res, { ok: false });
+  if (!user) {
+    if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(401).json({ ok: false, error: 'Sign in again to manage collections.' });
+    return redirectBack(req, res, { ok: false });
+  }
   if ((user.postCollections || []).length >= 50) {
     if (req.get('X-Requested-With') === 'XMLHttpRequest') return res.status(400).json({ ok: false, error: 'Collection limit reached.' });
     return redirectBack(req, res, { ok: false, error: 'Collection limit reached.' });
@@ -502,7 +516,7 @@ exports.createPostCollection = async (req, res) => {
     const collection = user.postCollections[user.postCollections.length - 1];
     return res.json({
       ok: true,
-      collection: { id: String(collection._id), name: collection.name, postIds: collection.postIds.map(String) },
+      collection: { id: String(collection._id), name: collection.name, postIds: collection.postIds.map(String), count: collection.postIds.length },
       bookmarked: post ? user.bookmarks.some((id) => String(id) === String(post._id)) : undefined
     });
   }

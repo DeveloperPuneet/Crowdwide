@@ -159,7 +159,7 @@
 			<% visibleTrendingDiscussions.forEach((discussion) => { %>
 			<a class="trending-discussion-row" href="/posts/<%= discussion._id %>">
 				<div><strong><%= preview(discussion.body, 72) || 'Join this discussion' %></strong><span><%= discussion.community?.name || 'Open Crowdwide' %></span></div>
-				<span class="trending-discussion-count"><%- icon('message-circle', { size: 13 }) %> <%= discussion.commentsCount || 0 %> <span class="visually-hidden">comments</span></span>
+				<span class="trending-discussion-count"><%- icon('message-circle', { size: 13 }) %> <%= discussion.recentCommentsCount || 0 %> <span class="visually-hidden">recent comments</span></span>
 			</a>
 			<% }) %>
 		</section>

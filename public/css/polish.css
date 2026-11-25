@@ -244,7 +244,7 @@ input:disabled, textarea:disabled, select:disabled { opacity: .6; cursor: not-al
 .post-collection-folder strong, .post-collection-folder small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .post-collection-folder strong { color: var(--tx-hi); font-size: 12px; }
 .post-collection-folder small { color: var(--tx-faint); font-size: 11px; }
-.saved-post-item[hidden] { display: none; }
+.saved-post-item[hidden], .saved-folder-empty[hidden] { display: none !important; }
 .saved-post-folders { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -4px 0 18px; color: var(--ac-blue); font-size: 11px; }
 .saved-post-folders > span { padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--sf-1); }
 .post-collections-panel [data-collection-status]:empty { display: none; }

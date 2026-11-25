@@ -231,47 +231,47 @@ exports.dashboard = async (req, res) => {
 			User.find({ _id: { $in: user.following || [], $ne: user._id } }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			User.find({ following: user._id }).sort({ createdAt: -1 }).limit(20).select('name profilePicture').lean(),
 			getWordLimits(),
-			Post.aggregate([
-				{ $match: { status: 'published', moderationStatus: { $ne: 'reported' }, commentsCount: { $gt: 0 }, community: { $nin: await getRestrictedCommunityIds(user._id) }, author: { $nin: await getHiddenAuthorIds(user._id) } } },
-				{ $lookup: {
-					from: Comment.collection.name,
-					let: { postId: '$_id' },
-					pipeline: [
-						{ $match: { $expr: { $and: [{ $eq: ['$post', '$$postId'] }, { $gte: ['$createdAt', trendingSince] }] } } },
-						{ $count: 'recentCount' }
-					],
-					as: 'recentDiscussion'
+			Comment.aggregate([
+				{ $match: { createdAt: { $gte: trendingSince } } },
+				{ $group: { _id: '$post', recentCommentsCount: { $sum: 1 } } },
+				{ $lookup: { from: Post.collection.name, localField: '_id', foreignField: '_id', as: 'post' } },
+				{ $unwind: '$post' },
+				{ $match: {
+					'post.status': 'published',
+					'post.moderationStatus': { $ne: 'reported' },
+					'post.commentsCount': { $gt: 0 },
+					'post.community': { $nin: await getRestrictedCommunityIds(user._id) },
+					'post.author': { $nin: await getHiddenAuthorIds(user._id) }
 				} },
-				{ $match: { 'recentDiscussion.0': { $exists: true } } },
 				{ $addFields: {
-					likesCount: { $size: { $ifNull: ['$likes', []] } },
-					recentCommentsCount: { $ifNull: [{ $arrayElemAt: ['$recentDiscussion.recentCount', 0] }, 0] },
+					likesCount: { $size: { $ifNull: ['$post.likes', []] } },
 					reactionsCount: {
 						$add: [
-							{ $size: { $ifNull: ['$reactions.celebrate', []] } },
-							{ $size: { $ifNull: ['$reactions.insightful', []] } },
-							{ $size: { $ifNull: ['$reactions.support', []] } },
-							{ $size: { $ifNull: ['$reactions.funny', []] } }
+							{ $size: { $ifNull: ['$post.reactions.celebrate', []] } },
+							{ $size: { $ifNull: ['$post.reactions.insightful', []] } },
+							{ $size: { $ifNull: ['$post.reactions.support', []] } },
+							{ $size: { $ifNull: ['$post.reactions.funny', []] } }
 						]
 					}
 				} },
 				{ $addFields: { engagementScore: {
 					$add: [
 						{ $multiply: ['$recentCommentsCount', 4] },
-						{ $multiply: [{ $ifNull: ['$replyPostsCount', 0] }, 3] },
+						{ $multiply: [{ $ifNull: ['$post.replyPostsCount', 0] }, 3] },
 						{ $multiply: ['$likesCount', 2] },
 						'$reactionsCount',
-						{ $multiply: [{ $ifNull: ['$sharesCount', 0] }, 3] },
-						{ $multiply: [{ $ifNull: ['$viewsCount', 0] }, 0.25] }
+						{ $multiply: [{ $ifNull: ['$post.sharesCount', 0] }, 3] },
+						{ $multiply: [{ $ifNull: ['$post.viewsCount', 0] }, 0.25] }
 					]
 				} } },
-				{ $sort: { engagementScore: -1, recentCommentsCount: -1, createdAt: -1 } },
+				{ $sort: { engagementScore: -1, recentCommentsCount: -1, 'post.createdAt': -1 } },
 				{ $limit: 5 },
+				{ $replaceRoot: { newRoot: { $mergeObjects: ['$post', { recentCommentsCount: '$recentCommentsCount' }] } } },
 				{ $lookup: { from: 'users', localField: 'author', foreignField: '_id', as: 'authorDoc' } },
 				{ $unwind: { path: '$authorDoc', preserveNullAndEmptyArrays: true } },
 				{ $lookup: { from: 'communities', localField: 'community', foreignField: '_id', as: 'communityDoc' } },
 				{ $unwind: { path: '$communityDoc', preserveNullAndEmptyArrays: true } },
-				{ $project: { body: 1, commentsCount: 1, recentCommentsCount: 1, likesCount: 1, reactionsCount: 1, engagementScore: 1, createdAt: 1, updatedAt: 1, author: { _id: '$authorDoc._id', name: '$authorDoc.name', profilePicture: '$authorDoc.profilePicture' }, community: { _id: '$communityDoc._id', name: '$communityDoc.name', slug: '$communityDoc.slug' } } }
+				{ $project: { body: 1, commentsCount: 1, recentCommentsCount: 1, likes: 1, reactions: 1, replyPostsCount: 1, sharesCount: 1, viewsCount: 1, createdAt: 1, updatedAt: 1, author: { _id: '$authorDoc._id', name: '$authorDoc.name', profilePicture: '$authorDoc.profilePicture' }, community: { _id: '$communityDoc._id', name: '$communityDoc.name', slug: '$communityDoc.slug' } } }
 			]),
 			Post.find({ author: user._id, status: 'draft' }).sort({ updatedAt: -1 }).limit(10).select('body type community poll updatedAt').lean()
 		]);
