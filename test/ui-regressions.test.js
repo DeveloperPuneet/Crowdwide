@@ -123,7 +123,8 @@ test('AMA controls have a dedicated post-detail placement and the member page na
   assert.match(detail, /class="post-ama-controls"[\s\S]*?class="post-ama-toggle"/);
   assert.doesNotMatch(detail, /class="post-view-actions"[\s\S]*?data-ama-toggle/);
   assert.match(css, /\.post-ama-control\s*\{[^}]*min-height:\s*42px/);
-  assert.match(css, /body:has\(\.community-members-page\) \.app-nav \{[^}]*width:\s*calc\(100% \+ var\(--rail-w, 0px\)\);[^}]*margin-left:\s*calc\(-1 \* var\(--rail-w, 0px\)\)/);
+  assert.match(css, /body:has\(\.community-members-page\) \.app-nav \{[^}]*position:\s*fixed;[^}]*width:\s*100vw/);
+  assert.match(css, /\.community-members-page\s*\{[^}]*padding:\s*calc\(var\(--header-h\) \+ 20px\)/);
 });
 
 test('community member directory separates activity and followed topics with responsive theme-aware cards', () => {
@@ -133,9 +134,9 @@ test('community member directory separates activity and followed topics with res
   assert.match(page, /member\.comments %><\/strong><span>Conversations/);
   assert.match(page, /member\.recentPosts %><\/strong><span>Recent posts/);
   assert.match(css, /\.member-activity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3/);
-  assert.match(css, /\.community-member-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit/);
+  assert.match(css, /\.community-member-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 400px\)/);
   assert.match(css, /\.community-member-card\s*\{[^}]*background:[^;]*var\(--panel\)/);
-  assert.match(css, /\.community-members-page\s*\{[^}]*max-width:\s*1720px;[^}]*margin:\s*0 auto/);
+  assert.match(css, /\.community-members-page\s*\{[^}]*align-self:\s*stretch;[^}]*max-width:\s*1720px;[^}]*margin:\s*0 auto/);
 });
 
 test('activity and topic pages use expanded, responsive feature layouts', () => {
