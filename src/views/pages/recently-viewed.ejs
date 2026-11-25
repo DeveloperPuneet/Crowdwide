@@ -11,7 +11,10 @@
     <a href="/recently-viewed" aria-current="page">Recently viewed <span><%= (posts || []).length %></span></a>
   </nav>
   <section class="feed-column">
-    <div class="panel-heading"><h1>Recently Viewed</h1><span><%= (posts || []).length %></span></div>
+    <div class="panel-heading feature-feed-heading">
+      <div><p class="eyebrow">Your reading history</p><h2>Posts you've opened</h2></div>
+      <span><%= (posts || []).length %> <%= (posts || []).length === 1 ? 'post' : 'posts' %></span>
+    </div>
     <% if (!(posts || []).length) { %>
       <div class="empty-feed"><h2>Nothing viewed yet</h2><p>Posts you open will remain here for quick return.</p></div>
     <% } else { %>

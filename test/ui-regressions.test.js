@@ -117,6 +117,28 @@ test('post options, topic search cards, member roles, and the original sidebar c
   assert.match(read('public', 'css', 'style.css'), /\.app-rail \.rail-toggle\s*\{[^}]*right:\s*-13px/);
 });
 
+test('community member directory separates activity and followed topics with responsive theme-aware cards', () => {
+  const page = read('src', 'views', 'pages', 'community-members.ejs');
+  const css = read('public', 'css', 'polish.css');
+  assert.match(page, /member\.followedTopics\.slice\(0, 4\)/);
+  assert.match(page, /member\.comments %><\/strong><span>Conversations/);
+  assert.match(page, /member\.recentPosts %><\/strong><span>Recent posts/);
+  assert.match(css, /\.member-activity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3/);
+  assert.match(css, /\.community-member-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit/);
+  assert.match(css, /\.community-member-card\s*\{[^}]*background:[^;]*var\(--panel\)/);
+  assert.match(css, /\.community-members-page\s*\{[^}]*max-width:\s*1720px;[^}]*margin:\s*0 auto/);
+});
+
+test('activity and topic pages use expanded, responsive feature layouts', () => {
+  const css = read('public', 'css', 'polish.css');
+  for (const page of ['conversations.ejs', 'recently-viewed.ejs', 'topics.ejs']) {
+    assert.match(read('src', 'views', 'pages', page), /feature-feed-heading/);
+  }
+  assert.match(css, /\.feature-page\.feature-page-modern\s*\{[^}]*width:\s*min\(1080px/);
+  assert.match(css, /\.feature-page-modern #feed-posts\s*\{[^}]*display:\s*grid;[^}]*gap:\s*14px/);
+  assert.match(css, /\.feature-page-modern \.topic-follow-grid\s*\{[^}]*repeat\(auto-fit/);
+});
+
 test('light and pink themes set readable text, control, and surface colors', () => {
   const css = read('public', 'css', 'style.css');
   assert.match(css, /body\[data-theme="pink"\]\s*\{[^}]*--theme-fg:/s);

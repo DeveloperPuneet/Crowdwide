@@ -11,7 +11,10 @@
     <a href="/recently-viewed">Recently viewed</a>
   </nav>
   <section class="feed-column">
-    <div class="panel-heading"><h1>Followed Topics</h1><span><%= (topics || []).length %></span></div>
+    <div class="panel-heading feature-feed-heading">
+      <div><p class="eyebrow">Your interests</p><h2>Topics you're following</h2></div>
+      <span><%= (topics || []).length %> <%= (topics || []).length === 1 ? 'topic' : 'topics' %></span>
+    </div>
     <% if (!(topics || []).length) { %>
       <div class="empty-feed topic-empty"><h2>Follow a topic</h2><p>Choose topics to build a feed around the ideas you care about.</p><div class="topic-discovery-grid"><% (trendingHashtags || []).forEach(({ tag, posts }) => { %><article class="topic-discovery-row"><a class="hashtag-chip" href="/search?q=%23<%= tag %>">#<%= tag %> <small><%= posts %> posts</small></a><form class="topic-follow-form" data-async-interaction data-topic="<%= tag %>" data-following="false" method="post" action="/topics/<%= tag %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-primary button-small" aria-pressed="false" aria-label="Follow topic #<%= tag %>">Follow</button></form></article><% }) %></div></div>
     <% } else { %>
@@ -19,6 +22,10 @@
         <% topics.forEach((topic) => { %>
           <div class="topic-follow-row"><a href="/search?q=%23<%= topic %>">#<%= topic %></a><form class="topic-follow-form" data-async-interaction data-topic="<%= topic %>" data-following="true" method="post" action="/topics/<%= topic %>/follow"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button button-ghost button-small" aria-pressed="true" aria-label="Unfollow topic #<%= topic %>">Following</button></form></div>
         <% }) %>
+      </div>
+      <div class="panel-heading feature-feed-heading topic-feed-heading">
+        <div><p class="eyebrow">Fresh for you</p><h2>Latest from your topics</h2></div>
+        <span><%= (posts || []).length %> <%= (posts || []).length === 1 ? 'post' : 'posts' %></span>
       </div>
       <div id="feed-posts">
         <% (posts || []).forEach((post) => { %><%- include('../partials/post-card', { post, csrfToken }) %><% }) %>

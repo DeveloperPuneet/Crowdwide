@@ -212,9 +212,9 @@ test('community member directory distinguishes roles and summarizes recent contr
     memberRoles: [{ user: 'mod-1', role: 'moderator' }]
   };
   const members = [
-    { _id: 'owner-1', name: 'Owner', hashtags: [], isVerified: true },
-    { _id: 'mod-1', name: 'Moderator', hashtags: [] },
-    { _id: 'member-1', name: 'Member', hashtags: [] }
+    { _id: 'owner-1', name: 'Owner', followedTopics: ['design'], isVerified: true },
+    { _id: 'mod-1', name: 'Moderator', followedTopics: [] },
+    { _id: 'member-1', name: 'Member', followedTopics: [] }
   ];
   t.mock.method(Community, 'findOne', () => ({
     populate: () => ({ lean: () => Promise.resolve(community) })
@@ -242,6 +242,7 @@ test('community member directory distinguishes roles and summarizes recent contr
   assert.equal(res.data.members[0].contributionScore, 15);
   assert.equal(res.data.members[0].recentPosts + res.data.members[0].recentComments, 3);
   assert.equal(res.data.members[2].communityRole, 'owner');
+  assert.deepEqual(res.data.members[2].followedTopics, ['design']);
   assert.equal(res.data.memberStats.moderators, 1);
   assert.equal(res.data.memberStats.activeThisMonth, 2);
   assert.equal(res.data.memberStats.contributions, 8);

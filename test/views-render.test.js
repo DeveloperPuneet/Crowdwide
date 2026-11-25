@@ -29,21 +29,26 @@ test('new social feature pages render with empty and populated states', async ()
   const members = await render('pages/community-members.ejs', {
     title: 'Design Lab members', pagePath: '/communities/design-lab/members', community: { name: 'Design Lab', slug: 'design-lab' },
     memberStats: { total: 1, moderators: 0, activeThisMonth: 1, contributions: 16 },
-    members: [{ _id: 'u2', name: 'Asha', bio: 'Product designer', hashtags: ['design'], posts: 4, comments: 12, recentPosts: 2, recentComments: 1, contributionScore: 24, communityRole: 'owner', isVerified: true }]
+    members: [{ _id: 'u2', name: 'Asha', bio: 'Product designer', hashtags: ['culture'], followedTopics: ['design'], posts: 4, comments: 12, recentPosts: 2, recentComments: 1, contributionScore: 24, communityRole: 'owner', isVerified: true }]
   });
-  assert.match(topics, /Followed Topics/);
+  assert.match(topics, /Topics you're following/);
+  assert.match(topics, /Latest from your topics/);
   assert.match(topics, /class="feature-nav" aria-label="Your activity"/);
   assert.match(topics, /href="\/search">Discover topics/);
   assert.match(topics, /class="topic-follow-form" data-async-interaction data-topic="coding" data-following="true"/);
   assert.match(topicDiscovery, /class="topic-follow-form" data-async-interaction data-topic="design" data-following="false"/);
-  assert.match(conversations, /Your Conversations/);
+  assert.match(conversations, /Posts you're part of/);
   assert.match(conversations, /href="\/dashboard">Start a conversation/);
-  assert.match(recent, /Recently Viewed/);
+  assert.match(recent, /Posts you've opened/);
   assert.match(recent, /href="\/top">Explore popular posts/);
   assert.match(members, /Top contributor/);
   assert.match(members, /class="member-role-badge role-owner">Owner/);
   assert.match(members, /class="member-verified-badge">Verified/);
+  assert.match(members, /<span>Conversations<\/span>/);
+  assert.match(members, /<span>Recent posts<\/span>/);
+  assert.match(members, /Followed topics/);
   assert.match(members, /href="\/search\?q=%23design">#design/);
+  assert.doesNotMatch(members, /q=%23culture/, 'profile hashtags should not be presented as followed topics');
 });
 
 test('chat attachment responses render previewable media inline and keep downloads for files', () => {

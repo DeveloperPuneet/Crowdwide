@@ -15,13 +15,13 @@
     <article><strong><%= memberStats.total %></strong><span>Members</span></article>
     <article><strong><%= memberStats.moderators %></strong><span>Moderators</span></article>
     <article><strong><%= memberStats.activeThisMonth %></strong><span>Active this month</span></article>
-    <article><strong><%= memberStats.contributions.toLocaleString() %></strong><span>Posts &amp; comments</span></article>
+    <article><strong><%= memberStats.contributions.toLocaleString() %></strong><span>Contributions</span></article>
   </section>
 
   <section class="explore-section community-directory-section">
     <div class="member-directory-heading">
-      <div><p class="eyebrow">Meet the community</p><h2>Members &amp; contributors</h2><p>Recognize the people shaping the conversation, from community leaders to active voices.</p></div>
-      <span class="member-directory-count"><%= members.length %> <%= members.length === 1 ? 'person' : 'people' %></span>
+      <div><p class="eyebrow">People make the community</p><h2>Members &amp; contributors</h2><p>Meet the people sharing posts, joining conversations, and following the topics that matter here.</p></div>
+      <span class="member-directory-count"><%= members.length %> <%= members.length === 1 ? 'member' : 'members' %></span>
     </div>
     <% if (!members.length) { %>
       <div class="empty-feed member-directory-empty"><h2>No members to show yet</h2><p>Community members will appear here as they join.</p></div>
@@ -41,15 +41,19 @@
             <span class="member-role-badge role-<%= member.communityRole %>"><%= roleLabel %></span>
             <span class="member-contribution-badge"><%= contributionLabel %></span>
             <% if (member.isVerified) { %><span class="member-verified-badge">Verified</span><% } %>
+            <span class="member-activity-badge <%= recentActivity ? 'is-active' : '' %>"><span aria-hidden="true"></span><%= recentActivity ? 'Active this month' : 'Quiet this month' %></span>
           </div>
-          <% if ((member.hashtags || []).length) { %>
-          <div class="member-topic-row" aria-label="Topics"><% member.hashtags.slice(0, 4).forEach((topic) => { %><a href="/search?q=%23<%= topic %>">#<%= topic %></a><% }) %></div>
+          <div class="member-activity-grid" aria-label="Community activity">
+            <div><strong><%= member.posts %></strong><span>Posts</span></div>
+            <div><strong><%= member.comments %></strong><span>Conversations</span><small><%= member.recentComments %> this month</small></div>
+            <div><strong><%= member.recentPosts %></strong><span>Recent posts</span><small>Past 30 days</small></div>
+          </div>
+          <% if ((member.followedTopics || []).length) { %>
+          <div class="member-followed-topics">
+            <span class="member-followed-topics-label">Followed topics</span>
+            <div class="member-topic-row" aria-label="Followed topics"><% member.followedTopics.slice(0, 4).forEach((topic) => { %><a href="/search?q=%23<%= encodeURIComponent(topic) %>">#<%= topic %></a><% }) %></div>
+          </div>
           <% } %>
-          <footer class="member-contribution-stats">
-            <span><strong><%= member.posts %></strong> posts</span>
-            <span><strong><%= member.comments %></strong> comments</span>
-            <span class="<%= recentActivity ? 'is-active' : '' %>"><strong><%= recentActivity %></strong> this month</span>
-          </footer>
         </article>
       <% }) %>
     </div>

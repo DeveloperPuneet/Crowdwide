@@ -265,7 +265,7 @@ exports.memberDirectory = async (req, res) => {
   }
   const activeSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const [members, postCounts, commentCounts] = await Promise.all([
-    User.find({ _id: { $in: community.members || [] } }).select('name profilePicture bio hashtags createdAt isVerified').sort({ name: 1 }).lean(),
+    User.find({ _id: { $in: community.members || [] } }).select('name profilePicture bio followedTopics createdAt isVerified').sort({ name: 1 }).lean(),
     Post.aggregate([
       { $match: { community: community._id, status: 'published' } },
       { $group: {
