@@ -40,6 +40,11 @@ const { partnershipPages, PARTNERSHIP_PRIVACY_SECTION, PARTNERSHIP_TERMS_OF_USE_
 const { attachReplyPostCounts } = require('../services/replyPostCounts');
 const { attachPollVoters } = require('../services/pollVoters');
 
+const addViewerLikeState = (posts, viewerId) => posts.map((post) => ({
+	...post,
+	liked: (post.likes || []).some((id) => String(id) === String(viewerId))
+}));
+
 async function getLiveStats() {
 	if (!User.db.readyState) {
 		return { members: 0, posts: 0, communities: 0, communitiesAreLive: false, topCommunities: [] };
@@ -1280,7 +1285,7 @@ exports.followedTopicsPage = async (req, res) => {
 		topics.length ? Post.find({ status: 'published', hashtags: { $in: topics }, moderationStatus: { $ne: 'reported' } }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').populate('community', 'name slug').lean() : [],
 		getTrendingHashtags(12)
 	]);
-	res.render('pages/topics', { title: 'Topics you follow', pagePath: '/topics', noIndex: true, topics, posts, trendingHashtags });
+	res.render('pages/topics', { title: 'Topics you follow', pagePath: '/topics', noIndex: true, topics, posts: addViewerLikeState(posts, req.session.user.id), trendingHashtags });
 };
 
 exports.conversationsPage = async (req, res) => {
@@ -1288,7 +1293,7 @@ exports.conversationsPage = async (req, res) => {
 	const commentPosts = await Comment.find({ author: req.session.user.id }).distinct('post');
 	const ids = [...new Set([...(user?.followedDiscussions || []).map(String), ...commentPosts.map(String)])];
 	const posts = await Post.find({ $or: [{ author: req.session.user.id }, { _id: { $in: ids } }] }).sort({ updatedAt: -1 }).limit(50).populate('author', 'name profilePicture').populate('community', 'name slug').lean();
-	res.render('pages/conversations', { title: 'Your Conversations', pagePath: '/conversations', noIndex: true, posts });
+	res.render('pages/conversations', { title: 'Your Conversations', pagePath: '/conversations', noIndex: true, posts: addViewerLikeState(posts, req.session.user.id) });
 };
 
 exports.recentlyViewedPage = async (req, res) => {
@@ -1297,7 +1302,7 @@ exports.recentlyViewedPage = async (req, res) => {
 	const posts = ids.length ? await Post.find({ _id: { $in: ids }, status: 'published' }).populate('author', 'name profilePicture').populate('community', 'name slug').lean() : [];
 	const order = new Map(ids.map((id, index) => [String(id), index]));
 	posts.sort((a, b) => (order.get(String(a._id)) ?? 999) - (order.get(String(b._id)) ?? 999));
-	res.render('pages/recently-viewed', { title: 'Recently Viewed', pagePath: '/recently-viewed', noIndex: true, posts });
+	res.render('pages/recently-viewed', { title: 'Recently Viewed', pagePath: '/recently-viewed', noIndex: true, posts: addViewerLikeState(posts, req.session.user.id) });
 };
 
 exports.robots = (req, res) => {
