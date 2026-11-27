@@ -5,6 +5,7 @@ const Community = require('../src/models/Community');
 const User = require('../src/models/User');
 const Post = require('../src/models/Post');
 const Comment = require('../src/models/Comment');
+const Quest = require('../src/models/Quest');
 const communityController = require('../src/controllers/communityController');
 const router = require('../src/routes/web');
 const { csrfSynchronisedProtection } = require('../src/middleware/security');
@@ -197,6 +198,59 @@ test('a pending private-community request renders the waiting page without loadi
   assert.equal(res.view, 'pages/community-request');
   assert.equal(res.data.requested, true);
   assert.equal(res.data.community, community);
+});
+
+test('community detail paginates beyond the newest 30 published posts', async (t) => {
+  const community = {
+    _id: new mongoose.Types.ObjectId(),
+    slug: 'makers',
+    name: 'Makers',
+    description: 'Build together',
+    isPrivate: false,
+    owner: { _id: new mongoose.Types.ObjectId(), name: 'Owner' },
+    members: [],
+    moderators: [],
+    memberRoles: [],
+    joinRequests: [],
+    pinnedPosts: []
+  };
+  t.mock.method(Community, 'findOne', () => ({
+    populate: () => ({ lean: () => Promise.resolve(community) })
+  }));
+  const postQuery = {
+    sort(value) { this.sortValue = value; return this; },
+    skip(value) { this.skipValue = value; return this; },
+    limit(value) { this.limitValue = value; return this; },
+    populate() { return this; },
+    lean() { return Promise.resolve([]); }
+  };
+  const postFind = t.mock.method(Post, 'find', () => postQuery);
+  t.mock.method(Post, 'countDocuments', () => Promise.resolve(65));
+  t.mock.method(Post, 'aggregate', () => Promise.resolve([]));
+  t.mock.method(Quest, 'find', () => ({
+    sort() { return this; },
+    populate() { return this; },
+    lean: () => Promise.resolve([])
+  }));
+  const res = {
+    locals: { appUrl: 'http://localhost:3000' },
+    render(view, data) { this.view = view; this.data = data; },
+    status() { return this; }
+  };
+
+  await communityController.detail({
+    params: { slug: 'makers' },
+    query: { page: '2' },
+    session: { user: { id: 'visitor' } }
+  }, res);
+
+  assert.equal(res.view, 'pages/community-detail');
+  assert.equal(res.data.postPage, 2);
+  assert.equal(res.data.postTotalPages, 3);
+  assert.equal(res.data.totalPostCount, 65);
+  assert.equal(postFind.mock.callCount(), 1);
+  assert.equal(postQuery.skipValue, 30);
+  assert.equal(postQuery.limitValue, 30);
 });
 
 test('community member directory distinguishes roles and summarizes recent contribution', async (t) => {

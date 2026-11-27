@@ -290,6 +290,13 @@ test('post cards render co-author credit when a post is collaborative', async ()
   assert.match(html, /Weekly sketch sprint/);
 });
 
+test('only article cards show a compact reading-time label before the preview', async () => {
+  const article = await render('partials/post-card.ejs', { post: { ...post(1), type: 'article', body: 'A short article preview.' } });
+  const regularPost = await render('partials/post-card.ejs', { post: post(2) });
+  assert.match(article, /class="post-reading-time".*1 min read/);
+  assert.doesNotMatch(regularPost, /post-reading-time/);
+});
+
 test('admin feed previews show behavior matches without exposing interactive post actions', async () => {
   const html = await render('pages/admin-user-preview.ejs', {
     title: 'User feed preview', pagePath: '/admin/users/u2/preview', noIndex: true,
@@ -616,6 +623,17 @@ test('joined community detail renders a leave action and focused community styli
   assert.ok(html.includes(`<p class="community-guidelines-copy">${guidelines}</p>`));
   assert.match(html, /community-detail-layout/);
   assert.match(html, /href="\/css\/community-workspace\.css"/);
+});
+
+test('community detail provides navigation to older posts', async () => {
+  const html = await render('pages/community-detail.ejs', {
+    title: 'Design Lab', pagePath: '/communities/design-lab', noIndex: true,
+    community: { _id: 'c1', slug: 'design-lab', name: 'Design Lab', category: 'design', description: 'Share ideas', hashtags: [], membersCount: 12, isPrivate: false, owner: { _id: 'u1', name: 'Puneet' }, members: ['u1'], moderators: [], pinnedPosts: [] },
+    posts: [], members: [], moderatorIds: [], joined: true, requested: false, isOwner: false, locked: false, quests: [],
+    totalPostCount: 65, postPage: 1, postTotalPages: 3
+  });
+  assert.match(html, /65 posts · Page 1 of 3/);
+  assert.match(html, /href="\?page=2">Older posts →/);
 });
 
 test('community map gives users a usable fallback when map tile access is blocked', async () => {

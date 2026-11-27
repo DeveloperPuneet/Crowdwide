@@ -61,7 +61,7 @@
 	</section>
 	<% } %>
 	<section class="community-posts">
-		<div class="panel-heading"><h2>Community posts</h2><span><%= locked ? 'Members only' : `${posts.length} recent` %></span></div>
+		<div class="panel-heading"><h2>Community posts</h2><span><%= locked ? 'Members only' : `${locals.totalPostCount ?? posts.length} posts · Page ${locals.postPage ?? 1} of ${locals.postTotalPages ?? 1}` %></span></div>
 		<% if (locked) { %>
 		<div class="empty-feed"><h2>This is a private community.</h2><p>Posts and members are only visible once your request to join is approved.</p></div>
 		<% } else if (!posts.length) { %>
@@ -73,6 +73,13 @@
 		<% if (isPinnedPost || isModPost) { %><div class="community-post-flags"><% if (isPinnedPost) { %><span class="community-flag"><%- icon('map-pin', { size: 12 }) %> Pinned</span><% } %><% if (isModPost) { %><span class="community-moderator-label">MOD post</span><% } %></div><% } %>
 		<%- include('../partials/post-card', { post, csrfToken, hideSource: true }) %>
 		<% }) %>
+		<% } %>
+		<% if (!locked && ((locals.postPage ?? 1) > 1 || (locals.postPage ?? 1) < (locals.postTotalPages ?? 1))) { %>
+		<nav class="public-post-pagination" aria-label="Community post pages">
+			<% if ((locals.postPage ?? 1) > 1) { %><a class="button button-ghost" href="?page=<%= (locals.postPage ?? 1) - 1 %>">← Newer posts</a><% } %>
+			<span>Page <%= locals.postPage ?? 1 %> of <%= locals.postTotalPages ?? 1 %></span>
+			<% if ((locals.postPage ?? 1) < (locals.postTotalPages ?? 1)) { %><a class="button button-ghost" href="?page=<%= (locals.postPage ?? 1) + 1 %>">Older posts →</a><% } %>
+		</nav>
 		<% } %>
 	</section>
 </div>

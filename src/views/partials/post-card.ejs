@@ -10,8 +10,9 @@
 		<% if (!locals.hideSource) { %><span class="post-source"><%= post.feedSource || 'From your communities' %></span><% } %>
 	</div>
 	<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
-	<% const cardReadingWords = String(post.body || '').trim().split(/\s+/).filter(Boolean).length; const cardReadingMinutes = Math.max(1, Math.ceil(cardReadingWords / 220)); %>
+	<% if (post.type === 'article') { const cardReadingWords = String(post.body || '').trim().split(/\s+/).filter(Boolean).length; const cardReadingMinutes = Math.max(1, Math.ceil(cardReadingWords / 220)); %>
 	<span class="post-reading-time"><%- icon('clock', { size: 12 }) %> <%= cardReadingMinutes %> min read</span>
+	<% } %>
 	<div class="post-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
 	<% if (post.body && post.body.trim()) { %><button type="button" class="action-translate action-translate-inline" data-translate-trigger><%- icon('globe', { size: 13 }) %> <span class="label">Translate</span></button><% } %>
 	<% if (post.poll?.question && post.poll.options?.length) { %>

@@ -17,6 +17,8 @@ const { getCommunityPromotionOffer, getActiveCommunityPromotions, promoteCommuni
 const { isAdFree } = require('../services/adFree');
 const logger = require('../services/logger');
 
+const COMMUNITY_POSTS_PER_PAGE = 30;
+
 const loadCommunity = async (req, res, next) => {
   const community = await Community.findById(req.params.id);
   if (!community) {
@@ -330,16 +332,36 @@ exports.detail = async (req, res) => {
   if (community.isPrivate && !joined) {
     return res.render('pages/community-request', { title: `Request to join ${community.name}`, pagePath: `/communities/${community.slug}`, noIndex: true, community, requested });
   }
-  const pinnedIds = (community.pinnedPosts || []).map(String);
-  const [recentPosts, pinnedPosts, quests] = await Promise.all([
-    Post.find({ community: community._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).populate('author', 'name profilePicture').populate('coAuthors', 'name profilePicture').populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name' } }).populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name' } }).lean(),
+  const pinnedIds = Array.from(new Set((community.pinnedPosts || []).map(String)));
+  const [pinnedPosts, totalPostCount, quests] = await Promise.all([
     pinnedIds.length ? Post.find({ _id: { $in: pinnedIds }, community: community._id, status: 'published' }).populate('author', 'name profilePicture').populate('coAuthors', 'name profilePicture').populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name' } }).populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name' } }).lean() : Promise.resolve([]),
+    Post.countDocuments({ community: community._id, status: 'published' }),
     Quest.find({ community: community._id }).sort({ createdAt: -1 }).populate('creator', 'name profilePicture').populate('participants', 'name profilePicture').populate('completedBy', 'name profilePicture').populate('winner', 'name profilePicture').lean()
   ]);
   const pinnedById = new Map(pinnedPosts.map((post) => [String(post._id), post]));
+  const orderedPinnedPosts = pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean);
+  const unpinnedPostCount = Math.max(0, totalPostCount - orderedPinnedPosts.length);
+  const firstPageUnpinnedLimit = Math.max(0, COMMUNITY_POSTS_PER_PAGE - orderedPinnedPosts.length);
+  const totalPages = Math.max(1, 1 + Math.ceil(Math.max(0, unpinnedPostCount - firstPageUnpinnedLimit) / COMMUNITY_POSTS_PER_PAGE));
+  const requestedPage = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const page = Math.min(requestedPage, totalPages);
+  const pageSize = page === 1 ? firstPageUnpinnedLimit : COMMUNITY_POSTS_PER_PAGE;
+  const recentPosts = pageSize ? await Post.find({
+    community: community._id,
+    status: 'published',
+    ...(pinnedIds.length ? { _id: { $nin: orderedPinnedPosts.map((post) => post._id) } } : {})
+  })
+    .sort({ createdAt: -1, _id: -1 })
+    .skip(page === 1 ? 0 : firstPageUnpinnedLimit + (page - 2) * COMMUNITY_POSTS_PER_PAGE)
+    .limit(pageSize)
+    .populate('author', 'name profilePicture')
+    .populate('coAuthors', 'name profilePicture')
+    .populate({ path: 'quotedPost', select: 'body author', populate: { path: 'author', select: 'name' } })
+    .populate({ path: 'replyTo', select: 'body author', populate: { path: 'author', select: 'name' } })
+    .lean() : [];
   const posts = await attachPollVoters(await attachReplyPostCounts([
-    ...pinnedIds.map((id) => pinnedById.get(id)).filter(Boolean),
-    ...recentPosts.filter((post) => !pinnedById.has(String(post._id)))
+    ...(page === 1 ? orderedPinnedPosts : []),
+    ...recentPosts
   ]), req.session.user.id);
   // Full post cards need the viewer's like state, as in the main feed.
   const viewerKey = String(req.session.user.id);
@@ -352,6 +374,9 @@ exports.detail = async (req, res) => {
     noIndex: false,
     community,
     posts,
+    postPage: page,
+    postTotalPages: totalPages,
+    totalPostCount,
     members,
     moderatorIds,
     joined,
