@@ -55,8 +55,8 @@ test('editing cannot increase a post beyond the current word limit', async (t) =
 
 // ---- Revisions: an older save must never overwrite newer text ------------------------------------------------
 
-function editWith(t, { stored, body, revision, updateResult }) {
-  const post = { _id: 'post-id', author: 'user-id', type: 'post', body: stored.body, revision: stored.revision };
+function editWith(t, { stored, body, revision, updateResult, postType = 'post' }) {
+  const post = { _id: 'post-id', author: 'user-id', type: postType, body: stored.body, revision: stored.revision };
   t.mock.method(Post, 'findOne', () => Promise.resolve(post));
   const writes = [];
   t.mock.method(Post, 'findOneAndUpdate', (filter, update) => { writes.push({ filter, update }); return { select: () => Promise.resolve(updateResult === undefined ? { revision: stored.revision + 1 } : updateResult) }; });
@@ -116,4 +116,17 @@ test('posts created before revisions existed can still be edited', async (t) => 
   await run();
   assert.equal(res.payload.ok, true);
   assert.deepEqual(writes[0].filter.revision, { $in: [0, null] });
+});
+
+test('editing an article below the post word limit converts it to a post', async (t) => {
+  const body = words(59);
+  const { res, writes, run } = editWith(t, {
+    stored: { body: words(60), revision: 2 },
+    body,
+    revision: 2,
+    postType: 'article'
+  });
+  await run();
+  assert.equal(res.payload.ok, true);
+  assert.equal(writes[0].update.$set.type, 'post');
 });

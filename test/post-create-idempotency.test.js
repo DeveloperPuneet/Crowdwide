@@ -11,7 +11,7 @@ const { createPost } = require('../src/controllers/webController');
 const chain = (value) => ({ select() { return this; }, lean: () => Promise.resolve(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
 
 function setup(t, { existing = null, create } = {}) {
-  const calls = { create: 0, lookups: 0 };
+  const calls = { create: 0, lookups: 0, createdDocs: [] };
   t.mock.method(User, 'findById', () => chain({ bookmarks: [] }));
   t.mock.method(SiteSetting, 'getSingleton', () => Promise.resolve({ postWordLimit: 60, articleWordLimit: 300 }));
   clearSiteConfigCache();
@@ -22,6 +22,7 @@ function setup(t, { existing = null, create } = {}) {
   });
   t.mock.method(Post, 'create', async (doc) => {
     calls.create += 1;
+    calls.createdDocs.push(doc);
     if (create) return create(doc);
     return { _id: 'new-post', hashtags: [], toObject: () => ({ _id: 'new-post', status: doc.status, scheduledAt: doc.scheduledAt }), ...doc };
   });
@@ -106,6 +107,21 @@ test('a rejected post answers the in-page composer with a JSON error (and create
   assert.equal(res.payload.ok, false);
   assert.match(res.payload.error, /60 words/);
   assert.equal(calls.create, 0);
+});
+
+test('articles shorter than the post limit are saved as posts, while the boundary remains an article', async (t) => {
+  const calls = setup(t);
+  const short = request({ body: Array.from({ length: 59 }, (_, i) => `w${i}`).join(' '), type: 'article', saveAsDraft: 'on' });
+  await createPost(short.req, short.res);
+  assert.equal(calls.create, 1);
+  assert.equal(short.res.payload.ok, true);
+  assert.equal(calls.createdDocs[0].type, 'post');
+
+  const boundary = request({ body: Array.from({ length: 60 }, (_, i) => `w${i}`).join(' '), type: 'article', saveAsDraft: 'on' });
+  await createPost(boundary.req, boundary.res);
+  assert.equal(calls.create, 2);
+  assert.equal(boundary.res.payload.ok, true);
+  assert.equal(calls.createdDocs[1].type, 'article');
 });
 
 test('a plain form post still gets the flash message and redirect', async (t) => {

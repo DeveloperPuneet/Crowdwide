@@ -24,6 +24,7 @@ const { getHiddenAuthorIds, canSeeProfileDetails } = require('../utils/profilePr
 const { getRestrictedCommunityIds } = require('../utils/communityPrivacy');
 const { isRepeatPost } = require('../utils/spamDetection');
 const { getWordLimits } = require('../services/siteConfig');
+const countWords = require('../utils/wordCount');
 const { searchPublishedPosts } = require('../services/postSearch');
 const logger = require('../services/logger');
 const { COMMUNITY_CATEGORIES, normalizeCommunityCategory } = require('../utils/communityCategories');
@@ -537,10 +538,11 @@ exports.createPost = async (req, res) => {
 		return fail(restriction);
 	}
 	const body = req.body.body?.trim();
-	const type = ['article', 'poll'].includes(req.body.type) ? req.body.type : 'post';
+	const requestedType = ['article', 'poll'].includes(req.body.type) ? req.body.type : 'post';
 	const wordLimits = await getWordLimits();
+	const wordCount = countWords(body);
+	const type = requestedType === 'article' && wordCount < wordLimits.post ? 'post' : requestedType;
 	const wordLimit = type === 'article' ? wordLimits.article : wordLimits.post;
-	const wordCount = body ? body.split(/\s+/).filter(Boolean).length : 0;
 	if (!body || wordCount > wordLimit) {
 		return fail(`${type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.`);
 	}

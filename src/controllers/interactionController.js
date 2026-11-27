@@ -165,8 +165,9 @@ exports.editPost = async (req, res) => {
   const post = await Post.findOne({ _id: req.params.id, author: req.session.user.id });
   if (!post) return redirectBack(req, res, { ok: false, error: 'Post not found or you do not own it.' });
   const wordLimits = await getWordLimits();
-  const wordLimit = post.replyTo ? MAX_REPLY_POST_WORDS : post.type === 'article' ? wordLimits.article : wordLimits.post;
   const wordCount = countWords(body);
+  const type = post.type === 'article' && wordCount < wordLimits.post ? 'post' : post.type;
+  const wordLimit = post.replyTo ? MAX_REPLY_POST_WORDS : post.type === 'article' ? wordLimits.article : wordLimits.post;
   const existingWordCount = countWords(post.body);
   if (!body || (wordCount > wordLimit && wordCount > existingWordCount)) {
     const error = `${post.type === 'article' ? 'Articles' : 'Posts'} are limited to ${wordLimit} words.`;
@@ -193,7 +194,7 @@ exports.editPost = async (req, res) => {
   if (submittedRevision !== null && submittedRevision !== currentRevision) return conflict();
   const updated = await Post.findOneAndUpdate(
     { _id: post._id, author: req.session.user.id, revision: currentRevision === 0 ? { $in: [0, null] } : currentRevision },
-    { $set: { body }, $inc: { revision: 1 } },
+    { $set: { body, type }, $inc: { revision: 1 } },
     { new: true }
   ).select('revision');
   if (!updated) return conflict();
