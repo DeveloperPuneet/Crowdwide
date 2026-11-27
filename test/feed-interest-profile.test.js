@@ -50,7 +50,7 @@ test('interaction weights decay by half-life and recent engagement revives an ol
   assert.equal(buildBehaviorInterestProfile({
     now,
     interactions: [{ type: 'like', post: oldInterest, occurredAt: new Date(now) }]
-  }).interests.get('music'), 1);
+  }).interests.get('music'), Math.sqrt(1 / 3));
 
   const renewedInterest = buildBehaviorInterestProfile({
     now,

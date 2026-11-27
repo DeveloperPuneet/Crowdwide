@@ -20,6 +20,7 @@ const MAX_CACHE_ENTRIES = 500;
 const MAX_INTERACTION_HISTORY = 200;
 const MAX_EXPLORATION_HISTORY = 100;
 const DEFAULT_INTERACTION_HALF_LIFE_DAYS = 30;
+const INTEREST_PROFILE_REFERENCE_WEIGHT = 3;
 const INTERACTION_WEIGHTS = { likes: 1, reactions: 1.2, comments: 2, saves: 2.5, opens: 0.6, pollVotes: 1.5 };
 
 function positiveConfig(value, fallback) {
@@ -153,7 +154,9 @@ function buildBehaviorInterestProfile({
   });
 
   return {
-    interests: ranker.buildInterestMap(signals, { normalizer: maximumSignalWeight(baselineSignals) }),
+    interests: ranker.buildInterestMap(signals, {
+      normalizer: Math.max(INTEREST_PROFILE_REFERENCE_WEIGHT, maximumSignalWeight(baselineSignals))
+    }),
     evidence,
     activity,
     signals,
@@ -319,7 +322,12 @@ async function getInterestProfile(user) {
   ];
   const interests = ranker.buildInterestMap(
     [...stableSignals, ...behaviorProfile.signals],
-    { normalizer: maximumSignalWeight([...stableSignals, ...behaviorProfile.baselineSignals]) }
+    {
+      normalizer: Math.max(
+        INTEREST_PROFILE_REFERENCE_WEIGHT,
+        maximumSignalWeight([...stableSignals, ...behaviorProfile.baselineSignals])
+      )
+    }
   );
 
   const rawAffinity = new Map();
