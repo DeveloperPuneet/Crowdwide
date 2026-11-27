@@ -10,10 +10,12 @@
 		<% if (!locals.hideSource) { %><span class="post-source"><%= post.feedSource || 'From your communities' %></span><% } %>
 	</div>
 	<% if (post.questTitle) { %><span class="quest-post-label">Quest post · <%= post.questTitle %></span><% } %>
-	<% if (post.type === 'article') { const cardReadingWords = String(post.body || '').trim().split(/\s+/).filter(Boolean).length; const cardReadingMinutes = Math.max(1, Math.ceil(cardReadingWords / 220)); %>
-	<span class="post-reading-time"><%- icon('clock', { size: 12 }) %> <%= cardReadingMinutes %> min read</span>
-	<% } %>
-	<div class="post-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
+	<div class="post-copy<%= post.type === 'article' ? ' post-copy-article' : '' %>">
+		<% if (post.type === 'article') { const cardReadingWords = String(post.body || '').trim().split(/\s+/).filter(Boolean).length; const cardReadingMinutes = Math.max(1, Math.ceil(cardReadingWords / 220)); %>
+		<span class="post-reading-time"><%- icon('clock', { size: 12 }) %> <%= cardReadingMinutes %> min read</span>
+		<% } %>
+		<div class="post-body" data-translatable data-original="<%= post.body %>"><%- renderRichBody(post.body) %></div>
+	</div>
 	<% if (post.body && post.body.trim()) { %><button type="button" class="action-translate action-translate-inline" data-translate-trigger><%- icon('globe', { size: 13 }) %> <span class="label">Translate</span></button><% } %>
 	<% if (post.poll?.question && post.poll.options?.length) { %>
 	<section class="post-poll"><strong><%= post.poll.question %></strong><% post.poll.options.forEach((option, index) => { %><% if (canInteract) { %><form data-async-interaction method="post" action="/posts/<%= post._id %>/poll/vote"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="optionIndex" value="<%= index %>"><button type="submit"><%= option.label %> <span><%= option.votes?.length || 0 %></span></button></form><% } else { %><p><%= option.label %> <span><%= option.votes?.length || 0 %></span></p><% } %><% }) %><% if (!locals.currentUser && !readOnly) { %><a class="public-interaction-prompt" href="/auth/register">Create an account to vote</a><% } %><%- include('poll-voters', { poll: post.poll }) %></section>

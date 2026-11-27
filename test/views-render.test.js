@@ -293,7 +293,7 @@ test('post cards render co-author credit when a post is collaborative', async ()
 test('only article cards show a compact reading-time label before the preview', async () => {
   const article = await render('partials/post-card.ejs', { post: { ...post(1), type: 'article', body: 'A short article preview.' } });
   const regularPost = await render('partials/post-card.ejs', { post: post(2) });
-  assert.match(article, /class="post-reading-time".*1 min read/);
+  assert.match(article, /class="post-copy post-copy-article">[\s\S]*class="post-reading-time".*1 min read[\s\S]*class="post-body"/);
   assert.doesNotMatch(regularPost, /post-reading-time/);
 });
 
