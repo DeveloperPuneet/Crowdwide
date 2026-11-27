@@ -35,6 +35,7 @@ test('replying to a comment notifies the parent comment author', async (t) => {
         : { notificationPreferences: { emailUnreadSummary: false } }
     })
   }));
+  const userUpdate = t.mock.method(User, 'updateOne', async () => ({ modifiedCount: 1 }));
   const notificationCreate = t.mock.method(Notification, 'create', async () => ({}));
 
   const req = {
@@ -61,5 +62,6 @@ test('replying to a comment notifies the parent comment author', async (t) => {
     post: 'post-1',
     community: null
   });
+  assert.ok(userUpdate.mock.calls.some((call) => call.arguments[1]?.$push?.interestInteractions));
   assert.equal(res.url, '/dashboard#post-post-1');
 });

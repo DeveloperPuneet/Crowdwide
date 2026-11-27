@@ -216,7 +216,7 @@ exports.admin = async (req, res) => {
 exports.userFeedPreview = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).render('pages/not-found', { title: 'User not found' });
   const user = await User.findById(req.params.id)
-    .select('name email role following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt recentViews adFreeUntil')
+    .select('name email role following joinedCommunities blockedUsers mutedUsers bookmarks hashtags searchHistory createdAt recentViews interestInteractions explorationHistory adFreeUntil')
     .lean();
   if (!user) return res.status(404).render('pages/not-found', { title: 'User not found' });
 

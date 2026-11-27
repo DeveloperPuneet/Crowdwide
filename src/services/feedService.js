@@ -9,6 +9,7 @@ const { attachReplyPostCounts } = require('./replyPostCounts');
 const { attachPollVoters } = require('./pollVoters');
 const ranker = require('../utils/feedRanker');
 const logger = require('./logger');
+const { relatedInterestsFor, adjacentInterestsFor } = require('../utils/onboardingInterests');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const POOL_LIMIT = 96; // ranked posts kept per feed (6 pages of 16)
@@ -16,6 +17,23 @@ const FEED_REFRESH_AFTER_MS = 30 * 1000; // reloading page 1 re-ranks after this
 const FEED_PAGINATION_TTL_MS = 10 * 60 * 1000; // scrolling to page 2+ keeps the order page 1 had, even after a slow read
 const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 500;
+const MAX_INTERACTION_HISTORY = 200;
+const MAX_EXPLORATION_HISTORY = 100;
+const DEFAULT_INTERACTION_HALF_LIFE_DAYS = 30;
+const INTERACTION_WEIGHTS = { likes: 1, reactions: 1.2, comments: 2, saves: 2.5, opens: 0.6, pollVotes: 1.5 };
+
+function positiveConfig(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function interactionHalfLifeDays() {
+  return positiveConfig(process.env.FEED_INTERACTION_HALF_LIFE_DAYS, DEFAULT_INTERACTION_HALF_LIFE_DAYS);
+}
+
+function explorationEvery() {
+  return Math.max(1, Math.floor(positiveConfig(process.env.FEED_EXPLORE_EVERY, ranker.EXPLORE_EVERY)));
+}
 
 const feedCache = new Map();
 const profileCache = new Map();
@@ -62,33 +80,86 @@ function refreshPersonalization(userId) {
   clearInterestProfile(userId);
 }
 
-function buildBehaviorInterestProfile({ liked = [], reacted = [], commented = [], saved = [], viewed = [] } = {}) {
-  const sources = [
-    { key: 'likes', posts: liked, weight: 1, recency: true },
-    { key: 'reactions', posts: reacted, weight: 1.2, recency: true },
-    { key: 'comments', posts: commented, weight: 2 },
-    { key: 'saves', posts: saved, weight: 2.5 },
-    { key: 'opens', posts: viewed, weight: 0.6, recency: true }
-  ];
-  const signals = [];
-  const evidence = new Map();
-  const activity = {};
+function interactionWeight(type, occurredAt, now, halfLifeDays) {
+  const key = {
+    like: 'likes',
+    reaction: 'reactions',
+    comment: 'comments',
+    save: 'saves',
+    open: 'opens',
+    pollVote: 'pollVotes'
+  }[type];
+  if (!key) return 0;
+  const timestamp = occurredAt ? new Date(occurredAt).getTime() : now;
+  const elapsedDays = Number.isFinite(timestamp) ? Math.max(0, (now - timestamp) / DAY_MS) : 0;
+  return INTERACTION_WEIGHTS[key] * Math.pow(2, -elapsedDays / halfLifeDays);
+}
 
-  sources.forEach(({ key, posts, weight, recency }) => {
-    activity[key] = posts.length;
-    posts.forEach((post, index) => {
-      const tags = Array.from(new Set((post.hashtags || []).map((tag) => String(tag || '').toLowerCase()).filter(Boolean)));
-      if (!tags.length) return;
-      const signalWeight = recency ? weight * (1 - 0.5 * (index / Math.max(1, posts.length))) : weight;
-      signals.push({ tags, weight: signalWeight });
-      tags.forEach((tag) => {
-        if (!evidence.has(tag)) evidence.set(tag, { likes: 0, reactions: 0, comments: 0, saves: 0, opens: 0 });
-        evidence.get(tag)[key] += 1;
-      });
+function maximumSignalWeight(signals) {
+  const totals = new Map();
+  signals.forEach(({ tags = [], weight = 1 }) => {
+    tags.forEach((tag) => {
+      const key = String(tag || '').toLowerCase();
+      if (key) totals.set(key, (totals.get(key) || 0) + weight);
+    });
+  });
+  return Math.max(0, ...totals.values());
+}
+
+function buildBehaviorInterestProfile({
+  interactions = [],
+  liked = [],
+  reacted = [],
+  commented = [],
+  saved = [],
+  viewed = [],
+  now = Date.now(),
+  halfLifeDays = DEFAULT_INTERACTION_HALF_LIFE_DAYS
+} = {}) {
+  const sources = [
+    { type: 'like', posts: liked },
+    { type: 'reaction', posts: reacted },
+    { type: 'comment', posts: commented },
+    { type: 'save', posts: saved },
+    { type: 'open', posts: viewed }
+  ];
+  const records = interactions.slice();
+  sources.forEach(({ type, posts }) => posts.forEach((post) => {
+    records.push({ type, occurredAt: post.interactionAt || post.createdAt, post });
+  }));
+  const signals = [];
+  const baselineSignals = [];
+  const evidence = new Map();
+  const activity = { likes: 0, reactions: 0, comments: 0, saves: 0, opens: 0, pollVotes: 0 };
+  const eventKey = { like: 'likes', reaction: 'reactions', comment: 'comments', save: 'saves', open: 'opens', pollVote: 'pollVotes' };
+
+  records.forEach((record) => {
+    const key = eventKey[record.type];
+    if (!key) return;
+    activity[key] += 1;
+    const tags = Array.from(new Set((record.post?.hashtags || []).map((tag) => String(tag || '').toLowerCase()).filter(Boolean)));
+    if (!tags.length) return;
+    const weight = interactionWeight(record.type, record.occurredAt, now, halfLifeDays);
+    if (!weight) return;
+    signals.push({ tags, weight });
+    baselineSignals.push({
+      tags,
+      weight: interactionWeight(record.type, now, now, halfLifeDays)
+    });
+    tags.forEach((tag) => {
+      if (!evidence.has(tag)) evidence.set(tag, { likes: 0, reactions: 0, comments: 0, saves: 0, opens: 0, pollVotes: 0 });
+      evidence.get(tag)[key] += 1;
     });
   });
 
-  return { interests: ranker.buildInterestMap(signals), evidence, activity };
+  return {
+    interests: ranker.buildInterestMap(signals, { normalizer: maximumSignalWeight(baselineSignals) }),
+    evidence,
+    activity,
+    signals,
+    baselineSignals,
+    records
+  };
 }
 
 // Projection shared by every candidate query: only scoring fields and cheap
@@ -167,7 +238,7 @@ function fetchMostEngaged(match, limit, minPoints = 0, { interactionsOnly = fals
 }
 
 async function loadUser(userId) {
-  return User.findById(userId).select('following joinedCommunities blockedUsers mutedUsers bookmarks hiddenPosts followedTopics followedDiscussions mutedDiscussions hashtags searchHistory createdAt recentViews adFreeUntil').lean();
+  return User.findById(userId).select('following joinedCommunities blockedUsers mutedUsers bookmarks hiddenPosts followedTopics followedDiscussions mutedDiscussions hashtags searchHistory createdAt recentViews interestInteractions explorationHistory adFreeUntil').lean();
 }
 
 // What this person is interested in, learned from what they actually do:
@@ -179,57 +250,95 @@ async function getInterestProfile(user) {
   const cached = profileCache.get(key);
   if (cached && Date.now() - cached.at < PROFILE_CACHE_TTL_MS) return cached.value;
 
+  const now = Date.now();
+  const halfLifeDays = interactionHalfLifeDays();
   const joined = user.joinedCommunities || [];
   const bookmarkIds = (user.bookmarks || []).slice(-40);
   // Most-recent-first already (see interactionController.postDetail); only
   // look at a recent slice so an old browsing kick doesn't dominate forever.
   const viewedIds = (user.recentViews || []).slice(0, 40).map((entry) => entry.post).filter(Boolean);
+  const storedInteractions = Array.isArray(user.interestInteractions)
+    ? user.interestInteractions
+    : ((await User.findById(user._id).select('interestInteractions').lean())?.interestInteractions || []);
   const [liked, reacted, ownPosts, commentRows, saved, communities, viewed] = await Promise.all([
-    Post.find({ likes: user._id, status: 'published' }).sort({ createdAt: -1 }).limit(60).select('hashtags author').lean(),
+    Post.find({ likes: user._id, status: 'published' }).sort({ createdAt: -1 }).limit(60).select('hashtags author createdAt').lean(),
     Post.find({
       status: 'published',
       $or: [{ 'reactions.celebrate': user._id }, { 'reactions.insightful': user._id }, { 'reactions.support': user._id }, { 'reactions.funny': user._id }]
-    }).sort({ createdAt: -1 }).limit(60).select('hashtags author').lean(),
+    }).sort({ createdAt: -1 }).limit(60).select('hashtags author createdAt').lean(),
     Post.find({ author: user._id, status: 'published' }).sort({ createdAt: -1 }).limit(30).select('hashtags').lean(),
-    Comment.find({ author: user._id }).sort({ createdAt: -1 }).limit(40).select('post').lean(),
-    bookmarkIds.length ? Post.find({ _id: { $in: bookmarkIds } }).select('hashtags author').lean() : [],
+    Comment.find({ author: user._id }).sort({ createdAt: -1 }).limit(40).select('post createdAt').lean(),
+    bookmarkIds.length ? Post.find({ _id: { $in: bookmarkIds } }).select('hashtags author createdAt').lean() : [],
     joined.length ? Community.find({ _id: { $in: joined } }).select('hashtags').lean() : [],
-    viewedIds.length ? Post.find({ _id: { $in: viewedIds } }).select('hashtags author').lean() : []
+    viewedIds.length ? Post.find({ _id: { $in: viewedIds } }).select('hashtags author createdAt').lean() : []
   ]);
-  const commented = commentRows.length ? await Post.find({ _id: { $in: commentRows.map((row) => row.post) } }).select('hashtags author').lean() : [];
-
-  const behaviorProfile = buildBehaviorInterestProfile({ liked, reacted, commented, saved, viewed });
-  // Lists are newest-first: the latest actions say more about what someone is into now.
-  const recent = (posts, weight) => posts.map((post, index) => ({ tags: post.hashtags || [], weight: weight * (1 - 0.5 * (index / Math.max(1, posts.length))) }));
+  const commented = commentRows.length
+    ? await Post.find({ _id: { $in: commentRows.map((row) => row.post) } }).select('hashtags author createdAt').lean()
+    : [];
+  const eventPostIds = Array.from(new Set(storedInteractions.map((entry) => String(entry.post)).filter(Boolean)));
+  const eventPosts = eventPostIds.length
+    ? await Post.find({ _id: { $in: eventPostIds } }).select('hashtags author createdAt').lean()
+    : [];
+  const postById = new Map([...liked, ...reacted, ...saved, ...viewed, ...commented, ...eventPosts]
+    .map((post) => [String(post._id), post]));
+  const interactionRecords = storedInteractions.flatMap((entry) => {
+    const post = postById.get(String(entry.post));
+    return post ? [{ type: entry.type, occurredAt: entry.occurredAt, post, explorationType: entry.explorationType }] : [];
+  });
+  const knownInteractions = new Set(interactionRecords.map((entry) => `${entry.type}:${entry.post._id}`));
+  const addLegacy = (type, posts, dateFor) => posts.flatMap((post) => {
+    const keyForPost = `${type}:${post._id}`;
+    if (knownInteractions.has(keyForPost)) return [];
+    knownInteractions.add(keyForPost);
+    return [{ type, occurredAt: dateFor(post), post }];
+  });
+  const latestCommentAt = new Map();
+  commentRows.forEach((row) => {
+    const postId = String(row.post);
+    if (!latestCommentAt.has(postId)) latestCommentAt.set(postId, row.createdAt);
+  });
+  const viewedAt = new Map((user.recentViews || []).map((entry) => [String(entry.post), entry.viewedAt]));
+  const legacyInteractions = [
+    ...addLegacy('like', liked, (post) => post.createdAt),
+    ...addLegacy('reaction', reacted, (post) => post.createdAt),
+    ...addLegacy('comment', commented, (post) => latestCommentAt.get(String(post._id)) || post.createdAt),
+    ...addLegacy('save', saved, (post) => post.createdAt),
+    ...addLegacy('open', viewed, (post) => viewedAt.get(String(post._id)) || post.createdAt)
+  ];
+  const behaviorProfile = buildBehaviorInterestProfile({
+    interactions: [...interactionRecords, ...legacyInteractions],
+    now,
+    halfLifeDays
+  });
   const searchTags = (user.searchHistory || []).slice(0, 10).flatMap((entry) => String(entry.query || '').toLowerCase().replace(/^#/, '').split(/[^a-z0-9_]+/).filter((word) => word.length >= 3));
-  const interests = ranker.buildInterestMap([
+  const stableSignals = [
     { tags: user.hashtags || [], weight: 3 },
-    ...recent(liked, 1),
-    ...recent(reacted, 1.2),
-    ...saved.map((post) => ({ tags: post.hashtags || [], weight: 2.5 })),
-    ...commented.map((post) => ({ tags: post.hashtags || [], weight: 2 })),
     ...ownPosts.map((post) => ({ tags: post.hashtags || [], weight: 1.5 })),
     ...communities.map((community) => ({ tags: community.hashtags || [], weight: 1.5 })),
-    ...recent(viewed, 0.6),
     { tags: searchTags, weight: 1.2 }
-  ]);
+  ];
+  const interests = ranker.buildInterestMap(
+    [...stableSignals, ...behaviorProfile.signals],
+    { normalizer: maximumSignalWeight([...stableSignals, ...behaviorProfile.baselineSignals]) }
+  );
 
   const rawAffinity = new Map();
-  const addAffinity = (posts, weight) => posts.forEach((post) => {
-    const author = String(post.author);
+  const seenAuthors = new Set();
+  behaviorProfile.records.forEach((record) => {
+    const author = record.post?.author ? String(record.post.author) : null;
+    if (!author) return;
+    seenAuthors.add(author);
+    const weight = interactionWeight(record.type, record.occurredAt, now, halfLifeDays);
     rawAffinity.set(author, (rawAffinity.get(author) || 0) + weight);
   });
-  addAffinity(liked, 1);
-  addAffinity(reacted, 1.2);
-  addAffinity(commented, 2);
-  addAffinity(saved, 2);
-  addAffinity(viewed, 0.5);
   const maxAffinity = Math.max(0, ...rawAffinity.values());
   const authorAffinity = new Map(Array.from(rawAffinity, ([author, value]) => [author, maxAffinity ? Math.sqrt(value / maxAffinity) : 0]));
 
   const value = {
     interests,
     authorAffinity,
+    seenAuthors,
+    interactionRecords: behaviorProfile.records,
     behaviorInterests: behaviorProfile.interests,
     behaviorEvidence: behaviorProfile.evidence,
     behaviorActivity: behaviorProfile.activity
@@ -277,6 +386,8 @@ async function gatherCandidates({ user, view, restricted, excludedAuthors, inter
 
   if (view === 'for-you') {
     const tags = topInterestTags(interests);
+    const relatedTags = Array.from(relatedInterestsFor(tags));
+    const adjacentTags = Array.from(adjacentInterestsFor(tags));
     const [followedFollowing, { newAuthors, smallCommunities }] = await Promise.all([
       following.length ? User.find({ _id: { $in: following.slice(0, 200) } }).distinct('following') : [],
       loadGrowthSources(now)
@@ -287,6 +398,8 @@ async function gatherCandidates({ user, view, restricted, excludedAuthors, inter
       following.length ? fetchRecent({ ...base, author: { $in: following.filter((id) => !excludedAuthors.some((blocked) => String(blocked) === String(id))) }, ...since(30) }, 80) : [],
       joined.length ? fetchRecent({ ...base, community: { $in: joined }, ...since(30) }, 80) : [],
       tags.length ? fetchRecent({ ...base, hashtags: { $in: tags }, ...since(21) }, 80) : [],
+      relatedTags.length ? fetchRecent({ ...base, hashtags: { $in: relatedTags }, ...since(21) }, 60) : [],
+      adjacentTags.length ? fetchRecent({ ...base, hashtags: { $in: adjacentTags }, ...since(21) }, 40) : [],
       extendedIds.length ? fetchRecent({ ...base, author: { $in: extendedIds, $nin: excludedAuthors }, ...since(21) }, 40) : [],
       fetchMostEngaged({ ...base, ...since(7) }, 60),
       newAuthors.length ? fetchRecent({ ...base, author: { $in: newAuthors, $nin: excludedAuthors }, ...since(21) }, 50) : [],
@@ -357,6 +470,7 @@ async function buildRanking({ user, view, now }) {
   const excludedAuthors = [...(user.blockedUsers || []), ...(user.mutedUsers || []), ...(await getHiddenAuthorIds(user._id, user.following || []))];
   const { candidates, extendedIds } = await gatherCandidates({ user, view, restricted, excludedAuthors, interests: profile.interests, now });
   const info = await loadAuthorAndCommunityInfo(candidates, now);
+  const topicInterests = topInterestTags(profile.interests);
   const ranked = ranker.rankFeed(candidates, {
     userId: String(user._id),
     now,
@@ -365,12 +479,55 @@ async function buildRanking({ user, view, now }) {
     extended: new Set(extendedIds.map(String)),
     interests: profile.interests,
     authorAffinity: profile.authorAffinity,
+    seenAuthors: profile.seenAuthors,
+    exploredPosts: new Set((user.explorationHistory || []).map((entry) => String(entry.post))),
+    relatedInterests: relatedInterestsFor(topicInterests),
+    adjacentInterests: adjacentInterestsFor(topicInterests),
+    exploreEvery: explorationEvery(),
     seen: new Set((user.recentViews || []).slice(0, 40).map((entry) => String(entry.post)).filter(Boolean)),
     authors: info.authors,
     communityMembers: info.communityMembers,
     discoveryRatio: process.env.FEED_DISCOVERY_RATIO
   }, view, { limit: POOL_LIMIT });
-  return ranked.map((item) => ({ id: String(item.post._id), source: item.source, lane: item.lane }));
+  return ranked.map((item) => ({
+    id: String(item.post._id),
+    source: item.source,
+    lane: item.lane,
+    ...(item.explore ? { explorationType: item.explorationType } : {})
+  }));
+}
+
+async function recordInterestInteraction(userId, postId, type) {
+  const user = await User.findById(userId).select('explorationHistory').lean();
+  const exposure = (user?.explorationHistory || []).slice().reverse()
+    .find((entry) => String(entry.post) === String(postId));
+  const interaction = {
+    post: postId,
+    type,
+    occurredAt: new Date(),
+    ...(exposure ? { explorationType: exposure.type } : {})
+  };
+  await User.updateOne({ _id: userId }, {
+    $push: { interestInteractions: { $each: [interaction], $slice: -MAX_INTERACTION_HISTORY } }
+  });
+  refreshPersonalization(userId);
+}
+
+async function removeInterestInteraction(userId, postId, type) {
+  await User.updateOne({ _id: userId }, { $pull: { interestInteractions: { post: postId, type } } });
+  refreshPersonalization(userId);
+}
+
+async function recordExplorationImpressions(userId, entries) {
+  const impressions = entries.filter((entry) => entry.explorationType).map((entry) => ({
+    post: entry.id,
+    type: entry.explorationType,
+    servedAt: new Date()
+  }));
+  if (!impressions.length) return;
+  await User.updateOne({ _id: userId }, {
+    $push: { explorationHistory: { $each: impressions, $slice: -MAX_EXPLORATION_HISTORY } }
+  });
 }
 
 async function loadPagePosts(entries, user) {
@@ -447,6 +604,11 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   const organicSlice = entries.slice(start, start + ranker.PAGE_SIZE);
   const slice = organicSlice;
   const pending = tab === 'for-you' && pageNumber === 1 ? await loadOwnPending(user) : [];
+  try {
+    await recordExplorationImpressions(userId, slice);
+  } catch (error) {
+    logger.warn('Could not record feed exploration impressions', error);
+  }
   const posts = await loadPagePosts([...pending, ...slice], user);
   const discoveryShown = slice.filter((entry) => entry.lane === 'discovery').length;
   return {
@@ -459,4 +621,25 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   };
 }
 
-module.exports = { loadPagePosts, getFeedPage, getInterestProfile, topInterestTags, buildBehaviorInterestProfile, clearFeedCache, clearInterestProfile, clearAllFeedCaches, refreshPersonalization, buildRanking, candidateProjection, POOL_LIMIT, NOTES };
+module.exports = {
+  loadPagePosts,
+  getFeedPage,
+  getInterestProfile,
+  topInterestTags,
+  buildBehaviorInterestProfile,
+  interactionWeight,
+  recordInterestInteraction,
+  removeInterestInteraction,
+  clearFeedCache,
+  clearInterestProfile,
+  clearAllFeedCaches,
+  refreshPersonalization,
+  buildRanking,
+  candidateProjection,
+  POOL_LIMIT,
+  NOTES,
+  MAX_INTERACTION_HISTORY,
+  MAX_EXPLORATION_HISTORY,
+  DEFAULT_INTERACTION_HALF_LIFE_DAYS,
+  INTERACTION_WEIGHTS
+};

@@ -13,7 +13,11 @@ const { extractHashtags } = require('../utils/hashtags');
 const countWords = require('../utils/wordCount');
 const { preview } = require('../utils/textPreview');
 const { gifFromBody } = require('../services/gif');
-const { refreshPersonalization } = require('../services/feedService');
+const {
+  refreshPersonalization,
+  recordInterestInteraction,
+  removeInterestInteraction
+} = require('../services/feedService');
 const { notifyMentionedUsers } = require('../services/mentions');
 const { sendPushToUser } = require('../services/push');
 const { checkPostingRestriction } = require('../utils/postingRestriction');
@@ -97,9 +101,10 @@ exports.toggleLike = async (req, res) => {
   else {
     post.likes.addToSet(req.session.user.id);
     await notify(post.author, req.session.user.id, 'like', 'liked your post.', post._id, post.community, req.session.user.name);
-    refreshPersonalization(req.session.user.id); // a new like should shape "for you" on the very next load, not up to 5 minutes later
   }
   await post.save();
+  if (alreadyLiked) await removeInterestInteraction(req.session.user.id, post._id, 'like');
+  else await recordInterestInteraction(req.session.user.id, post._id, 'like');
   if (!alreadyLiked && String(post.author) !== String(req.session.user.id)) {
     rewardWavesForAction({ userId: post.author, actorId: req.session.user.id, action: 'receivedLike', referenceType: 'post', referenceId: post._id })
       .catch((error) => logger.error('Could not award Waves for received post like', error));
@@ -265,11 +270,11 @@ exports.comment = async (req, res) => {
   }
   post.commentsCount += 1;
   await post.save();
+  await recordInterestInteraction(req.session.user.id, post._id, 'comment');
   if (String(post.author) !== String(req.session.user.id)) {
     rewardWavesForAction({ userId: post.author, actorId: req.session.user.id, action: 'receivedComment', referenceType: 'post-comment', referenceId: post._id })
       .catch((error) => logger.error('Could not award Waves for received comment', error));
   }
-  refreshPersonalization(req.session.user.id);
   await notify(replyRecipient || post.author, req.session.user.id, parent ? 'reply' : 'comment', parent ? 'replied to your comment.' : 'commented on your post.', post._id, post.community, req.session.user.name);
   if (body) await notifyMentionedUsers(body, req.session.user.id, post._id, post.community, 'mentioned you in a comment.');
   // Streak/badges for the commenter, and the one-time "first reply" email for the post's author.
@@ -448,7 +453,6 @@ exports.toggleBookmark = async (req, res) => {
     if (add) {
       collection.postIds.addToSet(req.params.id);
       user.bookmarks.addToSet(req.params.id);
-      if (!exists) refreshPersonalization(req.session.user.id);
     } else {
       collection.postIds.pull(req.params.id);
     }
@@ -456,7 +460,6 @@ exports.toggleBookmark = async (req, res) => {
     const saved = req.body.saved === 'true' || req.body.saved === 'on';
     if (saved) {
       user.bookmarks.addToSet(req.params.id);
-      if (!exists) refreshPersonalization(req.session.user.id);
     } else {
       user.bookmarks.pull(req.params.id);
       user.postCollections.forEach((entry) => entry.postIds.pull(req.params.id));
@@ -466,10 +469,11 @@ exports.toggleBookmark = async (req, res) => {
     user.postCollections.forEach((collection) => collection.postIds.pull(req.params.id));
   } else {
     user.bookmarks.addToSet(req.params.id);
-    refreshPersonalization(req.session.user.id);
   }
   await user.save();
   const bookmarked = user.bookmarks.some((id) => String(id) === req.params.id);
+  if (!exists && bookmarked) await recordInterestInteraction(req.session.user.id, req.params.id, 'save');
+  else if (exists && !bookmarked) await removeInterestInteraction(req.session.user.id, req.params.id, 'save');
   redirectBack(req, res, {
     bookmarked,
     collectionIds: user.postCollections
@@ -507,11 +511,12 @@ exports.createPostCollection = async (req, res) => {
   }
   const collectionData = { name, postIds: post ? [post._id] : [], createdAt: new Date(), updatedAt: new Date() };
   user.postCollections.push(collectionData);
-  if (post && !user.bookmarks.some((id) => String(id) === String(post._id))) {
+  const addedBookmark = Boolean(post && !user.bookmarks.some((id) => String(id) === String(post._id)));
+  if (addedBookmark) {
     user.bookmarks.addToSet(post._id);
-    refreshPersonalization(req.session.user.id);
   }
   await user.save();
+  if (addedBookmark) await recordInterestInteraction(req.session.user.id, post._id, 'save');
   if (req.get('X-Requested-With') === 'XMLHttpRequest') {
     const collection = user.postCollections[user.postCollections.length - 1];
     return res.json({
@@ -557,12 +562,14 @@ exports.setPostCollectionMembership = async (req, res) => {
   const post = await Post.findById(req.params.postId).select('_id author status community').lean();
   if (!collection || !post || !(await canAccessPost(post, req.session.user.id))) return redirectBack(req, res, { ok: false });
   const add = req.body.add === 'true' || req.body.add === 'on';
+  const wasBookmarked = user.bookmarks.some((id) => String(id) === String(post._id));
   if (add) {
-    if (!user.bookmarks.some((id) => String(id) === req.params.postId)) user.bookmarks.addToSet(req.params.postId);
+    if (!wasBookmarked) user.bookmarks.addToSet(req.params.postId);
     collection.postIds.addToSet(req.params.postId);
   } else collection.postIds.pull(req.params.postId);
   collection.updatedAt = new Date();
   await user.save();
+  if (add && !wasBookmarked) await recordInterestInteraction(req.session.user.id, post._id, 'save');
   redirectBack(req, res, { ok: true });
 };
 
@@ -583,6 +590,7 @@ exports.votePoll = async (req, res) => {
   const alreadyVoted = post.poll.options.some((option) => option.votes.some((id) => String(id) === String(req.session.user.id)));
   if (!alreadyVoted) post.poll.options[optionIndex].votes.addToSet(req.session.user.id);
   await post.save();
+  if (!alreadyVoted) await recordInterestInteraction(req.session.user.id, post._id, 'pollVote');
   return redirectBack(req, res, { voted: !alreadyVoted });
 };
 
@@ -592,14 +600,18 @@ exports.toggleReaction = async (req, res) => {
   const post = await Post.findById(req.params.id);
   if (!(await canAccessPost(post, req.session.user.id)) || !reactionTypes.includes(reaction)) return redirectBack(req, res, { ok: false });
   const reactions = post.reactions?.toObject ? post.reactions.toObject() : { ...(post.reactions || {}) };
+  const previousReaction = reactionTypes.find((type) =>
+    (post.reactions?.[type] || []).some((id) => String(id) === String(req.session.user.id)));
   reactionTypes.forEach((type) => {
     const users = Array.isArray(reactions[type]) ? reactions[type].map(String) : [];
     reactions[type] = users.filter((id) => id !== String(req.session.user.id));
   });
   const hadReaction = (post.reactions?.[reaction] || []).some((id) => String(id) === String(req.session.user.id));
-  if (!hadReaction) { reactions[reaction].push(req.session.user.id); refreshPersonalization(req.session.user.id); }
+  if (!hadReaction) reactions[reaction].push(req.session.user.id);
   post.set('reactions', reactions);
   await post.save();
+  if (previousReaction) await removeInterestInteraction(req.session.user.id, post._id, 'reaction');
+  if (!hadReaction) await recordInterestInteraction(req.session.user.id, post._id, 'reaction');
   const counts = Object.fromEntries(reactionTypes.map((type) => [type, (reactions[type] || []).length]));
   return redirectBack(req, res, { reaction: hadReaction ? null : reaction, counts });
 };
@@ -792,6 +804,11 @@ exports.postDetail = async (req, res) => {
       User.updateOne({ _id: viewerId }, { $pull: { recentViews: { post: post._id } } }).catch(() => {}).finally(() => {
         User.updateOne({ _id: viewerId }, { $push: { recentViews: { $each: [{ post: post._id, viewedAt: new Date() }], $position: 0, $slice: 20 } } }).catch(() => {});
       });
+      if (countView) {
+        recordInterestInteraction(viewerId, post._id, 'open').catch((error) => {
+          logger.warn('Could not record feed interest open', error);
+        });
+      }
     }
   }
   const comments = (await Comment.find({ post: post._id }).sort({ createdAt: 1 }).populate('author', 'name profilePicture').populate({ path: 'quotedComment', select: 'body author', populate: { path: 'author', select: 'name profilePicture' } }).lean())

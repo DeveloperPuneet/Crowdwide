@@ -1,12 +1,28 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const r = require('../src/utils/feedRanker');
+const { relatedInterestsFor, adjacentInterestsFor } = require('../src/utils/onboardingInterests');
 
 const NOW = Date.parse('2026-09-20T12:00:00Z');
 const hoursAgo = (h) => new Date(NOW - h * 3600 * 1000);
 let seq = 0;
 const cand = (extra = {}) => ({ _id: `p${seq += 1}`, author: `a${seq}`, community: null, type: 'post', hashtags: [], createdAt: hoursAgo(2), counts: {}, bodyLength: 80, hasMedia: false, moderationStatus: 'unreviewed', moderationScore: 0, ...extra });
-const ctx = (extra = {}) => ({ userId: 'me', now: NOW, following: new Set(), joined: new Set(), extended: new Set(), interests: new Map(), authorAffinity: new Map(), authors: new Map(), communityMembers: new Map(), ...extra });
+const ctx = (extra = {}) => ({
+  userId: 'me',
+  now: NOW,
+  following: new Set(),
+  joined: new Set(),
+  extended: new Set(),
+  interests: new Map(),
+  relatedInterests: new Set(),
+  adjacentInterests: new Set(),
+  seenAuthors: new Set(),
+  exploredPosts: new Set(),
+  authorAffinity: new Map(),
+  authors: new Map(),
+  communityMembers: new Map(),
+  ...extra
+});
 
 test('discovery ratio is clamped to the 35-40% band', () => {
   assert.equal(r.resolveDiscoveryRatio(undefined), 0.375);
@@ -193,15 +209,16 @@ test('seen by many and liked by nobody is mildly demoted; liked posts never are'
   assert.equal(r.ignoredPenalty({ views: 10 }), 0);
 });
 
-test('For you reserves a slot in the discovery lane for topics outside the viewer\'s interests, without changing the 35-40% share', () => {
+test('For you reserves discovery slots for relevant topics and new creators without changing the 35-40% share', () => {
   const following = new Set(Array.from({ length: 40 }, (_, i) => `f${i}`));
   const interests = new Map([['music', 1]]);
   const candidates = [
     ...Array.from({ length: 40 }, (_, i) => cand({ author: `f${i}`, hashtags: ['music'] })),
     ...Array.from({ length: 24 }, (_, i) => cand({ author: `m${i}`, hashtags: ['music'], counts: { likes: 6 } })),
-    ...Array.from({ length: 24 }, (_, i) => cand({ author: `x${i}`, hashtags: ['gardening'], counts: { likes: 1 } }))
+    ...Array.from({ length: 24 }, (_, i) => cand({ author: `x${i}`, hashtags: ['gaming'], counts: { likes: 1 } }))
   ];
-  const feed = r.rankFeed(candidates, ctx({ following, interests }), 'for-you', { limit: 64 });
+  const personalization = { following, interests, adjacentInterests: new Set(['gaming']) };
+  const feed = r.rankFeed(candidates, ctx(personalization), 'for-you', { limit: 64 });
   for (let page = 0; page < 4; page += 1) {
     const slice = feed.slice(page * 16, page * 16 + 16);
     assert.equal(slice.filter((item) => item.lane === 'discovery').length, 6, `page ${page + 1} keeps 6 discovery posts`);
@@ -210,14 +227,45 @@ test('For you reserves a slot in the discovery lane for topics outside the viewe
   assert.ok(explored.length >= 3, 'exploration slots are used');
   explored.forEach((item) => {
     assert.equal(item.lane, 'discovery');
-    assert.equal(item.parts.interest, 0);
-    assert.equal(item.source, 'Something different');
+    assert.ok(['adjacent', 'creator'].includes(item.explorationType));
+    assert.ok(['Nearby interest', 'New creator'].includes(item.source));
+    assert.ok(item.post.hashtags.includes('music') || item.post.hashtags.includes('gaming'));
   });
-  // Cold-start accounts also get quality-checked discovery samples without changing the lane ratio.
+  // With no interests, unrelated posts are not used to fill exploration slots.
   const cold = r.rankFeed(candidates, ctx({ following }), 'for-you', { limit: 64 });
-  assert.ok(cold.filter((item) => item.explore).length >= 3);
-  assert.ok(cold.filter((item) => item.explore).every((item) => item.source === 'Fresh discovery'));
+  assert.equal(cold.filter((item) => item.explore).length, 0);
   for (let page = 0; page < 4; page += 1) {
     assert.equal(cold.slice(page * 16, page * 16 + 16).filter((item) => item.lane === 'discovery').length, 6);
   }
+});
+
+test('exploration distinguishes shared topics, adjacent topics and new creators, and skips served posts', () => {
+  const interests = new Map([['coding', 1]]);
+  const c = ctx({
+    interests,
+    relatedInterests: new Set(['technology']),
+    adjacentInterests: new Set(['science']),
+    seenAuthors: new Set(['known'])
+  });
+  assert.equal(r.explorationType(cand({ author: 'known', hashtags: ['technology'] }), c), 'related');
+  assert.equal(r.explorationType(cand({ author: 'known', hashtags: ['science'] }), c), 'adjacent');
+  assert.equal(r.explorationType(cand({ author: 'new', hashtags: ['coding'] }), c), 'creator');
+
+  const repeated = cand({ _id: 'already-served', author: 'new', hashtags: ['coding'] });
+  const feed = r.rankFeed(
+    [repeated, ...Array.from({ length: 8 }, () => cand({ hashtags: ['coding'] }))],
+    ctx({ ...c, exploredPosts: new Set(['already-served']) }),
+    'for-you',
+    { limit: 8 }
+  );
+  assert.ok(feed.filter((item) => item.explore).every((item) => item.post._id !== 'already-served'));
+});
+
+test('onboarding topics provide related and adjacent exploration topics', () => {
+  const related = relatedInterestsFor(['coding']);
+  const adjacent = adjacentInterestsFor(['coding']);
+  assert.ok(related.has('technology'));
+  assert.ok(related.has('web-development'));
+  assert.ok(related.has('open_source'));
+  assert.ok(adjacent.has('science'));
 });

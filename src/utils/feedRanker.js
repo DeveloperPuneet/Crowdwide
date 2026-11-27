@@ -132,7 +132,7 @@ function interestScore(tags = [], interests) {
 }
 
 // Turns weighted signals ([{ tags, weight }]) into a normalized interest map.
-function buildInterestMap(signals = []) {
+function buildInterestMap(signals = [], { normalizer = 0 } = {}) {
   const raw = new Map();
   signals.forEach(({ tags = [], weight = 1 }) => {
     tags.forEach((tag) => {
@@ -140,7 +140,9 @@ function buildInterestMap(signals = []) {
       if (key) raw.set(key, (raw.get(key) || 0) + weight);
     });
   });
-  const max = Math.max(0, ...raw.values());
+  // A fixed reference lets time-decayed signals lose absolute strength even
+  // when they are the only behavioral topic available.
+  const max = Math.max(normalizer, 0, ...raw.values());
   if (!max) return new Map();
   // sqrt softens the gap so a single hobby does not drown everything else.
   return new Map(Array.from(raw, ([tag, value]) => [tag, Math.sqrt(value / max)]));
@@ -304,28 +306,58 @@ function diversify(scored, { gap = 2, maxPerAuthor = 3, maxPerCommunity = Infini
   return out.concat(deferred);
 }
 
-// Serendipity: reorders a ranked discovery lane so one slot in every EXPLORE_EVERY is a good post on a topic
-// the viewer has shown no interest in yet (or any topic for a cold-start viewer). Candidates must clear the
-// quality bar and are picked by how well they convert attention into action, with a nudge for new voices and
-// fresh posts. Everything else keeps its ranked order, and the lane's size never changes.
-function injectExploration(lane, { every = EXPLORE_EVERY, source = 'Something different' } = {}) {
+function explorationType(post, ctx) {
+  const tags = (post.hashtags || []).map((tag) => String(tag || '').toLowerCase());
+  const matches = (topics) => tags.some((tag) => topics?.has(tag));
+  const relevant = interestScore(tags, ctx.interests) > 0;
+  const related = matches(ctx.relatedInterests);
+  const adjacent = matches(ctx.adjacentInterests);
+  const author = String(post.author);
+  const newCreator = !ctx.seenAuthors?.has(author) && !ctx.following?.has(author);
+
+  if (related) return 'related';
+  if (adjacent) return 'adjacent';
+  if (newCreator && relevant) return 'creator';
+  return null;
+}
+
+// Keep the existing exploration cadence, but only sample relevant topics or
+// relevant posts from creators the viewer has not opened or interacted with.
+function injectExploration(lane, { every = EXPLORE_EVERY, ctx = {} } = {}) {
   if (lane.length < every) return lane;
   const pool = lane
-    .filter((item) => item.parts.interest === 0 && passesQualityBar(item.post))
-    .map((item) => ({ item, pick: 0.5 * item.parts.res + 0.3 * item.parts.growth + 0.2 * item.parts.fresh }))
+    .map((item) => ({ item, type: explorationType(item.post, ctx) }))
+    .filter(({ item, type }) => type && passesQualityBar(item.post) && !ctx.exploredPosts?.has(String(item.post._id)))
+    .map(({ item, type }) => ({
+      item,
+      type,
+      pick: 0.4 * item.parts.res + 0.4 * item.parts.growth + 0.2 * item.parts.fresh
+        + ({ related: 0.15, creator: 0.1, adjacent: 0 }[type] || 0)
+    }))
     .sort((a, b) => b.pick - a.pick)
-    .map((entry) => entry.item);
+    .map((entry) => ({ ...entry.item, explorationType: entry.type }));
   const slots = Math.min(pool.length, Math.floor(lane.length / every));
   if (!slots) return lane;
   const chosen = new Set(pool.slice(0, slots));
   const rest = lane.filter((item) => !chosen.has(item));
   const out = [];
   const picks = Array.from(chosen);
+  const sourceFor = {
+    related: 'Related topic',
+    adjacent: 'Nearby interest',
+    creator: 'New creator'
+  };
   while (rest.length || picks.length) {
     // positions every-1, 2*every-1, ... (so a page always starts with a relevant post)
-    if (picks.length && out.length % every === every - 1) out.push({ ...picks.shift(), source, explore: true });
+    if (picks.length && out.length % every === every - 1) {
+      const item = picks.shift();
+      out.push({ ...item, source: sourceFor[item.explorationType], explore: true });
+    }
     else if (rest.length) out.push(rest.shift());
-    else out.push({ ...picks.shift(), source, explore: true });
+    else {
+      const item = picks.shift();
+      out.push({ ...item, source: sourceFor[item.explorationType], explore: true });
+    }
   }
   return out;
 }
@@ -386,6 +418,10 @@ function rankFeed(candidates, ctx, view = 'for-you', { limit = 96 } = {}) {
     interests: new Map(),
     authorAffinity: new Map(),
     seen: new Set(),
+    seenAuthors: new Set(),
+    exploredPosts: new Set(),
+    relatedInterests: new Set(),
+    adjacentInterests: new Set(),
     authors: new Map(),
     communityMembers: new Map(),
     ...ctx
@@ -423,11 +459,10 @@ function rankFeed(candidates, ctx, view = 'for-you', { limit = 96 } = {}) {
   // the small, growing ones this lane exists to surface.
   let discoveryLane = diversify(scored.filter((item) => item.lane === 'discovery'), { maxPerCommunity: 3 });
   // Only the personalised tab explores: New and Viral are visible sort orders, and My community is about
-  // communities the viewer chose. Cold-start viewers get a quality-checked sample before interest signals exist.
+  // communities the viewer chose. Without a known topic or new relevant creator, there is no exploration pick.
   if (view === 'for-you') {
-    discoveryLane = injectExploration(discoveryLane, {
-      source: full.interests.size > 0 ? 'Something different' : 'Fresh discovery'
-    });
+    const every = Number.isInteger(full.exploreEvery) && full.exploreEvery > 0 ? full.exploreEvery : EXPLORE_EVERY;
+    discoveryLane = injectExploration(discoveryLane, { ctx: full, every });
   }
   const mixed = mixLanes(networkLane, discoveryLane, { ratio, limit, strict: config.mixing === 'strict' });
   return config.mixing === 'floor' ? sortWithinPages(mixed) : mixed;
@@ -456,6 +491,7 @@ module.exports = {
   exposureRoom,
   ignoredPenalty,
   injectExploration,
+  explorationType,
   EXPLORE_EVERY,
   sortWithinPages,
   freshness,

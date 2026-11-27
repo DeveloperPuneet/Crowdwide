@@ -157,6 +157,21 @@ const userSchema = new mongoose.Schema({
     post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
     viewedAt: { type: Date, default: Date.now }
   }],
+  // Bounded positive feedback used to personalize the feed. Unlike likes,
+  // bookmarks and reactions, these entries retain when the interaction happened.
+  interestInteractions: [{
+    post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
+    type: { type: String, enum: ['like', 'reaction', 'comment', 'save', 'open', 'pollVote'], required: true },
+    occurredAt: { type: Date, default: Date.now },
+    explorationType: { type: String, enum: ['related', 'adjacent', 'creator'] }
+  }],
+  // Feed-served exploration posts are remembered separately from opens so a
+  // refresh cannot keep selecting the same exploration item.
+  explorationHistory: [{
+    post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
+    type: { type: String, enum: ['related', 'adjacent', 'creator'], required: true },
+    servedAt: { type: Date, default: Date.now }
+  }],
   warnings: [{
     reason: { type: String, trim: true, maxlength: 500 },
     issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
