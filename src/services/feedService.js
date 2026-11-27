@@ -518,8 +518,9 @@ async function removeInterestInteraction(userId, postId, type) {
   refreshPersonalization(userId);
 }
 
-async function recordExplorationImpressions(userId, entries) {
-  const impressions = entries.filter((entry) => entry.explorationType).map((entry) => ({
+async function recordExplorationImpressions(userId, entries, history = []) {
+  const alreadyServed = new Set(history.map((entry) => String(entry.post)));
+  const impressions = entries.filter((entry) => entry.explorationType && !alreadyServed.has(entry.id)).map((entry) => ({
     post: entry.id,
     type: entry.explorationType,
     servedAt: new Date()
@@ -605,7 +606,7 @@ async function getFeedPage({ userId, view = 'for-you', page = 1, now = Date.now(
   const slice = organicSlice;
   const pending = tab === 'for-you' && pageNumber === 1 ? await loadOwnPending(user) : [];
   try {
-    await recordExplorationImpressions(userId, slice);
+    await recordExplorationImpressions(userId, slice, user.explorationHistory || []);
   } catch (error) {
     logger.warn('Could not record feed exploration impressions', error);
   }
